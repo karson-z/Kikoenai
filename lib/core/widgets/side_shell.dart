@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:name_app/core/theme/theme_view_model.dart';
+import 'package:name_app/features/album/presentation/page/album_page.dart';
 import 'package:provider/provider.dart';
 import 'package:name_app/core/widgets/adaptive_app_bar.dart';
 import 'package:name_app/features/home/presentation/pages/home_page.dart';
 import 'package:name_app/features/user/presentation/pages/user_page.dart';
 import 'package:name_app/features/auth/presentation/pages/auth_page.dart';
 import 'package:name_app/features/settings/presentation/pages/settings_overview_page.dart';
-import 'package:name_app/features/settings/presentation/pages/settings_page.dart';
 
 /// A reusable sidebar layout that shows a NavigationRail on the left
 /// and renders the provided [child] on the right.
@@ -29,13 +29,12 @@ class _SideShellState extends State<SideShell> {
       HomePage(onNavigate: (i) => setState(() => _selectedIndex = i)),
       const UserPage(),
       const AuthPage(),
-      // Settings overview: clicking items switches to theme page within shell
-      SettingsOverviewPage(
-          onOpenTheme: () => setState(() => _selectedIndex = 4)),
-      const SettingsPage(),
+      // Settings overview: 主题设置在设置页面内部
+      SettingsOverviewPage(),
+      const AlbumPage(),
     ];
 
-    final titles = <String>['首页', '用户', '认证', '设置', '主题'];
+    final titles = <String>['首页', '用户', '认证', '设置', '专辑'];
     final viewportHeight = MediaQuery.of(context).size.height;
     final headerHeight = viewportHeight * 0.08; // 10% of viewport
 
@@ -44,9 +43,7 @@ class _SideShellState extends State<SideShell> {
         children: [
           // Sidebar stays full-height; header will not sit above it
           NavigationRail(
-            selectedIndex: _selectedIndex == 4
-                ? 3
-                : _selectedIndex, // pin rail to Settings when on Theme
+            selectedIndex: _selectedIndex,
             onDestinationSelected: (index) =>
                 setState(() => _selectedIndex = index),
             labelType: NavigationRailLabelType.all,
@@ -71,6 +68,11 @@ class _SideShellState extends State<SideShell> {
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings),
                 label: Text('设置'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.music_note_outlined),
+                selectedIcon: Icon(Icons.music_note),
+                label: Text('专辑'),
               ),
             ],
             trailing: Padding(

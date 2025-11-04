@@ -4,8 +4,6 @@ import 'package:name_app/core/domain/result.dart';
 import '../constants/app_constants.dart';
 import '../utils/logger.dart';
 
-typedef JsonMap = Map<String, dynamic>;
-
 class ApiClient {
   final Dio _dio;
 

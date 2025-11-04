@@ -27,7 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _hexInitDone = false;
   String? _hexError;
 
-  String _toHex(Color c) => '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+  String _toHex(Color c) => '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
   Color? _parseHex(String input) {
     var s = input.trim();
@@ -50,18 +50,30 @@ class _SettingsPageState extends State<SettingsPage> {
       _hexInitDone = true;
     }
 
-    return ListView(
+    return Material(
+        child: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('主题设置', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('主题设置',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
-        const Text('主题模式', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('主题模式',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         SegmentedButton<ThemeMode>(
           segments: const <ButtonSegment<ThemeMode>>[
-            ButtonSegment<ThemeMode>(value: ThemeMode.system, label: Text('系统'), icon: Icon(Icons.settings_suggest)),
-            ButtonSegment<ThemeMode>(value: ThemeMode.light, label: Text('浅色'), icon: Icon(Icons.light_mode)),
-            ButtonSegment<ThemeMode>(value: ThemeMode.dark, label: Text('深色'), icon: Icon(Icons.dark_mode)),
+            ButtonSegment<ThemeMode>(
+                value: ThemeMode.system,
+                label: Text('系统'),
+                icon: Icon(Icons.settings_suggest)),
+            ButtonSegment<ThemeMode>(
+                value: ThemeMode.light,
+                label: Text('浅色'),
+                icon: Icon(Icons.light_mode)),
+            ButtonSegment<ThemeMode>(
+                value: ThemeMode.dark,
+                label: Text('深色'),
+                icon: Icon(Icons.dark_mode)),
           ],
           selected: {themeVM.themeMode},
           onSelectionChanged: (selection) {
@@ -71,13 +83,14 @@ class _SettingsPageState extends State<SettingsPage> {
           },
         ),
         const SizedBox(height: 16),
-        const Text('主题色', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('主题色',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: _colors.map((c) {
-            final selected = themeVM.seedColor.value == c.value;
+            final selected = themeVM.seedColor.toARGB32() == c.toARGB32();
             return GestureDetector(
               onTap: () => themeVM.setSeedColor(c),
               child: Container(
@@ -87,7 +100,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   color: c,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
                     width: selected ? 3 : 1,
                   ),
                 ),
@@ -157,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 16),
         const TypographySpecimen(),
       ],
-    );
+    ));
   }
 }
 
@@ -175,7 +190,8 @@ class TypographySpecimen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('字体样版', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('字体样版',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             _spec('Display Large', tt.displayLarge),
             _spec('Display Medium', tt.displayMedium),
@@ -242,26 +258,40 @@ class _PreviewPanelState extends State<_PreviewPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('主题预览', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('主题预览',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             NavigationBar(
               selectedIndex: navIndex,
               onDestinationSelected: (i) => setState(() => navIndex = i),
               destinations: const [
-                NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: '首页'),
-                NavigationDestination(icon: Icon(Icons.search_outlined), selectedIcon: Icon(Icons.search), label: '搜索'),
-                NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我的'),
+                NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: '首页'),
+                NavigationDestination(
+                    icon: Icon(Icons.search_outlined),
+                    selectedIcon: Icon(Icons.search),
+                    label: '搜索'),
+                NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: '我的'),
               ],
             ),
             const SizedBox(height: 12),
             SegmentedButton<int>(
               segments: const <ButtonSegment<int>>[
-                ButtonSegment<int>(value: 0, label: Text('A'), icon: Icon(Icons.looks_one)),
-                ButtonSegment<int>(value: 1, label: Text('B'), icon: Icon(Icons.looks_two)),
-                ButtonSegment<int>(value: 2, label: Text('C'), icon: Icon(Icons.looks_3)),
+                ButtonSegment<int>(
+                    value: 0, label: Text('A'), icon: Icon(Icons.looks_one)),
+                ButtonSegment<int>(
+                    value: 1, label: Text('B'), icon: Icon(Icons.looks_two)),
+                ButtonSegment<int>(
+                    value: 2, label: Text('C'), icon: Icon(Icons.looks_3)),
               ],
               selected: segmentSelection,
-              onSelectionChanged: (sel) => setState(() => segmentSelection = sel),
+              onSelectionChanged: (sel) =>
+                  setState(() => segmentSelection = sel),
               multiSelectionEnabled: false,
               showSelectedIcon: true,
             ),
@@ -286,9 +316,13 @@ class _PreviewPanelState extends State<_PreviewPanel> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Switch(value: switchOn, onChanged: (v) => setState(() => switchOn = v)),
+                Switch(
+                    value: switchOn,
+                    onChanged: (v) => setState(() => switchOn = v)),
                 Expanded(
-                  child: Slider(value: sliderValue, onChanged: (v) => setState(() => sliderValue = v)),
+                  child: Slider(
+                      value: sliderValue,
+                      onChanged: (v) => setState(() => sliderValue = v)),
                 ),
               ],
             ),

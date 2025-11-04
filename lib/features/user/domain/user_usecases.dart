@@ -6,5 +6,6 @@ class GetUsersUseCase {
   final UserRepository repository;
   GetUsersUseCase(this.repository);
 
-  Future<Result<List<UserModel>>> call({int? start, int? limit}) => repository.getUsers(start: start, limit: limit);
+  Future<Result<List<UserModel>>> call({int? start, int? limit}) =>
+      repository.getUsers(start: start, limit: limit);
 }
