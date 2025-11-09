@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:name_app/core/network/api_client.dart';
+import 'package:name_app/core/utils/network/api_client.dart';
 import 'package:name_app/features/tag/data/service/tag_repository.dart';
 
 void main() {

@@ -40,7 +40,7 @@ class UnknownFailure extends Failure {
 }
 
 /// 统一异常映射：将底层错误转换成领域错误类型
-Failure mapException(Object error) {
+Failure mapException(dynamic error) {
   if (error is DioException) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:

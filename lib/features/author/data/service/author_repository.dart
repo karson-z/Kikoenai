@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:name_app/core/domain/result.dart';
-import 'package:name_app/core/domain/errors.dart';
+import 'package:name_app/core/common/result.dart';
+import 'package:name_app/core/common/errors.dart';
 import 'package:name_app/features/author/data/model/author.dart';
-import '../../../../core/network/api_client.dart';
+import '../../../../core/utils/network/api_client.dart';
 
 abstract class AuthorRepository {
   Future<Result<List<Author>>> getAuthor();

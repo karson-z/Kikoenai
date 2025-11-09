@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:name_app/core/network/api_client.dart';
+import 'package:name_app/core/utils/network/api_client.dart';
 import 'package:name_app/features/author/data/service/author_repository.dart';
 
 void main() {
@@ -8,9 +8,7 @@ void main() {
     late ApiClient apiClient;
 
     setUp(() {
-      apiClient = ApiClient.create(
-        tokenProvider: () async => '39677bf7-c426-474f-9b59-8063f424048a',
-      );
+      apiClient = ApiClient.create();
 
       repository = AuthorRepositoryImpl(apiClient);
     });

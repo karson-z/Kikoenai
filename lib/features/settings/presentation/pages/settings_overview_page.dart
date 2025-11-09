@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/theme_view_model.dart';
@@ -16,7 +17,8 @@ class SettingsOverviewPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('配置列表', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('配置列表',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Card(
           child: ListTile(
@@ -24,7 +26,7 @@ class SettingsOverviewPage extends StatelessWidget {
             title: const Text('主题'),
             subtitle: const Text('主题模式与主题色设置'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: onOpenTheme ?? () => Navigator.pushNamed(context, AppRoutes.settingsTheme),
+            onTap: onOpenTheme ?? () => context.push(AppRoutes.settingsTheme),
           ),
         ),
       ],

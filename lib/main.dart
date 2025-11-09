@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:name_app/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'core/di/init_di.dart';
-
-import 'core/utils/window_init_stub.dart'
-    if (dart.library.io) 'core/utils/window_init_desktop.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

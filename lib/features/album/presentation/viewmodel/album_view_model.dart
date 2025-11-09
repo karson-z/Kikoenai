@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
-import 'package:name_app/core/domain/errors.dart';
+import 'package:name_app/core/common/errors.dart';
 import 'package:name_app/features/album/data/model/album_res.dart';
 import 'package:name_app/features/album/data/service/album_repository.dart';
 

@@ -23,17 +23,16 @@ class ThemeViewModel extends ChangeNotifier {
     final modeStr = prefs.getString(_keyMode);
     final seed = prefs.getInt(_keySeed);
     final recent = prefs.getStringList(_keyRecent) ?? const [];
-    if (modeStr != null) {
-      _mode = _parseMode(modeStr);
-    }
-    if (seed != null) {
-      _seedColor = Color(seed);
-    }
+
+    if (modeStr != null) _mode = _parseMode(modeStr);
+    if (seed != null) _seedColor = Color(seed);
+
     _recentSeeds = recent
         .map((s) => int.tryParse(s))
         .whereType<int>()
         .map((v) => Color(v))
         .toList(growable: false);
+
     notifyListeners();
   }
 
@@ -43,7 +42,7 @@ class ThemeViewModel extends ChangeNotifier {
     await prefs.setInt(_keySeed, _seedColor.value);
     await prefs.setStringList(
       _keyRecent,
-      _recentSeeds.map((c) => c.value.toString()).toList(),
+      _recentSeeds.map((c) => c.toARGB32().toString()).toList(),
     );
   }
 
@@ -54,11 +53,7 @@ class ThemeViewModel extends ChangeNotifier {
   }
 
   void toggleLightDark() {
-    if (_mode == ThemeMode.dark) {
-      _mode = ThemeMode.light;
-    } else {
-      _mode = ThemeMode.dark;
-    }
+    _mode = _mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     _persist();
     notifyListeners();
   }
@@ -69,24 +64,19 @@ class ThemeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSeedColor(Color color) {
+  void setSeedColor(Color color, {bool preview = false}) {
     _seedColor = color;
-    _updateRecentSeeds(color);
+    if (!preview) _updateRecentSeeds(color);
     _persist();
     notifyListeners();
   }
 
   void _updateRecentSeeds(Color color) {
     final list = List<Color>.from(_recentSeeds);
-    // Remove duplicates
-    list.removeWhere((c) => c.value == color.value);
-    // Insert at front
+    list.removeWhere((c) => c.toARGB32() == color.toARGB32());
     list.insert(0, color);
-    // Cap length
     const maxLen = 8;
-    if (list.length > maxLen) {
-      list.removeRange(maxLen, list.length);
-    }
+    if (list.length > maxLen) list.removeRange(maxLen, list.length);
     _recentSeeds = list;
   }
 
@@ -96,7 +86,6 @@ class ThemeViewModel extends ChangeNotifier {
         return ThemeMode.light;
       case 'dark':
         return ThemeMode.dark;
-      case 'system':
       default:
         return ThemeMode.system;
     }

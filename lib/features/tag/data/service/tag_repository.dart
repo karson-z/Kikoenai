@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:name_app/core/domain/page_result.dart';
-import 'package:name_app/core/domain/result.dart';
-import 'package:name_app/core/domain/errors.dart';
-import '../../../../core/network/api_client.dart';
+import 'package:name_app/core/common/page_result.dart';
+import 'package:name_app/core/common/result.dart';
+import 'package:name_app/core/common/errors.dart';
+import '../../../../core/utils/network/api_client.dart';
 import 'package:name_app/features/tag/data/model/tag.dart'; // 使用包路径导入
 
 abstract class TagRepository {

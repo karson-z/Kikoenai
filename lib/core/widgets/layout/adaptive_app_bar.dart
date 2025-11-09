@@ -12,7 +12,7 @@ class AdaptiveAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     this.title,
     this.actions,
-    this.automaticallyImplyLeading = true,
+    this.automaticallyImplyLeading = false,
     this.height,
   });
 

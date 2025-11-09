@@ -1,4 +1,4 @@
-import 'errors.dart';
+import 'package:name_app/core/common/errors.dart';
 
 class Result<T> {
   final T? data; // 成功时返回的数据
@@ -10,17 +10,27 @@ class Result<T> {
 
   bool get isSuccess => error == null;
 
+  /// 创建成功结果，可选择传入 code 与 message
   static Result<T> success<T>({
-    required T data,
-    int code = 200,
-    String message = 'Success',
+    T? data,
+    int? code,
+    String? message,
   }) =>
-      Result._(data: data, code: code, message: message);
+      Result._(
+        data: data,
+        code: code,
+        message: message,
+      );
 
+  /// 创建失败结果，可选择传入 code 与 message
   static Result<T> failure<T>({
     required Failure error,
-    int code = -1,
-    String message = 'Unknown error',
+    int? code,
+    String? message,
   }) =>
-      Result._(error: error, code: code, message: message);
+      Result._(
+        error: error,
+        code: code,
+        message: message,
+      );
 }

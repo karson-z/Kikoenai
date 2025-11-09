@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:name_app/core/network/api_client.dart';
+import 'package:name_app/core/utils/network/api_client.dart';
 import 'package:name_app/features/album/data/service/album_repository.dart';
 
 void main() {
@@ -8,9 +8,8 @@ void main() {
     late ApiClient apiClient;
 
     setUp(() {
-      apiClient = ApiClient.create(
-        tokenProvider: () async => '39677bf7-c426-474f-9b59-8063f424048a',
-      );
+      // 使用ApiClient单例
+      apiClient = ApiClient.create();
 
       repository = AlbumRepositoryImpl(apiClient);
     });

@@ -4,7 +4,11 @@ import '../constants/app_constants.dart';
 
 class AppTheme {
   static ThemeData light(Color seed) => ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seed,
+          brightness: Brightness.light,
+          primary: seed,
+        ),
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
         textTheme: GoogleFonts.notoSansScTextTheme(),
@@ -32,14 +36,25 @@ class AppTheme {
             ),
           ),
         ),
+        // ✅ 全局 NavigationRail 样式
+        navigationRailTheme: NavigationRailThemeData(
+          indicatorColor: Colors.transparent, // 去掉选中背景
+          selectedIconTheme: IconThemeData(color: seed), // 选中 Icon 颜色
+          unselectedIconTheme:
+              const IconThemeData(color: Colors.black54), // 未选中颜色
+          labelType: NavigationRailLabelType.all,
+        ),
       );
 
   static ThemeData dark(Color seed) => ThemeData(
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seed,
+          brightness: Brightness.dark,
+          primary: seed,
+        ),
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFF121212),
-        textTheme: GoogleFonts.notoSansScTextTheme(),
+        textTheme: GoogleFonts.notoSansScTextTheme(ThemeData.dark().textTheme),
         appBarTheme: const AppBarTheme(
           elevation: 0,
           centerTitle: true,
@@ -63,6 +78,12 @@ class AppTheme {
               borderRadius: BorderRadius.circular(AppConstants.kRadius),
             ),
           ),
+        ),
+        navigationRailTheme: NavigationRailThemeData(
+          indicatorColor: Colors.transparent,
+          selectedIconTheme: IconThemeData(color: seed),
+          unselectedIconTheme: const IconThemeData(color: Colors.white54),
+          labelType: NavigationRailLabelType.all,
         ),
       );
 }

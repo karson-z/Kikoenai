@@ -1,0 +1,22 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'login_params.g.dart';
+
+/// 登录参数模型
+/// 对应TypeScript接口：
+/// interface LoginParams { 
+///   account: string 
+///   pwd: string 
+/// }
+@JsonSerializable()
+class LoginParams {
+  final String account;
+  final String pwd;
+
+  LoginParams({required this.account, required this.pwd});
+
+  factory LoginParams.fromJson(Map<String, dynamic> json) =>
+      _$LoginParamsFromJson(json);
+
+  Map<String, dynamic> toJson() => _$LoginParamsToJson(this);
+}
