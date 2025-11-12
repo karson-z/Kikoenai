@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:name_app/core/common/errors.dart';
 import 'package:name_app/core/common/result.dart';
-import 'package:name_app/core/widgets/login_dialog_manager.dart';
+import 'package:name_app/core/widgets/common/login_dialog_manager.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/app_constants.dart';

@@ -10,7 +10,7 @@ class AppConstants {
   // Layout
   static const double kPadding = 16.0;
   static const double kRadius = 12.0;
-
+  static const double kAppBarHeight = 64.0;
   // Network - 使用平台特定的基础URL
   static String get apiBaseUrl => '${EnvironmentConfig.baseUrl}/api';
 }

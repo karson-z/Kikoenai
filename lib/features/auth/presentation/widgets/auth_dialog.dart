@@ -3,7 +3,7 @@ import 'package:name_app/features/auth/data/model/login_params.dart';
 import 'package:name_app/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:provider/provider.dart';
 import '../view_models/auth_view_model.dart';
-import 'package:name_app/core/widgets/error_banner.dart';
+import 'package:name_app/core/widgets/common/error_banner.dart';
 import 'package:name_app/core/widgets/message.dart';
 
 class AuthDialog extends StatefulWidget {

@@ -10,7 +10,7 @@ import 'package:name_app/core/routes/app_routes.dart';
 import 'package:name_app/features/auth/presentation/view_models/auth_view_model.dart';
 import 'package:name_app/features/auth/presentation/widgets/auth_dialog.dart';
 import 'package:name_app/features/auth/presentation/widgets/auth_login_center.dart';
-import '../utils/log/logger.dart';
+import '../../utils/log/logger.dart';
 
 class _PendingRequest {
   final RequestOptions request;

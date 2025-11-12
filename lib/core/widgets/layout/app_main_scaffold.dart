@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:name_app/config/work_layout_config.dart';
+import 'package:name_app/config/work_layout_strategy.dart';
 import 'package:name_app/core/common/navigation_item.dart';
+import 'package:name_app/core/constants/app_constants.dart';
 import 'package:name_app/core/theme/theme_view_model.dart';
+import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
+import 'package:name_app/core/widgets/layout/navigation_rail.dart';
 import 'package:provider/provider.dart';
 import 'package:name_app/core/widgets/layout/adaptive_app_bar.dart';
 
@@ -31,8 +36,7 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeVM = context.watch<ThemeViewModel>();
-    final isDark = themeVM.themeMode == ThemeMode.dark;
+    final deviceType = WorkLayoutStrategy().getDeviceType(context);
     final int selectedIndex = _calculateSelectedIndex(context);
     final String title = appNavigationItems[selectedIndex].label;
 
@@ -40,20 +44,11 @@ class MainScaffold extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // 定义断点
-        const double mobileBreakpoint = 600;
-        final bool isMobile = constraints.maxWidth < mobileBreakpoint;
 
-        if (isMobile) {
+        if (deviceType == DeviceType.mobile) {
           // --- 移动端布局 (BottomNavigationBar) ---
           return Scaffold(
-            appBar: AdaptiveAppBar(
-              title: Text(title),
-              height: kToolbarHeight,
-              actions: [
-                _buildThemeToggleButton(themeVM, isDark),
-              ],
-            ),
-            body: child, // 内容区
+            body: child ?? Container(),
             bottomNavigationBar: _buildBottomNav(context, selectedIndex),
           );
         } else {
@@ -61,7 +56,10 @@ class MainScaffold extends StatelessWidget {
           return Scaffold(
             body: Row(
               children: [
-                _buildNavigationRail(context, selectedIndex, themeVM, isDark),
+                AdaptiveNavigationRail(
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (index) => _navigateTo(context, index),
+                ),
                 Expanded(
                   child: Column(
                     children: [
@@ -84,15 +82,6 @@ class MainScaffold extends StatelessWidget {
     );
   }
 
-  // 辅助方法：构建暗黑模式切换按钮
-  Widget _buildThemeToggleButton(ThemeViewModel themeVM, bool isDark) {
-    return IconButton(
-      tooltip: isDark ? '切换为浅色' : '切换为深色',
-      icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-      onPressed: () => themeVM.toggleLightDark(),
-    );
-  }
-
   // 辅助方法：构建 BottomNavigationBar
   Widget _buildBottomNav(BuildContext context, int selectedIndex) {
     return BottomNavigationBar(
@@ -109,43 +98,6 @@ class MainScaffold extends StatelessWidget {
       type: BottomNavigationBarType.fixed, // 保证所有标签都显示
       selectedItemColor: Theme.of(context).colorScheme.primary,
       unselectedItemColor: Colors.grey,
-    );
-  }
-
-  // 辅助方法：构建 NavigationRail
-  Widget _buildNavigationRail(
-    BuildContext context,
-    int selectedIndex,
-    ThemeViewModel themeVM,
-    bool isDark,
-  ) {
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (index) => _navigateTo(context, index),
-      labelType: NavigationRailLabelType.selected,
-      leading: const Padding(padding: EdgeInsets.only(top: 30.0)),
-      // 动态生成导航项
-      destinations: appNavigationItems.map((item) {
-        return NavigationRailDestination(
-          icon: item.icon,
-          label: Text(item.label),
-        );
-      }).toList(),
-      trailing: Expanded(
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(),
-                _buildThemeToggleButton(themeVM, isDark),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -5,7 +5,7 @@ import 'package:name_app/core/constants/app_constants.dart';
 import 'package:name_app/core/common/app_transition_page.dart';
 import 'package:name_app/core/routes/app_auth_config.dart';
 import 'package:name_app/core/widgets/layout/app_main_scaffold.dart';
-import 'package:name_app/core/widgets/login_dialog_manager.dart';
+import 'package:name_app/core/widgets/common/login_dialog_manager.dart';
 import 'package:name_app/features/auth/presentation/view_models/auth_view_model.dart';
 import 'package:name_app/core/routes/app_routes.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -43,14 +43,13 @@ String? _redirectGuard(BuildContext context, GoRouterState state) {
   // 4. 已登录且需要认证，放行
   return null;
 }
-// -----------------------------
 
+// -----------------------------
 final GoRouter router = GoRouter(
   refreshListenable: authViewModel,
   navigatorKey: AppConstants.rootNavigatorKey,
   // 顶级守卫
   redirect: _redirectGuard,
-
   routes: <RouteBase>[
     // Shell路由 (共享 MainScaffold)
     ShellRoute(

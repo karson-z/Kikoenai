@@ -1,6 +1,11 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:name_app/config/work_layout_config.dart';
+import 'package:name_app/config/work_layout_strategy.dart';
+import 'package:name_app/core/widgets/common/global_search_input.dart';
+import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
+import 'package:name_app/core/widgets/common/win_control_button.dart';
 
 PreferredSizeWidget buildAdaptiveAppBar(
   BuildContext context, {
@@ -9,30 +14,50 @@ PreferredSizeWidget buildAdaptiveAppBar(
   bool automaticallyImplyLeading = true,
   double? height = kToolbarHeight,
 }) {
+  final theme = Theme.of(context);
+  final deviceType = WorkLayoutStrategy().getDeviceType(context);
+
+  // ✅ Web 或非 Windows 平台
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
-    return AppBar(
-      title: title,
-      actions: actions,
-      automaticallyImplyLeading: automaticallyImplyLeading,
-      toolbarHeight: height,
+    return PreferredSize(
+      preferredSize: Size.fromHeight(height ?? kToolbarHeight),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        automaticallyImplyLeading: automaticallyImplyLeading,
+        toolbarHeight: height,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              // 左侧可放 title 或其他控件
+              if (deviceType == DeviceType.mobile) const ThemeToggleButton(),
+              const Spacer(),
+              // 右侧固定宽度搜索框
+              SizedBox(
+                width: 250,
+                child: const GlobalSearchInput(
+                  hintText: '搜索作品、作者或标签…',
+                ),
+              ),
+              if (actions != null) ...actions,
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  final theme = Theme.of(context);
-  final bg = theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor;
-  final fg = theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface;
-
+  // ✅ Windows 平台
   return PreferredSize(
     preferredSize: Size.fromHeight(height ?? kToolbarHeight),
     child: Container(
-      height: height ?? kToolbarHeight, // ✅ 显式指定可见高度
-      decoration: BoxDecoration(
-        color: bg,
-      ),
+      height: height ?? kToolbarHeight,
+      color: theme.appBarTheme.backgroundColor ?? Colors.transparent,
       child: Row(
         children: [
           Expanded(
-            // ✅ 用 MoveWindow 扩大可拖拽范围，而非限制在 WindowTitleBarBox 内
             child: MoveWindow(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -42,47 +67,30 @@ PreferredSizeWidget buildAdaptiveAppBar(
                     if (title != null)
                       DefaultTextStyle(
                         style: TextStyle(
-                          color: fg,
+                          color: theme.appBarTheme.foregroundColor ??
+                              theme.colorScheme.onSurface,
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
                         ),
                         child: title,
                       ),
+                    const Spacer(),
+                    // 右侧固定宽度搜索框
+                    SizedBox(
+                      width: 250,
+                      child: const GlobalSearchInput(
+                        hintText: '搜索作品、作者或标签…',
+                      ),
+                    ),
                     if (actions != null) ...actions,
                   ],
                 ),
               ),
             ),
           ),
-          // 窗口按钮区
-          _windowButtons(),
+          const WindowControlButtons(),
         ],
       ),
     ),
-  );
-}
-
-Widget _windowButtons() {
-  return Row(
-    children: [
-      IconButton(
-        tooltip: '最小化',
-        icon: const Icon(Icons.remove, size: 16),
-        onPressed: () => appWindow.minimize(),
-      ),
-      IconButton(
-        tooltip: appWindow.isMaximized ? '还原' : '最大化',
-        icon: Icon(
-          appWindow.isMaximized ? Icons.filter_none : Icons.crop_square,
-          size: 16,
-        ),
-        onPressed: () => appWindow.maximizeOrRestore(),
-      ),
-      IconButton(
-        tooltip: '关闭',
-        icon: const Icon(Icons.close, size: 16),
-        onPressed: () => appWindow.close(),
-      ),
-    ],
   );
 }

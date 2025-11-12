@@ -53,10 +53,9 @@ class _SettingsPageState extends State<SettingsPage> {
         List<bool>.generate(_themeModes.length, (i) => i == selectedModeIndex);
 
     return Scaffold(
-      appBar: AdaptiveAppBar(
+      appBar: AppBar(
         title: const Text('设置'),
         automaticallyImplyLeading: true,
-        height: viewportHeight * 0.08,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

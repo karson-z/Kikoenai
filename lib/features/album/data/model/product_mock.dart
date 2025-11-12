@@ -14,6 +14,15 @@ class Product {
     required this.authors,
     required this.tags,
   });
+
+  static Product empty() => Product(
+        id: '',
+        title: '',
+        circle: '',
+        imageUrl: '',
+        authors: [],
+        tags: [],
+      );
 }
 
 final List<Product> mockProducts = List.generate(
