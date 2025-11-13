@@ -4,7 +4,6 @@ import 'package:name_app/config/work_layout_strategy.dart';
 import 'package:name_app/core/widgets/layout/adaptive_app_bar_mobile.dart';
 import 'package:name_app/features/album/data/model/product_mock.dart';
 import 'package:name_app/features/album/presentation/widget/work_grid_layout.dart';
-import 'package:name_app/features/album/presentation/widget/work_tab_bar.dart';
 
 class AlbumPage extends StatefulWidget {
   const AlbumPage({Key? key}) : super(key: key);
@@ -23,7 +22,6 @@ class _AlbumPageState extends State<AlbumPage> {
   @override
   void initState() {
     super.initState();
-    _loadData();
   }
 
   @override
@@ -71,19 +69,15 @@ class _AlbumPageState extends State<AlbumPage> {
               ValueListenableBuilder<double>(
                 valueListenable: collapsePercentNotifier,
                 builder: (_, collapsePercent, __) {
-                  return MobileSearchAppBar(collapsePercent: collapsePercent);
+                  return MobileSearchAppBar(
+                    collapsePercent: collapsePercent,
+                    collapsePercentNotifier: collapsePercentNotifier,
+                    filters: _filters,
+                    selectedFilter: _selectedFilter,
+                    onFilterChanged: _onFilterChanged,
+                  );
                 },
               ),
-            // TabBar
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: TabBarDelegateWrapper(
-                collapsePercentNotifier: collapsePercentNotifier,
-                selectedFilter: _selectedFilter,
-                filters: _filters,
-                onFilterChanged: _onFilterChanged,
-              ),
-            ),
             // 内容区
             ResponsiveCardGrid(
               products: _loading

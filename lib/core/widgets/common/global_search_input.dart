@@ -47,7 +47,7 @@ class GlobalSearchInput extends StatelessWidget {
             prefixIcon: Icon(Icons.search, color: iconColor),
             filled: false, // 内部不再填充白色
             border: InputBorder.none, // 去掉 TextField 自带边框
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
           ),
         ),
       ),

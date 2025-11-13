@@ -36,8 +36,8 @@ String? _redirectGuard(BuildContext context, GoRouterState state) {
     // 取消登录则跳转回首页。
     LoginDialogManager().showLoginDialog();
 
-    // 返回 null，表示不进行阻塞式重定向
-    return null;
+    // 直接滚去首页好吧
+    return AppRoutes.home;
   }
 
   // 4. 已登录且需要认证，放行

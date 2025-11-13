@@ -20,7 +20,6 @@ class CollapsibleTabBar extends StatelessWidget {
     final theme = Theme.of(context);
 
     return SizedBox(
-      height: 48,
       child: Container(
         color: scaffoldBg,
         padding: const EdgeInsets.symmetric(horizontal: 8),
