@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:name_app/core/widgets/common/collapsible_tab_bar.dart';
 
+import 'package:flutter/material.dart';
+import 'package:name_app/core/widgets/common/collapsible_tab_bar.dart';
+
 class TabBarDelegateWrapper extends SliverPersistentHeaderDelegate {
-  final double collapsePercent;
+  final ValueNotifier<double> collapsePercentNotifier; // 改成 ValueNotifier
   final String selectedFilter;
   final List<String> filters;
   final ValueChanged<String> onFilterChanged;
 
   TabBarDelegateWrapper({
-    required this.collapsePercent,
+    required this.collapsePercentNotifier,
     required this.selectedFilter,
     required this.filters,
     required this.onFilterChanged,
@@ -24,7 +27,7 @@ class TabBarDelegateWrapper extends SliverPersistentHeaderDelegate {
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
     return CollapsibleTabBar(
-      collapsePercent: collapsePercent,
+      collapsePercentNotifier: collapsePercentNotifier, // 传入 ValueNotifier
       selectedFilter: selectedFilter,
       filters: filters,
       onFilterChanged: onFilterChanged,
@@ -33,6 +36,6 @@ class TabBarDelegateWrapper extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant TabBarDelegateWrapper oldDelegate) =>
-      oldDelegate.collapsePercent != collapsePercent ||
-      oldDelegate.selectedFilter != selectedFilter;
+      oldDelegate.selectedFilter != selectedFilter ||
+      oldDelegate.filters != filters;
 }

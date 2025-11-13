@@ -15,54 +15,80 @@ class MobileSearchAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeVM = context.watch<ThemeViewModel>();
-    final isDark = themeVM.themeMode == ThemeMode.dark;
-    final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
-
-    return SliverAppBar(
-      floating: true,
-      pinned: true,
-      snap: false,
-      expandedHeight: 80,
-      backgroundColor: scaffoldBg,
-      foregroundColor: scaffoldBg,
-      elevation: 0.5,
-      flexibleSpace: LayoutBuilder(
-        builder: (context, constraints) {
-          // 透明度动画
-          final double opacity = (1 - collapsePercent).clamp(0.0, 1.0);
-
-          return Container(
-            alignment: Alignment.center,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20,
-              left: 16,
-              right: 16,
-            ),
-            child: Opacity(
-              opacity: opacity,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  SizedBox(
-                    width: 255,
-                    height: 45, // 固定高度
-                    child: GlobalSearchInput(
-                      hintText: hintText,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: isDark ? '切换为浅色模式' : '切换为深色模式',
-                    icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-                    onPressed: themeVM.toggleLightDark,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+    return SliverPersistentHeader(
+      pinned: false,
+      delegate: _MobileSearchHeaderDelegate(
+        collapsePercent: collapsePercent,
+        hintText: hintText,
       ),
     );
+  }
+}
+
+class _MobileSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double collapsePercent;
+  final String hintText;
+
+  _MobileSearchHeaderDelegate({
+    required this.collapsePercent,
+    required this.hintText,
+  });
+
+  @override
+  double get minExtent => 80;
+  @override
+  double get maxExtent => 80;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    // 透明度动画
+    final opacity = (1 - collapsePercent).clamp(0.0, 1.0);
+
+    // AnimatedBuilder 监听 Theme 的变化
+    return AnimatedBuilder(
+      animation: Listenable.merge(
+          [Provider.of<ThemeViewModel>(context, listen: true)]),
+      builder: (context, _) {
+        final themeVM = context.watch<ThemeViewModel>();
+        final isDark = themeVM.themeMode == ThemeMode.dark;
+        final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
+
+        return Container(
+          color: scaffoldBg,
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 20,
+            left: 16,
+            right: 16,
+          ),
+          child: Opacity(
+            opacity: opacity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: 255,
+                  height: 45, // 高度固定
+                  child: GlobalSearchInput(hintText: hintText),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: isDark ? '切换为浅色模式' : '切换为深色模式',
+                  icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+                  onPressed: themeVM.toggleLightDark,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _MobileSearchHeaderDelegate oldDelegate) {
+    // 只关心 collapsePercent 和 hintText
+    return oldDelegate.collapsePercent != collapsePercent ||
+        oldDelegate.hintText != hintText;
   }
 }

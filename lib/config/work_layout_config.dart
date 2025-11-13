@@ -32,8 +32,8 @@ class WorkLayoutConfig {
   // ===== 横向间距（crossAxisSpacing）=====
   static const double mobileHSpacing = 1;
   static const double tabletHSpacing = 2;
-  static const double laptopHSpacing = 2;
-  static const double desktopHSpacing = 2;
+  static const double laptopHSpacing = 3;
+  static const double desktopHSpacing = 4;
 
   // ===== 纵向间距（mainAxisSpacing）=====
   // 保持紧凑，不随屏幕增大而增加太多

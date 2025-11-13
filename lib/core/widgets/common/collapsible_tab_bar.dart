@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class CollapsibleTabBar extends StatelessWidget {
-  final double collapsePercent; // 0 -> 展开, 1 -> 完全折叠
+  final ValueNotifier<double> collapsePercentNotifier;
   final String selectedFilter;
   final List<String> filters;
   final ValueChanged<String> onFilterChanged;
 
   const CollapsibleTabBar({
     Key? key,
-    required this.collapsePercent,
+    required this.collapsePercentNotifier,
     required this.selectedFilter,
     required this.filters,
     required this.onFilterChanged,
@@ -18,28 +18,21 @@ class CollapsibleTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final theme = Theme.of(context);
-    final double iconOpacity = collapsePercent.clamp(0.0, 1.0);
 
     return SizedBox(
-      height: 48, // 固定高度
+      height: 48,
       child: Container(
         color: scaffoldBg,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 搜索图标渐显
-            Opacity(
-              opacity: iconOpacity,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(Icons.search, color: Colors.grey.shade700),
-              ),
-            ),
             // TabBar
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: filters.map((f) {
                     final selected = f == selectedFilter;
                     return GestureDetector(
@@ -75,6 +68,29 @@ class CollapsibleTabBar extends StatelessWidget {
                   }).toList(),
                 ),
               ),
+            ),
+
+            // 搜索图标右侧显示
+            AnimatedBuilder(
+              animation: collapsePercentNotifier,
+              builder: (_, __) {
+                final collapsePercent = collapsePercentNotifier.value;
+                if (collapsePercent == 0) return const SizedBox.shrink();
+
+                final opacity = collapsePercent.clamp(0.0, 1.0);
+                final offsetX = (1 - opacity) * 0.3; // 从右向左滑入
+
+                return Transform.translate(
+                  offset: Offset(offsetX * 48, 0), // 48 是图标宽度参考
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(Icons.search, color: Colors.grey.shade700),
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),

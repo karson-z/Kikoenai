@@ -15,15 +15,21 @@ class AlbumPage extends StatefulWidget {
 
 class _AlbumPageState extends State<AlbumPage> {
   bool _loading = true;
-  double _collapsePercent = 0.0; // 0 -> 完全展开, 1 -> 完全折叠
+  final collapsePercentNotifier =
+      ValueNotifier<double>(0.0); // 取代 _collapsePercent
   String _selectedFilter = '全部';
-
   final List<String> _filters = ['全部', '最新', '最热', '收藏最多'];
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    collapsePercentNotifier.dispose();
+    super.dispose();
   }
 
   void _loadData() {
@@ -52,33 +58,38 @@ class _AlbumPageState extends State<AlbumPage> {
           if (scroll.metrics.axis == Axis.vertical) {
             final double offset = scroll.metrics.pixels.clamp(0, 80);
             final double percent = (offset / 80).clamp(0.0, 1.0);
-            if ((percent - _collapsePercent).abs() > 0.01) {
-              setState(() => _collapsePercent = percent);
+            if ((percent - collapsePercentNotifier.value).abs() > 0.01) {
+              collapsePercentNotifier.value = percent; // 仅更新 ValueNotifier
             }
           }
           return false;
         },
         child: CustomScrollView(
           slivers: [
-            // 上方搜索栏
+            // 移动端搜索栏
             if (deviceType == DeviceType.mobile)
-              MobileSearchAppBar(collapsePercent: _collapsePercent),
-            // TabBar + 搜索图标
+              ValueListenableBuilder<double>(
+                valueListenable: collapsePercentNotifier,
+                builder: (_, collapsePercent, __) {
+                  return MobileSearchAppBar(collapsePercent: collapsePercent);
+                },
+              ),
+            // TabBar
             SliverPersistentHeader(
               pinned: true,
               delegate: TabBarDelegateWrapper(
-                collapsePercent: _collapsePercent,
+                collapsePercentNotifier: collapsePercentNotifier,
                 selectedFilter: _selectedFilter,
                 filters: _filters,
                 onFilterChanged: _onFilterChanged,
               ),
             ),
+            // 内容区
             ResponsiveCardGrid(
               products: _loading
-                  ? List.generate(8, (index) => Product.empty())
+                  ? List.generate(8, (_) => Product.empty())
                   : mockProducts,
             ),
-            // 内容区
           ],
         ),
       ),
