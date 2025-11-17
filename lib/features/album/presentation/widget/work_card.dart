@@ -1,11 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:name_app/features/album/data/model/product_mock.dart';
+import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/album/presentation/widget/work_tag.dart';
 
-class ProductCard extends StatelessWidget {
-  final Product product;
+import '../../../../core/enums/age_rating.dart';
 
-  const ProductCard({super.key, required this.product});
+class WorkCard extends StatelessWidget {
+  final Work work;
+
+  const WorkCard({super.key, required this.work});
 
   @override
   Widget build(BuildContext context) {
@@ -18,9 +21,10 @@ class ProductCard extends StatelessWidget {
           final cardWidth = constraints.maxWidth;
           final computedTitleFontSize = cardWidth / 15;
           final computedCircleFontSize = cardWidth / 20;
-          // 根据卡片宽高动态计算标签尺寸
+
           double computeFontSize() => cardWidth / 20;
           double computePadding() => cardWidth / 30;
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -28,33 +32,45 @@ class ProductCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.network(
-                      product.imageUrl,
+                    CachedNetworkImage(
+                      imageUrl: work.thumbnailCoverUrl ?? "",
                       fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) =>
-                      loadingProgress == null
-                          ? child
-                          : const Center(
-                          child: CircularProgressIndicator()),
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
                         color: Colors.grey[300],
-                        child:
-                        const Icon(Icons.broken_image, color: Colors.grey),
+                        child: const Icon(Icons.broken_image),
                       ),
                     ),
                     Positioned(
                       top: 8,
                       left: 8,
-                      child:
-                      _buildBadge(product.id, Colors.black.withAlpha(60)),
+                      child: _buildBadge(
+                        "RJ${work.id.toString()}",
+                        Colors.black.withAlpha(60),
+                      ),
                     ),
                     Positioned(
                       top: 8,
                       right: 8,
-                      child: _buildBadge('全年龄', Colors.green.withAlpha(128)),
+                      child: _buildBadge(
+                        AgeRatingEnum.labelFromValue(work.ageCategoryString),
+                          AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: _buildBadge(
+                        work.createDate.toString(),
+                        Colors.black.withAlpha(90),
+                      ),
                     ),
                   ],
-                )),
+                ),
+              ),
+
               Padding(
                 padding: const EdgeInsets.all(8),
                 child: Column(
@@ -62,25 +78,27 @@ class ProductCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      product.title,
+                      work.title ?? "",
                       style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: computedTitleFontSize),
+                        fontWeight: FontWeight.bold,
+                        fontSize: computedTitleFontSize,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product.circle,
+                      work.name ?? "",
                       style: TextStyle(
-                          fontSize: computedCircleFontSize,
-                          color: Colors.grey[700]),
+                        fontSize: computedCircleFontSize,
+                        color: Colors.grey[700],
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     TagRow(
-                      tags: product.authors,
+                      tags: work.vas ?? [],
                       type: TagType.author,
                       fontSize: computeFontSize(),
                       borderRadius: 8,
@@ -88,7 +106,7 @@ class ProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     TagRow(
-                      tags: product.tags,
+                      tags: work.tags ?? [],
                       type: TagType.normal,
                       fontSize: computeFontSize(),
                       borderRadius: 25,

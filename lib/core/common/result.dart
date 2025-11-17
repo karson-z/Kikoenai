@@ -1,5 +1,3 @@
-import 'package:name_app/core/common/errors.dart';
-
 class Result<T> {
   final T? data; // 成功时返回的数据
   final int? code; // 状态码（例如 HTTP 状态码，或者业务自定义码）

@@ -1,8 +1,0 @@
-{
-  "/api": {
-    "target": "https://api.asmr-200.com",
-    "secure": true,
-    "changeOrigin": true,
-    "logLevel": "debug"
-  }
-}

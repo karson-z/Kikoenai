@@ -1,18 +1,26 @@
-import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'va.g.dart';
 
 @JsonSerializable()
-class Va extends Equatable {
-  final String id;
-  final String name;
+class VA {
+  final String? id;
+  final String? name;
 
-  const Va({required this.id, required this.name});
+  VA({this.id, this.name});
 
-  factory Va.fromJson(Map<String, dynamic> json) => _$VaFromJson(json);
-  Map<String, dynamic> toJson() => _$VaToJson(this);
+  factory VA.fromJson(Map<String, dynamic> json) => _$VAFromJson(json);
+  Map<String, dynamic> toJson() => _$VAToJson(this);
+
+  VA copyWith({String? id, String? name}) {
+    return VA(id: id ?? this.id, name: name ?? this.name);
+  }
 
   @override
-  List<Object?> get props => [id, name];
+  String toString() => 'VA(id: $id, name: $name)';
+
+  @override
+  bool operator ==(Object other) => other is VA && other.id == id && other.name == name;
+  @override
+  int get hashCode => Object.hash(id, name);
 }

@@ -8,7 +8,6 @@ import 'package:name_app/core/common/result.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
-import 'errors.dart';
 final sharedPreferencesServiceProvider =
 Provider<SharedPreferencesService>((ref) {
   return SharedPreferencesService();

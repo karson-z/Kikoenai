@@ -13,17 +13,17 @@ class WorkListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       child: Card(
-        elevation: 0, // 你要边框就不要阴影了
+        elevation: 0,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 图片贴满高度
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 bottomLeft: Radius.circular(8),
               ),
-              child: Image.asset(
-                workInfo.title,
+              child: Image.network(
+                workInfo.samCoverUrl!,
                 width: 55,
                 fit: BoxFit.cover,
               ),
@@ -31,14 +31,13 @@ class WorkListItem extends StatelessWidget {
 
             const SizedBox(width: 6),
 
-            // 文本区域
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    workInfo.title,
+                    workInfo.title ?? "暂无标题",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -47,7 +46,7 @@ class WorkListItem extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    workInfo.title,
+                    workInfo.name!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -59,13 +58,15 @@ class WorkListItem extends StatelessWidget {
               ),
             ),
 
-            // 右侧 >
-            const Padding(
-              padding: EdgeInsets.only(right: 6),
-              child: Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: Colors.grey,
+            Flexible(
+              flex: 0,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: Colors.grey,
+                ),
               ),
             ),
           ],

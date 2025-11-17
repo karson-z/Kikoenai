@@ -3,7 +3,6 @@ import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/user/presentation/widget/work_list.dart';
 
 import '../../../../config/work_layout_strategy.dart';
-import '../../data/models/limit_work_info.dart';
 
 class ResponsiveListGrid extends StatelessWidget {
   final List<Work> work;

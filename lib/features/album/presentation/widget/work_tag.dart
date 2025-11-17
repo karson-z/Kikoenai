@@ -12,7 +12,7 @@ enum TagType {
 
 /// 自定义标签行，支持 Riverpod 主题监听
 class TagRow extends ConsumerWidget {
-  final List<String> tags;
+  final List<dynamic> tags;
   final TagType type;
   final double? fontSize;
   final EdgeInsets? padding; // 内边距
@@ -67,7 +67,7 @@ class TagRow extends ConsumerWidget {
     );
   }
 
-  Widget _buildTag(String tag, bool isDark) {
+  Widget _buildTag(dynamic tag, bool isDark) {
     final fs = fontSize ?? 12;
     final pad = padding ?? const EdgeInsets.all(6);
     final radius = borderRadius ?? 12;
@@ -104,7 +104,7 @@ class TagRow extends ConsumerWidget {
         borderRadius: BorderRadius.circular(radius),
       ),
       child: Text(
-        tag,
+        tag.name!,
         style: TextStyle(fontSize: fs, color: textColor, height: 1),
         textAlign: TextAlign.center,
       ),

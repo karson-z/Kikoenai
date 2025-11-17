@@ -1,19 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
+import '../../data/model/work.dart';
 
 class SmartColorCard extends StatefulWidget {
-  final String imageUrl;
-  final String title;
-
-  // 仅保留 width，由父组件决定
-  final double width;
+  final Work work;
+  final double? width;
   final double borderRadius;
 
   const SmartColorCard({
     super.key,
-    required this.imageUrl,
-    required this.title,
-    required this.width,
+    required this.work,
+    this.width,
     this.borderRadius = 14,
   });
 
@@ -22,69 +20,92 @@ class SmartColorCard extends StatefulWidget {
 }
 
 class _SmartColorCardState extends State<SmartColorCard> {
-  Color? dominantColor;
-  final double bottomHeight = 60.0; // 底部文字固定高度
-  final double imageAspectRatio = 4 / 3; // 图片原始比例
+  static final Map<String, Color> _colorCache = {};
+  Color? _dominantColor;
 
   @override
   void initState() {
     super.initState();
-    _extractDominantColor();
-  }
-
-  ImageProvider _getImageProvider() {
-    final url = widget.imageUrl;
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return NetworkImage(url);
+    final key = widget.work.id?.toString() ?? widget.work.title ?? '';
+    if (_colorCache.containsKey(key)) {
+      _dominantColor = _colorCache[key];
     } else {
-      return AssetImage(url);
+      _extractDominantColor().then((color) {
+        if (mounted) {
+          setState(() {
+            _dominantColor = color;
+            _colorCache[key] = color; // 缓存
+          });
+        }
+      });
     }
   }
 
-  Future<void> _extractDominantColor() async {
-    final provider = _getImageProvider();
+  Future<Color> _extractDominantColor() async {
+    final url = widget.work.thumbnailCoverUrl ?? "";
+    final provider = url.startsWith("http")
+        ? CachedNetworkImageProvider(url)
+        : AssetImage(url) as ImageProvider;
+
+    final cardWidth = widget.width ?? 240;
+    const bottomHeight = 60.0;
+
     final palette = await PaletteGenerator.fromImageProvider(
       provider,
       maximumColorCount: 18,
-      size: Size(widget.width, widget.width / imageAspectRatio + bottomHeight),
+      size: Size(cardWidth, cardWidth * 3 / 4 + bottomHeight),
     );
 
-    setState(() {
-      dominantColor = palette.dominantColor?.color ?? Colors.grey.shade300;
-    });
+    return palette.dominantColor?.color ?? Colors.grey.shade300;
   }
 
   @override
   Widget build(BuildContext context) {
-    final imageHeight = widget.width / imageAspectRatio; // 根据比例计算
+    final cardWidth = widget.width ?? 240.0;
+    final imageHeight = cardWidth * 3 / 4;
+    const bottomHeight = 60.0;
     final totalHeight = imageHeight + bottomHeight;
-    final bottomColor = dominantColor ?? Colors.grey.shade300;
+
+    final baseColor = _dominantColor ?? Colors.grey.shade300;
+
+    final placeholderDecoration = BoxDecoration(
+      gradient: LinearGradient(
+        colors: [baseColor.withOpacity(0.5), baseColor],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    );
 
     return SizedBox(
-      width: widget.width,
+      width: cardWidth,
       height: totalHeight,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 图片区域
             SizedBox(
-              width: widget.width,
+              width: cardWidth,
               height: imageHeight,
-              child: Image(
-                image: _getImageProvider(),
+              child: CachedNetworkImage(
+                imageUrl: widget.work.thumbnailCoverUrl ?? "",
                 fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  decoration: placeholderDecoration,
+                ),
+                errorWidget: (context, url, error) => Container(
+                  decoration: placeholderDecoration,
+                  child: const Icon(Icons.error, color: Colors.white),
+                ),
               ),
             ),
-            // 底部文字，只显示标题，可占两行
             Container(
-              width: widget.width,
+              width: cardWidth,
               height: bottomHeight,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              color: bottomColor,
+              color: baseColor,
               child: Text(
-                widget.title,
+                widget.work.title ?? "",
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

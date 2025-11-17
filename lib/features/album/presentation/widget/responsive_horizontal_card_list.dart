@@ -1,9 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:name_app/config/work_layout_strategy.dart';
+import 'package:name_app/core/enums/device_type.dart';
+import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/album/presentation/widget/smart_color_card.dart';
 
 class ResponsiveHorizontalCardList extends StatefulWidget {
-  final List<Map<String, String>> items;
+  final List<Work> items;
 
   const ResponsiveHorizontalCardList({super.key, required this.items});
 
@@ -14,155 +17,108 @@ class ResponsiveHorizontalCardList extends StatefulWidget {
 
 class _ResponsiveHorizontalCardListState
     extends State<ResponsiveHorizontalCardList> {
-  late final PageController _pageController;
-  int _currentPage = 0;
+  late final ScrollController _scrollController;
+  bool _isSnapping = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _scrollController = ScrollController();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToPage(int index) {
-    if (index >= 0 && index < pages.length) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      setState(() => _currentPage = index);
-    }
-  }
+  void _snapScroll(double cardWidth, double spacing) {
+    if (!_scrollController.hasClients || _isSnapping) return;
 
-  late List<List<Map<String, String>>> pages = [];
+    final scrollOffset = _scrollController.offset;
+    final singleItemExtent = cardWidth + spacing;
+    final targetIndex = (scrollOffset / singleItemExtent).round();
+    final targetOffset = targetIndex * singleItemExtent;
+
+    _isSnapping = true;
+    _scrollController
+        .animateTo(targetOffset,
+        duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
+        .whenComplete(() => _isSnapping = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 判断是否桌面端
+    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
+    var columns = layoutStrategy.getColumnsCount(context);
+    final spacing = layoutStrategy.getColumnSpacing(context) + 2;
+    final deviceType = layoutStrategy.getDeviceType(context);
+    if (deviceType != DeviceType.mobile) {
+      columns += 2;
+    }
+
     final isDesktop = [
       TargetPlatform.windows,
       TargetPlatform.macOS,
       TargetPlatform.linux
     ].contains(Theme.of(context).platform);
 
-    // 布局策略
-    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    final columns = layoutStrategy.getColumnsCount(context);
-    final spacing = layoutStrategy.getColumnSpacing(context);
-
-    // 按页划分数据
-    pages = [];
-    for (var i = 0; i < widget.items.length; i += columns) {
-      pages.add(widget.items.sublist(
-        i,
-        (i + columns).clamp(0, widget.items.length),
-      ));
-    }
-
     return LayoutBuilder(builder: (context, constraints) {
       final screenWidth = constraints.maxWidth;
       final totalSpacing = (columns - 1) * spacing;
       final cardWidth = (screenWidth - totalSpacing) / columns;
+
       final cardHeight = cardWidth / (4 / 3) + 60;
 
-      Widget content;
-
-      if (isDesktop) {
-        // 桌面端：PageView + 左右箭头
-        content = Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              height: cardHeight,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: pages.length,
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                itemBuilder: (context, pageIndex) {
-                  final pageItems = pages[pageIndex];
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < pageItems.length; i++) ...[
-                        SizedBox(
-                          width: cardWidth,
-                          child: SmartColorCard(
-                            width: cardWidth,
-                            imageUrl: pageItems[i]['image']!,
-                            title: pageItems[i]['title']!,
-                          ),
-                        ),
-                        if (i < pageItems.length - 1) SizedBox(width: spacing),
-                      ],
-                    ],
-                  );
-                },
-              ),
+      return SizedBox(
+        height: cardHeight,
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: (notification) {
+            if (isDesktop) {
+              _snapScroll(cardWidth, spacing);
+            }
+            return true;
+          },
+          child: ScrollConfiguration(
+            behavior: _DesktopDragScrollBehavior(),
+            child: ListView.separated(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              physics: isDesktop
+                  ? const BouncingScrollPhysics() // 桌面端拖拽平滑
+                  : const ClampingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: widget.items.length,
+              itemBuilder: (context, index) {
+                return SizedBox(
+                  width: cardWidth,
+                  child: SmartColorCard(
+                    width: cardWidth,
+                    work: widget.items[index],
+                  ),
+                );
+              },
+              separatorBuilder: (context, index) => SizedBox(width: spacing),
             ),
-            // 左右箭头
-            Positioned(
-              left: 0,
-              child: IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios,
-                  color: _currentPage > 0 ? Colors.black : Colors.grey,
-                ),
-                onPressed:
-                _currentPage > 0 ? () => _scrollToPage(_currentPage - 1) : null,
-              ),
-            ),
-            Positioned(
-              right: 0,
-              child: IconButton(
-                icon: Icon(
-                  Icons.arrow_forward_ios,
-                  color: _currentPage < pages.length - 1 ? Colors.black : Colors.grey,
-                ),
-                onPressed: _currentPage < pages.length - 1
-                    ? () => _scrollToPage(_currentPage + 1)
-                    : null,
-              ),
-            ),
-          ],
-        );
-      } else {
-        // 移动端：自由滚动 ListView
-        final itemsWithSpacing = <Widget>[];
-        for (var i = 0; i < widget.items.length; i++) {
-          itemsWithSpacing.add(
-            SizedBox(
-              width: cardWidth,
-              child: SmartColorCard(
-                width: cardWidth,
-                imageUrl: widget.items[i]['image']!,
-                title: widget.items[i]['title']!,
-              ),
-            ),
-          );
-          if (i != widget.items.length - 1) {
-            itemsWithSpacing.add(SizedBox(width: spacing));
-          }
-        }
-
-        content = SizedBox(
-          height: cardHeight,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: itemsWithSpacing,
           ),
-        );
-      }
-
-      return content;
+        ),
+      );
     });
   }
+}
+
+/// 自定义桌面端拖拽平滑滚动，不显示滚动条
+class _DesktopDragScrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
+  }
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.unknown,
+  };
 }

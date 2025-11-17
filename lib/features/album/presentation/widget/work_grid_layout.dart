@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/features/album/data/model/product_mock.dart';
+import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/album/presentation/widget/work_card.dart';
 
 /// 响应式卡片网格布局
 class ResponsiveCardGrid extends StatelessWidget {
-  final List<Product> products;
-  const ResponsiveCardGrid({super.key, required this.products});
+  final List<Work> work;
+  const ResponsiveCardGrid({super.key, required this.work});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class ResponsiveCardGrid extends StatelessWidget {
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
 
     return SliverGrid.builder(
-      itemCount: products.length,
+      itemCount: work.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         crossAxisSpacing: horizontalSpacing, // 左右间距
@@ -26,7 +26,7 @@ class ResponsiveCardGrid extends StatelessWidget {
         childAspectRatio: 0.75, // 卡片比例
       ),
       itemBuilder: (context, index) {
-        return ProductCard(product: products[index]);
+        return WorkCard(work: work[index]);
       },
     );
   }
