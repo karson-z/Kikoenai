@@ -1,76 +1,69 @@
 import 'package:dio/dio.dart';
 
-/// 基础错误类型：所有错误的父类
-abstract class Failure {
-  final int code;
-  final String message;
-  final Object? cause;
+import 'global_exception.dart';
 
-  const Failure(this.message, {this.code = -1, this.cause});
-
-  @override
-  String toString() => 'Failure(code: $code, message: $message)';
-}
-
-/// 网络相关错误（超时、连接失败等）
-class NetworkFailure extends Failure {
-  const NetworkFailure(String message, {int code = -1, Object? cause})
-      : super(message, code: code, cause: cause);
-}
-
-/// 服务端返回错误（4xx、5xx）
-class ServerFailure extends Failure {
-  const ServerFailure(String message, {int code = -1, Object? cause})
-      : super(message, code: code, cause: cause);
-
-  @override
-  String toString() => 'ServerFailure(code: $code, message: $message)';
-}
-
-/// 数据解析失败（JSON格式异常、类型错误）
-class ParseFailure extends Failure {
-  const ParseFailure(String message, {int code = -1, Object? cause})
-      : super(message, code: code, cause: cause);
-}
-
-/// 未知错误（兜底类型）
-class UnknownFailure extends Failure {
-  const UnknownFailure(String message, {int code = -1, Object? cause})
-      : super(message, code: code, cause: cause);
-}
-
-/// 统一异常映射：将底层错误转换成领域错误类型
-Failure mapException(dynamic error) {
+/// 统一异常映射：将底层错误转换成全局异常
+GlobalException mapToGlobalException(dynamic error) {
   if (error is DioException) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.connectionError:
-        return NetworkFailure('网络异常，请检查连接', cause: error);
+        return GlobalException(
+          '网络异常，请检查连接',
+          originalError: error,
+          code: 'NETWORK_ERROR',
+        );
 
       case DioExceptionType.badResponse:
         final status = error.response?.statusCode;
         final message = _serverMessage(status);
-        return ServerFailure(message, code: status ?? -1, cause: error);
+        return GlobalException(
+          message,
+          originalError: error,
+          code: 'SERVER_ERROR',
+          context: {'status': status, 'response': error.response?.data},
+        );
 
       case DioExceptionType.badCertificate:
-        return NetworkFailure('证书校验失败', cause: error);
+        return GlobalException(
+          '证书校验失败',
+          originalError: error,
+          code: 'CERTIFICATE_ERROR',
+        );
 
       case DioExceptionType.cancel:
-        return UnknownFailure('请求已取消', cause: error);
+        return GlobalException(
+          '请求已取消',
+          originalError: error,
+          code: 'CANCELLED',
+        );
 
       case DioExceptionType.unknown:
       default:
-        return UnknownFailure('未知错误', cause: error);
+        return GlobalException(
+          '未知网络错误',
+          originalError: error,
+          code: 'UNKNOWN_NETWORK_ERROR',
+        );
     }
   }
 
   if (error is FormatException || error is TypeError) {
-    return ParseFailure('数据解析失败', cause: error);
+    return GlobalException(
+      '数据解析失败',
+      originalError: error,
+      code: 'PARSE_ERROR',
+    );
   }
 
-  return UnknownFailure('未知错误', cause: error);
+  // 默认未知错误
+  return GlobalException(
+    '未知错误',
+    originalError: error,
+    code: 'UNKNOWN_ERROR',
+  );
 }
 
 /// 根据状态码返回更友好的服务端错误信息

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_config.dart';
-import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/core/common/navigation_item.dart';
+import 'package:name_app/config/navigation_item.dart';
 import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
 
 /// 自适应 NavigationRail 组件

@@ -7,9 +7,8 @@ void setupDesktopWindow() {
   doWhenWindowReady(() {
     const initialSize = Size(1200, 800);
     appWindow.size = initialSize;
-    appWindow.minSize = const Size(800, 600);
+    appWindow.minSize = const Size(300, 600);
     appWindow.alignment = Alignment.center;
-    appWindow.title = 'Demo';
     appWindow.show();
   });
 }

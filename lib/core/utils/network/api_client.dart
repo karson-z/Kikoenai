@@ -1,136 +1,95 @@
-import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:name_app/core/common/errors.dart';
-import 'package:name_app/core/common/result.dart';
-import 'package:name_app/core/widgets/common/login_dialog_manager.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:name_app/core/common/global_exception.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../common/errors.dart';
+import '../../common/result.dart';
 import '../../constants/app_constants.dart';
+import '../../widgets/common/login_dialog_manager.dart';
 import '../log/logger.dart';
 
 class ApiClient {
   final Dio _dio;
 
-  /// 默认构造函数，用于正常使用
-  ApiClient(this._dio);
-
-  /// 工厂构造函数
-  factory ApiClient.create() {
-    // 定义tokenProvider回调，从SharedPreferences获取最新token
-    Future<String?> tokenProvider() async {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(AppConstants.tokenKey);
-    }
-
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConstants.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      sendTimeout: const Duration(seconds: 10),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-    ));
-
-    // 设置拦截器
-    _setupInterceptors(dio, tokenProvider);
-
-    return ApiClient(dio);
+  // 私有构造
+  ApiClient._internal(this._dio) {
+    _setupInterceptors(_dio, _tokenProvider);
   }
 
-  /// 通用请求封装
-  Future<Result<T>> _request<T>(
-    Future<Response> Function() request,
-    T Function(dynamic data)? fromJson,
-  ) async {
+  // 单例
+  static final ApiClient instance = ApiClient._internal(
+    Dio(
+      BaseOptions(
+        baseUrl: AppConstants.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        sendTimeout: const Duration(seconds: 10),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      ),
+    ),
+  );
+
+  // token 提供者
+  static Future<String?> _tokenProvider() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.tokenKey);
+  }
+
+  // 请求封装
+  Future<Result<Map<String, dynamic>>> _request(
+      Future<Response> Function() request) async {
     try {
       final response = await request();
-      final code = response.statusCode ?? -1;
-      final body = response.data;
-      if (body is Map<String, dynamic>) {
-        final code = body['code'] ?? response.statusCode ?? -1;
-        final message = body['message'] ?? 'Unknown error';
-        final data = body['data'];
-        final parsed = fromJson != null && data != null ? fromJson(data) : data;
-        return Result.success(data: parsed as T?, code: code, message: message);
-      }
-      return Result.failure(
-        error: ParseFailure('响应格式错误', code: code),
-        code: code,
-        message: 'Invalid response',
+      return Result.success(
+        data: response.data,
+        code: response.statusCode ?? -1,
+        message: 'success',
       );
-    } catch (e) {
-      final failure = mapException(e);
-      return Result.failure(
-        error: failure,
-        message: failure.message,
+    } catch (e,st) {
+      final exception = mapToGlobalException(e);
+      final exceptionWithStack = GlobalException(
+        exception.message,
+        originalError: exception.originalError,
+        stackTrace: st,
+        code: exception.code,
+        context: exception.context,
       );
+      throw exceptionWithStack;
     }
   }
 
-  ///快捷方法封装
-  Future<Result<T>> get<T>(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    T Function(dynamic data)? fromJson,
-  }) =>
-      _request(
-          () => _dio.get(path, queryParameters: queryParameters), fromJson);
+  Future<Result<Map<String, dynamic>>> get(String path,
+      {Map<String, dynamic>? queryParameters}) =>
+      _request(() => _dio.get(path, queryParameters: queryParameters));
 
-  Future<Result<T>> post<T>(
-    String path, {
-    dynamic data,
-    T Function(dynamic data)? fromJson,
-  }) =>
-      _request(() => _dio.post(path, data: data), fromJson);
+  Future<Result<Map<String, dynamic>>> post(String path, {dynamic data}) =>
+      _request(() => _dio.post(path, data: data));
 
-  Future<Result<T>> put<T>(
-    String path, {
-    dynamic data,
-    T Function(dynamic data)? fromJson,
-  }) =>
-      _request(() => _dio.put(path, data: data), fromJson);
+  Future<Result<Map<String, dynamic>>> put(String path, {dynamic data}) =>
+      _request(() => _dio.put(path, data: data));
 
-  Future<Result<T>> delete<T>(
-    String path, {
-    dynamic data,
-    T Function(dynamic data)? fromJson,
-  }) =>
-      _request(() => _dio.delete(path, data: data), fromJson);
+  Future<Result<Map<String, dynamic>>> delete(String path, {dynamic data}) =>
+      _request(() => _dio.delete(path, data: data));
 }
 
-/// 提取出的拦截器配置函数
-void _setupInterceptors(
-  Dio dio,
-  Future<String?> Function()? tokenProvider,
-) {
+// 拦截器
+void _setupInterceptors(Dio dio, Future<String?> Function()? tokenProvider) {
   final interceptor = InterceptorsWrapper(
     onRequest: (options, handler) async {
       Log.i('REQ ${options.method} ${options.uri}', tag: 'API');
-
       if (tokenProvider != null) {
         final token = await tokenProvider();
         if (token != null && token.isNotEmpty) {
-          options.headers['token'] = token;
+          options.headers['Authorization'] = 'Bearer $token';
         }
       }
-
       handler.next(options);
     },
     onResponse: (response, handler) async {
-      Log.i(
-        'RES [${response.statusCode}] ${response.requestOptions.uri}',
-        tag: 'API',
-      );
-
-      if (response.statusCode == 401 ||
-          (response.data is Map && response.data['code'] == 401)) {
-        await LoginDialogManager().handleUnauthorized(response, handler, dio,
-            tokenProvider: tokenProvider);
-        return; // 拦截，不继续处理
-      }
-      // 正常响应继续处理
+      Log.i('RES [${response.statusCode}] ${response.requestOptions.uri}', tag: 'API');
       handler.next(response);
     },
     onError: (DioException err, handler) async {
@@ -140,8 +99,12 @@ void _setupInterceptors(
       final req = err.requestOptions;
       final method = req.method.toUpperCase();
       int retryCount = (req.extra['retry_count'] as int?) ?? 0;
-
-      // 其他错误的重试逻辑
+      if (err.response?.statusCode == 401 ||
+          (err.response?.data['code'] is Map && err.response?.data['code'] == 401)) {
+        await LoginDialogManager().handleUnauthorized(err.response!, handler, dio,
+            tokenProvider: tokenProvider);
+        return;
+      }
       final shouldRetry = method == 'GET' &&
           (err.type == DioExceptionType.connectionError ||
               err.type == DioExceptionType.connectionTimeout ||
@@ -153,8 +116,6 @@ void _setupInterceptors(
         retryCount++;
         req.extra['retry_count'] = retryCount;
         Log.i('Retrying request... Attempt $retryCount', tag: 'API');
-
-        // 添加延迟避免立即重试
         await Future.delayed(Duration(milliseconds: 1000 * retryCount));
         try {
           final response = await dio.fetch(req);
@@ -168,6 +129,10 @@ void _setupInterceptors(
     },
   );
 
-  // 添加拦截器
   dio.interceptors.add(interceptor);
 }
+
+/// Riverpod Provider
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient.instance; // ✅ 直接使用同步单例
+});

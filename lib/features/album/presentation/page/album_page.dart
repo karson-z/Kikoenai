@@ -1,27 +1,36 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_config.dart';
-import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/core/widgets/layout/adaptive_app_bar_mobile.dart';
-import 'package:name_app/features/album/data/model/product_mock.dart';
-import 'package:name_app/features/album/presentation/widget/work_grid_layout.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AlbumPage extends StatefulWidget {
+import '../../../../config/work_layout_strategy.dart';
+import '../../../../core/enums/device_type.dart';
+import '../../../../core/widgets/common/collapsible_tab_bar.dart';
+import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
+import '../viewmodel/provider/work_provider.dart';
+import '../widget/section_header.dart';
+import '../widget/work_horizontal.dart';
+
+class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({Key? key}) : super(key: key);
 
   @override
-  State<AlbumPage> createState() => _AlbumPageState();
+  ConsumerState<AlbumPage> createState() => _AlbumPageState();
 }
 
-class _AlbumPageState extends State<AlbumPage> {
-  bool _loading = true;
-  final collapsePercentNotifier =
-      ValueNotifier<double>(0.0); // 取代 _collapsePercent
+class _AlbumPageState extends ConsumerState<AlbumPage> {
+  final collapsePercentNotifier = ValueNotifier<double>(0.0);
   String _selectedFilter = '全部';
   final List<String> _filters = ['全部', '最新', '最热', '收藏最多'];
 
   @override
   void initState() {
     super.initState();
+
+    // 延迟调用 provider 方法，避免在 build/initState 直接修改 provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(worksNotifierProvider.notifier)
+          .refresh("172bd570-a894-475b-8a20-9241d0d314e8");
+    });
   }
 
   @override
@@ -30,25 +39,19 @@ class _AlbumPageState extends State<AlbumPage> {
     super.dispose();
   }
 
-  void _loadData() {
-    setState(() => _loading = true);
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    });
-  }
-
   void _onFilterChanged(String newFilter) {
     if (newFilter == _selectedFilter) return;
     setState(() {
       _selectedFilter = newFilter;
     });
-    _loadData();
   }
 
   @override
   Widget build(BuildContext context) {
-    final deviceType = WorkLayoutStrategy().getDeviceType(context);
+    final deviceType =
+    WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
+
+    final worksState = ref.watch(worksNotifierProvider);
 
     return Scaffold(
       body: NotificationListener<ScrollNotification>(
@@ -57,7 +60,7 @@ class _AlbumPageState extends State<AlbumPage> {
             final double offset = scroll.metrics.pixels.clamp(0, 80);
             final double percent = (offset / 80).clamp(0.0, 1.0);
             if ((percent - collapsePercentNotifier.value).abs() > 0.01) {
-              collapsePercentNotifier.value = percent; // 仅更新 ValueNotifier
+              collapsePercentNotifier.value = percent;
             }
           }
           return false;
@@ -72,17 +75,70 @@ class _AlbumPageState extends State<AlbumPage> {
                   return MobileSearchAppBar(
                     collapsePercent: collapsePercent,
                     collapsePercentNotifier: collapsePercentNotifier,
-                    filters: _filters,
-                    selectedFilter: _selectedFilter,
-                    onFilterChanged: _onFilterChanged,
+                    bottom: CollapsibleTabBar(
+                      collapsePercentNotifier: collapsePercentNotifier,
+                      selectedFilter: _selectedFilter,
+                      filters: _filters,
+                      onFilterChanged: _onFilterChanged,
+                    ),
                   );
                 },
               ),
-            // 内容区
-            ResponsiveCardGrid(
-              products: _loading
-                  ? List.generate(8, (_) => Product.empty())
-                  : mockProducts,
+
+            // 热门作品
+            SectionHeader(
+              title: '热门作品',
+              onMore: () {},
+            ),
+            worksState.when(
+              data: (data) => SliverToBoxAdapter(
+                child: WorkListHorizontal(items: data.hotWorks),
+              ),
+              loading: () => const SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 120,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (e, _) => SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 120,
+                  child: Center(child: Text('加载失败: $e')),
+                ),
+              ),
+            ),
+
+            // 推荐作品
+            SliverToBoxAdapter(
+              child: SectionHeader(
+                title: '推荐作品',
+                onMore: () {},
+              ),
+            ),
+            worksState.when(
+              data: (data) => SliverToBoxAdapter(
+                child: WorkListHorizontal(items: data.recommendedWorks),
+              ),
+              loading: () => const SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 120,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (e, _) => SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 120,
+                  child: Center(child: Text('加载失败: $e')),
+                ),
+              ),
+            ),
+
+            // 最新作品（静态 mock）
+            SliverToBoxAdapter(
+              child: SectionHeader(
+                title: '最新作品',
+                onMore: () {},
+              ),
             ),
           ],
         ),

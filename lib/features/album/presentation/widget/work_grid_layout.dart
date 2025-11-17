@@ -6,18 +6,16 @@ import 'package:name_app/features/album/presentation/widget/work_card.dart';
 /// 响应式卡片网格布局
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Product> products;
-
   const ResponsiveCardGrid({super.key, required this.products});
 
   @override
   Widget build(BuildContext context) {
-    final layoutStrategy = WorkLayoutStrategy();
+    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
 
     // 从布局策略中获取布局参数
     final columns = layoutStrategy.getColumnsCount(context);
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
-    final padding = layoutStrategy.getPadding(context);
 
     return SliverGrid.builder(
       itemCount: products.length,

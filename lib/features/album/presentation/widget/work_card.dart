@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:name_app/features/album/data/model/product_mock.dart';
 import 'package:name_app/features/album/presentation/widget/work_tag.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -26,7 +25,6 @@ class ProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                  child: Skeleton.ignore(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -34,21 +32,21 @@ class ProductCard extends StatelessWidget {
                       product.imageUrl,
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) =>
-                          loadingProgress == null
-                              ? child
-                              : const Center(
-                                  child: CircularProgressIndicator()),
+                      loadingProgress == null
+                          ? child
+                          : const Center(
+                          child: CircularProgressIndicator()),
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey[300],
                         child:
-                            const Icon(Icons.broken_image, color: Colors.grey),
+                        const Icon(Icons.broken_image, color: Colors.grey),
                       ),
                     ),
                     Positioned(
                       top: 8,
                       left: 8,
                       child:
-                          _buildBadge(product.id, Colors.black.withAlpha(60)),
+                      _buildBadge(product.id, Colors.black.withAlpha(60)),
                     ),
                     Positioned(
                       top: 8,
@@ -56,8 +54,7 @@ class ProductCard extends StatelessWidget {
                       child: _buildBadge('全年龄', Colors.green.withAlpha(128)),
                     ),
                   ],
-                ),
-              )),
+                )),
               Padding(
                 padding: const EdgeInsets.all(8),
                 child: Column(
@@ -108,22 +105,20 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildBadge(String text, Color color) {
-    return Skeleton.unite(
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            height: 1,
           ),
         ),
       ),

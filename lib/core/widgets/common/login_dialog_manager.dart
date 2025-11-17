@@ -3,18 +3,16 @@ import 'dart:collection';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:name_app/core/constants/app_constants.dart';
 import 'package:name_app/core/routes/app_routes.dart';
-import 'package:name_app/features/auth/presentation/view_models/auth_view_model.dart';
 import 'package:name_app/features/auth/presentation/widgets/auth_dialog.dart';
 import 'package:name_app/features/auth/presentation/widgets/auth_login_center.dart';
 import '../../utils/log/logger.dart';
 
 class _PendingRequest {
   final RequestOptions request;
-  final ResponseInterceptorHandler handler;
+  final ErrorInterceptorHandler handler;
   _PendingRequest(this.request, this.handler);
 
   void resolve(Response response) => handler.resolve(response);
@@ -32,7 +30,7 @@ class LoginDialogManager {
 
   Future<void> handleUnauthorized(
     Response response,
-    ResponseInterceptorHandler handler,
+      ErrorInterceptorHandler handler,
     Dio dio, {
     Future<String?> Function()? tokenProvider,
   }) async {
@@ -40,7 +38,6 @@ class LoginDialogManager {
     if (_showing) return;
 
     _showing = true;
-    await GetIt.I<AuthViewModel>().logout();
     Log.w('401 detected. Showing login dialog...', tag: 'LoginDialogManager');
 
     final success = await showLoginDialog();

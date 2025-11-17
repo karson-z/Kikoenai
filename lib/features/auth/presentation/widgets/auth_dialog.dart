@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/features/auth/data/model/login_params.dart';
-import 'package:name_app/features/auth/presentation/widgets/auth_text_field.dart';
-import 'package:provider/provider.dart';
-import '../view_models/auth_view_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:name_app/core/widgets/common/error_banner.dart';
 import 'package:name_app/core/widgets/message.dart';
+import '../view_models/provider/auth_provider.dart';
 
-class AuthDialog extends StatefulWidget {
+class AuthDialog extends ConsumerStatefulWidget {
   final VoidCallback? onSuccess;
 
   const AuthDialog({super.key, this.onSuccess});
 
   @override
-  State<AuthDialog> createState() => _AuthDialogState();
+  ConsumerState<AuthDialog> createState() => _AuthDialogState();
 }
 
-class _AuthDialogState extends State<AuthDialog> {
+class _AuthDialogState extends ConsumerState<AuthDialog> {
   final _accountController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isRegisterMode = false;
@@ -34,7 +32,9 @@ class _AuthDialogState extends State<AuthDialog> {
     });
   }
 
-  void _handleSubmit(AuthViewModel vm) async {
+  Future<void> _handleSubmit() async {
+    final notifier = ref.read(authNotifierProvider.notifier);
+
     if (_accountController.text.isEmpty) {
       _showError('请输入账号');
       return;
@@ -46,23 +46,20 @@ class _AuthDialogState extends State<AuthDialog> {
       return;
     }
 
-    final params = {
-      'account': _accountController.text,
-      'pwd': _passwordController.text
-    };
-
     if (_isRegisterMode) {
-      await vm.register(params);
-      if (vm.error == null) {
-        _showSuccess('注册成功，请登录');
-        _toggleMode();
-      }
+      // 如果你有注册方法，可以调用 notifier.register(...)，否则提示
+      _showError('注册功能暂未实现');
     } else {
-      await vm.login(LoginParams(
-          account: _accountController.text, pwd: _passwordController.text));
-      if (vm.error == null) {
+      final success = await notifier.login(
+        _accountController.text,
+        _passwordController.text
+      );
+
+      if (success) {
         _showSuccess('登录成功');
         widget.onSuccess?.call();
+      } else {
+        _showError('登录失败');
       }
     }
   }
@@ -77,7 +74,8 @@ class _AuthDialogState extends State<AuthDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AuthViewModel>();
+    final authState = ref.watch(authNotifierProvider);
+
     final theme = Theme.of(context);
 
     return Center(
@@ -107,9 +105,9 @@ class _AuthDialogState extends State<AuthDialog> {
               ),
               const SizedBox(height: 24),
 
-              if (vm.error != null) ...[
+              if (authState.error != null) ...[
                 const SizedBox(height: 11),
-                ErrorBanner(message: vm.error!),
+                ErrorBanner(message: authState.error.toString()),
               ],
 
               // 输入框组
@@ -121,40 +119,38 @@ class _AuthDialogState extends State<AuthDialog> {
                   child: Column(
                     children: [
                       // 账号
-                      AuthTextField(
+                      TextField(
                         controller: _accountController,
-                        labelText: '账号',
-                        hintText: '请输入账号',
-                        prefixIcon: Icons.person_outline,
-                        enabled: !vm.loading,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                          bottom: Radius.zero,
+                        decoration: InputDecoration(
+                          labelText: '账号',
+                          hintText: '请输入账号',
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
+                        enabled: !authState.isLoading,
                       ),
                       Divider(
-                          height: 1, color: theme.dividerColor.withAlpha(50)),
+                          height: 1,
+                          color: theme.dividerColor.withAlpha(50)),
                       // 密码
-                      AuthTextField(
+                      TextField(
                         controller: _passwordController,
-                        labelText: '密码',
-                        hintText: '请输入密码',
-                        prefixIcon: Icons.lock_outline,
-                        obscureText: _obscurePassword,
-                        enabled: !vm.loading,
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: theme.colorScheme.onSurfaceVariant,
+                        decoration: InputDecoration(
+                          labelText: '密码',
+                          hintText: '请输入密码',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                           ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
                         ),
+                        obscureText: _obscurePassword,
+                        enabled: !authState.isLoading,
                       ),
                     ],
                   ),
@@ -165,7 +161,7 @@ class _AuthDialogState extends State<AuthDialog> {
 
               // 登录/注册按钮
               ElevatedButton(
-                onPressed: vm.loading ? null : () => _handleSubmit(vm),
+                onPressed: authState.isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -174,16 +170,16 @@ class _AuthDialogState extends State<AuthDialog> {
                   foregroundColor: theme.colorScheme.onPrimary,
                   minimumSize: const Size.fromHeight(48),
                 ),
-                child: vm.loading
+                child: authState.isLoading
                     ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(color: Colors.white))
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white))
                     : Text(
-                        _isRegisterMode ? '注册' : '登录',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
+                  _isRegisterMode ? '注册' : '登录',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
 
               const SizedBox(height: 12),
@@ -192,7 +188,7 @@ class _AuthDialogState extends State<AuthDialog> {
               Align(
                 alignment: Alignment.center,
                 child: TextButton(
-                  onPressed: vm.loading ? null : _toggleMode,
+                  onPressed: authState.isLoading ? null : _toggleMode,
                   child: Text(
                     _isRegisterMode ? '已有账号？点击登录' : '没有账号？点击注册',
                     style: TextStyle(

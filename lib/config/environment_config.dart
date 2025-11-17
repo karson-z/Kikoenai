@@ -8,13 +8,13 @@ class EnvironmentConfig {
   /// - 其他平台: 默认使用 localhost
   static String get baseUrl {
     if (defaultTargetPlatform == TargetPlatform.windows) {
-      return 'http://localhost:8081';
+      return 'https://api.asmr-200.com';
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       // Android 模拟器不能直接访问 localhost，需要使用 10.0.2.2
-      return 'http://10.0.2.2:8081';
+      return 'https://api.asmr-200.com';
     } else {
       // 默认使用 localhost 作为基础URL
-      return 'http://localhost:8081';
+      return 'https://api.asmr-200.com';
     }
   }
 

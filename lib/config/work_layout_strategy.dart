@@ -1,32 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_config.dart';
+import '../core/enums/device_type.dart';
+import 'card_layout_config.dart';
+import 'list_layout_config.dart';
 
-/// 作品布局策略（对 WorkLayoutConfig 的便捷封装）
-class WorkLayoutStrategy {
-  const WorkLayoutStrategy();
+enum WorkListLayoutType {
+  card,
+  list,
+}
 
-  /// 根据屏幕宽度判断设备类型
-  DeviceType getDeviceType(BuildContext context) {
-    return DeviceType.fromWidth(MediaQuery.of(context).size.width);
-  }
+class WorkListLayout {
+  final WorkListLayoutType layoutType;
 
-  /// 每行的列数
+  const WorkListLayout({required this.layoutType});
+
+  DeviceType getDeviceType(BuildContext context) =>
+      DeviceType.fromWidth(MediaQuery.of(context).size.width);
+
   int getColumnsCount(BuildContext context) {
-    return WorkLayoutConfig.getColumnsCount(getDeviceType(context));
+    final device = getDeviceType(context);
+    switch (layoutType) {
+      case WorkListLayoutType.card:
+        return CardWorkLayoutConfig.getColumnsCount(device);
+      case WorkListLayoutType.list:
+        return ListWorkLayoutConfig.getColumns(device);
+    }
   }
 
-  /// 行间距（纵向间距）
   double getRowSpacing(BuildContext context) {
-    return WorkLayoutConfig.getVerticalSpacing(getDeviceType(context));
+    final device = getDeviceType(context);
+    switch (layoutType) {
+      case WorkListLayoutType.card:
+        return CardWorkLayoutConfig.getVerticalSpacing(device);
+      case WorkListLayoutType.list:
+        return ListWorkLayoutConfig.getVerticalSpacing(device);
+    }
   }
 
-  /// 列间距（横向间距）
   double getColumnSpacing(BuildContext context) {
-    return WorkLayoutConfig.getHorizontalSpacing(getDeviceType(context));
+    final device = getDeviceType(context);
+    switch (layoutType) {
+      case WorkListLayoutType.card:
+        return CardWorkLayoutConfig.getHorizontalSpacing(device);
+      case WorkListLayoutType.list:
+        return ListWorkLayoutConfig.getHorizontalSpacing(device);
+    }
   }
 
-  /// 内边距
   EdgeInsets getPadding(BuildContext context) {
-    return WorkLayoutConfig.getPadding(getDeviceType(context));
+    final device = getDeviceType(context);
+    switch (layoutType) {
+      case WorkListLayoutType.card:
+        return CardWorkLayoutConfig.getPadding(device);
+      case WorkListLayoutType.list:
+        return ListWorkLayoutConfig.getPadding(device);
+    }
   }
 }

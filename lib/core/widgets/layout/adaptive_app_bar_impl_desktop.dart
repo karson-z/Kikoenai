@@ -1,11 +1,12 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_config.dart';
 import 'package:name_app/config/work_layout_strategy.dart';
 import 'package:name_app/core/widgets/common/global_search_input.dart';
 import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
 import 'package:name_app/core/widgets/common/win_control_button.dart';
+
+import '../../enums/device_type.dart';
 
 PreferredSizeWidget buildAdaptiveAppBar(
   BuildContext context, {
@@ -15,7 +16,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
   double? height = kToolbarHeight,
 }) {
   final theme = Theme.of(context);
-  final deviceType = WorkLayoutStrategy().getDeviceType(context);
+  final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
 
   // ✅ Web 或非 Windows 平台
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {

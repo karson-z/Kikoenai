@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/config/work_layout_config.dart';
 import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/core/common/navigation_item.dart';
-import 'package:name_app/core/constants/app_constants.dart';
-import 'package:name_app/core/theme/theme_view_model.dart';
-import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
+import 'package:name_app/config/navigation_item.dart';
 import 'package:name_app/core/widgets/layout/navigation_rail.dart';
-import 'package:provider/provider.dart';
 import 'package:name_app/core/widgets/layout/adaptive_app_bar.dart';
+
+import '../../enums/device_type.dart';
 
 /// 一个自适应的、响应式的脚手架，
 /// 在小屏幕上显示 BottomNavigationBar，在大屏幕上显示 NavigationRail。
@@ -36,7 +33,7 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deviceType = WorkLayoutStrategy().getDeviceType(context);
+    final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
     final int selectedIndex = _calculateSelectedIndex(context);
     final String title = appNavigationItems[selectedIndex].label;
 

@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:name_app/core/theme/theme_view_model.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/theme_view_model.dart';
 
 enum TagType {
   normal,
@@ -10,8 +10,8 @@ enum TagType {
   status,
 }
 
-/// 自定义标签行
-class TagRow extends StatelessWidget {
+/// 自定义标签行，支持 Riverpod 主题监听
+class TagRow extends ConsumerWidget {
   final List<String> tags;
   final TagType type;
   final double? fontSize;
@@ -30,10 +30,15 @@ class TagRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (tags.isEmpty) return const SizedBox.shrink();
-    final vm = context.watch<ThemeViewModel>();
-    final isDark = vm.themeMode == ThemeMode.dark;
+
+    // 监听主题状态
+    final themeStateAsync = ref.watch(themeNotifierProvider);
+    final isDark = themeStateAsync.maybeWhen(
+      data: (value) => value.mode == ThemeMode.dark,
+      orElse: () => false,
+    );
 
     return SizedBox(
       child: ScrollConfiguration(
@@ -51,10 +56,10 @@ class TagRow extends StatelessWidget {
             children: tags
                 .map(
                   (tag) => Container(
-                    margin: EdgeInsets.only(right: spacing ?? 6),
-                    child: _buildTag(tag, isDark),
-                  ),
-                )
+                margin: EdgeInsets.only(right: spacing ?? 6),
+                child: _buildTag(tag, isDark),
+              ),
+            )
                 .toList(),
           ),
         ),
@@ -93,7 +98,7 @@ class TagRow extends StatelessWidget {
 
     return Container(
       padding: pad,
-      alignment: Alignment.center, // ✅ 文字居中
+      alignment: Alignment.center, // 文字居中
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(radius),
@@ -101,7 +106,7 @@ class TagRow extends StatelessWidget {
       child: Text(
         tag,
         style: TextStyle(fontSize: fs, color: textColor, height: 1),
-        textAlign: TextAlign.center, // ✅ 文字居中
+        textAlign: TextAlign.center,
       ),
     );
   }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/core/theme/theme_view_model.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/theme_view_model.dart';
 
-class GlobalSearchInput extends StatelessWidget {
+class GlobalSearchInput extends ConsumerWidget {
   final ValueChanged<String>? onSubmitted;
   final ValueChanged<String>? onChanged;
   final String hintText;
@@ -19,9 +19,16 @@ class GlobalSearchInput extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final themeVM = context.watch<ThemeViewModel>();
-    final isDark = themeVM.themeMode == ThemeMode.dark;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeStateAsync = ref.watch(themeNotifierProvider);
+
+    // 默认主题数据
+    ThemeMode themeMode = ThemeMode.system;
+
+    // 根据 AsyncValue 判断加载状态
+    themeStateAsync.whenData((value) => themeMode = value.mode);
+
+    final isDark = themeMode == ThemeMode.dark;
 
     // 背景色根据主题切换
     final bgColor = isDark ? Colors.grey.shade800 : Colors.white;
@@ -45,8 +52,8 @@ class GlobalSearchInput extends StatelessWidget {
             hintText: hintText,
             hintStyle: TextStyle(color: hintColor),
             prefixIcon: Icon(Icons.search, color: iconColor),
-            filled: false, // 内部不再填充白色
-            border: InputBorder.none, // 去掉 TextField 自带边框
+            filled: false,
+            border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 10),
           ),
         ),
