@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:name_app/features/album/data/model/translation_status.dart';
 part 'translation_info.g.dart';
 @JsonSerializable()
 class TranslationInfo {
@@ -23,8 +24,10 @@ class TranslationInfo {
   final List<String>? translationBonusLangs;
   @JsonKey(name: 'is_translation_bonus_child')
   final bool? isTranslationBonusChild;
-  @JsonKey(name: 'translation_status_for_translator')
-  final List<dynamic>? translationStatusForTranslator;
+  @JsonKey(
+    name: 'translation_status_for_translator',
+  )
+  final Map<String, TranslationStatus>? translationStatusForTranslator;
 
   TranslationInfo({
     this.lang,
@@ -57,7 +60,7 @@ class TranslationInfo {
     bool? isTranslationAgree,
     List<String>? translationBonusLangs,
     bool? isTranslationBonusChild,
-    List<dynamic>? translationStatusForTranslator,
+    Map<String, TranslationStatus>? translationStatusForTranslator,
   }) {
     return TranslationInfo(
       lang: lang ?? this.lang,

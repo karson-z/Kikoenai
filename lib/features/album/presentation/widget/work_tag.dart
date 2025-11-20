@@ -10,14 +10,16 @@ enum TagType {
   status,
 }
 
-/// 自定义标签行，支持 Riverpod 主题监听
 class TagRow extends ConsumerWidget {
   final List<dynamic> tags;
   final TagType type;
   final double? fontSize;
-  final EdgeInsets? padding; // 内边距
-  final double? spacing; // 标签之间间距
+  final EdgeInsets? padding;
+  final double? spacing;
   final double? borderRadius;
+
+  /// 新增：标签点击回调
+  final void Function(dynamic tag)? onTagTap;
 
   const TagRow({
     super.key,
@@ -27,15 +29,15 @@ class TagRow extends ConsumerWidget {
     this.padding,
     this.spacing,
     this.borderRadius,
+    this.onTagTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (tags.isEmpty) return const SizedBox.shrink();
 
-    // 监听主题状态
-    final themeStateAsync = ref.watch(themeNotifierProvider);
-    final isDark = themeStateAsync.maybeWhen(
+    final themeState = ref.watch(themeNotifierProvider);
+    final isDark = themeState.maybeWhen(
       data: (value) => value.mode == ThemeMode.dark,
       orElse: () => false,
     );
@@ -53,14 +55,16 @@ class TagRow extends ConsumerWidget {
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           child: Row(
-            children: tags
-                .map(
-                  (tag) => Container(
-                margin: EdgeInsets.only(right: spacing ?? 6),
-                child: _buildTag(tag, isDark),
-              ),
-            )
-                .toList(),
+            children: tags.map((tag) {
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque, // 阻止事件冒泡到卡片
+                onTap: () => onTagTap?.call(tag),
+                child: Container(
+                  margin: EdgeInsets.only(right: spacing ?? 6),
+                  child: _buildTag(tag, isDark),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),
@@ -72,7 +76,6 @@ class TagRow extends ConsumerWidget {
     final pad = padding ?? const EdgeInsets.all(6);
     final radius = borderRadius ?? 12;
 
-    // 根据类型设置背景色和文字色
     Color bgColor;
     Color textColor;
 
@@ -98,13 +101,13 @@ class TagRow extends ConsumerWidget {
 
     return Container(
       padding: pad,
-      alignment: Alignment.center, // 文字居中
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(radius),
       ),
       child: Text(
-        tag.name!,
+        tag.name ?? tag.toString(),
         style: TextStyle(fontSize: fs, color: textColor, height: 1),
         textAlign: TextAlign.center,
       ),

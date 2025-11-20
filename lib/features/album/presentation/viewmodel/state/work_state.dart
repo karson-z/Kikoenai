@@ -7,6 +7,7 @@ class WorksState extends Equatable {
   final List<Work> works;
   final List<Work> hotWorks;         // 热门作品
   final List<Work> recommendedWorks; // 推荐作品
+  final List<Work> newWorks;
   final int currentPage;
   final int totalCount;
   final bool hasMore;
@@ -20,6 +21,7 @@ class WorksState extends Equatable {
     this.works = const [],
     this.hotWorks= const [],        // 热门作品
     this.recommendedWorks= const [], // 推荐作品
+    this.newWorks = const [],
     this.currentPage = 1,
     this.totalCount = 0,
     this.hasMore = true,
@@ -34,6 +36,7 @@ class WorksState extends Equatable {
     List<Work>? works,
     List<Work>? hotWorks,       // 热门作品
     List<Work>? recommendedWorks,
+    List<Work>? newWorks,
     bool? isLoading,
     String? error,
     int? currentPage,
@@ -49,6 +52,7 @@ class WorksState extends Equatable {
       works: works ?? this.works,
       hotWorks: hotWorks ?? this.hotWorks,
       recommendedWorks: recommendedWorks ?? this.recommendedWorks,
+      newWorks: newWorks ?? this.newWorks,
       currentPage: currentPage ?? this.currentPage,
       totalCount: totalCount ?? this.totalCount,
       hasMore: hasMore ?? this.hasMore,
@@ -65,6 +69,7 @@ class WorksState extends Equatable {
     works,
     hotWorks,
     recommendedWorks,
+    newWorks,
     currentPage,
     totalCount,
     hasMore,

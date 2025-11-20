@@ -45,7 +45,9 @@ class MainScaffold extends StatelessWidget {
         if (deviceType == DeviceType.mobile) {
           // --- 移动端布局 (BottomNavigationBar) ---
           return Scaffold(
-            body: child ?? Container(),
+            body: SafeArea(
+              child: child ?? Container(),
+            ),
             bottomNavigationBar: _buildBottomNav(context, selectedIndex),
           );
         } else {

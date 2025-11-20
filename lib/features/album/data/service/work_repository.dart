@@ -36,6 +36,7 @@ class WorkRepositoryImpl implements WorkRepository {
   @override
   Future<Result<Map<String, dynamic>>> getWorks({
     int page = 1,
+    int pageSize = 30,
     String? order,
     String? sort,
     int? subtitle,
@@ -45,6 +46,7 @@ class WorkRepositoryImpl implements WorkRepository {
       "/works",
       queryParameters: {
         "page": page,
+        "pageSize": pageSize,
         if (order != null) "order": order,
         if (sort != null) "sort": sort,
         if (subtitle != null) "subtitle": subtitle,
@@ -57,7 +59,7 @@ class WorkRepositoryImpl implements WorkRepository {
   @override
   Future<Result<Map<String, dynamic>>> getPopularWorks({
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 30,
     String? keyword,
     int? subtitle,
     List<String>? withPlaylistStatus,
@@ -80,7 +82,7 @@ class WorkRepositoryImpl implements WorkRepository {
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
     required String recommenderUuid,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 30,
     String? keyword,
     int? subtitle,
     List<String>? withPlaylistStatus,

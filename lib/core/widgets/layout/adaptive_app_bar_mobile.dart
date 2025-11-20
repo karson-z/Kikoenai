@@ -45,12 +45,10 @@ class MobileSearchAppBar extends ConsumerWidget {
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
           final topPadding = MediaQuery.of(context).padding.top;
-
           return ValueListenableBuilder<double>(
             valueListenable: collapsePercentNotifier, // <-- 直接用 collapsePercentNotifier
             builder: (_, collapsePercent, __) {
               collapsePercent = collapsePercent.clamp(0.0, 1.0);
-              debugPrint("collapsePercent: $collapsePercent");
               return Padding(
                 padding: EdgeInsets.only(top: topPadding + 16, left: 16, right: 16),
                 child: Opacity(

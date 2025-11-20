@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:name_app/features/album/data/model/language_edition.dart';
+import 'package:name_app/features/album/data/model/rank.dart';
+import 'package:name_app/features/album/data/model/rate_count_detail.dart';
 import 'package:name_app/features/album/data/model/tag.dart';
 import 'package:name_app/features/album/data/model/translation_info.dart';
 import 'package:name_app/features/album/data/model/va.dart';
@@ -29,8 +31,8 @@ class Work{
   @JsonKey(name: 'rate_average_2dp')
   final int? rateAverage2dp;
   @JsonKey(name: 'rate_count_detail')
-  final List<dynamic>? rateCountDetail;
-  final dynamic rank;
+  final List<RateCountDetail>? rateCountDetail;
+  final List<Rank>? rank;
   @JsonKey(name: 'has_subtitle')
   final bool? hasSubtitle;
   @JsonKey(name: 'create_date')
@@ -43,8 +45,6 @@ class Work{
   final String? originalWorkno;
   @JsonKey(name: 'other_language_editions_in_db')
   final List<OtherLanguageEdition>? otherLanguageEditionsInDb;
-  @JsonKey(name: 'translation_info')
-  final TranslationInfo? translationInfo;
   @JsonKey(name: 'work_attributes')
   final String? workAttributes;
   @JsonKey(name: 'age_category_string')
@@ -83,7 +83,6 @@ class Work{
     this.languageEditions,
     this.originalWorkno,
     this.otherLanguageEditionsInDb,
-    this.translationInfo,
     this.workAttributes,
     this.ageCategoryString,
     this.duration,
@@ -112,8 +111,8 @@ class Work{
     int? reviewCount,
     int? rateCount,
     int? rateAverage2dp,
-    List<dynamic>? rateCountDetail,
-    dynamic rank,
+    List<RateCountDetail>? rateCountDetail,
+    List<Rank>? rank,
     bool? hasSubtitle,
     String? createDate,
     List<VA>? vas,
@@ -155,7 +154,6 @@ class Work{
       languageEditions: languageEditions ?? this.languageEditions,
       originalWorkno: originalWorkno ?? this.originalWorkno,
       otherLanguageEditionsInDb: otherLanguageEditionsInDb ?? this.otherLanguageEditionsInDb,
-      translationInfo: translationInfo ?? this.translationInfo,
       workAttributes: workAttributes ?? this.workAttributes,
       ageCategoryString: ageCategoryString ?? this.ageCategoryString,
       duration: duration ?? this.duration,
