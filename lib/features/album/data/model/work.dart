@@ -3,8 +3,8 @@ import 'package:name_app/features/album/data/model/language_edition.dart';
 import 'package:name_app/features/album/data/model/rank.dart';
 import 'package:name_app/features/album/data/model/rate_count_detail.dart';
 import 'package:name_app/features/album/data/model/tag.dart';
-import 'package:name_app/features/album/data/model/translation_info.dart';
 import 'package:name_app/features/album/data/model/va.dart';
+import 'package:uuid/uuid.dart';
 
 import 'circle.dart';
 import 'other_language_edition.dart';
@@ -13,7 +13,7 @@ part 'work.g.dart';
 
 /// Work 主类
 @JsonSerializable(explicitToJson: true)
-class Work{
+class Work {
   final int? id;
   final String? title;
   @JsonKey(name: 'circle_id')
@@ -29,7 +29,7 @@ class Work{
   @JsonKey(name: 'rate_count')
   final int? rateCount;
   @JsonKey(name: 'rate_average_2dp')
-  final int? rateAverage2dp;
+  final double? rateAverage2dp;
   @JsonKey(name: 'rate_count_detail')
   final List<RateCountDetail>? rateCountDetail;
   final List<Rank>? rank;
@@ -61,6 +61,10 @@ class Work{
   final String? samCoverUrl;
   final String? thumbnailCoverUrl;
   final String? mainCoverUrl;
+
+  /// Hero 动画唯一标识
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  String? heroTag;
 
   Work({
     this.id,
@@ -94,7 +98,10 @@ class Work{
     this.samCoverUrl,
     this.thumbnailCoverUrl,
     this.mainCoverUrl,
-  });
+    this.heroTag,
+  }) {
+    heroTag ??= const Uuid().v4(); // 只生成一次 UUID
+  }
 
   factory Work.fromJson(Map<String, dynamic> json) => _$WorkFromJson(json);
   Map<String, dynamic> toJson() => _$WorkToJson(this);
@@ -110,7 +117,7 @@ class Work{
     int? price,
     int? reviewCount,
     int? rateCount,
-    int? rateAverage2dp,
+    double? rateAverage2dp,
     List<RateCountDetail>? rateCountDetail,
     List<Rank>? rank,
     bool? hasSubtitle,
@@ -120,7 +127,6 @@ class Work{
     List<LanguageEdition>? languageEditions,
     String? originalWorkno,
     List<OtherLanguageEdition>? otherLanguageEditionsInDb,
-    TranslationInfo? translationInfo,
     String? workAttributes,
     String? ageCategoryString,
     int? duration,
@@ -132,6 +138,7 @@ class Work{
     String? samCoverUrl,
     String? thumbnailCoverUrl,
     String? mainCoverUrl,
+    String? heroTag,
   }) {
     return Work(
       id: id ?? this.id,
@@ -165,6 +172,7 @@ class Work{
       samCoverUrl: samCoverUrl ?? this.samCoverUrl,
       thumbnailCoverUrl: thumbnailCoverUrl ?? this.thumbnailCoverUrl,
       mainCoverUrl: mainCoverUrl ?? this.mainCoverUrl,
+      heroTag: heroTag ?? this.heroTag,
     );
   }
 

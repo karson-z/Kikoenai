@@ -34,8 +34,6 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
     }
     return [];
   }
-
-
   /// 热门作品
   Future<void> loadHotWorks({int page = 1}) async {
     try {
@@ -108,20 +106,13 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
     }
   }
 
-  Future<void> changeSortState(SortOrder sortOption,
-      {SortDirection sortDec = SortDirection.desc}) async {
+  Future<void> changeSortState({SortOrder? sortOption,SortDirection? sortDec}) async {
     final prev = state.value ?? const WorksState();
     state = AsyncData(prev.copyWith(
       sortOption: sortOption,
       sortDirection: sortDec,
     ));
-  }
-
-  Future<void> changeSortDirection(SortDirection sortDec) async {
-    final prev = state.value ?? const WorksState();
-    state = AsyncData(prev.copyWith(
-      sortDirection: sortDec,
-    ));
+    loadWorks();
   }
 
   Future<void> loadWorks({
@@ -136,14 +127,13 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
           subtitle: state.value?.subtitleFilter,
           sort: state.value?.sortDirection.value
       );
-
+      debugPrint("sortDecState:${state.value?.sortDirection.value}");
       final worksJson = result.data?['works'];
       final work = _parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;
       final hasMore = work.length < totalCount;
-      debugPrint("work:${work.length}");
       final prev = state.value ?? const WorksState();
 
       state = AsyncData(
@@ -169,7 +159,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
 
       final result = await _repository.getWorks(
           page: page,
-          order: SortOrder.release.value,
+          order: 'release',
       );
 
       final worksJson = result.data?['works'];
@@ -216,3 +206,4 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
 
 final worksNotifierProvider =
 AsyncNotifierProvider<WorksNotifier, WorksState>(() => WorksNotifier());
+

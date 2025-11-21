@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:palette_generator/palette_generator.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../data/model/work.dart';
 
 class SmartColorCard extends StatefulWidget {
@@ -70,52 +72,58 @@ class _SmartColorCardState extends State<SmartColorCard> {
 
     final placeholderDecoration = BoxDecoration(
       gradient: LinearGradient(
-        colors: [baseColor.withOpacity(0.5), baseColor],
+        colors: [baseColor.withAlpha(50), baseColor],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
     );
-
-    return SizedBox(
-      width: cardWidth,
-      height: totalHeight,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(widget.borderRadius),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              height: imageHeight,
-              child: CachedNetworkImage(
-                imageUrl: widget.work.thumbnailCoverUrl ?? "",
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  decoration: placeholderDecoration,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        // 卡片点击逻辑：跳转详情页，携带 work 对象
+        context.push(AppRoutes.detail,extra: {'work': widget.work});
+      },
+      child: SizedBox(
+        width: cardWidth,
+        height: totalHeight,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Hero(tag: widget.work.heroTag!, child: SizedBox(
+                width: cardWidth,
+                height: imageHeight,
+                child: CachedNetworkImage(
+                  imageUrl: widget.work.thumbnailCoverUrl ?? "",
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    decoration: placeholderDecoration,
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    decoration: placeholderDecoration,
+                    child: const Icon(Icons.error, color: Colors.white),
+                  ),
                 ),
-                errorWidget: (context, url, error) => Container(
-                  decoration: placeholderDecoration,
-                  child: const Icon(Icons.error, color: Colors.white),
+              )),
+              Container(
+                width: cardWidth,
+                height: bottomHeight,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                color: baseColor,
+                child: Text(
+                  widget.work.title ?? "",
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: cardWidth,
-              height: bottomHeight,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              color: baseColor,
-              child: Text(
-                widget.work.title ?? "",
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

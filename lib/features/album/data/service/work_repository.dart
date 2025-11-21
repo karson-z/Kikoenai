@@ -1,5 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/common/result.dart';
 import '../../../../core/utils/network/api_client.dart';
 
@@ -26,6 +26,7 @@ abstract class WorkRepository {
     int? subtitle,
     List<String>? withPlaylistStatus,
   });
+  Future<Result<List<dynamic>>> getWorkTracks(int workId);
 }
 
 class WorkRepositoryImpl implements WorkRepository {
@@ -36,13 +37,13 @@ class WorkRepositoryImpl implements WorkRepository {
   @override
   Future<Result<Map<String, dynamic>>> getWorks({
     int page = 1,
-    int pageSize = 30,
+    int pageSize = 20,
     String? order,
     String? sort,
     int? subtitle,
     int? seed,
   }) async {
-    final response = await api.get(
+    final response = await api.get<Map<String, dynamic>>(
       "/works",
       queryParameters: {
         "page": page,
@@ -56,6 +57,7 @@ class WorkRepositoryImpl implements WorkRepository {
     // ApiClient 已经返回 Result<Map<String,dynamic>>
     return response;
   }
+
   @override
   Future<Result<Map<String, dynamic>>> getPopularWorks({
     int page = 1,
@@ -72,12 +74,13 @@ class WorkRepositoryImpl implements WorkRepository {
       'localSubtitledWorks': [],
       'withPlaylistStatus': withPlaylistStatus ?? [],
     };
-    final response = await api.post(
+    final response = await api.post<Map<String, dynamic>>(
       '/recommender/popular',
       data: data,
     );
     return response;
   }
+
   @override
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
     required String recommenderUuid,
@@ -97,10 +100,19 @@ class WorkRepositoryImpl implements WorkRepository {
       'withPlaylistStatus': withPlaylistStatus ?? [],
     };
 
-    final response = await api.post(
+    final response = await api.post<Map<String, dynamic>>(
       '/recommender/recommend-for-user',
       data: data,
     );
+    return response;
+  }
+
+  @override
+  Future<Result<List<dynamic>>> getWorkTracks(int workId) async {
+    final data = {
+      'v': 2,
+    };
+    final response = await api.get<List<dynamic>>('/tracks/$workId',queryParameters: data);
     return response;
   }
 }

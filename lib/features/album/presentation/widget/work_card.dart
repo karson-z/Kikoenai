@@ -1,26 +1,24 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:name_app/core/routes/app_routes.dart';
 import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/album/presentation/widget/work_tag.dart';
 import '../../../../core/enums/age_rating.dart';
 
 class WorkCard extends StatelessWidget {
   final Work work;
-  final void Function(dynamic tag)? onTagTap; // 新增：标签点击回调
+  final void Function(dynamic tag)? onTagTap;
 
-  const WorkCard({
-    super.key,
-    required this.work,
-    this.onTagTap,
-  });
+  WorkCard({super.key, required this.work, this.onTagTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
-        // 卡片点击逻辑：跳详情
-        Navigator.pushNamed(context, "/work/${work.id}");
+        // 卡片点击逻辑：跳转详情页，携带 work 对象
+        context.push(AppRoutes.detail,extra: {'work': work});
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -31,53 +29,59 @@ class WorkCard extends StatelessWidget {
             final cardWidth = constraints.maxWidth;
             final computedTitleFontSize = cardWidth / 15;
             final computedCircleFontSize = cardWidth / 20;
-
             double computeFontSize() => cardWidth / 20;
             double computePadding() => cardWidth / 30;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 封面 + Hero
                 Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: work.thumbnailCoverUrl ?? "",
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.broken_image),
-                        ),
+                  child: Hero(
+                    tag: work.heroTag!,
+                    child: AspectRatio(
+                      aspectRatio: 4 / 3, // 固定比例
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: work.thumbnailCoverUrl ?? "",
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.broken_image),
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: _buildBadge(
+                              "RJ${work.id}",
+                              Colors.black.withAlpha(60),
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: _buildBadge(
+                              AgeRatingEnum.labelFromValue(work.ageCategoryString),
+                              AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: _buildBadge(
+                              work.release.toString(),
+                              Colors.black.withAlpha(90),
+                            ),
+                          ),
+                        ],
                       ),
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: _buildBadge(
-                          "RJ${work.id}",
-                          Colors.black.withAlpha(60),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: _buildBadge(
-                          AgeRatingEnum.labelFromValue(work.ageCategoryString),
-                          AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: _buildBadge(
-                          work.createDate.toString(),
-                          Colors.black.withAlpha(90),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -108,9 +112,7 @@ class WorkCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
 
-                      /// -----------------------
-                      /// 作者标签 (可点击)
-                      /// -----------------------
+                      /// 作者标签
                       TagRow(
                         tags: work.vas ?? [],
                         type: TagType.author,
@@ -121,12 +123,9 @@ class WorkCard extends StatelessWidget {
                           onTagTap?.call(tag);
                         },
                       ),
-
                       const SizedBox(height: 4),
 
-                      /// -----------------------
-                      /// 普通标签 (可点击)
-                      /// -----------------------
+                      /// 普通标签
                       TagRow(
                         tags: work.tags ?? [],
                         type: TagType.normal,

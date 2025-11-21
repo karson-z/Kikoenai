@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:name_app/core/constants/app_constants.dart';
+import 'package:name_app/features/album/presentation/page/track_file_page.dart';
 import 'package:name_app/features/user/presentation/pages/user_page.dart';
+import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/auth/presentation/view_models/provider/auth_provider.dart';
 import '../../features/auth/presentation/view_models/state/auth_state.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/settings/presentation/pages/settings_overview_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
-import '../common/app_transition_page.dart';
 import '../widgets/common/login_dialog_manager.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_auth_config.dart';
@@ -66,52 +67,50 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: AppRoutes.home,
-            pageBuilder: (context, state) => AppTransitionPage(
-              state: state,
+            pageBuilder: (context, state) => MaterialPage(
               child: const HomePage(),
-              type: PageTransitionType.fade,
             ),
           ),
           GoRoute(
             path: AppRoutes.settings,
-            pageBuilder: (context, state) => AppTransitionPage(
-              state: state,
+            pageBuilder: (context, state) => MaterialPage(
               child: const SettingsOverviewPage(),
-              type: PageTransitionType.fade,
             ),
           ),
           GoRoute(
             path: AppRoutes.album,
-            pageBuilder: (context, state) => AppTransitionPage(
-              state: state,
+            pageBuilder: (context, state) => MaterialPage(
               child: const AlbumPage(),
-              type: PageTransitionType.fade,
             ),
           ),
           GoRoute(
             path: AppRoutes.user,
-            pageBuilder: (context, state) => AppTransitionPage(
-              state: state,
+            pageBuilder: (context, state) => MaterialPage(
               child: const UserPage(),
-              type: PageTransitionType.fade,
             ),
           ),
-          // GoRoute(path: AppRoutes.test,
-          //   pageBuilder: (context, state) => AppTransitionPage(
-          //     state: state,
-          //     child: const WorkTestPage(),
-          //     type: PageTransitionType.fade,
-          //   ))
+          GoRoute(path: AppRoutes.test,
+            pageBuilder: (context, state) => MaterialPage(
+              child: const FileNodeTestPage(),
+            ))
         ],
       ),
       GoRoute(
         path: AppRoutes.settingsTheme,
-        pageBuilder: (context, state) => AppTransitionPage(
-          state: state,
+        pageBuilder: (context, state) => MaterialPage(
           child: const SettingsPage(),
-          type: PageTransitionType.fade,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.detail,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return MaterialPage(
+            child: AlbumDetailPage(extra:extra),
+          );
+        },
       ),
     ],
   );
 });
+

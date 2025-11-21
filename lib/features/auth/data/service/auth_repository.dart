@@ -16,7 +16,7 @@ class AuthRepositoryImpl implements AuthRepository{
   @override
   Future<Result<Map<String, dynamic>>> login(LoginParams loginParams) async {
     // 设置 host
-    final response = await api.post(
+    final response = await api.post<Map<String, dynamic>>(
       '/auth/me',
       data: {
         'name': loginParams.username,

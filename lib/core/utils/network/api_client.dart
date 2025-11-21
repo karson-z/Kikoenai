@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/common/global_exception.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../common/errors.dart';
+import '../../common/global_exception.dart';
 import '../../common/result.dart';
 import '../../constants/app_constants.dart';
 import '../../widgets/common/login_dialog_manager.dart';
@@ -11,12 +12,11 @@ import '../log/logger.dart';
 class ApiClient {
   final Dio _dio;
 
-  // 私有构造
   ApiClient._internal(this._dio) {
     _setupInterceptors(_dio, _tokenProvider);
   }
 
-  // 单例
+  /// 单例实例（同步）
   static final ApiClient instance = ApiClient._internal(
     Dio(
       BaseOptions(
@@ -32,107 +32,141 @@ class ApiClient {
     ),
   );
 
-  // token 提供者
+  /// 获取 token
   static Future<String?> _tokenProvider() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(AppConstants.tokenKey);
   }
 
-  // 请求封装
-  Future<Result<Map<String, dynamic>>> _request(
-      Future<Response> Function() request) async {
+  /// 泛型请求核心方法
+  Future<Result<T>> _request<T>(Future<Response> Function() request) async {
     try {
       final response = await request();
+
       return Result.success(
-        data: response.data,
+        data: response.data as T,
         code: response.statusCode ?? -1,
         message: 'success',
       );
-    } catch (e,st) {
+    } catch (e, st) {
       final exception = mapToGlobalException(e);
-      final exceptionWithStack = GlobalException(
+
+      throw GlobalException(
         exception.message,
         originalError: exception.originalError,
         stackTrace: st,
         code: exception.code,
         context: exception.context,
       );
-      throw exceptionWithStack;
     }
   }
 
-  Future<Result<Map<String, dynamic>>> get(String path,
-      {Map<String, dynamic>? queryParameters}) =>
-      _request(() => _dio.get(path, queryParameters: queryParameters));
+  /// HTTP 方法封装（泛型透传）
+  Future<Result<T>> get<T>(
+      String path, {
+        Map<String, dynamic>? queryParameters,
+      }) =>
+      _request<T>(
+            () => _dio.get(path, queryParameters: queryParameters),
+      );
 
-  Future<Result<Map<String, dynamic>>> post(String path, {dynamic data}) =>
-      _request(() => _dio.post(path, data: data));
+  Future<Result<T>> post<T>(String path, {dynamic data}) =>
+      _request<T>(() => _dio.post(path, data: data));
 
-  Future<Result<Map<String, dynamic>>> put(String path, {dynamic data}) =>
-      _request(() => _dio.put(path, data: data));
+  Future<Result<T>> put<T>(String path, {dynamic data}) =>
+      _request<T>(() => _dio.put(path, data: data));
 
-  Future<Result<Map<String, dynamic>>> delete(String path, {dynamic data}) =>
-      _request(() => _dio.delete(path, data: data));
+  Future<Result<T>> delete<T>(String path, {dynamic data}) =>
+      _request<T>(() => _dio.delete(path, data: data));
 }
 
-// 拦截器
-void _setupInterceptors(Dio dio, Future<String?> Function()? tokenProvider) {
+/// 拦截器注册
+void _setupInterceptors(
+    Dio dio,
+    Future<String?> Function()? tokenProvider,
+    ) {
   final interceptor = InterceptorsWrapper(
     onRequest: (options, handler) async {
       Log.i('REQ ${options.method} ${options.uri}', tag: 'API');
+
       if (tokenProvider != null) {
         final token = await tokenProvider();
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
       }
+
       handler.next(options);
     },
+
     onResponse: (response, handler) async {
-      Log.i('RES [${response.statusCode}] ${response.requestOptions.uri}', tag: 'API');
+      Log.i(
+        'RES [${response.statusCode}] ${response.requestOptions.uri}',
+        tag: 'API',
+      );
       handler.next(response);
     },
+
     onError: (DioException err, handler) async {
       final status = err.response?.statusCode;
       Log.e('ERR [${status ?? ''}] ${err.message}', tag: 'API');
 
       final req = err.requestOptions;
       final method = req.method.toUpperCase();
+
       int retryCount = (req.extra['retry_count'] as int?) ?? 0;
-      if (err.response?.statusCode == 401 ||
-          (err.response?.data['code'] is Map && err.response?.data['code'] == 401)) {
-        await LoginDialogManager().handleUnauthorized(err.response!, handler, dio,
-            tokenProvider: tokenProvider);
+
+      // 401 登录处理
+      final isUnauthorized = status == 401 ||
+          (err.response?.data is Map &&
+              err.response?.data['code'] == 401);
+
+      if (isUnauthorized) {
+        await LoginDialogManager().handleUnauthorized(
+          err.response!,
+          handler,
+          dio,
+          tokenProvider: tokenProvider,
+        );
         return;
       }
+
+      // 自动重试机制（仅 GET）
       final shouldRetry = method == 'GET' &&
-          (err.type == DioExceptionType.connectionError ||
-              err.type == DioExceptionType.connectionTimeout ||
-              err.type == DioExceptionType.receiveTimeout ||
-              (status != null && status >= 500)) &&
+          (
+              err.type == DioExceptionType.connectionError ||
+                  err.type == DioExceptionType.connectionTimeout ||
+                  err.type == DioExceptionType.receiveTimeout ||
+                  (status != null && status >= 500)
+          ) &&
           retryCount < 3;
 
       if (shouldRetry) {
         retryCount++;
         req.extra['retry_count'] = retryCount;
+
         Log.i('Retrying request... Attempt $retryCount', tag: 'API');
+
         await Future.delayed(Duration(milliseconds: 1000 * retryCount));
+
         try {
           final response = await dio.fetch(req);
           handler.resolve(response);
-        } catch (e) {
+          return;
+        } catch (_) {
           handler.next(err);
+          return;
         }
-      } else {
-        handler.next(err);
       }
+
+      handler.next(err);
     },
   );
 
   dio.interceptors.add(interceptor);
 }
 
-/// Riverpod Provider
+/// Riverpod Provider（直接返回单例）
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient.instance; // ✅ 直接使用同步单例
+  return ApiClient.instance;
 });
