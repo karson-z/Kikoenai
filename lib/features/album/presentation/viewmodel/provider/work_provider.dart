@@ -76,7 +76,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
         currentUser = User.fromJson(userJson);
       }
       final result = await _repository.getRecommendedWorks(
-        recommenderUuid: currentUser?.recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
+        recommenderUuid: currentUser!.recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
         page: page,
       );
 
@@ -196,7 +196,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
         loadRecommendedWorks(
           page: 1,
         ),
-        loadWorks(),
+        loadNewWorks(),
       ]);
     } catch (e, st) {
       state = AsyncError(e, st);

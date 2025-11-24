@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:name_app/core/routes/app_routes.dart';
 import 'package:name_app/features/album/data/model/work.dart';
 import 'package:name_app/features/album/presentation/widget/work_tag.dart';
-import '../../../../core/enums/age_rating.dart';
+import '../../enums/age_rating.dart';
 
 class WorkCard extends StatelessWidget {
   final Work work;
@@ -36,55 +36,52 @@ class WorkCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 封面 + Hero
-                Expanded(
-                  child: Hero(
-                    tag: work.heroTag!,
-                    child: AspectRatio(
-                      aspectRatio: 4 / 3, // 固定比例
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CachedNetworkImage(
-                            imageUrl: work.thumbnailCoverUrl ?? "",
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                            errorWidget: (_, __, ___) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.broken_image),
-                            ),
+                Flexible(child:Hero(
+                  tag: work.heroTag!,
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3, // 固定比例
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: work.thumbnailCoverUrl ?? "",
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Center(
+                            child: CircularProgressIndicator(),
                           ),
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: _buildBadge(
-                              "RJ${work.id}",
-                              Colors.black.withAlpha(60),
-                            ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.broken_image),
                           ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: _buildBadge(
-                              AgeRatingEnum.labelFromValue(work.ageCategoryString),
-                              AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
-                            ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: _buildBadge(
+                            "RJ${work.id}",
+                            Colors.black.withAlpha(60),
                           ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: _buildBadge(
-                              work.release.toString(),
-                              Colors.black.withAlpha(90),
-                            ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: _buildBadge(
+                            AgeRatingEnum.labelFromValue(work.ageCategoryString),
+                            AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
                           ),
-                        ],
-                      ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: _buildBadge(
+                            work.release.toString(),
+                            Colors.black.withAlpha(90),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-
+                )),
                 Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(

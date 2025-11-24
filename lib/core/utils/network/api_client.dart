@@ -11,7 +11,7 @@ import '../log/logger.dart';
 
 class ApiClient {
   final Dio _dio;
-
+  String? _cachedToken;
   ApiClient._internal(this._dio) {
     _setupInterceptors(_dio, _tokenProvider);
   }
@@ -33,9 +33,11 @@ class ApiClient {
   );
 
   /// 获取 token
-  static Future<String?> _tokenProvider() async {
+  Future<String?> _tokenProvider() async {
+    if (_cachedToken != null) return _cachedToken;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.tokenKey);
+    _cachedToken = prefs.getString(AppConstants.tokenKey);
+    return _cachedToken;
   }
 
   /// 泛型请求核心方法

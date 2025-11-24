@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:name_app/config/work_layout_strategy.dart';
 import 'package:name_app/core/enums/device_type.dart';
 import 'package:name_app/features/album/data/model/work.dart';
-import 'package:name_app/features/album/presentation/widget/smart_color_card.dart';
+import 'package:name_app/core/widgets/card/smart_color_card.dart';
 
 class ResponsiveHorizontalCardList extends StatefulWidget {
   final List<Work> items;

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:name_app/features/album/data/model/work_info.dart';
 import '../../../../core/enums/node_type.dart';
 
 part 'file_node.g.dart';
@@ -13,12 +14,15 @@ class FileNode {
   final String? mediaDownloadUrl;
   final double? duration;
   final int? size;
+  final String? workTitle;
+  final WorkInfo? work;
 
   // --- 便捷判断属性 ---
   bool get isFolder => type == NodeType.folder;
   bool get isAudio => type == NodeType.audio;
   bool get isImage => type == NodeType.image;
   bool get isText => type == NodeType.text;
+  bool get isOther => type == NodeType.other;
 
   FileNode({
     required this.type,
@@ -29,6 +33,8 @@ class FileNode {
     this.mediaDownloadUrl,
     this.duration,
     this.size,
+    this.workTitle,
+    this.work
   });
 
   // 自动生成

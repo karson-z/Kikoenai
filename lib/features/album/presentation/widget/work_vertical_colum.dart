@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:name_app/features/album/data/model/work.dart';
-import '../../../user/presentation/widget/work_list.dart';
+import '../../../../core/widgets/card/work_list.dart';
 
 class VerticalCardColumn extends StatelessWidget {
   final List<Work> items;

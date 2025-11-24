@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:palette_generator/palette_generator.dart';
-import '../../../../core/routes/app_routes.dart';
-import '../../data/model/work.dart';
+import '../../routes/app_routes.dart';
+import '../../../features/album/data/model/work.dart';
 
 class SmartColorCard extends StatefulWidget {
   final Work work;

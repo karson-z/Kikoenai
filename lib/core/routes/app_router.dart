@@ -82,6 +82,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => MaterialPage(
               child: const AlbumPage(),
             ),
+            routes: [GoRoute(
+              path: AppRoutes.detailRe,
+              pageBuilder: (context, state) {
+                final extra = state.extra as Map<String, dynamic>? ?? {};
+                return MaterialPage(
+                  child: AlbumDetailPage(extra:extra),
+                );
+              },
+            ),]
           ),
           GoRoute(
             path: AppRoutes.user,
@@ -92,7 +101,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: AppRoutes.test,
             pageBuilder: (context, state) => MaterialPage(
               child: const FileNodeTestPage(),
-            ))
+            )),
         ],
       ),
       GoRoute(
@@ -100,15 +109,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MaterialPage(
           child: const SettingsPage(),
         ),
-      ),
-      GoRoute(
-        path: AppRoutes.detail,
-        pageBuilder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>? ?? {};
-          return MaterialPage(
-            child: AlbumDetailPage(extra:extra),
-          );
-        },
       ),
     ],
   );

@@ -19,7 +19,7 @@ abstract class WorkRepository {
     List<String>? withPlaylistStatus,
   });
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
-    required String recommenderUuid,
+    String recommenderUuid,
     int page = 1,
     int pageSize = 20,
     String? keyword,
@@ -83,7 +83,7 @@ class WorkRepositoryImpl implements WorkRepository {
 
   @override
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
-    required String recommenderUuid,
+    String? recommenderUuid,
     int page = 1,
     int pageSize = 30,
     String? keyword,
@@ -92,7 +92,7 @@ class WorkRepositoryImpl implements WorkRepository {
   }) async {
     final data = {
       'keyword': keyword ?? ' ',
-      'recommenderUuid': recommenderUuid,
+      'recommenderUuid': recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
       'page': page,
       'pageSize': pageSize,
       'subtitle': subtitle ?? 0,

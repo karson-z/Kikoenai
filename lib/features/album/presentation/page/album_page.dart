@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:name_app/core/widgets/common/collapsible_tab_bar.dart';
-
+import 'package:name_app/features/album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/enums/sort_options.dart';
@@ -9,10 +9,10 @@ import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../viewmodel/provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
+import '../widget/skeleton/h_card_list_skeleton.dart';
+import '../widget/skeleton/work_list_h_skeleton.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
-
-// ... 其他导入保持不变 ...
 
 class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({Key? key}) : super(key: key);
@@ -27,22 +27,16 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
 
   late final ScrollController _scrollController;
   TabController? _tabController; // 声明 TabController 变量
-
   @override
   void initState() {
     super.initState();
-
     _scrollController = ScrollController()
       ..addListener(_handleScroll);
 
     // 仅保留数据加载逻辑
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final workNotifier = ref.read(worksNotifierProvider.notifier);
-      if (mounted) { // 确保组件仍处于活动状态
-        workNotifier.loadNewWorks();
-        workNotifier.loadHotWorks();
-        workNotifier.loadRecommendedWorks();
-      }
+        workNotifier.refresh();
     });
   }
 
@@ -147,10 +141,6 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // TabBarView 内部组件 (保持不变)
-  // ---------------------------------------------------------------------------
-
   List<Widget> _buildFirstTabExtra(AsyncValue worksState) {
     // ... 保持不变 ...
     return [
@@ -161,7 +151,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
             child: ResponsiveHorizontalCardList(items: data.hotWorks)),
         loading: () => const SliverToBoxAdapter(
           child:
-          SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
+          ResponsiveHorizontalCardListSkeleton(),
         ),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
@@ -175,7 +165,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
             child: WorkListHorizontal(items: data.recommendedWorks)),
         loading: () => const SliverToBoxAdapter(
           child:
-          SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
+          WorkListHorizontalSkeleton(),
         ),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
@@ -187,15 +177,11 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   }
 
   List<Widget> _buildCommonContent(AsyncValue worksState, bool isFirst) {
-    // ... 保持不变 ...
     return [
       worksState.when(
         data: (data) =>
             ResponsiveCardGrid(work: isFirst ? data.newWorks : data.works),
-        loading: () => const SliverToBoxAdapter(
-          child:
-          SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-        ),
+        loading: () => const ResponsiveCardGridSkeleton(),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
         ),
