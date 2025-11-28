@@ -30,15 +30,11 @@ class FileNodeTestPage extends ConsumerWidget {
         data: (nodes) {
           // ✅ 直接把 provider 的 data 传给组件
           return Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: FileNodeBrowser(
               work: Work(),
               rootNodes: nodes,
-              onFileTap: (node) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('点击文件: ${node.title}')),
-                );
-              }, height: 500,
+              height: 500,
             ),
           );
         },

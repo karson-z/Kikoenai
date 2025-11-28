@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../player/player_view.dart';
-import '../player/player_mini_bar.dart';
 import '../player/player_list_sheet.dart';
 
 class SlidingPlayerPanel extends ConsumerWidget {
@@ -29,22 +31,25 @@ class SlidingPlayerPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final panelController = controller ?? PanelController();
+    final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
+    final mainState = ref.watch(mainScaffoldProvider);
+    final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
+    final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location) ? minHeight + AppConstants.kAppBarHeight : minHeight;
+    final safePadding = isMobile ? paddingHeight : 0.0;
     return SlidingUpPanel(
       controller: panelController,
       minHeight: minHeight,
       maxHeight: maxHeight,
       isDraggable: isDraggable,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-      panel: Stack(
-        children: [
-          MusicPlayerView(
-            onQueuePressed: () => PlayerPlaylistSheet.show(context),
-          ),
-        ],
+      panel: MusicPlayerView(
+        onQueuePressed: () => PlayerPlaylistSheet.show(context),
       ),
       collapsed: collapsed,
-      body: body,
+      body: Padding(
+        padding: EdgeInsets.only(bottom: safePadding),
+        child: body,
+      ),
       onPanelOpened: () {
         mainController.expandPlayer();
         mainController.setBottomNav(false);

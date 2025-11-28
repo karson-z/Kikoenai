@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
 import 'package:kikoenai/core/widgets/player/player_view.dart';
@@ -43,15 +45,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     if (index == _calculateSelectedIndex(context)) return;
     context.go(appNavigationItems[index].routePath);
   }
-
-  bool _isFullScreenPage(String location) {
-    const fullScreenRoutes = [
-      '/album/detail',
-      '/settingsTheme',
-    ];
-    return fullScreenRoutes.contains(location);
-  }
-
   @override
   Widget build(BuildContext context) {
     final scaffoldState = ref.watch(mainScaffoldProvider);
@@ -63,9 +56,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         : '';
 
     final bool isMobile = MediaQuery.of(context).size.width < 600;
-    final bool showBottomNav = scaffoldState.showBottomNav && !_isFullScreenPage(location);
-    const double minHeight = 80;
-    const double bottomNavHeight = 60;
+    final bool showBottomNav = scaffoldState.showBottomNav && !OtherUtil.isFullScreenPage(location);
+    const double minHeight = 70;
+    const double bottomNavHeight = AppConstants.kAppBarHeight;
     if (isMobile) {
       return Scaffold(
         bottomNavigationBar: showBottomNav

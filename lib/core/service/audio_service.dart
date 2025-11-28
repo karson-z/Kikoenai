@@ -2,6 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+
+import '../utils/data/other.dart';
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -41,7 +44,14 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenForDurationChanges();
     _listenForPlaybackCompletion();
   }
+  int get currentIndex => _currentIndex;
 
+  Future<void> setCurrentIndex(int index) async {
+    _currentIndex = index;
+    await _playCurrentIndex();
+  }
+
+  // 播放
   Stream<double> get volumeStream => _player.volumeStream;
   double get volume => _player.volume;
   Future<void> setVolume(double v) => _player.setVolume(v);
@@ -56,6 +66,9 @@ class MyAudioHandler extends BaseAudioHandler {
     final url = newMediaItem.extras!['url'] as String;
     // 手动改变当前播放的歌曲
     mediaItem.add(newMediaItem);
+    final cacheService = CacheService.instance;
+    await cacheService.saveCurrentTrack(OtherUtil.mediaItemToMap(newMediaItem));
+    await cacheService.saveCurrentIndex(_currentIndex);
     playbackState.add(playbackState.value.copyWith(
       queueIndex: _currentIndex,
       playing: false,
@@ -63,7 +76,8 @@ class MyAudioHandler extends BaseAudioHandler {
     ));
     try {
       // 设置当前播放音频URI 如果设置多个播放列表，桌面端无法兼容；
-      await _player.setAudioSource(AudioSource.uri(Uri.parse(url)));
+      final audioSource = LockCachingAudioSource(Uri.parse(url));
+      await _player.setAudioSource(audioSource);
       playbackState.add(playbackState.value.copyWith(
         queueIndex: _currentIndex,
       ));
@@ -278,9 +292,6 @@ class MyAudioHandler extends BaseAudioHandler {
 
   // 获取当前播放列表
   List<MediaItem> get playlist => List.unmodifiable(_playlist);
-
-  // 获取当前播放索引
-  int get currentIndex => _currentIndex;
 
   // 清空播放列表
   Future<void> clearPlaylist() async {

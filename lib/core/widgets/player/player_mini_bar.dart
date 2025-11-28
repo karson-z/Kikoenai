@@ -44,7 +44,7 @@ class MiniPlayer extends ConsumerWidget {
             stops: [
               0.0,
               progressValue,    // 渐变结束在播放进度位置
-              progressValue + 0.04, // 让过渡稍微柔和一点
+              progressValue + 0.03, // 让过渡稍微柔和一点
               1.0,
             ],
             begin: Alignment.centerLeft,
@@ -99,7 +99,7 @@ class MiniPlayer extends ConsumerWidget {
             ),
             IconButton(
               onPressed: () {
-                playController.pause();
+                playerState.playing ? playController.pause() : playController.play();
               },
               icon: Icon(
                   playerState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,

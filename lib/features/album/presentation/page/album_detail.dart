@@ -103,11 +103,7 @@ class AlbumDetailPage extends ConsumerWidget {
                   data: (nodes) => FileNodeBrowser(
                     work: work,
                     rootNodes: nodes,
-                    onFileTap: (node) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('点击文件: ${node.title}')),
-                      );
-                    }, height: 500,
+                    height: 500,
                   ),
                 ),
               ],

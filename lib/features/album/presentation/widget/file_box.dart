@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 
@@ -10,14 +14,12 @@ import '../../data/model/file_node.dart';
 class FileNodeBrowser extends ConsumerStatefulWidget {
   final Work work;
   final List<FileNode> rootNodes;
-  final void Function(FileNode node)? onFileTap;
   final double height; // 卡片高度
 
   const FileNodeBrowser({
     super.key,
     required this.work,
     required this.rootNodes,
-    this.onFileTap,
     required this.height,
   });
 
@@ -43,8 +45,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   void _handleFileTap(FileNode node) async {
-    widget.onFileTap?.call(node);
-
     if (node.isAudio) {
       final audioFiles = _currentNodes.where((n) => n.isAudio).toList();
       final playerController = ref.read(playerControllerProvider.notifier);
@@ -57,7 +57,12 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
           extras: {'url': node.mediaStreamUrl, 'mainCoverUrl': widget.work.mainCoverUrl,'samCorverUrl': widget.work.samCoverUrl},
         );
       }).toList();
-
+      final jsonList = mediaList.map((item) => OtherUtil.mediaItemToMap(item)).toList();
+      final cacheService = CacheService.instance;
+      // 缓存当前列表
+      // 保存之前先清空当前播放列表缓存
+      await cacheService.clearPlaylist();
+      await cacheService.savePlaylist(jsonList);
       // 清空队列然后添加新列表
       await playerController.clear();
       await playerController.addAll(mediaList);
@@ -106,7 +111,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             // 面包屑
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(24.0),
               child: Row(
                 children: [
                   GestureDetector(

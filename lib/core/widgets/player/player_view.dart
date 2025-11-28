@@ -39,7 +39,7 @@ class MusicPlayerView extends ConsumerWidget {
       decoration: BoxDecoration(
         gradient: gradient,
       ),
-      child: Column(
+      child: SafeArea(child: Column(
         children: [
           SizedBox(height: MediaQuery.of(context).padding.top + 10),
 
@@ -63,7 +63,7 @@ class MusicPlayerView extends ConsumerWidget {
           const SizedBox(height: 30),
           _volume(controller, state.volume),
         ],
-      ),
+      ),)
     );
   }
 

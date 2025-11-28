@@ -1,24 +1,59 @@
+import 'dart:convert';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
 import '../storage/hive_storage.dart';
 
+/// ---------------------- CacheService 单例 ----------------------
 class CacheService {
-  /// 最大的历史记录
   static const int _maxHistory = 200;
 
   final HiveStorage _storage;
 
-  CacheService(this._storage);
+  // 私有构造函数
+  CacheService._internal(this._storage);
+
+  // 单例实例
+  static CacheService? _instance;
+
+  /// 初始化单例
+  static CacheService initialize(HiveStorage storage) {
+    _instance ??= CacheService._internal(storage);
+    return _instance!;
+  }
+
+  /// 获取单例
+  static CacheService get instance {
+    if (_instance == null) {
+      throw Exception('CacheService not initialized. Call initialize() first.');
+    }
+    return _instance!;
+  }
 
   // ------------------------------- 播放列表 -------------------------------
 
   Future<void> savePlaylist(List<Map<String, dynamic>> playlist) async {
-    await _storage.put(BoxNames.cache, CacheKeys.playlist, playlist);
+    // 转成 JSON 字符串存储
+    final jsonString = jsonEncode(playlist);
+    await _storage.put(BoxNames.cache, CacheKeys.playlist, jsonString);
+    debugPrint('savePlaylist: 成功保存当前列表');
   }
 
   Future<List<Map<String, dynamic>>> getPlaylist() async {
-    final list = await _storage.get(BoxNames.cache, CacheKeys.playlist);
-    if (list is List) return List<Map<String, dynamic>>.from(list);
+    final jsonString = await _storage.get(BoxNames.cache, CacheKeys.playlist);
+    if (jsonString is String && jsonString.isNotEmpty) {
+      try {
+        final list = jsonDecode(jsonString);
+        if (list is List) {
+          return List<Map<String, dynamic>>.from(list);
+        }
+      } catch (e) {
+        debugPrint('getPlaylist: 解析 JSON 失败 $e');
+      }
+    }
     return [];
   }
 
@@ -63,10 +98,8 @@ class CacheService {
     if (list is List) return List<Map<String, dynamic>>.from(list);
     return [];
   }
-  // ------------------------------作品文件列表 ----------------------------
-  // TODO 作品文件列表
 
-  // ------------------------------ 清理 API ------------------------------
+  // ------------------------------ 清理 ------------------------------
 
   Future<void> clearPlaylist() async {
     await _storage.delete(BoxNames.cache, CacheKeys.playlist);
@@ -80,6 +113,4 @@ class CacheService {
   Future<void> clearHistory() async {
     await _storage.delete(BoxNames.cache, CacheKeys.history);
   }
-
-
 }

@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
 
 import '../../../service/audio_service.dart';
 
@@ -92,9 +96,17 @@ class PlayerController extends Notifier<PlayerState> {
   PlayerState build() {
     handler = ref.read(audioHandlerFutureProvider);
     _listen();
+    _loadCurrentPlayList();
     return PlayerState.initial();
   }
-
+  void _loadCurrentPlayList() async {
+   final cacheService = CacheService.instance;
+   final playListJson = await cacheService.getPlaylist();
+   final playList = playListJson.map((play) => OtherUtil.mediaItemFromMap(play)).toList();
+   handler.addQueueItems(playList);
+   final currentIndex = await cacheService.getCurrentIndex();
+   (handler as MyAudioHandler).setCurrentIndex(currentIndex ?? 0);// 如果确实拿不到那就播放第一首吧
+  }
 
   void _listen() {
     handler.playbackState.listen((p) {
