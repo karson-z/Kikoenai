@@ -1,4 +1,4 @@
-import 'package:name_app/core/routes/app_routes.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 
 /// 应用程序路由的认证配置表。
 /// 默认所有路由都不需要认证 。

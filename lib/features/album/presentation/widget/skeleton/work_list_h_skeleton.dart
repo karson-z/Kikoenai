@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/features/album/presentation/widget/skeleton/v_card_c_skeleton.dart';
+import 'package:kikoenai/features/album/presentation/widget/skeleton/v_card_c_skeleton.dart';
 
 class WorkListHorizontalSkeleton extends StatelessWidget {
   const WorkListHorizontalSkeleton({super.key});

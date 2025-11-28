@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/widgets/common/global_search_input.dart';
+import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 import '../../theme/theme_view_model.dart';
 
 class MobileSearchAppBar extends ConsumerWidget {

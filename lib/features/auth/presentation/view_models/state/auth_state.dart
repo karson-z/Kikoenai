@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:name_app/features/user/data/models/user.dart';
+import 'package:kikoenai/features/user/data/models/user.dart';
 
 
 

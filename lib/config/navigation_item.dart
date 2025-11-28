@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/core/routes/app_routes.dart'; // 确保这个路径正确
+import 'package:kikoenai/core/routes/app_routes.dart'; // 确保这个路径正确
 
 /// 一个自适应的、响应式的脚手架，
 /// 在小屏幕上显示 BottomNavigationBar，在大屏幕上显示 NavigationRail。

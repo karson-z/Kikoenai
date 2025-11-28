@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/features/album/data/model/work.dart';
-import 'package:name_app/features/album/presentation/widget/work_vertical_colum.dart';
+import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/album/presentation/widget/work_vertical_colum.dart';
 
 
 class WorkListHorizontal extends StatefulWidget {

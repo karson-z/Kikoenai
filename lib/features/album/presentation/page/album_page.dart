@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/widgets/common/collapsible_tab_bar.dart';
-import 'package:name_app/features/album/presentation/widget/skeleton/skeleton_grid.dart';
+import 'package:kikoenai/core/widgets/common/collapsible_tab_bar.dart';
+import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/enums/sort_options.dart';

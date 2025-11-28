@@ -50,11 +50,8 @@ class AppTheme {
     navigationBarTheme: NavigationBarThemeData(
       surfaceTintColor: Colors.transparent,
       indicatorColor: Colors.transparent,
-
-      // 🚀 核心优化：移除 hover/splash 时的灰色背景
-      // 设置 overlayColor 为透明，禁用所有交互反馈的背景色。
       overlayColor: WidgetStateProperty.all(Colors.transparent),
-
+      backgroundColor: Colors.white,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return IconThemeData(
@@ -136,9 +133,9 @@ class AppTheme {
     navigationBarTheme: NavigationBarThemeData(
       surfaceTintColor: Colors.transparent,
       indicatorColor: Colors.transparent,
-
       // 设置 overlayColor 为透明，禁用所有交互反馈的背景色。
       overlayColor: WidgetStateProperty.all(Colors.transparent),
+      backgroundColor: Colors.black45,
 
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {

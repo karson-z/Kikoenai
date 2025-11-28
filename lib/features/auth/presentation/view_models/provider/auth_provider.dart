@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/storage/hive_key.dart';
-import 'package:name_app/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import '../../../../../core/common/shared_preferences_service.dart';
 import '../../../../../core/storage/hive_box.dart';
 import '../../../../user/data/models/user.dart';

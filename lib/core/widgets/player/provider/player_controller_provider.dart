@@ -1,197 +1,192 @@
-// player_notifier.dart
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audio_service/audio_service.dart';
 
-// player_state.dart
-import 'package:flutter/material.dart';
-import 'package:name_app/core/model/track.dart';
-import 'package:name_app/features/album/data/model/work.dart';
-import 'package:sliding_up_panel/sliding_up_panel.dart';
+import '../../../service/audio_service.dart';
 
-/// 使用标准 Dart 类实现不可变状态模型
-import 'package:flutter/foundation.dart';
-
-@immutable
 class PlayerState {
-  final bool isPlaying;
+  final bool playing;
+  final bool loading;
+  final Duration position;
+  final Duration buffered;
+  final Duration total;
+  final MediaItem? currentTrack;
+  final List<MediaItem> playlist;
+  final bool isFirst;
+  final bool isLast;
+  final bool shuffleEnabled;
+  final AudioServiceRepeatMode repeatMode;
+  final double volume;
 
-  /// 当前播放的音乐（Track）
-  final Track? currentTrack;
-
-  /// 当前播放的作品（Work）
-  final Work? currentWork;
-
-  /// 当前播放列表
-  final List<Track>? playlist;
-
-  /// 进度百分比（0–100）
-  final double currentProgress;
-
-  /// 音量百分比（0–100）
-  final double currentVolume;
-
-  /// 模式：是否开启循环(暂时没定枚举)
-  final bool isRepeatEnabled;
-
-  /// 播放列表是否打开
-  final bool isQueueOpen;
-
-  const PlayerState({
-    this.isPlaying = false,
-    this.currentWork,
+  PlayerState({
+    required this.playing,
+    required this.loading,
+    required this.position,
+    required this.buffered,
+    required this.total,
     this.currentTrack,
-    this.playlist,
-    this.currentProgress = 0,
-    this.currentVolume = 70,
-    this.isRepeatEnabled = false,
-    this.isQueueOpen = false,
+    required this.playlist,
+    required this.isFirst,
+    required this.isLast,
+    required this.shuffleEnabled,
+    required this.repeatMode,
+    required this.volume,
   });
 
   PlayerState copyWith({
-    bool? isPlaying,
-    Track? currentTrack,
-    List<Track>? playlist,
-    Work? currentWork,
-    double? currentProgress,
-    double? currentVolume,
-    bool? isRepeatEnabled,
-    bool? isQueueOpen,
+    bool? playing,
+    bool? loading,
+    Duration? position,
+    Duration? buffered,
+    Duration? total,
+    MediaItem? currentTrack,
+    List<MediaItem>? playlist,
+    bool? isFirst,
+    bool? isLast,
+    bool? shuffleEnabled,
+    AudioServiceRepeatMode? repeatMode,
+    double? volume,
   }) {
     return PlayerState(
-      isPlaying: isPlaying ?? this.isPlaying,
+      playing: playing ?? this.playing,
+      loading: loading ?? this.loading,
+      position: position ?? this.position,
+      buffered: buffered ?? this.buffered,
+      total: total ?? this.total,
       currentTrack: currentTrack ?? this.currentTrack,
-      currentWork: currentWork ?? this.currentWork,
       playlist: playlist ?? this.playlist,
-      currentProgress: currentProgress ?? this.currentProgress,
-      currentVolume: currentVolume ?? this.currentVolume,
-      isRepeatEnabled: isRepeatEnabled ?? this.isRepeatEnabled,
-      isQueueOpen: isQueueOpen ?? this.isQueueOpen,
+      isFirst: isFirst ?? this.isFirst,
+      isLast: isLast ?? this.isLast,
+      shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
+      repeatMode: repeatMode ?? this.repeatMode,
+      volume: volume ?? this.volume,
     );
   }
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is PlayerState &&
-            other.isPlaying == isPlaying &&
-            other.currentTrack == currentTrack &&
-            other.playlist == playlist &&
-            other.currentWork == currentWork &&
-            other.currentProgress == currentProgress &&
-            other.currentVolume == currentVolume &&
-            other.isRepeatEnabled == isRepeatEnabled &&
-            other.isQueueOpen == isQueueOpen;
+  factory PlayerState.initial() {
+    return PlayerState(
+      playing: false,
+      loading: false,
+      position: Duration.zero,
+      buffered: Duration.zero,
+      total: Duration.zero,
+      currentTrack: null,
+      playlist: const [],
+      isFirst: true,
+      isLast: true,
+      shuffleEnabled: false,
+      repeatMode: AudioServiceRepeatMode.none,
+      volume: 1.0,
+    );
   }
-
-  @override
-  int get hashCode => Object.hash(
-    currentWork,
-    playlist,
-    isPlaying,
-    currentTrack,
-    currentProgress,
-    currentVolume,
-    isRepeatEnabled,
-    isQueueOpen,
-  );
 }
 
+final playerControllerProvider = NotifierProvider<PlayerController, PlayerState>(() {
+  return PlayerController();
+});
 
-// 🎯 PlayerNotifier 负责所有业务逻辑和状态更新
-class PlayerNotifier extends Notifier<PlayerState> {
+class PlayerController extends Notifier<PlayerState> {
+  late final AudioHandler handler;
+
   @override
   PlayerState build() {
-    // 使用你的 PlayerState 默认构造即可
-    return const PlayerState();
+    handler = ref.read(audioHandlerFutureProvider);
+    _listen();
+    return PlayerState.initial();
   }
 
-  /// 播放/暂停
-  void togglePlayPause() {
-    state = state.copyWith(isPlaying: !state.isPlaying);
-    print("播放状态切换: ${state.isPlaying}");
+
+  void _listen() {
+    handler.playbackState.listen((p) {
+      state = state.copyWith(
+        playing: p.playing,
+        loading: p.processingState == AudioProcessingState.loading ||
+            p.processingState == AudioProcessingState.buffering,
+        buffered: p.bufferedPosition,
+      );
+    });
+    handler.mediaItem.listen((item) {
+      state = state.copyWith(
+        currentTrack: item
+      );
+      _updateSkipInfo();
+    });
+
+    handler.queue.listen((queue) {
+      state = state.copyWith(playlist: queue);
+      _updateSkipInfo();
+    });
+
+    AudioService.position.listen((pos) {
+      state = state.copyWith(position: pos);
+    });
+
+    // 若使用自定义音量
+    if (handler is MyAudioHandler) {
+      final h = handler as MyAudioHandler;
+      h.volumeStream.listen((v) {
+        state = state.copyWith(volume: v);
+      });
+    }
   }
 
-  void setPlaylist(List<Track> tracks, {int startIndex = 0}) {
-    if (tracks.isEmpty) return;
+  void _updateSkipInfo() {
+    final playlist = state.playlist;
+    final current = handler.mediaItem.value;
 
-    // 边界处理
-    final index = startIndex.clamp(0, tracks.length - 1);
+    if (playlist.isEmpty || current == null) {
+      state = state.copyWith(isFirst: true, isLast: true);
+      return;
+    }
 
+    final i = playlist.indexOf(current);
     state = state.copyWith(
-      playlist: List.unmodifiable(tracks),
-      currentTrack: tracks[index],
-      isPlaying: true, // 一般设置列表就开始播放
+      isFirst: i <= 0,
+      isLast: i >= playlist.length - 1,
     );
-
-    print("播放列表已设置，共 ${tracks
-        .length} 首，从第 $index 首开始：${tracks[index].title}");
   }
 
-  void setCurrentTrack(Track track) {
-    final currentList = state.playlist;
+  // --- 控制方法 ---
 
-    // 如果没有播放列表，默认放进去
-    if (currentList == null || currentList.isEmpty) {
-      state = state.copyWith(
-        playlist: [track],
-        currentTrack: track,
-        isPlaying: true,
-      );
-    } else {
-      state = state.copyWith(
-        currentTrack: track,
-        isPlaying: true,
-      );
+  Future<void> play() async {
+    final title = handler.mediaItem.value?.title;
+    debugPrint('title: $title');
+    handler.play();
+  }
+  Future<void> pause() => handler.pause();
+
+  Future<void> stop() => handler.stop();
+
+  Future<void> seek(Duration d) => handler.seek(d);
+
+  Future<void> next() => handler.skipToNext();
+
+  Future<void> previous() => handler.skipToPrevious();
+
+  Future<void> setVolume(double v) async {
+    if (handler is MyAudioHandler) {
+      await (handler as MyAudioHandler).setVolume(v);
     }
   }
-    /// 上一首
-    void skipPrevious() {
-      print("跳到上一首");
-      // TODO: 调用你的音乐后台逻辑
-    }
 
-    /// 下一首
-    void skipNext() {
-      print("跳到下一首");
-      // TODO: 调用你的音乐后台逻辑
-    }
+  Future<void> toggleShuffle() async {
+    final enabled = !state.shuffleEnabled;
+    state = state.copyWith(shuffleEnabled: enabled);
+    await handler.setShuffleMode(
+        enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+  }
 
-    /// 拖动进度条（0–100）
-    void seek(double newProgress) {
-      state = state.copyWith(currentProgress: newProgress);
-      print("进度条拖动到: $newProgress");
-    }
+  Future<void> setRepeat(AudioServiceRepeatMode mode) async {
+    state = state.copyWith(repeatMode: mode);
+    await handler.setRepeatMode(mode);
+  }
 
-    /// 调整音量（0–100）
-    void changeVolume(double newVolume) {
-      state = state.copyWith(currentVolume: newVolume);
-      print("音量调整到: $newVolume");
-    }
+  Future<void> add(MediaItem item) => handler.addQueueItem(item);
 
-    /// 切换循环模式
-    void toggleRepeat() {
-      state = state.copyWith(isRepeatEnabled: !state.isRepeatEnabled);
-      print("循环模式切换: ${state.isRepeatEnabled}");
-    }
+  Future<void> addAll(List<MediaItem> items) => handler.addQueueItems(items);
 
-    /// 打开或关闭播放列表
-    void toggleQueue(PanelController controller) {
-      controller.open();
-    }
+  Future<void> skipTo(int index) => handler.skipToQueueItem(index);
 
-    /// 收起播放器 UI（不操作状态）
-    void minimizePlayer() {
-      print("收起播放器");
-    }
-
-    /// 更多选项
-    void showMoreOptions() {
-      print("显示更多选项");
-    }
+  Future<void> clear() => (handler as MyAudioHandler).clearPlaylist() ;
 
 }
-
-// ---------------------------------------------------------------
-//                       Provider
-// ---------------------------------------------------------------
-
-final playerNotifierProvider = NotifierProvider<PlayerNotifier, PlayerState>(() => PlayerNotifier());

@@ -1,0 +1,294 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audio_service/audio_service.dart';
+import 'package:just_audio/just_audio.dart';
+
+class AudioServiceSingleton {
+  AudioServiceSingleton._();
+  static late final AudioHandler _instance;
+
+  static AudioHandler get instance {
+    return _instance;
+  }
+
+  static Future<void> init() async {
+    debugPrint("AudioServiceSingleton.init()");
+    _instance = await AudioService.init(
+      builder: () => MyAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.karson.kikoenai.audio',
+        androidNotificationChannelName: 'Kikoenai',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+      ),
+    );
+  }
+}
+
+final audioHandlerFutureProvider = Provider<AudioHandler>((ref) {
+  return AudioServiceSingleton.instance;
+});
+
+class MyAudioHandler extends BaseAudioHandler {
+  final AudioPlayer _player = AudioPlayer();
+  // 自己维护的播放列表
+  final List<MediaItem> _playlist = [];
+  int _currentIndex = -1;
+  bool _isPlaylistPrepared = false;
+
+  MyAudioHandler() {
+    _notifyAudioHandlerAboutPlaybackEvents();
+    _listenForDurationChanges();
+    _listenForPlaybackCompletion();
+  }
+
+  Stream<double> get volumeStream => _player.volumeStream;
+  double get volume => _player.volume;
+  Future<void> setVolume(double v) => _player.setVolume(v);
+
+  // 播放当前索引的歌曲
+  Future<void> _playCurrentIndex() async {
+    if (_currentIndex < 0 || _currentIndex >= _playlist.length) {
+      return;
+    }
+
+    final newMediaItem = _playlist[_currentIndex];
+    final url = newMediaItem.extras!['url'] as String;
+    // 手动改变当前播放的歌曲
+    mediaItem.add(newMediaItem);
+    playbackState.add(playbackState.value.copyWith(
+      queueIndex: _currentIndex,
+      playing: false,
+      processingState: AudioProcessingState.loading, // 标记加载中
+    ));
+    try {
+      // 设置当前播放音频URI 如果设置多个播放列表，桌面端无法兼容；
+      await _player.setAudioSource(AudioSource.uri(Uri.parse(url)));
+      playbackState.add(playbackState.value.copyWith(
+        queueIndex: _currentIndex,
+      ));
+      await _player.play();
+    } catch (e) {
+      debugPrint("Error playing audio: $e");
+    }
+  }
+
+  void _notifyAudioHandlerAboutPlaybackEvents() {
+    _player.playbackEventStream.listen((event) {
+      final playing = _player.playing;
+
+      // debugPrint('--- PlaybackEvent ---');
+      // debugPrint('playing: $playing');
+      // debugPrint('processingState: ${_player.processingState}');
+      // debugPrint('currentIndex: $_currentIndex');
+      // debugPrint('queue length: ${_playlist.length}');
+      // debugPrint('position: ${_player.position}');
+      // debugPrint('bufferedPosition: ${_player.bufferedPosition}');
+      // debugPrint('speed: ${_player.speed}');
+      // debugPrint('-------------------');
+
+      // 更新 AudioService 播放状态
+      playbackState.add(playbackState.value.copyWith(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (playing) MediaControl.pause else MediaControl.play,
+          MediaControl.stop,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {MediaAction.seek},
+        androidCompactActionIndices: const [0, 1, 3],
+        processingState: const {
+          ProcessingState.idle: AudioProcessingState.idle,
+          ProcessingState.loading: AudioProcessingState.loading,
+          ProcessingState.buffering: AudioProcessingState.buffering,
+          ProcessingState.ready: AudioProcessingState.ready,
+          ProcessingState.completed: AudioProcessingState.completed,
+        }[_player.processingState]!,
+        repeatMode: const {
+          LoopMode.off: AudioServiceRepeatMode.none,
+          LoopMode.one: AudioServiceRepeatMode.one,
+          LoopMode.all: AudioServiceRepeatMode.all,
+        }[_player.loopMode]!,
+        shuffleMode: AudioServiceShuffleMode.none,
+        playing: playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: _currentIndex,
+      ));
+    });
+  }
+
+  void _listenForDurationChanges() {
+    _player.durationStream.listen((duration) {
+      if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+        final oldMediaItem = _playlist[_currentIndex];
+        final newMediaItem = oldMediaItem.copyWith(duration: duration);
+        _playlist[_currentIndex] = newMediaItem;
+        queue.add(_playlist);
+        mediaItem.add(newMediaItem);
+      }
+    });
+  }
+
+  void _listenForPlaybackCompletion() {
+    _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        // 自动播放下一首
+        _skipToNext();
+      }
+    });
+  }
+
+  @override
+  Future<void> addQueueItems(List<MediaItem> mediaItems, {int startIndex = 0}) async {
+    _playlist.addAll(mediaItems);
+
+    // 如果是第一次添加歌曲，设置当前索引
+    if (!_isPlaylistPrepared && _playlist.isNotEmpty) {
+      _currentIndex = 0;
+      _isPlaylistPrepared = true;
+    }
+
+    queue.add(_playlist);
+  }
+
+  @override
+  Future<void> addQueueItem(MediaItem mediaItem) async {
+    _playlist.add(mediaItem);
+
+    // 如果是第一次添加歌曲，设置当前索引
+    if (!_isPlaylistPrepared) {
+      _currentIndex = 0;
+      _isPlaylistPrepared = true;
+    }
+
+    queue.add(_playlist);
+  }
+
+  @override
+  Future<void> removeQueueItemAt(int index) async {
+    if (index < 0 || index >= _playlist.length) return;
+
+    _playlist.removeAt(index);
+
+    // 调整当前索引
+    if (_currentIndex == index) {
+      // 如果删除的是当前播放的歌曲
+      if (_playlist.isEmpty) {
+        _currentIndex = -1;
+        _isPlaylistPrepared = false;
+        await _player.stop();
+        mediaItem.add(null);
+      } else if (_currentIndex >= _playlist.length) {
+        _currentIndex = _playlist.length - 1;
+        await _playCurrentIndex();
+      } else {
+        await _playCurrentIndex();
+      }
+    } else if (_currentIndex > index) {
+      _currentIndex--;
+    }
+
+    queue.add(_playlist);
+  }
+
+  @override
+  Future<void> play() async {
+    if (!_isPlaylistPrepared || _playlist.isEmpty) return;
+
+    if (_player.playing) {
+      return;
+    }
+
+    // 如果没有当前播放的歌曲，从第一首开始
+    if (_currentIndex == -1 && _playlist.isNotEmpty) {
+      _currentIndex = 0;
+      await _playCurrentIndex();
+    } else {
+      await _player.play();
+    }
+  }
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index < 0 || index >= _playlist.length) return;
+
+    _currentIndex = index;
+    await _playCurrentIndex();
+  }
+
+  @override
+  Future<void> skipToNext() async => _skipToNext();
+
+  Future<void> _skipToNext() async {
+    if (_playlist.isEmpty) return;
+
+    final nextIndex = (_currentIndex + 1) % _playlist.length;
+    _currentIndex = nextIndex;
+    await _playCurrentIndex();
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    if (_playlist.isEmpty) return;
+
+    final prevIndex = _currentIndex > 0 ? _currentIndex - 1 : _playlist.length - 1;
+    _currentIndex = prevIndex;
+    await _playCurrentIndex();
+  }
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    switch (repeatMode) {
+      case AudioServiceRepeatMode.none:
+        _player.setLoopMode(LoopMode.off);
+        break;
+      case AudioServiceRepeatMode.one:
+        _player.setLoopMode(LoopMode.one);
+        break;
+      case AudioServiceRepeatMode.group:
+      case AudioServiceRepeatMode.all:
+        _player.setLoopMode(LoopMode.all);
+        break;
+    }
+  }
+
+  @override
+  Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
+    if (name == 'dispose') {
+      await _player.dispose();
+      super.stop();
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    await _player.stop();
+    _currentIndex = -1;
+    _isPlaylistPrepared = false;
+    return super.stop();
+  }
+
+  // 获取当前播放列表
+  List<MediaItem> get playlist => List.unmodifiable(_playlist);
+
+  // 获取当前播放索引
+  int get currentIndex => _currentIndex;
+
+  // 清空播放列表
+  Future<void> clearPlaylist() async {
+    await _player.stop();
+    _playlist.clear();
+    _currentIndex = -1;
+    _isPlaylistPrepared = false;
+    queue.add(_playlist);
+    mediaItem.add(null);
+  }
+}

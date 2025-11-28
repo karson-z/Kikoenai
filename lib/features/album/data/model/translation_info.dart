@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:name_app/features/album/data/model/translation_status.dart';
+import 'package:kikoenai/features/album/data/model/translation_status.dart';
 part 'translation_info.g.dart';
 @JsonSerializable()
 class TranslationInfo {

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/core/widgets/layout/provider/main_scaffold_provider.dart'
+import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
-import 'package:name_app/core/widgets/player/player_view.dart';
-import 'package:name_app/core/widgets/player/test.dart';
+import 'package:kikoenai/core/widgets/player/player_view.dart';
+import 'package:kikoenai/core/widgets/player/player_list_sheet.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
-import 'package:name_app/config/navigation_item.dart';
-import 'package:name_app/core/widgets/layout/navigation_rail.dart';
-import 'package:name_app/core/widgets/layout/adaptive_app_bar.dart';
+import 'package:kikoenai/config/navigation_item.dart';
+import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
+import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
+
+import '../player/player_mini_bar.dart';
+import 'app_player_slider.dart';
 final panelController = Provider((ref) => PanelController());
 
 class MainScaffold extends ConsumerStatefulWidget {
@@ -20,7 +23,7 @@ class MainScaffold extends ConsumerStatefulWidget {
 }
 
 class _MainScaffoldState extends ConsumerState<MainScaffold> {
-
+  double slidePercent = 0.0; // 0 = 最小MiniPlayer, 1 = 展开
 
   @override
   void initState() {
@@ -52,9 +55,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final scaffoldState = ref.watch(mainScaffoldProvider);
-    final scaffoldNotifier = ref.read(mainScaffoldProvider.notifier);
     final playController = ref.watch(panelController);
-    debugPrint("rebuild");
     final int selectedIndex = _calculateSelectedIndex(context);
     final String location = GoRouterState.of(context).uri.path;
     final String title = appNavigationItems.length > selectedIndex
@@ -65,7 +66,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool showBottomNav = scaffoldState.showBottomNav && !_isFullScreenPage(location);
     const double minHeight = 80;
     const double bottomNavHeight = 60;
-    final double outerMaxHeight = MediaQuery.of(context).size.height;
     if (isMobile) {
       return Scaffold(
         bottomNavigationBar: showBottomNav
@@ -78,45 +78,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               .toList(),
         )
             : null,
-        body: SlidingUpPanel(
-          controller: playController,
-          minHeight: minHeight,
-          maxHeight: outerMaxHeight,
-          isDraggable: scaffoldState.playerDraggable, // 内层打开外层阻止拖动手势
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-          panel: Stack(
-            children: [
-              //  外层播放面板
-              MusicPlayerView(
-                onQueuePressed: () {
-                  PlayerPlaylistSheet.show(context);
-                },
-              ),
-            ],
-          ),
-          collapsed: GestureDetector(
+        body: SlidingPlayerPanel(
+          minHeight: 80,
+          maxHeight: MediaQuery.of(context).size.height,
+          body: widget.child ?? const SizedBox.shrink(),
+          collapsed: MiniPlayer(
             onTap: () {
-              if (playController.isAttached) {
-                 playController.open();
-              }
+              playController.open();
             },
-            child: Container(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              child: const Center(child: Text("Mini Player")),
-            ),
           ),
-          onPanelOpened: () {
-            scaffoldNotifier.expandPlayer();
-            scaffoldNotifier.setBottomNav(false);
-          },
-          onPanelClosed: () {
-            scaffoldNotifier.collapsePlayer();
-            scaffoldNotifier.setBottomNav(true);
-          },
-          body: Padding(
-            padding: EdgeInsets.only(bottom: minHeight + (showBottomNav ? bottomNavHeight : 0)),
-            child: widget.child ?? const SizedBox.shrink(),
-          ),
+          controller: playController,
         ),
       );
     } else {
@@ -148,40 +119,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       );
 
       return Scaffold(
-        body: SlidingUpPanel(
-          controller: playController,
-          minHeight: minHeight,
+        body: SlidingPlayerPanel(
+          minHeight: 80,
           maxHeight: MediaQuery.of(context).size.height,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-          panel: Stack(
-            children: [
-              //  外层播放面板
-              MusicPlayerView(
-                onQueuePressed: () {
-                  PlayerPlaylistSheet.show(context);
-                },
-              ),
-            ],
-          ),
-          collapsed: GestureDetector(
+          body: desktopLayoutRow,
+          collapsed: MiniPlayer(
             onTap: () {
-              if(!playController.isAttached){
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text("播放器未初始化，请刷新页面"),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
               playController.open();
             },
-            child: Container(
-              height: minHeight,
-              color: Theme.of(context).colorScheme.primaryContainer.withAlpha(90),
-              child: const Center(child: Text("Mini Player (Desktop) 全屏可见")),
-            ),
           ),
-          body: desktopLayoutRow,
+          controller: playController,
         ),
       );
     }

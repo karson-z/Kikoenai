@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/core/utils/data/time_formatter.dart';
-import 'package:name_app/features/album/data/model/rate_count_detail.dart';
+import 'package:kikoenai/core/utils/data/time_formatter.dart';
+import 'package:kikoenai/features/album/data/model/rate_count_detail.dart';
 
 class RatingSection extends StatelessWidget {
   final double average;

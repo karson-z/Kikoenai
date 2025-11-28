@@ -1,9 +1,9 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:name_app/features/album/data/model/language_edition.dart';
-import 'package:name_app/features/album/data/model/rank.dart';
-import 'package:name_app/features/album/data/model/rate_count_detail.dart';
-import 'package:name_app/features/album/data/model/tag.dart';
-import 'package:name_app/features/album/data/model/va.dart';
+import 'package:kikoenai/features/album/data/model/language_edition.dart';
+import 'package:kikoenai/features/album/data/model/rank.dart';
+import 'package:kikoenai/features/album/data/model/rate_count_detail.dart';
+import 'package:kikoenai/features/album/data/model/tag.dart';
+import 'package:kikoenai/features/album/data/model/va.dart';
 import 'package:uuid/uuid.dart';
 
 import 'circle.dart';

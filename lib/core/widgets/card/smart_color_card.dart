@@ -66,8 +66,6 @@ class _SmartColorCardState extends State<SmartColorCard> {
     final cardWidth = widget.width ?? 240.0;
     final imageHeight = cardWidth * 3 / 4;
     const bottomHeight = 60.0;
-    final totalHeight = imageHeight + bottomHeight;
-
     final baseColor = _dominantColor ?? Colors.grey.shade300;
 
     final placeholderDecoration = BoxDecoration(
@@ -83,9 +81,7 @@ class _SmartColorCardState extends State<SmartColorCard> {
         // 卡片点击逻辑：跳转详情页，携带 work 对象
         context.push(AppRoutes.detail,extra: {'work': widget.work});
       },
-      child: SizedBox(
-        width: cardWidth,
-        height: totalHeight,
+      child: SizedBox.expand(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(widget.borderRadius),
           child: Column(

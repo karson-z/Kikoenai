@@ -4,10 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/core/constants/app_constants.dart';
-import 'package:name_app/core/routes/app_routes.dart';
-import 'package:name_app/features/auth/presentation/widgets/auth_dialog.dart';
-import 'package:name_app/features/auth/presentation/widgets/auth_login_center.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/features/auth/presentation/widgets/auth_dialog.dart';
+import 'package:kikoenai/features/auth/presentation/widgets/auth_login_center.dart';
 import '../../utils/log/logger.dart';
 
 class _PendingRequest {

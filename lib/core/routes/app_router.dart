@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/core/constants/app_constants.dart';
-import 'package:name_app/features/album/presentation/page/track_file_page.dart';
-import 'package:name_app/features/user/presentation/pages/user_page.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/features/album/presentation/page/track_file_page.dart';
+import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/auth/presentation/view_models/provider/auth_provider.dart';
 import '../../features/auth/presentation/view_models/state/auth_state.dart';

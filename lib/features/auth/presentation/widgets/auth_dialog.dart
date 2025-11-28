@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/widgets/common/error_banner.dart';
-import 'package:name_app/core/widgets/message.dart';
+import 'package:kikoenai/core/widgets/common/error_banner.dart';
+import 'package:kikoenai/core/widgets/message.dart';
 import '../view_models/provider/auth_provider.dart';
 
 class AuthDialog extends ConsumerStatefulWidget {

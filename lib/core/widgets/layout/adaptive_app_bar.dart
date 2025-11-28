@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/core/widgets/layout/adaptive_app_bar_impl_desktop.dart';
+import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_impl_desktop.dart';
 
 class AdaptiveAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? title;

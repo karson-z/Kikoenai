@@ -1,4 +1,4 @@
-name: name_app
+name: kikoenai
 description: A new Flutter project.
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -38,6 +38,13 @@ dependencies:
   skeletonizer: ^2.1.0
   sliding_up_panel: ^2.0.0+1
   wolt_modal_sheet: ^0.11.0
+  just_audio: any
+  just_audio_media_kit: any
+  media_kit: ^1.2.0
+  media_kit_libs_windows_audio: any
+  audio_service: ^0.18.12
+  rxdart: ^0.28.0
+  smtc_windows: ^0.1.3
 
 dev_dependencies:
   flutter_test:

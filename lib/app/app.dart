@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/routes/app_router.dart';
-import 'package:name_app/core/theme/app_theme.dart';
-import 'package:name_app/core/constants/app_constants.dart';
+import 'package:kikoenai/core/routes/app_router.dart';
+import 'package:kikoenai/core/theme/app_theme.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
 
 import '../core/theme/theme_view_model.dart';
 
@@ -16,7 +16,6 @@ class MyApp extends ConsumerWidget {
     // router 保持不变
     final router = ref.watch(goRouterProvider);
 
-    // 使用 .when() 来安全地处理所有状态
     return themeState.when(
 
       // 1. 数据加载成功

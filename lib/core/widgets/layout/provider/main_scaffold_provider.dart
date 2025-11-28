@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/utils/data/colors_util.dart';
+import 'package:kikoenai/core/utils/data/colors_util.dart';
 
 /// 全局 UI/Scaffold 状态模型
 @immutable
@@ -16,6 +16,8 @@ class MainScaffoldState {
   // 动态主题颜色 (公有化以便于 Notifier 外部更新)
   final Color dominantColor;
   final Color vibrantColor;
+  final Color mutedColor;
+
 
   const MainScaffoldState({
     this.isPlayerExpanded = false,
@@ -23,6 +25,7 @@ class MainScaffoldState {
     this.playerDraggable = true,
     this.dominantColor = Colors.transparent, // 默认值使用 Colors.transparent
     this.vibrantColor = Colors.transparent,  // 默认值使用 Colors.transparent
+    this.mutedColor = Colors.transparent,    // 默认值使用 Colors.transparent
   });
 
   /// 修复并完善 copyWith 方法，确保所有字段都可被更新
@@ -32,6 +35,7 @@ class MainScaffoldState {
     bool? playerDraggable,
     Color? dominantColor,
     Color? vibrantColor,
+    Color? mutedColor,
   }) {
     return MainScaffoldState(
       isPlayerExpanded: isPlayerExpanded ?? this.isPlayerExpanded,
@@ -39,6 +43,7 @@ class MainScaffoldState {
       playerDraggable: playerDraggable ?? this.playerDraggable,
       dominantColor: dominantColor ?? this.dominantColor,
       vibrantColor: vibrantColor ?? this.vibrantColor,
+      mutedColor: mutedColor ?? this.mutedColor,
     );
   }
 
@@ -52,7 +57,8 @@ class MainScaffoldState {
         other.showBottomNav == showBottomNav &&
         other.playerDraggable == playerDraggable &&
         other.dominantColor == dominantColor &&
-        other.vibrantColor == vibrantColor;
+        other.vibrantColor == vibrantColor &&
+        other.mutedColor == mutedColor;
   }
 
   @override
@@ -61,7 +67,8 @@ class MainScaffoldState {
     showBottomNav.hashCode ^
     playerDraggable.hashCode ^
     dominantColor.hashCode ^
-    vibrantColor.hashCode;
+    vibrantColor.hashCode ^
+    mutedColor.hashCode;
   }
 }
 
@@ -73,6 +80,7 @@ class MainScaffoldNotifier extends Notifier<MainScaffoldState> {
   }
 
   void expandPlayer() => state = state.copyWith(isPlayerExpanded: true);
+
   void collapsePlayer() => state = state.copyWith(isPlayerExpanded: false);
 
   void setBottomNav(bool visible) => state = state.copyWith(showBottomNav: visible);
@@ -102,6 +110,8 @@ class MainScaffoldNotifier extends Notifier<MainScaffoldState> {
       setDynamicColors(
         dominant: colors['dominant']!,
         vibrant: colors['vibrant']!,
+        muted: colors['muted']!,
+
       );
 
       debugPrint('颜色提取成功，状态已更新。');
@@ -112,14 +122,16 @@ class MainScaffoldNotifier extends Notifier<MainScaffoldState> {
       setDynamicColors(
         dominant: Colors.white,
         vibrant: Colors.black54,
+        muted: Colors.transparent,
       );
     }
   }
   /// 一次性设置主色和鲜艳色
-  void setDynamicColors({required Color dominant, required Color vibrant}) {
+  void setDynamicColors({required Color dominant, required Color vibrant,required Color muted}) {
     state = state.copyWith(
       dominantColor: dominant,
       vibrantColor: vibrant,
+      mutedColor: muted,
     );
   }
 }

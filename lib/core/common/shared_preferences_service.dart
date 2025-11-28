@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
-import 'package:name_app/core/common/global_exception.dart';
-import 'package:name_app/core/common/result.dart';
+import 'package:kikoenai/core/common/global_exception.dart';
+import 'package:kikoenai/core/common/result.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';

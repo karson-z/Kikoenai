@@ -1,5 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:name_app/features/album/data/model/work_info.dart';
+import 'package:kikoenai/features/album/data/model/work_info.dart';
 import '../../../../core/enums/node_type.dart';
 
 part 'file_node.g.dart';

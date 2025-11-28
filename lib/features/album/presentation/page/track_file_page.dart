@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 
 import '../../../../core/common/global_exception.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
@@ -31,6 +32,7 @@ class FileNodeTestPage extends ConsumerWidget {
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: FileNodeBrowser(
+              work: Work(),
               rootNodes: nodes,
               onFileTap: (node) {
                 ScaffoldMessenger.of(context).showSnackBar(

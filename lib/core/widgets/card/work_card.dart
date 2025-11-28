@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/core/routes/app_routes.dart';
-import 'package:name_app/features/album/data/model/work.dart';
-import 'package:name_app/features/album/presentation/widget/work_tag.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
 import '../../enums/age_rating.dart';
 
 class WorkCard extends StatelessWidget {

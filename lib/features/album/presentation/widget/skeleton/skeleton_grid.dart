@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/features/album/presentation/widget/skeleton/skeleton_work_card.dart';
+import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_work_card.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class ResponsiveCardGridSkeleton extends StatelessWidget {

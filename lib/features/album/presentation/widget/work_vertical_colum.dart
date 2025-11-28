@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:name_app/features/album/data/model/work.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import '../../../../core/widgets/card/work_list.dart';
 
 class VerticalCardColumn extends StatelessWidget {

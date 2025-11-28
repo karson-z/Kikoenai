@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/features/album/presentation/viewmodel/provider/work_provider.dart';
+import 'package:kikoenai/features/album/presentation/viewmodel/provider/work_provider.dart';
 
 import '../../enums/sort_options.dart';
 

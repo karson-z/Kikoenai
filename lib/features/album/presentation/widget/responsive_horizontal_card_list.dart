@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/core/enums/device_type.dart';
-import 'package:name_app/features/album/data/model/work.dart';
-import 'package:name_app/core/widgets/card/smart_color_card.dart';
+import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/core/widgets/card/smart_color_card.dart';
 
 class ResponsiveHorizontalCardList extends StatefulWidget {
   final List<Work> items;

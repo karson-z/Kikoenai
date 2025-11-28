@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/enums/sort_options.dart';
-import 'package:name_app/core/storage/hive_box.dart';
-import 'package:name_app/core/storage/hive_storage.dart';
-import 'package:name_app/core/utils/data/json_util.dart';
-import 'package:name_app/features/user/data/models/user.dart';
+import 'package:kikoenai/core/enums/sort_options.dart';
+import 'package:kikoenai/core/storage/hive_box.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/utils/data/json_util.dart';
+import 'package:kikoenai/features/user/data/models/user.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../data/model/work.dart';
 import '../../../data/service/work_repository.dart';
@@ -76,7 +76,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
         currentUser = User.fromJson(userJson);
       }
       final result = await _repository.getRecommendedWorks(
-        recommenderUuid: currentUser!.recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
+        recommenderUuid: currentUser?.recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
         page: page,
       );
 

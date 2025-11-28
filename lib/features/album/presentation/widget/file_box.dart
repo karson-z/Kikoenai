@@ -1,26 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 
+import '../../../../core/widgets/player/provider/player_controller_provider.dart';
 import '../../data/model/file_node.dart';
 
-class FileNodeBrowser extends StatefulWidget {
+class FileNodeBrowser extends ConsumerStatefulWidget {
+  final Work work;
   final List<FileNode> rootNodes;
   final void Function(FileNode node)? onFileTap;
   final double height; // 卡片高度
 
   const FileNodeBrowser({
     super.key,
+    required this.work,
     required this.rootNodes,
     this.onFileTap,
     required this.height,
   });
 
   @override
-  State<FileNodeBrowser> createState() => _FileNodeBrowserState();
+  ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
 }
 
-class _FileNodeBrowserState extends State<FileNodeBrowser> {
+class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   final List<FileNode> _breadcrumb = [];
 
+  // 拿到当前层级的所有节点
   List<FileNode> get _currentNodes =>
       _breadcrumb.isEmpty ? widget.rootNodes : _breadcrumb.last.children ?? [];
 
@@ -32,6 +40,33 @@ class _FileNodeBrowserState extends State<FileNodeBrowser> {
     setState(() {
       _breadcrumb.removeRange(index + 1, _breadcrumb.length);
     });
+  }
+
+  void _handleFileTap(FileNode node) async {
+    widget.onFileTap?.call(node);
+
+    if (node.isAudio) {
+      final audioFiles = _currentNodes.where((n) => n.isAudio).toList();
+      final playerController = ref.read(playerControllerProvider.notifier);
+      final mediaList = audioFiles.map((node) {
+        return MediaItem(
+          id: node.hash.toString(),
+          album: node.workTitle,
+          title: node.title,
+          artist: OtherUtil.joinVAs(widget.work.vas),
+          extras: {'url': node.mediaStreamUrl, 'mainCoverUrl': widget.work.mainCoverUrl,'samCorverUrl': widget.work.samCoverUrl},
+        );
+      }).toList();
+
+      // 清空队列然后添加新列表
+      await playerController.clear();
+      await playerController.addAll(mediaList);
+
+      // 因为 mediaList 只包含音频文件，所以要映射实际点击的音频下标
+      final audioTapIndex = audioFiles.indexOf(node);
+      await playerController.skipTo(audioTapIndex);
+      await playerController.play();
+    }
   }
 
   @override
@@ -111,7 +146,7 @@ class _FileNodeBrowserState extends State<FileNodeBrowser> {
                     subtitle: Text("type: ${node.type.name}"),
                     onTap: node.isFolder
                         ? () => _enterFolder(node)
-                        : () => widget.onFileTap?.call(node),
+                        : () => _handleFileTap(node),
                   );
                 },
               ),

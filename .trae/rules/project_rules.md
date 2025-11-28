@@ -457,7 +457,7 @@ linter:
 ```dart
 // When using network images, always provide an errorBuilder.
 Image.network(
-  'https://example.com/image.png',
+  'https://karson.com/image.png',
   errorBuilder: (context, error, stackTrace) {
     return const Icon(Icons.error); // Show an error icon
   },

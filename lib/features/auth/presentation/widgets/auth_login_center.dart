@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/core/constants/app_constants.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
 
 /// 可拖拽、键盘自适应的居中弹窗组件
 /// 当键盘弹出时，通过AnimatedPadding移动整个弹窗，保持固定高度

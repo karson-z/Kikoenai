@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/common/result.dart';
-import 'package:name_app/features/auth/data/model/login_params.dart';
+import 'package:kikoenai/core/common/result.dart';
+import 'package:kikoenai/features/auth/data/model/login_params.dart';
 import '../../../../core/utils/network/api_client.dart';
 
 abstract class AuthRepository {

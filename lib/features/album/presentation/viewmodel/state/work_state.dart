@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:name_app/core/enums/sort_options.dart';
+import 'package:kikoenai/core/enums/sort_options.dart';
 
 import '../../../data/model/work.dart';
 

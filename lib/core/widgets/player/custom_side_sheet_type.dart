@@ -21,7 +21,7 @@ class CustomSideSheetType extends WoltModalType {
   // 控制尺寸
   @override
   BoxConstraints layoutModal(Size availableSize) {
-    final maxWidth = 360.0;
+    const maxWidth = 360.0;
     final maxHeight = availableSize.height * 0.8;
 
     return BoxConstraints(

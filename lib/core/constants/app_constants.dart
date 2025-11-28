@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/environment_config.dart';
+import 'package:kikoenai/config/environment_config.dart';
 
 class AppConstants {
   static const String appName = 'PubAssistant Demo';

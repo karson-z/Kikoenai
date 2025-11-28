@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:name_app/core/widgets/common/login_dialog_manager.dart';
-import 'package:name_app/features/user/presentation/widget/work_list_layout.dart';
+import 'package:kikoenai/core/widgets/common/login_dialog_manager.dart';
+import 'package:kikoenai/features/user/presentation/widget/work_list_layout.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
 import '../view_models/provider/tab_bar_provider.dart';

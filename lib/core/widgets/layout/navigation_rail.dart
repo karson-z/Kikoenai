@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/navigation_item.dart';
-import 'package:name_app/core/widgets/common/theme_toggle_button.dart';
+import 'package:kikoenai/config/navigation_item.dart';
+import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
 
 /// 自适应 NavigationRail 组件
 class AdaptiveNavigationRail extends StatelessWidget {

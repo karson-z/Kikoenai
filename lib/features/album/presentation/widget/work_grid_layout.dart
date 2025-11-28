@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:name_app/config/work_layout_strategy.dart';
-import 'package:name_app/features/album/data/model/work.dart';
-import 'package:name_app/core/widgets/card/work_card.dart';
+import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/core/widgets/card/work_card.dart';
 
 /// 响应式卡片网格布局
 class ResponsiveCardGrid extends StatelessWidget {

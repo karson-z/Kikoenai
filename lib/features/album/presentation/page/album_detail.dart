@@ -101,6 +101,7 @@ class AlbumDetailPage extends ConsumerWidget {
                     return Center(child: Text("Other error: $err"));
                   },
                   data: (nodes) => FileNodeBrowser(
+                    work: work,
                     rootNodes: nodes,
                     onFileTap: (node) {
                       ScaffoldMessenger.of(context).showSnackBar(

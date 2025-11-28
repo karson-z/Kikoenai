@@ -33,18 +33,37 @@ class ColorUtils {
     );
   }
 
+  /// 判断颜色是否太白
+  static bool _isTooWhite(Color? color) {
+    if (color == null) return true;
+    // 白色判断阈值，可调
+    const threshold = 240;
+    return color.red > threshold && color.green > threshold && color.blue > threshold;
+  }
+
   /// 获取主色、鲜艳色、柔和色
-  static Future<Map<String, Color?>> getMainColors(String url) async {
+  static Future<Map<String, Color>> getMainColors(String url) async {
     final palette = await getImagePalette(url);
 
+    Color defaultColor = const Color(0xFF001F3F); // 墨蓝色
+
+    Color dominant = palette.dominantColor?.color ?? defaultColor;
+    Color vibrant = palette.vibrantColor?.color ?? defaultColor;
+    Color muted = palette.mutedColor?.color ?? defaultColor;
+
+    // 如果颜色过白就替换成墨蓝色
+    if (_isTooWhite(dominant)) dominant = defaultColor;
+    if (_isTooWhite(vibrant)) vibrant = defaultColor;
+    if (_isTooWhite(muted)) muted = defaultColor;
+
     return {
-      'dominant': palette.dominantColor?.color,
-      'vibrant': palette.vibrantColor?.color,
-      'muted': palette.mutedColor?.color,
+      'dominant': dominant,
+      'vibrant': vibrant,
+      'muted': muted,
     };
   }
 
-  /// 根据主色和鲜艳色生成渐变
+  /// 根据主色和柔和色生成渐变
   static LinearGradient buildGradient({
     required Color? start,
     Color? end,

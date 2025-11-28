@@ -14,7 +14,11 @@ class StorageKeys {
 
   /// Logs Box Keys
   static const String lastError = 'lastError';       // 最近一次错误日志
-
-// 可以继续增加其他 key
-// static const String anotherKey = 'anotherKey';
+}
+/// 缓存 key 常量
+class CacheKeys {
+  static const String playlist = 'playlist';
+  static const String currentTrack = 'currentTrack';
+  static const String currentIndex = 'currentIndex';
+  static const String history = 'history';
 }

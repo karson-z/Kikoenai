@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:name_app/features/album/data/model/work.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 
 import '../../routes/app_routes.dart';
 

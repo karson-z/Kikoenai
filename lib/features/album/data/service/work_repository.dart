@@ -19,7 +19,7 @@ abstract class WorkRepository {
     List<String>? withPlaylistStatus,
   });
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
-    String recommenderUuid,
+    String? recommenderUuid,
     int page = 1,
     int pageSize = 20,
     String? keyword,
