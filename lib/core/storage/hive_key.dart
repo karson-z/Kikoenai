@@ -21,4 +21,7 @@ class CacheKeys {
   static const String currentTrack = 'currentTrack';
   static const String currentIndex = 'currentIndex';
   static const String history = 'history';
+  static const String tagOption = 'tag';
+  static const String vasOption = 'vas';
+  static const String circleOption = 'circle';
 }

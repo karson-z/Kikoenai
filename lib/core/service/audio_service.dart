@@ -76,8 +76,7 @@ class MyAudioHandler extends BaseAudioHandler {
     ));
     try {
       // 设置当前播放音频URI 如果设置多个播放列表，桌面端无法兼容；
-      final audioSource = LockCachingAudioSource(Uri.parse(url));
-      await _player.setAudioSource(audioSource);
+      await _player.setAudioSource(AudioSource.uri(Uri.parse(url)));
       playbackState.add(playbackState.value.copyWith(
         queueIndex: _currentIndex,
       ));

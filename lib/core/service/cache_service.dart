@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
 
 import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
@@ -13,6 +14,7 @@ class CacheService {
 
   final HiveStorage _storage;
 
+  final Duration _defaultExpire = const Duration(days: 1); // 默认缓存1天
   // 私有构造函数
   CacheService._internal(this._storage);
 
@@ -32,7 +34,25 @@ class CacheService {
     }
     return _instance!;
   }
+  Future<void> _saveWithExpire(String key, dynamic value, [Duration? expire]) async {
+    final expireAt = DateTime.now().add(expire ?? _defaultExpire).millisecondsSinceEpoch;
+    final data = {'value': value, 'expireAt': expireAt};
+    await _storage.put(BoxNames.cache, key, data);
+  }
 
+  Future<dynamic> _getWithExpire(String key) async {
+    final stored = await _storage.get(BoxNames.cache, key);
+    if (stored is Map && stored.containsKey('value') && stored.containsKey('expireAt')) {
+      final expireAt = stored['expireAt'];
+      if (expireAt is int && DateTime.now().millisecondsSinceEpoch < expireAt) {
+        return stored['value'];
+      } else {
+        // 已过期，删除缓存
+        await _storage.delete(BoxNames.cache, key);
+      }
+    }
+    return null;
+  }
   // ------------------------------- 播放列表 -------------------------------
 
   Future<void> savePlaylist(List<Map<String, dynamic>> playlist) async {
@@ -77,7 +97,42 @@ class CacheService {
     final value = await _storage.get(BoxNames.cache, CacheKeys.currentIndex);
     return value is int ? value : null;
   }
+  // --------------------------------分类配置信息 ----------------------------
+  Future<void> saveTagsOption(List<Map<String, dynamic>> value, [Duration? expire]) async {
+    await _saveWithExpire(CacheKeys.tagOption, value, expire);
+  }
 
+  Future<List<Map<String, dynamic>>?> getTagsOption() async {
+    final value = await _getWithExpire(CacheKeys.tagOption);
+    if (value is List) {
+      return value.map((e) => OtherUtil.deepConvert(e as Map)).toList();
+    }
+    return null;
+  }
+
+  Future<void> saveVasOption(List<Map<String, dynamic>> value, [Duration? expire]) async {
+    await _saveWithExpire(CacheKeys.vasOption, value, expire);
+  }
+
+  Future<List<Map<String, dynamic>>?> getVasOption() async {
+    final value = await _getWithExpire(CacheKeys.vasOption);
+    if (value is List) {
+      return value.map((e) => OtherUtil.deepConvert(e as Map)).toList();
+    }
+    return null;
+  }
+
+  Future<void> saveCircleOption(List<Map<String, dynamic>> value, [Duration? expire]) async {
+    await _saveWithExpire(CacheKeys.circleOption, value, expire);
+  }
+
+  Future<List<Map<String, dynamic>>?> getCircleOption() async {
+    final value = await _getWithExpire(CacheKeys.circleOption);
+    if (value is List) {
+      return value.map((e) => OtherUtil.deepConvert(e as Map)).toList();
+    }
+    return null;
+  }
   // ------------------------------- 播放历史 -------------------------------
 
   Future<void> addToHistory(Map<String, dynamic> track) async {
@@ -109,7 +164,11 @@ class CacheService {
     await _storage.delete(BoxNames.cache, CacheKeys.currentTrack);
     await _storage.delete(BoxNames.cache, CacheKeys.currentIndex);
   }
-
+  Future<void> clearOption () async{
+    await _storage.delete(BoxNames.cache, CacheKeys.circleOption);
+    await _storage.delete(BoxNames.cache, CacheKeys.tagOption);
+    await _storage.delete(BoxNames.cache, CacheKeys.vasOption);
+  }
   Future<void> clearHistory() async {
     await _storage.delete(BoxNames.cache, CacheKeys.history);
   }

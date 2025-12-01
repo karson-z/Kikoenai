@@ -1,5 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import '../../../features/album/data/model/va.dart';
+import '../../../features/album/data/model/work.dart';
+import '../../../features/category/data/model/search_tag.dart';
 
 /// 工具类，提供与 VA（声优）、页面路由和 MediaItem 相关的常用方法
 class OtherUtil {
@@ -73,5 +75,53 @@ class OtherUtil {
           ? Map<String, dynamic>.from(map['extras'])
           : null,
     );
+  }
+  /// 安全解析Work
+  // 通用的安全解析
+  static List<Work> parseWorks(dynamic value) {
+    if (value is List) {
+      return value.map((e) {
+        try {
+          return Work.fromJson(e);
+        } catch (ex) {
+          print('解析Work失败: $ex');
+          print('数据: $e');
+          return null;
+        }
+      }).whereType<Work>().toList();
+    }
+    return [];
+  }
+ static Map<String, dynamic> deepConvert(Map input) {
+    return input.map((key, value) {
+      final newKey = key.toString();
+
+      if (value is Map) {
+        return MapEntry(newKey, deepConvert(value));
+      } else if (value is List) {
+        return MapEntry(newKey, value.map((e) {
+          if (e is Map) {
+            return deepConvert(e);
+          }
+          return e;
+        }).toList());
+      } else {
+        return MapEntry(newKey, value);
+      }
+    });
+  }
+  static String buildTagQueryPath(List<SearchTag> tags, {String? keyword}) {
+    final tagPath = tags.map((tag) {
+      final prefix = tag.isExclude ? "-${tag.type}" : tag.type;
+      final raw = "\$$prefix:${tag.name}\$";
+      return Uri.encodeComponent(raw);
+    }).join(' ');
+
+    // 如果有 keyword，直接拼接到标签路径后，不加任何分隔符
+    if (keyword != null && keyword.isNotEmpty) {
+      return '$tagPath${Uri.encodeComponent(keyword)}';
+    }
+
+    return tagPath;
   }
 }

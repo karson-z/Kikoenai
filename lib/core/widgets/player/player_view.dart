@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
+import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
+import 'package:sliding_up_panel/src/panel.dart';
 import '../player/provider/player_controller_provider.dart';
 import '../../utils/data/colors_util.dart';
 import '../image_box/simple_extended_image.dart';
@@ -15,6 +17,7 @@ class MusicPlayerView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playerControllerProvider);                 // <-- 核心状态
     final controller = ref.read(playerControllerProvider.notifier);    // <-- 控制器
+    final panelControl = ref.read(panelController);
     ref.listen<String?>(
       playerControllerProvider.select(
             (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?,
@@ -39,46 +42,47 @@ class MusicPlayerView extends ConsumerWidget {
       decoration: BoxDecoration(
         gradient: gradient,
       ),
-      child: SafeArea(child: Column(
-        children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + 10),
+      child:SizedBox.expand(
+        child: Column(
+          children: [
+            SizedBox(height: MediaQuery.of(context).padding.top + 10),
 
-          _topBar(controller),
+            _topBar(controller,panelControl),
 
-          const SizedBox(height: 20),
-          _cover(imageSize, state),
+            const SizedBox(height: 20),
+            _cover(imageSize, state),
 
-          const SizedBox(height: 28),
-          _info(state),
+            const SizedBox(height: 28),
+            _info(state),
 
-          const SizedBox(height: 28),
-          _progressBar(
-            state,
-                (value) => controller.seek(Duration(milliseconds: value.toInt())),
-          ),
+            const SizedBox(height: 28),
+            _progressBar(
+              state,
+                  (value) => controller.seek(Duration(milliseconds: value.toInt())),
+            ),
 
-          const SizedBox(height: 30),
-          _controls(controller, state),
+            const SizedBox(height: 30),
+            _controls(controller, state),
 
-          const SizedBox(height: 30),
-          _volume(controller, state.volume),
-        ],
-      ),)
-    );
+            const SizedBox(height: 30),
+            _volume(controller, state.volume),
+          ],
+        ),
+      ));
   }
 
   // ----------------------------------------------------------------------
   // UI BLOCKS
   // ----------------------------------------------------------------------
 
-  Widget _topBar(PlayerController controller) {
+  Widget _topBar(PlayerController controller, PanelController panelControl) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
-              onTap: controller.stop,
+              onTap: panelControl.close,
               child: const Icon(Icons.keyboard_arrow_down_rounded,
                   color: Colors.white, size: 30)),
           Text("正在播放",
@@ -177,6 +181,7 @@ class MusicPlayerView extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
+        mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(

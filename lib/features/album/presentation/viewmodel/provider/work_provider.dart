@@ -4,6 +4,7 @@ import 'package:kikoenai/core/enums/sort_options.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/json_util.dart';
+import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../data/model/work.dart';
@@ -20,27 +21,13 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
   }
 
   // 通用的安全解析
-  List<Work> _parseWorks(dynamic value) {
-    if (value is List) {
-      return value.map((e) {
-        try {
-          return Work.fromJson(e);
-        } catch (ex) {
-          print('解析Work失败: $ex');
-          print('数据: $e');
-          return null;
-        }
-      }).whereType<Work>().toList();
-    }
-    return [];
-  }
   /// 热门作品
   Future<void> loadHotWorks({int page = 1}) async {
     try {
       state = const AsyncLoading();
       final result = await _repository.getPopularWorks(page: page);
       final worksJson = result.data?['works'];
-      final hotWorks = _parseWorks(worksJson);
+      final hotWorks = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;
@@ -82,7 +69,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
 
 
       final worksJson = result.data?['works'];
-      final recommendedWorks = _parseWorks(worksJson);
+      final recommendedWorks = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;
@@ -129,7 +116,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
       );
       debugPrint("sortDecState:${state.value?.sortDirection.value}");
       final worksJson = result.data?['works'];
-      final work = _parseWorks(worksJson);
+      final work = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;
@@ -151,6 +138,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
       state = AsyncError(e, st);
     }
   }
+
   Future<void> loadNewWorks({
     int page = 1,
   }) async {
@@ -163,7 +151,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
       );
 
       final worksJson = result.data?['works'];
-      final newWork = _parseWorks(worksJson);
+      final newWork = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;

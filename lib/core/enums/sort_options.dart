@@ -1,6 +1,5 @@
 enum SortOrder {
-  recommend('recommend','推荐'),
-  createDate('create_date', '创建日期'),
+  createDate('create_date', '最新发布'),
   release('release', '发布日期'),
   rating('rate_average_2dp', '评分'),
   review('review_count', '评论数'),

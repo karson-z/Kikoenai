@@ -134,7 +134,7 @@ void _setupInterceptors(
       }
 
       // 自动重试机制（仅 GET）
-      final shouldRetry = method == 'GET' &&
+      final shouldRetry =
           (
               err.type == DioExceptionType.connectionError ||
                   err.type == DioExceptionType.connectionTimeout ||
@@ -148,21 +148,32 @@ void _setupInterceptors(
         req.extra['retry_count'] = retryCount;
 
         Log.i('Retrying request... Attempt $retryCount', tag: 'API');
-
         await Future.delayed(Duration(milliseconds: 1000 * retryCount));
 
+        final newReq = Options(
+          method: req.method,
+          headers: req.headers,
+          extra: req.extra,
+        )
+            .compose(
+          dio.options,
+          req.path,
+          data: req.data,
+          queryParameters: req.queryParameters,
+        )
+            .copyWith(baseUrl: req.baseUrl);
+
         try {
-          final response = await dio.fetch(req);
+          final response = await dio.fetch(newReq);
           handler.resolve(response);
           return;
-        } catch (_) {
-          handler.next(err);
+        } catch (e) {
+          // 重试失败 → 不再触发 onError → 结束
+          handler.reject(err);
           return;
         }
       }
-
-      handler.next(err);
-    },
+    }
   );
 
   dio.interceptors.add(interceptor);
