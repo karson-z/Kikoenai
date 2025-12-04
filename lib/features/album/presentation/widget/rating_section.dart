@@ -31,7 +31,7 @@ class RatingSection extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _StarRow(rating: average, size: 20),
+        _StarRow(rating: average, size: 18),
         const SizedBox(width: 6),
         Text(
           average.toStringAsFixed(2),

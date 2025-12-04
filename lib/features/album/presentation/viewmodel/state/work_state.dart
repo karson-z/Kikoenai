@@ -4,7 +4,6 @@ import 'package:kikoenai/core/enums/sort_options.dart';
 import '../../../data/model/work.dart';
 
 class WorksState extends Equatable {
-  final List<Work> works;
   final List<Work> hotWorks;         // 热门作品
   final List<Work> recommendedWorks; // 推荐作品
   final List<Work> newWorks;
@@ -18,7 +17,6 @@ class WorksState extends Equatable {
   final bool isLastPage; // 是否是最后一页(用于热门/推荐的100条限制提示)
 
   const WorksState({
-    this.works = const [],
     this.hotWorks= const [],        // 热门作品
     this.recommendedWorks= const [], // 推荐作品
     this.newWorks = const [],
@@ -33,7 +31,6 @@ class WorksState extends Equatable {
   });
 
   WorksState copyWith({
-    List<Work>? works,
     List<Work>? hotWorks,       // 热门作品
     List<Work>? recommendedWorks,
     List<Work>? newWorks,
@@ -49,7 +46,6 @@ class WorksState extends Equatable {
     bool? isLastPage,
   }) {
     return WorksState(
-      works: works ?? this.works,
       hotWorks: hotWorks ?? this.hotWorks,
       recommendedWorks: recommendedWorks ?? this.recommendedWorks,
       newWorks: newWorks ?? this.newWorks,
@@ -66,7 +62,6 @@ class WorksState extends Equatable {
 
   @override
   List<Object?> get props => [
-    works,
     hotWorks,
     recommendedWorks,
     newWorks,

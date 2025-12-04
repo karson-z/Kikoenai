@@ -1,13 +1,10 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/enums/sort_options.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/json_util.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import '../../../../../core/storage/hive_key.dart';
-import '../../../data/model/work.dart';
 import '../../../data/service/work_repository.dart';
 import '../state/work_state.dart';
 
@@ -93,76 +90,33 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
     }
   }
 
-  Future<void> changeSortState({SortOrder? sortOption,SortDirection? sortDec}) async {
-    final prev = state.value ?? const WorksState();
-    state = AsyncData(prev.copyWith(
-      sortOption: sortOption,
-      sortDirection: sortDec,
-    ));
-    loadWorks();
-  }
-
-  Future<void> loadWorks({
-    int page = 1,
-  }) async {
+  Future<void> loadNewWorks({int page = 1}) async {
     try {
-      state = const AsyncLoading();
-
+      // 首次加载直接 Loading
+      if (page == 1) {
+        state = const AsyncLoading();
+      }
       final result = await _repository.getWorks(
-          page: page,
-          order: state.value?.sortOption.value,
-          subtitle: state.value?.subtitleFilter,
-          sort: state.value?.sortDirection.value
-      );
-      debugPrint("sortDecState:${state.value?.sortDirection.value}");
-      final worksJson = result.data?['works'];
-      final work = OtherUtil.parseWorks(worksJson);
-      final pagination = result.data?['pagination'] as Map<String, dynamic>?;
-      final totalCount = pagination?['totalCount'] as int? ?? 0;
-      final currentPage = pagination?['currentPage'] as int? ?? page;
-      final hasMore = work.length < totalCount;
-      final prev = state.value ?? const WorksState();
-
-      state = AsyncData(
-        prev.copyWith(
-          works: page == 1
-              ? work
-              : [...prev.works, ...work],
-          currentPage: currentPage,
-          totalCount: totalCount,
-          hasMore: hasMore,
-          isLastPage: !hasMore && work.isNotEmpty,
-        ),
-      );
-    } catch (e, st) {
-      state = AsyncError(e, st);
-    }
-  }
-
-  Future<void> loadNewWorks({
-    int page = 1,
-  }) async {
-    try {
-      state = const AsyncLoading();
-
-      final result = await _repository.getWorks(
-          page: page,
-          order: 'release',
+        page: page,
+        order: 'release',
       );
 
       final worksJson = result.data?['works'];
       final newWork = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;
+
       final totalCount = pagination?['totalCount'] as int? ?? 0;
       final currentPage = pagination?['currentPage'] as int? ?? page;
-      final hasMore = newWork.length < totalCount;
+
       final prev = state.value ?? const WorksState();
+      final allWorks =
+      page == 1 ? newWork : [...prev.newWorks, ...newWork];
+
+      final hasMore = allWorks.length < totalCount;
 
       state = AsyncData(
         prev.copyWith(
-          newWorks: page == 1
-              ? newWork
-              : [...prev.newWorks, ...newWork],
+          newWorks: allWorks,
           currentPage: currentPage,
           totalCount: totalCount,
           hasMore: hasMore,
@@ -173,7 +127,18 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
       state = AsyncError(e, st);
     }
   }
+  Future<void> loadMoreNewWorks() async {
+    final value = state.value;
 
+    // 1. 没有数据 → 不加载更多
+    if (value == null) return;
+
+    // 2. 没有更多页 → 不加载
+    if (!value.hasMore) return;
+
+    // 加载下一页
+    await loadNewWorks(page: value.currentPage + 1);
+  }
   /// 刷新（热门 + 推荐并发执行）
   Future<void> refresh() async {
     try {

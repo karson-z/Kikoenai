@@ -19,8 +19,8 @@ class MiniPlayer extends ConsumerWidget {
     final bg = ref.watch(mainScaffoldProvider);
     final playerState = ref.watch(playerControllerProvider);
     final playController = ref.watch(playerControllerProvider.notifier);
-    bool isDark = themeState.value?.mode == ThemeMode.dark ||
-        (themeState.value?.mode == ThemeMode.system &&
+    bool isDark = themeState.mode == ThemeMode.dark ||
+        (themeState.mode == ThemeMode.system &&
             MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     final textColor = isDark ? Colors.white : Colors.black87;
@@ -28,23 +28,27 @@ class MiniPlayer extends ConsumerWidget {
     final baseColor = isDark ? Colors.black : Colors.white;
     final progressColor = bg.dominantColor;
     final total = (playerState.currentTrack?.duration ?? Duration.zero).inMilliseconds.toDouble();
-    final progressValue = total == 0 ? 0.0 : (playerState.position.inMilliseconds / total).clamp(0.0, 1.0);
+    final progressValue = total == 0 ? 0.0 : (playerState.progressBarState.current.inMilliseconds / total).clamp(0.0, 1.0);
+
+    const String placeholderImage = 'assets/images/placeholder.png'; // 替换为实际占位图路径
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        // 外部 padding 保持不变
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              progressColor,                        // 已播放区域主色
-              progressColor,       // 渐变到未播放区
-              baseColor,                            // 未播放区浅色
-              baseColor,                            // 未播放区底色
+              progressColor,
+              progressColor,
+              baseColor,
+              baseColor,
             ],
             stops: [
               0.0,
-              progressValue,    // 渐变结束在播放进度位置
-              progressValue + 0.03, // 让过渡稍微柔和一点
+              progressValue,
+              progressValue + 0.03,
               1.0,
             ],
             begin: Alignment.centerLeft,
@@ -89,29 +93,43 @@ class MiniPlayer extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            IconButton(
-              onPressed: () {
-                playController.previous();
-              },
-              icon: Icon(Icons.skip_previous_rounded, color: iconColor),
-              iconSize: 24,
+            // ⭐️ 移除右侧多余的 SizedBox(width: 12)，或保持它并优化按钮
+            // const SizedBox(width: 12),
+
+            // 优化后的控制按钮组：通过减少 padding 解决溢出
+            // 1. 上一首
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0), // 减少水平内边距
+              child: IconButton(
+                onPressed: playController.previous,
+                icon: Icon(Icons.skip_previous_rounded, color: iconColor),
+                iconSize: 24,
+                visualDensity: VisualDensity.compact, // 减小视觉密度
+              ),
             ),
-            IconButton(
-              onPressed: () {
-                playerState.playing ? playController.pause() : playController.play();
-              },
-              icon: Icon(
-                  playerState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: iconColor),
-              iconSize: 30,
+            // 2. 播放/暂停
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0), // 减少水平内边距
+              child: IconButton(
+                onPressed: () {
+                  playerState.playing ? playController.pause() : playController.play();
+                },
+                icon: Icon(
+                    playerState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    color: iconColor),
+                iconSize: 30,
+                visualDensity: VisualDensity.compact, // 减小视觉密度
+              ),
             ),
-            IconButton(
-              onPressed: () {
-                playController.next();
-              },
-              icon: Icon(Icons.skip_next_rounded, color: iconColor),
-              iconSize: 24,
+            // 3. 下一首
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0), // 减少水平内边距
+              child: IconButton(
+                onPressed: playController.next,
+                icon: Icon(Icons.skip_next_rounded, color: iconColor),
+                iconSize: 24,
+                visualDensity: VisualDensity.compact, // 减小视觉密度
+              ),
             ),
           ],
         ),

@@ -24,4 +24,6 @@ class CacheKeys {
   static const String tagOption = 'tag';
   static const String vasOption = 'vas';
   static const String circleOption = 'circle';
+
+  static const String playerState = 'playerstate';
 }

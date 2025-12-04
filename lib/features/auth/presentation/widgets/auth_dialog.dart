@@ -74,8 +74,29 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider);
+    // 监听错误并弹出消息
+    ref.listen(authNotifierProvider, (prev, next) {
+      next.whenOrNull(
+        data: (auth) {
+          if (auth.error != null) {
+            Message.show(
+              context: context,
+              message: auth.error!,
+              type: MessageType.error,
+            );
+          }
+        },
+        error: (err, _) {
+          Message.show(
+            context: context,
+            message: err.toString(),
+            type: MessageType.error,
+          );
+        },
+      );
+    });
 
+    final authState = ref.watch(authNotifierProvider);
     final theme = Theme.of(context);
 
     return Center(
@@ -91,7 +112,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 标题
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(
@@ -105,12 +125,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
               ),
               const SizedBox(height: 24),
 
-              if (authState.error != null) ...[
-                const SizedBox(height: 11),
-                ErrorBanner(message: authState.error.toString()),
-              ],
-
-              // 输入框组
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
@@ -118,7 +132,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
                   color: theme.colorScheme.surface,
                   child: Column(
                     children: [
-                      // 账号
                       TextField(
                         controller: _accountController,
                         decoration: InputDecoration(
@@ -131,7 +144,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
                       Divider(
                           height: 1,
                           color: theme.dividerColor.withAlpha(50)),
-                      // 密码
                       TextField(
                         controller: _passwordController,
                         decoration: InputDecoration(
@@ -145,8 +157,8 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
                                   : Icons.visibility,
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
-                            onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword),
+                            onPressed: () =>
+                                setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                         obscureText: _obscurePassword,
@@ -159,7 +171,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
 
               const SizedBox(height: 16),
 
-              // 登录/注册按钮
               ElevatedButton(
                 onPressed: authState.isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
@@ -184,7 +195,6 @@ class _AuthDialogState extends ConsumerState<AuthDialog> {
 
               const SizedBox(height: 12),
 
-              // 切换登录/注册
               Align(
                 alignment: Alignment.center,
                 child: TextButton(

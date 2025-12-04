@@ -41,11 +41,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final theme = ref.watch(themeNotifierProvider);
 
     if (!_hexInitDone) {
-      _hexController.text = _toHex(theme.value!.seedColor);
+      _hexController.text = _toHex(theme.seedColor);
       _hexInitDone = true;
     }
 
-    final selectedModeIndex = _themeModes.indexOf(theme.value!.mode);
+    final selectedModeIndex = _themeModes.indexOf(theme.mode);
     final isSelected =
     List<bool>.generate(_themeModes.length, (i) => i == selectedModeIndex);
 
@@ -110,7 +110,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             runSpacing: 12,
             children: [
               ..._colors.map((c) {
-                final selected = theme.value!.seedColor.value == c.value;
+                final selected = theme.seedColor.value == c.value;
                 return GestureDetector(
                   onTap: () => themeState.setSeedColor(c),
                   child: Container(
@@ -131,7 +131,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               }),
               GestureDetector(
                 onTap: () async {
-                  Color temp = theme.value!.seedColor;
+                  Color temp = theme.seedColor;
                   Color original = temp;
 
                   await showDialog(

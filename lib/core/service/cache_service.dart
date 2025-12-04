@@ -1,12 +1,13 @@
-import 'dart:convert';
-
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
+import 'package:hive/hive.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
-
+import 'package:path_provider/path_provider.dart';
+import '../../features/album/data/model/work.dart';
+import '../model/history_entry.dart';
 import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
 import '../storage/hive_storage.dart';
+import '../widgets/player/state/player_state.dart';
 
 /// ---------------------- CacheService 单例 ----------------------
 class CacheService {
@@ -53,49 +54,15 @@ class CacheService {
     }
     return null;
   }
-  // ------------------------------- 播放列表 -------------------------------
+  // ------------------------------- 播放状态 -------------------------------
 
-  Future<void> savePlaylist(List<Map<String, dynamic>> playlist) async {
-    // 转成 JSON 字符串存储
-    final jsonString = jsonEncode(playlist);
-    await _storage.put(BoxNames.cache, CacheKeys.playlist, jsonString);
-    debugPrint('savePlaylist: 成功保存当前列表');
+  Future<void> savePlayerState(AppPlayerState state) async {
+    await _storage.put(BoxNames.cache, CacheKeys.playerState, state);
   }
-
-  Future<List<Map<String, dynamic>>> getPlaylist() async {
-    final jsonString = await _storage.get(BoxNames.cache, CacheKeys.playlist);
-    if (jsonString is String && jsonString.isNotEmpty) {
-      try {
-        final list = jsonDecode(jsonString);
-        if (list is List) {
-          return List<Map<String, dynamic>>.from(list);
-        }
-      } catch (e) {
-        debugPrint('getPlaylist: 解析 JSON 失败 $e');
-      }
-    }
-    return [];
-  }
-
-  // --------------------------- 当前播放曲目 ------------------------------
-
-  Future<void> saveCurrentTrack(Map<String, dynamic>? track) async {
-    await _storage.put(BoxNames.cache, CacheKeys.currentTrack, track);
-  }
-
-  Future<Map<String, dynamic>?> getCurrentTrack() async {
-    final track = await _storage.get(BoxNames.cache, CacheKeys.currentTrack);
-    if (track is Map) return Map<String, dynamic>.from(track);
+  Future<AppPlayerState?> getPlayerState() async {
+    final obj = await _storage.get(BoxNames.cache, CacheKeys.playerState);
+    if (obj is AppPlayerState) return obj;
     return null;
-  }
-
-  Future<void> saveCurrentIndex(int index) async {
-    await _storage.put(BoxNames.cache, CacheKeys.currentIndex, index);
-  }
-
-  Future<int?> getCurrentIndex() async {
-    final value = await _storage.get(BoxNames.cache, CacheKeys.currentIndex);
-    return value is int ? value : null;
   }
   // --------------------------------分类配置信息 ----------------------------
   Future<void> saveTagsOption(List<Map<String, dynamic>> value, [Duration? expire]) async {
@@ -135,41 +102,114 @@ class CacheService {
   }
   // ------------------------------- 播放历史 -------------------------------
 
-  Future<void> addToHistory(Map<String, dynamic> track) async {
-    final history = await getHistory();
-
-    history.removeWhere((t) => t['id'] == track['id']);
-    history.insert(0, track);
-
-    if (history.length > _maxHistory) {
-      history.removeRange(_maxHistory, history.length);
+  /// 获取历史列表
+  Future<List<HistoryEntry>> getHistoryList() async {
+    final list = await _storage.get(BoxNames.history, CacheKeys.history);
+    if (list is List) {
+      return List<HistoryEntry>.from(list);
     }
-
-    await _storage.put(BoxNames.cache, CacheKeys.history, history);
-  }
-
-  Future<List<Map<String, dynamic>>> getHistory() async {
-    final list = await _storage.get(BoxNames.cache, CacheKeys.history);
-    if (list is List) return List<Map<String, dynamic>>.from(list);
     return [];
   }
 
+  /// 添加或更新历史记录（只保存当前曲目和进度）
+  Future<void> saveOrUpdateHistory(
+      HistoryEntry history) async {
+    final list = await getHistoryList();
+    final work = history.work;
+    // 找到已有记录
+    HistoryEntry? existing = list.where((e) => e.work.id == work.id).firstOrNull;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // 从 playerState 提取最后播放曲目和进度
+    final lastTrackId = history.lastTrackId;
+    final currentTrackTitle = history.currentTrackTitle;
+    final lastProgressMs = history.lastProgressMs;
+
+    if (existing != null) {
+      // 更新已有记录
+      final updated = existing.copyWith(
+        lastTrackId: lastTrackId,
+        currentTrackTitle: currentTrackTitle,
+        lastProgressMs: lastProgressMs,
+        updatedAt: now,
+      );
+
+      list.remove(existing);
+      list.insert(0, updated);
+    } else {
+      // 新增记录
+      final newEntry = HistoryEntry(
+        work: work,
+        lastTrackId: lastTrackId,
+        currentTrackTitle: currentTrackTitle,
+        lastProgressMs: lastProgressMs,
+        updatedAt: now,
+      );
+
+      list.insert(0, newEntry);
+    }
+
+    // 控制最大数量
+    if (list.length > _maxHistory) {
+      list.removeRange(_maxHistory, list.length);
+    }
+
+    await _storage.put(BoxNames.history, CacheKeys.history, list);
+  }
+
+  /// 外部调用的新增接口
+  Future<void> addToHistory(HistoryEntry history) async {
+    await saveOrUpdateHistory(history);
+  }
+
+
   // ------------------------------ 清理 ------------------------------
 
-  Future<void> clearPlaylist() async {
-    await _storage.delete(BoxNames.cache, CacheKeys.playlist);
-  }
+  Future<void> clearBoxFile(String boxName) async {
+    // 如果 Box 已打开，直接清空
+    if (Hive.isBoxOpen(boxName)) {
+      await Hive.box(boxName).clear();
+      return;
+    }
 
-  Future<void> clearCurrentTrack() async {
-    await _storage.delete(BoxNames.cache, CacheKeys.currentTrack);
-    await _storage.delete(BoxNames.cache, CacheKeys.currentIndex);
+    // 如果 Box 没打开，先打开再清空
+    final box = await Hive.openBox(boxName);
+    await box.clear();
+    await box.close();
   }
-  Future<void> clearOption () async{
-    await _storage.delete(BoxNames.cache, CacheKeys.circleOption);
-    await _storage.delete(BoxNames.cache, CacheKeys.tagOption);
-    await _storage.delete(BoxNames.cache, CacheKeys.vasOption);
+  Future<int> getBoxFileSize(String boxName) async {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      final dir = await getApplicationDocumentsDirectory();
+      final boxDir = Directory('${dir.path}/hive_storage/$boxName');
+
+      if (!await boxDir.exists()) return 0;
+
+      return _getDirectorySize(boxDir);
+    } else {
+      // 移动端 — Hive 默认在 app doc dir 下，文件名 = boxName.hive
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$boxName.hive');
+
+      if (await file.exists()) {
+        return file.length();
+      }
+      return 0;
+    }
   }
-  Future<void> clearHistory() async {
-    await _storage.delete(BoxNames.cache, CacheKeys.history);
+  /// 递归目录大小
+  Future<int> _getDirectorySize(Directory dir) async {
+    int size = 0;
+
+    if (!await dir.exists()) return 0;
+
+    final entities = dir.list(recursive: true, followLinks: false);
+    await for (final entity in entities) {
+      if (entity is File) {
+        size += await entity.length();
+      }
+    }
+    return size;
   }
 }
+

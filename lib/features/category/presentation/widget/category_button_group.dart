@@ -18,6 +18,7 @@ class EditableCheckGroup extends ConsumerWidget {
   final List<Circle> circles;
   final List<VA> vas;
   final List<AgeRatingEnum> age;
+  final int? count;
   final Color? activeColor;
   final Color? excludeColor;
 
@@ -27,6 +28,7 @@ class EditableCheckGroup extends ConsumerWidget {
     required this.age,
     required this.circles,
     required this.vas,
+    this.count,
     this.activeColor,
     this.excludeColor,
   });
@@ -37,9 +39,6 @@ class EditableCheckGroup extends ConsumerWidget {
     final uiNotifier = ref.read(categoryUiProvider.notifier);
 
     void handleToggle(String type, String name) {
-      if(type == 'age') {
-        name = AgeRatingEnum.valueFromLabel(name);
-      }
       uiNotifier.toggleTag(type, name,refreshData: true);
     }
 
@@ -53,6 +52,25 @@ class EditableCheckGroup extends ConsumerWidget {
           height: 28,
           child: Row(
             children: [
+              Chip(
+                label: Text(
+                  '筛选结果共：$count 条',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                backgroundColor: Theme.of(context)
+                    .colorScheme
+                    .surfaceVariant
+                    .withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: ScrollConfiguration(
                   behavior: _DesktopHorizontalScrollBehavior(),
@@ -64,11 +82,11 @@ class EditableCheckGroup extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final tag = ui.selected[index];
                       return Chip(
-                        label: Text(tag.name ?? ''),
-                        labelStyle: const TextStyle(fontSize: 12),
+                        label: Text(tag.name, style: const TextStyle(fontSize: 12)),
                         deleteIcon: const Icon(Icons.close, size: 14),
-                        onDeleted: () => uiNotifier.removeTag(tag.type, tag.name,refreshData: true),
-                        visualDensity: VisualDensity.compact,
+                        onDeleted: () => uiNotifier.removeTag(tag.type, tag.name, refreshData: true),
+                        visualDensity: const VisualDensity(horizontal: 0, vertical: -4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                       );
                     },
                   ),
@@ -158,7 +176,7 @@ class _TagRow<T> extends StatelessWidget {
     if (item is Tag) return item.name ?? '';
     if (item is Circle) return item.name ?? '';
     if (item is VA) return item.name ?? '';
-    if (item is AgeRatingEnum) return item.label ?? '';
+    if (item is AgeRatingEnum) return item.value;
     return item.toString();
   }
 

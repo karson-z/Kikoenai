@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../../../core/common/global_exception.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
@@ -10,14 +12,12 @@ import '../widget/work_tag.dart';
 /// 专辑详情页
 class AlbumDetailPage extends ConsumerWidget {
   final Map<String, dynamic> extra;
-
   const AlbumDetailPage({super.key, required this.extra});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = extra['work'];
     final asyncData = ref.watch(trackFileNodeProvider(work.id));
-
     return Scaffold(
       appBar: AppBar(title: const Text("专辑详情")),
       body: LayoutBuilder(
@@ -70,7 +70,7 @@ class AlbumDetailPage extends ConsumerWidget {
               ? Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(flex: 4, child: cover),
+              Flexible(flex: 3, child: cover),
               const SizedBox(width: 16),
               Flexible(flex: 6, child: info),
             ],
@@ -80,15 +80,22 @@ class AlbumDetailPage extends ConsumerWidget {
             children: [cover, const SizedBox(height: 16), info],
           );
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                metadata,
-                const SizedBox(height: 24),
-
-                asyncData.when(
+          return RefreshIndicator(onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
+              child: NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) {
+                  return [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: metadata,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: const SizedBox(height: 24),
+                    ),
+                  ];
+                },
+                body: asyncData.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, stack) {
                     if (err is GlobalException) {
@@ -103,12 +110,10 @@ class AlbumDetailPage extends ConsumerWidget {
                   data: (nodes) => FileNodeBrowser(
                     work: work,
                     rootNodes: nodes,
-                    height: 500,
+                    // 注意 FileNodeBrowser 内部 ListView 要用 `physics: ClampingScrollPhysics()` 或默认
                   ),
                 ),
-              ],
-            ),
-          );
+              ));
         },
       ),
     );
@@ -156,7 +161,7 @@ class AlbumCover extends StatelessWidget {
             // 如果大图加载失败，保留缩略图或显示错误
             errorWidget: (context, url, error) => buildThumbnail(),
             // 淡入动画时长
-            fadeInDuration: const Duration(milliseconds: 300),
+            fadeInDuration: const Duration(milliseconds: 400),
             // 确保淡入时占位符不会立即消失，而是平滑过渡
             useOldImageOnUrlChange: true,
           )

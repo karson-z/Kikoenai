@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/storage/hive_box.dart';
+import 'package:kikoenai/features/settings/presentation/pages/settings_cache_manager.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/theme_view_model.dart';
 
-/// Settings overview page: shows configurable categories.
+/// 设置总览页
 class SettingsOverviewPage extends ConsumerWidget {
   final VoidCallback? onOpenTheme;
 
@@ -12,7 +14,7 @@ class SettingsOverviewPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 监听主题状态，保证暗黑模式切换时界面更新
+    // 监听主题状态
     ref.watch(themeNotifierProvider);
 
     return ListView(
@@ -30,6 +32,16 @@ class SettingsOverviewPage extends ConsumerWidget {
             subtitle: const Text('主题模式与主题色设置'),
             trailing: const Icon(Icons.chevron_right),
             onTap: onOpenTheme ?? () => context.push(AppRoutes.settingsTheme),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('缓存管理'),
+            subtitle: const Text('查看与清理缓存'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showCacheManagerSheet(context, boxNames: BoxNames.values), // 跳转到缓存管理页
           ),
         ),
       ],

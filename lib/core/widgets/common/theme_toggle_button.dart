@@ -11,10 +11,8 @@ class ThemeToggleButton extends ConsumerWidget {
     final themeStateAsync = ref.watch(themeNotifierProvider);
 
     // 获取 ThemeMode，如果状态还在 loading 或 error，默认 system
-    final themeMode = themeStateAsync.maybeWhen(
-      data: (value) => value.mode,
-      orElse: () => ThemeMode.system,
-    );
+    final themeMode = themeStateAsync.mode;
+
 
     final isDark = themeMode == ThemeMode.dark;
 

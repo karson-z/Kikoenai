@@ -24,14 +24,14 @@ const List<NavigationItem> appNavigationItems = [
     routePath: AppRoutes.home, // e.g., "/"
   ),
   NavigationItem(
+    label: '分类',
+    icon: Icon(Icons.music_note_outlined),
+    routePath: AppRoutes.category, // e.g., "/album"
+  ),
+  NavigationItem(
     label: '设置',
     icon: Icon(Icons.settings_outlined),
     routePath: AppRoutes.settings, // e.g., "/settings"
-  ),
-  NavigationItem(
-    label: '专辑',
-    icon: Icon(Icons.music_note_outlined),
-    routePath: AppRoutes.album, // e.g., "/album"
   ),
   NavigationItem(label: '我的', icon:Icon(Icons.my_location), routePath: AppRoutes.user),
   NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)

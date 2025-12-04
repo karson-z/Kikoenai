@@ -4,17 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Theme state
 class ThemeState {
-  final ThemeMode _mode;
-  final Color _seedColor;
-  final List<Color> _recentSeeds;
+  final ThemeMode mode;
+  final Color seedColor;
+  final List<Color> recentSeeds;
 
   const ThemeState({
-    ThemeMode mode = ThemeMode.system,
-    Color seedColor = Colors.blue,
-    List<Color> recentSeeds = const [],
-  })  : _mode = mode,
-        _seedColor = seedColor,
-        _recentSeeds = recentSeeds;
+    this.mode = ThemeMode.system,
+    this.seedColor = Colors.blue,
+    this.recentSeeds = const [],
+  });
 
   ThemeState copyWith({
     ThemeMode? mode,
@@ -22,69 +20,70 @@ class ThemeState {
     List<Color>? recentSeeds,
   }) {
     return ThemeState(
-      mode: mode ?? _mode,
-      seedColor: seedColor ?? _seedColor,
-      recentSeeds: recentSeeds ?? _recentSeeds,
+      mode: mode ?? this.mode,
+      seedColor: seedColor ?? this.seedColor,
+      recentSeeds: recentSeeds ?? this.recentSeeds,
     );
   }
-
-  // Getter 方法
-  ThemeMode get mode => _mode;
-  Color get seedColor => _seedColor;
-  List<Color> get recentSeeds => List.unmodifiable(_recentSeeds);
 }
 
-
-/// Riverpod AsyncNotifier 管理主题
-class ThemeNotifier extends AsyncNotifier<ThemeState> {
+/// Notifier，同步版本
+class ThemeNotifier extends Notifier<ThemeState> {
   static const _keyMode = 'theme_mode';
   static const _keySeed = 'theme_seed_color';
   static const _keyRecent = 'theme_recent_seeds';
 
+  late SharedPreferences _prefs;
+
   @override
-  Future<ThemeState> build() async {
-    // 初始化，加载 SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final modeStr = prefs.getString(_keyMode);
-    final seed = prefs.getInt(_keySeed);
-    final recent = prefs.getStringList(_keyRecent) ?? const [];
+  ThemeState build() {
+    // 默认返回一个同步可用的初始 state
+    _load(); // 异步加载并覆盖 state，不影响同步使用
+    return const ThemeState();
+  }
+
+  Future<void> _load() async {
+    _prefs = await SharedPreferences.getInstance();
+
+    final modeStr = _prefs.getString(_keyMode);
+    final seed = _prefs.getInt(_keySeed);
+    final recent = _prefs.getStringList(_keyRecent) ?? [];
 
     final mode = _parseMode(modeStr);
     final seedColor = seed != null ? Color(seed) : Colors.blue;
+
     final recentSeeds = recent
         .map((s) => int.tryParse(s))
         .whereType<int>()
         .map((v) => Color(v))
         .toList(growable: false);
 
-    return ThemeState(
+    state = ThemeState(
       mode: mode,
       seedColor: seedColor,
       recentSeeds: recentSeeds,
     );
   }
 
-  Future<void> _persist(ThemeState state) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyMode, state.mode.name);
-    await prefs.setInt(_keySeed, state.seedColor.value);
-    await prefs.setStringList(
+  /// 持久化
+  Future<void> _persist(ThemeState s) async {
+    await _prefs.setString(_keyMode, s.mode.name);
+    await _prefs.setInt(_keySeed, s.seedColor.value);
+    await _prefs.setStringList(
       _keyRecent,
-      state.recentSeeds.map((c) => c.value.toString()).toList(),
+      s.recentSeeds.map((c) => c.value.toString()).toList(),
     );
   }
 
   // 切换模式
   Future<void> setMode(ThemeMode mode) async {
-    final newState = state.value!.copyWith(mode: mode);
-    state = AsyncData(newState);
-    await _persist(newState);
+    state = state.copyWith(mode: mode);
+    await _persist(state);
   }
 
   Future<void> toggleLightDark() async {
-    final current = state.value!;
     final newMode =
-    current.mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    state.mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     await setMode(newMode);
   }
 
@@ -93,19 +92,18 @@ class ThemeNotifier extends AsyncNotifier<ThemeState> {
   }
 
   Future<void> setSeedColor(Color color, {bool preview = false}) async {
-    final current = state.value!;
-    var newRecent = current.recentSeeds;
+    var recent = state.recentSeeds;
+
     if (!preview) {
-      newRecent = List<Color>.from(current.recentSeeds);
-      newRecent.removeWhere((c) => c.value == color.value);
-      newRecent.insert(0, color);
-      if (newRecent.length > 8) newRecent = newRecent.sublist(0, 8);
+      recent = List.of(recent);
+      recent.removeWhere((c) => c.value == color.value);
+      recent.insert(0, color);
+      if (recent.length > 8) recent = recent.sublist(0, 8);
     }
 
-    final newState =
-    current.copyWith(seedColor: color, recentSeeds: newRecent);
-    state = AsyncData(newState);
-    if (!preview) await _persist(newState);
+    state = state.copyWith(seedColor: color, recentSeeds: recent);
+
+    if (!preview) await _persist(state);
   }
 
   ThemeMode _parseMode(String? s) {
@@ -120,6 +118,6 @@ class ThemeNotifier extends AsyncNotifier<ThemeState> {
   }
 }
 
-/// Riverpod provider
+/// Provider（同步 Notifier）
 final themeNotifierProvider =
-AsyncNotifierProvider<ThemeNotifier, ThemeState>(() => ThemeNotifier());
+NotifierProvider<ThemeNotifier, ThemeState>(ThemeNotifier.new);

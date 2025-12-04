@@ -6,6 +6,8 @@ class CategoryState {
   final int totalCount;
   final bool hasMore;
 
+
+
   const CategoryState({
     this.works = const [],
     this.currentPage = 1,

@@ -17,6 +17,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<AuthState> build() async {
     _authRepository = ref.read(authRepositoryProvider);
     _service = ref.read(sharedPreferencesServiceProvider);
+    
     _hiveStorage = await HiveStorage.getInstance();
     final userJson = await _hiveStorage.get(BoxNames.user, StorageKeys.currentUser);
     final user = userJson != null

@@ -1,6 +1,4 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/enums/sort_options.dart';
 import '../../../../../core/utils/data/other.dart';
@@ -121,7 +119,6 @@ NotifierProvider<CategoryUiNotifier, CategoryUiState>(
         () => CategoryUiNotifier());
 class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   late final CategoryRepository repo;
-  late var _isLoadingMore = false;
   @override
   Future<CategoryState> build() async {
     repo = ref.read(categoryRepositoryProvider);
@@ -167,18 +164,13 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   }
 
   Future<void> loadMore() async {
-    final prev = state.value;
-    if (prev == null || !prev.hasMore) return;
-
-    // 如果已经在加载了，直接忽略
-    if (_isLoadingMore) return;
-    _isLoadingMore = true;
-
-    state = await AsyncValue.guard(() async {
-      return await _load(reset: false);
-    });
-
-    _isLoadingMore = false;
+    try {
+      final nextState = await _load(reset: false);
+      state = AsyncData(nextState);
+    } catch (e, st) {
+      // 出错了也要保证 isLoading = false
+      state = AsyncError(e, st);
+    }
   }
 }
 

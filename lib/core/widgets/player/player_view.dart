@@ -1,9 +1,11 @@
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
-import 'package:sliding_up_panel/src/panel.dart';
+import 'package:kikoenai/core/widgets/player/state/player_state.dart';
+import 'package:sliding_up_panel/sliding_up_panel.dart';
 import '../player/provider/player_controller_provider.dart';
 import '../../utils/data/colors_util.dart';
 import '../image_box/simple_extended_image.dart';
@@ -56,10 +58,7 @@ class MusicPlayerView extends ConsumerWidget {
             _info(state),
 
             const SizedBox(height: 28),
-            _progressBar(
-              state,
-                  (value) => controller.seek(Duration(milliseconds: value.toInt())),
-            ),
+            _progressBar(ref),
 
             const SizedBox(height: 30),
             _controls(controller, state),
@@ -93,7 +92,7 @@ class MusicPlayerView extends ConsumerWidget {
     );
   }
 
-  Widget _cover(double size, PlayerState state) {
+  Widget _cover(double size, AppPlayerState state) {
     final cover = state.currentTrack?.extras?['mainCoverUrl'] ?? placeholderImage;
     return Center(
       child: Container(
@@ -123,7 +122,7 @@ class MusicPlayerView extends ConsumerWidget {
     );
   }
 
-  Widget _info(PlayerState state) {
+  Widget _info(AppPlayerState state) {
     final item = state.currentTrack;
 
     return Padding(
@@ -145,39 +144,50 @@ class MusicPlayerView extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _progressBar(
-      PlayerState state,
-      ValueChanged<double> onChanged,
-      ) {
-    final total = (state.currentTrack?.duration ?? Duration.zero).inMilliseconds.toDouble();
-    final progress = state.position.inMilliseconds.clamp(0, total).toDouble();
+  Widget _progressBar(WidgetRef ref) {
+    final playerState = ref.watch(playerControllerProvider);
+    final progressBarState = playerState.progressBarState;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+      child: Stack(
         children: [
-          Slider(
-            value: progress,
-            min: 0,
-            max: total == 0 ? 1 : total,
-            onChanged: onChanged,
-            activeColor: Colors.white,
-            inactiveColor: Colors.white30,
+          ProgressBar(
+            progress: progressBarState.current,
+            buffered: progressBarState.buffered,
+            total: progressBarState.total,
+            onSeek: playerState.playing
+                ? ref.read(playerControllerProvider.notifier).seek
+                : null,
+            barHeight: 4.0,
+            baseBarColor: Colors.white24,
+            progressBarColor: Colors.white,
+            bufferedBarColor: Colors.white54,
+            thumbColor: Colors.white,
+            timeLabelTextStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _time(state.position),
-              _time(state.currentTrack?.duration ?? Duration.zero),
-            ],
-          ),
+          // 如果正在加载，覆盖一层循环动画
+          if (playerState.loading)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                height: 4.0, // 加载条高度，和进度条一致
+                child: LinearProgressIndicator(
+                  color: Colors.white.withOpacity(0.7),
+                  backgroundColor: Colors.transparent,
+                  minHeight: 4.0,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _controls(PlayerController controller, PlayerState state) {
+  Widget _controls(PlayerController controller, AppPlayerState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
@@ -242,12 +252,5 @@ class MusicPlayerView extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Widget _time(Duration d) {
-    final mm = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final ss = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return Text("$mm:$ss",
-        style: const TextStyle(color: Colors.white70, fontSize: 12));
   }
 }

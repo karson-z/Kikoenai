@@ -1,12 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/sort_options.dart';
 
-import '../../../features/album/presentation/viewmodel/provider/work_provider.dart';
 
 class CollapsibleTabBar extends StatelessWidget {
-  final ValueNotifier<double>? collapsePercentNotifier;
   final List<String> filters;
   final void Function(int index) onTap;
 
@@ -16,7 +13,6 @@ class CollapsibleTabBar extends StatelessWidget {
 
   const CollapsibleTabBar({
     super.key,
-    this.collapsePercentNotifier,
     required this.filters,
     required this.onTap,
     required this.sortDirection,
@@ -43,42 +39,13 @@ class CollapsibleTabBar extends StatelessWidget {
               tabs: filters.map((f) => Tab(text: f)).toList(),
             ),
           ),
-
           // 排序图标交给外部控制
           _buildAnimatedSortIcon(sortDirection, onSortTap),
-
-          const SizedBox(width: 8),
-
-          _buildSearchIcon(),
         ],
       ),
     );
   }
 
-  Widget _buildSearchIcon() {
-    final notifier = collapsePercentNotifier;
-
-    if (notifier == null) {
-      // 不需要折叠 → 不显示搜索图标
-      return const SizedBox.shrink();
-    }
-
-    return AnimatedBuilder(
-      animation: notifier,
-      builder: (_, __) {
-        final p = notifier.value;
-        if (p == 0) return const SizedBox.shrink();
-
-        return Opacity(
-          opacity: p,
-          child: Transform.translate(
-            offset: Offset((1 - p) * 48 * 0.3, 0),
-            child: const Icon(Icons.search, size: 22),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildAnimatedSortIcon(
       SortDirection? direction,

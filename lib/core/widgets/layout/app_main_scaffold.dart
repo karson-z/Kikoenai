@@ -5,8 +5,6 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
-import 'package:kikoenai/core/widgets/player/player_view.dart';
-import 'package:kikoenai/core/widgets/player/player_list_sheet.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';

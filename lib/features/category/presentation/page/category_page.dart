@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/age_rating.dart';
+import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:kikoenai/core/widgets/common/collapsible_tab_bar.dart';
 import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
 import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_option_provider.dart';
@@ -21,11 +22,8 @@ class CategoryPage extends ConsumerStatefulWidget {
 
 class _CategoryPageState extends ConsumerState<CategoryPage>
     with TickerProviderStateMixin {
-  final collapsePercentNotifier = ValueNotifier<double>(0.0);
   final List<SortOrder> sortOrders = SortOrder.values;
-  late final ScrollController _scrollController;
   TabController? _tabController;
-
   // --- 集中管理 Notifier/Controller 实例 ---
   late final CategoryDataNotifier categoryController;
   late final CategoryUiNotifier categoryUiNotifier;
@@ -34,37 +32,23 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   @override
   void initState() {
     super.initState();
-
     // 1. 在 initState 中使用 ref.read 获取 Notifier 实例
     categoryController = ref.read(categoryProvider.notifier);
     categoryUiNotifier = ref.read(categoryUiProvider.notifier);
-
-    _scrollController = ScrollController()..addListener(_handleScroll);
   }
 
-  void _handleScroll() {
-    final offset = _scrollController.offset.clamp(0, 80);
-    collapsePercentNotifier.value = (offset / 80).clamp(0.0, 1.0);
-  }
 
   void _handleTabSelection() {
     if (_tabController == null || !_tabController!.indexIsChanging) {
       final newIndex = _tabController!.index;
       final order = sortOrders[newIndex];
-
-      // 数据加载：只有当新的选中 Tab 不是第一个 Tab 时才加载数据
-      if (order != sortOrders.first) {
-        // 直接使用实例
-        categoryUiNotifier.setSort(sortOption: order,refreshData: true);
-      }
+      categoryUiNotifier.setSort(sortOption: order,refreshData: true);
     }
   }
 
   @override
   void dispose() {
     _tabController?.removeListener(_handleTabSelection);
-    _scrollController.dispose();
-    collapsePercentNotifier.dispose();
     super.dispose();
   }
 
@@ -73,13 +57,13 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     // --- 集中监听 (Watch) ---
     final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card)
         .getDeviceType(context);
-
+    final theme = ref.watch(themeNotifierProvider);
+    final isDark = theme.mode == ThemeMode.dark;
     // 监听 FutureProvider (异步数据，用于构建 UI)
     final tagAsync = ref.watch(tagsProvider);
     final circleAsync = ref.watch(circlesProvider);
     final vaAsync = ref.watch(vasProvider);
     const ageRating = AgeRatingEnum.values;
-    // 监听 UI 状态和 Work 状态
     final categoryState = ref.watch(categoryUiProvider); // 同步状态
     final worksAsync = ref.watch(categoryProvider);      // 异步工作流状态
     // ----------------------
@@ -101,49 +85,67 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                 }
 
                 return Scaffold(
+                  appBar: deviceType == DeviceType.mobile
+                      ? PreferredSize(
+                    preferredSize: const Size.fromHeight(80), // 高度可根据需求调整
+                    child: MobileSearchAppBar(),
+                  )
+                      :null,
                   body: NestedScrollView(
-                    controller: _scrollController,
                     headerSliverBuilder: (context, scrolled) => [
-                      if (deviceType == DeviceType.mobile)
-                        MobileSearchAppBar(
-                          collapsePercentNotifier: collapsePercentNotifier,
-                          bottom: CollapsibleTabBar(
-                            onSortTap: () {
-                              final current = categoryState.sortDirection;
-                              final next = current == SortDirection.asc
-                                  ? SortDirection.desc
-                                  : SortDirection.asc;
+                      SliverAppBar(
+                        floating: true,
+                        snap: true,
+                        bottom: PreferredSize(
+                          preferredSize: const Size.fromHeight(200),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // --- CollapsibleTabBar ---
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: CollapsibleTabBar(
+                                  onSortTap: () {
+                                    final current = categoryState.sortDirection;
+                                    final next = current == SortDirection.asc
+                                        ? SortDirection.desc
+                                        : SortDirection.asc;
+                                    categoryUiNotifier.setSort(sortDec: next, refreshData: true);
+                                  },
+                                  sortDirection: categoryState.sortDirection,
+                                  filters: sortOrders.map((e) => e.label).toList(),
+                                  onTap: (index) {
+                                  },
+                                ),
+                              ),
 
-                              // 直接使用 categoryUiNotifier 实例
-                              categoryUiNotifier.setSort(sortDec: next,refreshData: true);
-                            },
-                            sortDirection: categoryState.sortDirection,
-                            collapsePercentNotifier: collapsePercentNotifier,
-                            filters: sortOrders.map((e) => e.label).toList(),
-                            onTap: (index) {
-                              // 只保留点击时的即时动作：滚动到顶部
-                              _scrollController.animateTo(
-                                0,
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOut,
-                              );
-                            },
+                              const SizedBox(height: 12),
+
+                              // --- EditableCheckGroup ---
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                alignment: Alignment.bottomCenter,
+                                color: isDark ? Colors.grey.shade900 : Colors.white,
+                                child: EditableCheckGroup(
+                                  age: ageRating,
+                                  tags: tags,
+                                  circles: circles,
+                                  vas: vas,
+                                  count: worksAsync.value?.totalCount,
+                                  activeColor: theme.seedColor,
+                                  excludeColor: Colors.deepOrange,
+                                ),
+                              ),
+                              Divider(height: 1, color: Colors.grey.shade300),
+                              const SizedBox(height: 12),
+                            ],
                           ),
                         ),
+                      )
                     ],
                     body: TabBarView(
                       children: sortOrders.map((sortOrder) {
-                        return NotificationListener<ScrollEndNotification>(
-                          onNotification: (notification) {
-                            final metrics = notification.metrics;
-
-                            if (metrics.pixels >= metrics.maxScrollExtent - 200) {
-                              // 直接使用 categoryController 实例
-                              categoryController.loadMore();
-                            }
-                            return false;
-                          },
-                          child: RefreshIndicator(
+                          return RefreshIndicator(
                             onRefresh: () async {
                               // 直接使用 categoryController 实例
                               await categoryController.refresh();
@@ -151,36 +153,11 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                             child: CustomScrollView(
                               key: ValueKey(sortOrder),
                               slivers: [
-                                SliverAppBar(
-                                  // Filter Panel 保持不变
-                                  pinned: false,
-                                  floating: true,
-                                  snap: true,
-                                  expandedHeight: 190,
-                                  backgroundColor: Colors.white,
-                                  flexibleSpace: FlexibleSpaceBar(
-                                    collapseMode: CollapseMode.pin,
-                                    background: Container(
-                                      alignment: Alignment.bottomCenter,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      color: Colors.white,
-                                      child: EditableCheckGroup(
-                                        age: ageRating,
-                                        tags: tags,
-                                        circles: circles,
-                                        vas: vas,
-                                        activeColor: Colors.teal,
-                                        excludeColor: Colors.deepOrange,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                                 // 传入 worksAsync
                                 ..._buildCommonContent(worksAsync),
                               ],
                             ),
-                          ),
-                        );
+                          );
                       }).toList(),
                     ),
                   ),
@@ -204,7 +181,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     return [
       worksAsync.when(
         data: (data) =>
-            ResponsiveCardGrid(work: data.works),
+            ResponsiveCardGrid(work: data.works,hasMore: data.hasMore,onLoadMore: () {
+              categoryController.loadMore();
+            }),
         loading: () => const ResponsiveCardGridSkeleton(),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),

@@ -1,6 +1,12 @@
 import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:kikoenai/core/adapter/history_adapter.dart';
+import 'package:kikoenai/core/adapter/work_adapter.dart';
 import 'package:path_provider/path_provider.dart';
+
+import '../adapter/media_item_adapter.dart';
+import '../adapter/player_state_adapter.dart';
+import '../adapter/progressbar_state_adapter.dart';
 
 class HiveStorage {
   static HiveStorage? _instance;
@@ -15,7 +21,11 @@ class HiveStorage {
     if (_instance != null) return _instance!;
 
     _instance = HiveStorage._internal(startupBoxes: startupBoxes);
-
+    Hive.registerAdapter(ProgressBarStateAdapter());
+    Hive.registerAdapter(MediaItemAdapter());
+    Hive.registerAdapter(PlayerStateAdapter());
+    Hive.registerAdapter(WorkAdapter());
+    Hive.registerAdapter(HistoryEntryAdapter());
     // 获取应用文档目录
     final appDocDir = await getApplicationDocumentsDirectory();
 

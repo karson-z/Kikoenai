@@ -114,8 +114,6 @@ void _setupInterceptors(
       Log.e('ERR [${status ?? ''}] ${err.message}', tag: 'API');
 
       final req = err.requestOptions;
-      final method = req.method.toUpperCase();
-
       int retryCount = (req.extra['retry_count'] as int?) ?? 0;
 
       // 401 登录处理

@@ -45,6 +45,7 @@ dependencies:
   audio_service: ^0.18.12
   rxdart: ^0.28.0
   smtc_windows: ^0.1.3
+  audio_video_progress_bar: ^2.0.3
 
 dev_dependencies:
   flutter_test:

@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 /// 通用标题 + 更多按钮 的 Sliver 标题组件
 class SectionHeader extends StatelessWidget {
   final String title;
+  final bool isShowMoreButton;
   final VoidCallback? onMore;
 
   const SectionHeader({
     super.key,
+    this.isShowMoreButton =false,
     required this.title,
     this.onMore,
   });
@@ -35,6 +37,7 @@ class SectionHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: Row(
                 children: [
+                  if(isShowMoreButton)
                   Text(
                     '更多',
                     style: TextStyle(
@@ -43,6 +46,7 @@ class SectionHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 3),
+                  if(isShowMoreButton)
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 14,

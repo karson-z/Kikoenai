@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/features/settings/presentation/pages/settings_cache_manager.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/auth/presentation/view_models/provider/auth_provider.dart';
 import '../../features/auth/presentation/view_models/state/auth_state.dart';
-import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/settings/presentation/pages/settings_overview_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
+import '../../features/test/cacheTest.dart';
 import '../widgets/common/login_dialog_manager.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_auth_config.dart';
@@ -66,10 +67,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
           GoRoute(
-            path: AppRoutes.home,
-            pageBuilder: (context, state) => MaterialPage(
-              child: const HomePage(),
-            ),
+              path: AppRoutes.home,
+              pageBuilder: (context, state) => MaterialPage(
+                child: const AlbumPage(),
+              ),
+          ),
+          GoRoute(
+            path: AppRoutes.detail,
+            pageBuilder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>? ?? {};
+              return MaterialPage(
+                child: AlbumDetailPage(extra:extra),
+              );
+            },
           ),
           GoRoute(
             path: AppRoutes.settings,
@@ -77,20 +87,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               child: const SettingsOverviewPage(),
             ),
           ),
-          GoRoute(
-            path: AppRoutes.album,
-            pageBuilder: (context, state) => MaterialPage(
-              child: const AlbumPage(),
-            ),
-            routes: [GoRoute(
-              path: AppRoutes.detailRe,
-              pageBuilder: (context, state) {
-                final extra = state.extra as Map<String, dynamic>? ?? {};
-                return MaterialPage(
-                  child: AlbumDetailPage(extra:extra),
-                );
-              },
-            ),]
+          GoRoute(path: AppRoutes.category,
+              pageBuilder: (context, state) => MaterialPage(
+                child: const CategoryPage(),
+              )
           ),
           GoRoute(
             path: AppRoutes.user,
@@ -98,12 +98,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               child: const UserPage(),
             ),
           ),
-          GoRoute(path: AppRoutes.test,
+          GoRoute(
+            path: AppRoutes.test,
             pageBuilder: (context, state) => MaterialPage(
-              child: const CategoryPage(),
-            )),
+              child: const HistoryTestPage(),
+            ),
+          ),
         ],
       ),
+
       GoRoute(
         path: AppRoutes.settingsTheme,
         pageBuilder: (context, state) => MaterialPage(

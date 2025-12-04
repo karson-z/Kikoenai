@@ -21,15 +21,10 @@ class AlbumPage extends ConsumerStatefulWidget {
 }
 
 class _AlbumPageState extends ConsumerState<AlbumPage> {
-  final collapsePercentNotifier = ValueNotifier<double>(0.0);
   final List<SortOrder> sortOrders = SortOrder.values;
-
-  late final ScrollController _scrollController;
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()
-      ..addListener(_handleScroll);
 
     // 仅保留数据加载逻辑
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,16 +33,9 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
     });
   }
 
-  void _handleScroll() {
-    final offset = _scrollController.offset.clamp(0, 80);
-    collapsePercentNotifier.value = (offset / 80).clamp(0.0, 1.0);
-  }
 
   @override
   void dispose() {
-    // 移除监听器
-    _scrollController.dispose();
-    collapsePercentNotifier.dispose();
     super.dispose();
   }
 
@@ -61,20 +49,16 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
     // 保持 workNotifier 仅在需要时通过 ref.read() 获取
 
     return Scaffold(
-      body: NestedScrollView(
-        controller: _scrollController,
-        headerSliverBuilder: (context, scrolled) => [
-          if (deviceType == DeviceType.mobile)
-            MobileSearchAppBar(
-              collapsePercentNotifier: collapsePercentNotifier,
-            ),
+      appBar: deviceType == DeviceType.mobile
+          ? PreferredSize(
+        preferredSize: const Size.fromHeight(80), // 高度可根据需求调整
+        child: MobileSearchAppBar(),
+      )
+          :null,
+      body: CustomScrollView(
+        slivers: [
+          ..._buildFirstTabExtra(worksState),
         ],
-        body: CustomScrollView(
-          slivers: [
-            ..._buildFirstTabExtra(worksState),
-            ..._buildCommonContent(worksState),
-          ],
-        ),
       ),
     );
   }
@@ -82,7 +66,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   List<Widget> _buildFirstTabExtra(AsyncValue worksState) {
     // ... 保持不变 ...
     return [
-      SectionHeader(title: '热门作品', onMore: () {}),
+      SectionHeader(title: '热门作品',isShowMoreButton: true, onMore: () {}),
 
       worksState.when(
         data: (data) => SliverToBoxAdapter(
@@ -96,8 +80,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
         ),
       ),
 
-      SectionHeader(title: '推荐作品', onMore: () {}),
-
+      SectionHeader(title: '推荐作品',isShowMoreButton: true, onMore: () {}),
       worksState.when(
         data: (data) => SliverToBoxAdapter(
             child: WorkListHorizontal(items: data.recommendedWorks)),
@@ -109,16 +92,14 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
         ),
       ),
-
-      SectionHeader(title: '最新作品', onMore: () {}),
-    ];
-  }
-
-  List<Widget> _buildCommonContent(AsyncValue worksState) {
-    return [
+      SectionHeader(title: '最新作品'),
       worksState.when(
         data: (data) =>
-            ResponsiveCardGrid(work: data.newWorks),
+            ResponsiveCardGrid(work: data.newWorks,hasMore: data.hasMore,onLoadMore: () {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(worksNotifierProvider.notifier).loadMoreNewWorks();
+              });
+            }),
         loading: () => const ResponsiveCardGridSkeleton(),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),

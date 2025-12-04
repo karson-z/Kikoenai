@@ -1,143 +1,112 @@
-import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 
+import '../../../../features/album/data/model/file_node.dart';
 import '../../../service/audio_service.dart';
+import '../state/player_state.dart';
+import '../state/progress_state.dart';
 
-class PlayerState {
-  final bool playing;
-  final bool loading;
-  final Duration position;
-  final Duration buffered;
-  final Duration total;
-  final MediaItem? currentTrack;
-  final List<MediaItem> playlist;
-  final bool isFirst;
-  final bool isLast;
-  final bool shuffleEnabled;
-  final AudioServiceRepeatMode repeatMode;
-  final double volume;
-
-  PlayerState({
-    required this.playing,
-    required this.loading,
-    required this.position,
-    required this.buffered,
-    required this.total,
-    this.currentTrack,
-    required this.playlist,
-    required this.isFirst,
-    required this.isLast,
-    required this.shuffleEnabled,
-    required this.repeatMode,
-    required this.volume,
-  });
-
-  PlayerState copyWith({
-    bool? playing,
-    bool? loading,
-    Duration? position,
-    Duration? buffered,
-    Duration? total,
-    MediaItem? currentTrack,
-    List<MediaItem>? playlist,
-    bool? isFirst,
-    bool? isLast,
-    bool? shuffleEnabled,
-    AudioServiceRepeatMode? repeatMode,
-    double? volume,
-  }) {
-    return PlayerState(
-      playing: playing ?? this.playing,
-      loading: loading ?? this.loading,
-      position: position ?? this.position,
-      buffered: buffered ?? this.buffered,
-      total: total ?? this.total,
-      currentTrack: currentTrack ?? this.currentTrack,
-      playlist: playlist ?? this.playlist,
-      isFirst: isFirst ?? this.isFirst,
-      isLast: isLast ?? this.isLast,
-      shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
-      repeatMode: repeatMode ?? this.repeatMode,
-      volume: volume ?? this.volume,
-    );
-  }
-
-  factory PlayerState.initial() {
-    return PlayerState(
-      playing: false,
-      loading: false,
-      position: Duration.zero,
-      buffered: Duration.zero,
-      total: Duration.zero,
-      currentTrack: null,
-      playlist: const [],
-      isFirst: true,
-      isLast: true,
-      shuffleEnabled: false,
-      repeatMode: AudioServiceRepeatMode.none,
-      volume: 1.0,
-    );
-  }
-}
-
-final playerControllerProvider = NotifierProvider<PlayerController, PlayerState>(() {
+final playerControllerProvider = NotifierProvider.autoDispose<PlayerController, AppPlayerState>(() {
   return PlayerController();
 });
 
-class PlayerController extends Notifier<PlayerState> {
+class PlayerController extends Notifier<AppPlayerState> {
   late final AudioHandler handler;
 
   @override
-  PlayerState build() {
+  AppPlayerState build() {
     handler = ref.read(audioHandlerFutureProvider);
     _listen();
-    _loadCurrentPlayList();
-    return PlayerState.initial();
-  }
-  void _loadCurrentPlayList() async {
-   final cacheService = CacheService.instance;
-   final playListJson = await cacheService.getPlaylist();
-   final playList = playListJson.map((play) => OtherUtil.mediaItemFromMap(play)).toList();
-   handler.addQueueItems(playList);
-   final currentIndex = await cacheService.getCurrentIndex();
-   (handler as MyAudioHandler).setCurrentIndex(currentIndex ?? 0);// 如果确实拿不到那就播放第一首吧
+    _loadPlayerState();
+    return AppPlayerState();
   }
 
+  /// 从缓存恢复播放器状态
+  void _loadPlayerState() async {
+    final cacheService = CacheService.instance;
+    final savedState = await cacheService.getPlayerState();
+    if (savedState == null) return;
+    // 1. 恢复播放列表
+    final playList = savedState.playlist;
+    if (playList.isNotEmpty) {
+      await handler.addQueueItems(playList);
+    }
+    // 2. 恢复当前索引
+    final currentIndex = playList.indexWhere(
+          (item) => item.id == savedState.currentTrack?.id,
+    );
+    (handler as MyAudioHandler).setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
+
+    // 3. 恢复播放进度
+    final progress = savedState.progressBarState.current;
+    if (progress > Duration.zero) {
+      await handler.seek(progress);
+    }
+
+    // 4. 恢复音量
+    if (handler is MyAudioHandler) {
+      await (handler as MyAudioHandler).setVolume(savedState.volume);
+    }
+
+    // 5. 恢复循环模式
+    await handler.setRepeatMode(savedState.repeatMode);
+
+    // 6. 恢复随机模式
+    await handler.setShuffleMode(
+      savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+    );
+  }
+
+  /// 监听播放状态变化
   void _listen() {
+    // 播放状态 & 缓冲状态
     handler.playbackState.listen((p) {
+      final newProgress = ProgressBarState(
+        current: p.position,
+        buffered: p.bufferedPosition,
+        total: handler.mediaItem.value?.duration ?? Duration.zero,
+      );
+
       state = state.copyWith(
         playing: p.playing,
         loading: p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
-        buffered: p.bufferedPosition,
+        progressBarState: newProgress,
       );
-    });
-    handler.mediaItem.listen((item) {
-      state = state.copyWith(
-        currentTrack: item
-      );
-      _updateSkipInfo();
+      if(state.currentTrack != null){
+        _saveState();
+        _saveHistory(state);
+      }
     });
 
+    // 当前播放曲目
+    handler.mediaItem.listen((item) {
+      state = state.copyWith(currentTrack: item);
+      _updateSkipInfo();
+
+      if(state.currentTrack != null){
+        _saveState();
+        _saveHistory(state);
+      }
+    });
+
+    // 播放列表变化
     handler.queue.listen((queue) {
       state = state.copyWith(playlist: queue);
       _updateSkipInfo();
+      _saveState();
     });
 
-    AudioService.position.listen((pos) {
-      state = state.copyWith(position: pos);
-    });
-
-    // 若使用自定义音量
+    // 音量变化
     if (handler is MyAudioHandler) {
-      final h = handler as MyAudioHandler;
-      h.volumeStream.listen((v) {
+      (handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
+        _saveState();
       });
     }
   }
@@ -158,22 +127,29 @@ class PlayerController extends Notifier<PlayerState> {
     );
   }
 
-  // --- 控制方法 ---
-
-  Future<void> play() async {
-    final title = handler.mediaItem.value?.title;
-    debugPrint('title: $title');
-    handler.play();
+  void _saveState() {
+    CacheService.instance.savePlayerState(state);
   }
-  Future<void> pause() => handler.pause();
+  void _saveHistory(AppPlayerState? playState) {
+    final work = playState?.currentTrack?.extras?['work'] ?? Work();
+    final history = HistoryEntry(
+      work: work,
+      lastTrackId: state.currentTrack?.id,
+      currentTrackTitle: state.currentTrack?.title,
+      lastProgressMs: state.progressBarState.current.inMilliseconds,
+      updatedAt: DateTime.now().millisecondsSinceEpoch, // 可先填一个值，saveOrUpdateHistory 会更新
+    );
 
-  Future<void> stop() => handler.stop();
+    CacheService.instance.saveOrUpdateHistory(history);
+  }
 
-  Future<void> seek(Duration d) => handler.seek(d);
-
-  Future<void> next() => handler.skipToNext();
-
-  Future<void> previous() => handler.skipToPrevious();
+  // --- 控制方法 ---
+  Future<void> play() async => handler.play();
+  Future<void> pause() async => handler.pause();
+  Future<void> stop() async => handler.stop();
+  Future<void> seek(Duration d) async => handler.seek(d);
+  Future<void> next() async => handler.skipToNext();
+  Future<void> previous() async => handler.skipToPrevious();
 
   Future<void> setVolume(double v) async {
     if (handler is MyAudioHandler) {
@@ -184,21 +160,96 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> toggleShuffle() async {
     final enabled = !state.shuffleEnabled;
     state = state.copyWith(shuffleEnabled: enabled);
-    await handler.setShuffleMode(
-        enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+    await handler.setShuffleMode(enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+    _saveState();
   }
 
   Future<void> setRepeat(AudioServiceRepeatMode mode) async {
     state = state.copyWith(repeatMode: mode);
     await handler.setRepeatMode(mode);
+    _saveState();
   }
 
-  Future<void> add(MediaItem item) => handler.addQueueItem(item);
+  Future<void> add(MediaItem item) async {
+    await handler.addQueueItem(item);
+    _saveState();
+  }
 
-  Future<void> addAll(List<MediaItem> items) => handler.addQueueItems(items);
+  Future<void> addAll(List<MediaItem> items) async {
+    await handler.addQueueItems(items);
+    _saveState();
+  }
 
-  Future<void> skipTo(int index) => handler.skipToQueueItem(index);
+  Future<void> skipTo(int index) async {
+    await handler.skipToQueueItem(index);
+    _saveState();
+  }
 
-  Future<void> clear() => (handler as MyAudioHandler).clearPlaylist() ;
+  Future<void> clear() async {
+    await (handler as MyAudioHandler).clearPlaylist();
+    _saveState();
+  }
+  Future<void> handleFileTap(FileNode node,Work work,List<FileNode> currentNodes,{HistoryEntry? history}) async {
+    if (node.isAudio) {
+      final audioFiles = currentNodes.where((n) => n.isAudio).toList();
+      final mediaList = audioFiles.map((node) {
+        return MediaItem(
+          id: node.hash.toString(),
+          album: node.workTitle,
+          title: node.title,
+          artist: OtherUtil.joinVAs(work.vas),
+          extras: {
+            'url': node.mediaStreamUrl,
+            'mainCoverUrl': work.mainCoverUrl,
+            'samCorverUrl': work.samCoverUrl,
+            'work': work
+          },
+        );
+      }).toList();
+      final audioTapIndex = audioFiles.indexOf(node);
+      await clear();
+      await addAll(mediaList);
+      await skipTo(audioTapIndex);
+      if(history != null) {
+        if (history.lastProgressMs != null) {
+          await handler.seek(Duration(milliseconds: history.lastProgressMs!));
+        }
+      }
+      await play();
+    }
+  }
+  Future<HistoryEntry?> checkHistoryForWork(Work work) async {
+    final historyList = await CacheService.instance.getHistoryList();
+    final history = historyList.firstWhere(
+          (h) => h.work.id == work.id,
+    );
+    return history;
+  }
+  Map<String, dynamic>? findTrackParentAndIndex(
+      List<FileNode> nodes, String trackId) {
+    for (var node in nodes) {
+      if (node.isAudio && node.hash.toString() == trackId) {
+        // 当前节点就在根层级
+        return {'parentList': nodes, 'index': nodes.indexOf(node)};
+      }
+      if (node.children != null && node.children!.isNotEmpty) {
+        final result = findTrackParentAndIndex(node.children!, trackId);
+        if (result != null) return result;
+      }
+    }
+    return null; // 未找到
+  }
+  /// 恢复播放指定历史记录
+  Future<void> restoreHistory(List<FileNode> nodes, Work work, HistoryEntry history) async {
+    if (history.lastTrackId == null) return;
+
+    final found = findTrackParentAndIndex(nodes, history.lastTrackId!);
+    if (found == null) return;
+
+    final parentList = found['parentList'] as List<FileNode>;
+    final index = found['index'] as int;
+    final currentNode = parentList[index];
+    handleFileTap(currentNode, work, parentList,history: history);
+  }
 
 }

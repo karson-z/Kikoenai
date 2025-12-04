@@ -37,10 +37,7 @@ class TagRow extends ConsumerWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
 
     final themeState = ref.watch(themeNotifierProvider);
-    final isDark = themeState.maybeWhen(
-      data: (value) => value.mode == ThemeMode.dark,
-      orElse: () => false,
-    );
+    final isDark = themeState.mode == ThemeMode.dark;
 
     return SizedBox(
       child: ScrollConfiguration(

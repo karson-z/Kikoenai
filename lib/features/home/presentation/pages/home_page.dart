@@ -11,10 +11,7 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 监听主题状态，使暗黑模式切换响应式
     final themeStateAsync = ref.watch(themeNotifierProvider);
-    final isDark = themeStateAsync.maybeWhen(
-      data: (value) => value.mode == ThemeMode.dark,
-      orElse: () => false,
-    );
+    final isDark = themeStateAsync.mode == ThemeMode.dark;
 
     return Center(
       child: Column(
