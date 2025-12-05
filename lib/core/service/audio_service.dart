@@ -164,7 +164,37 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
   }
+  @override
+  Future<void> updateQueue(List<MediaItem> queue) async {
+    // 记录当前播放歌曲
+    MediaItem? current = (_currentIndex >= 0 && _currentIndex < _playlist.length)
+        ? _playlist[_currentIndex]
+        : null;
 
+    // 替换播放列表
+    _playlist
+      ..clear()
+      ..addAll(queue);
+
+    // 重新计算当前歌曲的索引
+    if (current != null) {
+      final newIndex = _playlist.indexWhere((it) => it.id == current.id);
+
+      if (newIndex != -1) {
+        _currentIndex = newIndex;
+      } else {
+        // 当前歌曲在新列表中不存在：停止播放 or 播放第一首
+        _currentIndex = -1;
+        _isPlaylistPrepared = false;
+
+        await _player.stop();
+        mediaItem.add(null);
+      }
+    }
+
+    // 通知外部队列更新,外层监听当前队列，变化的时候ui状态跟着变化
+    this.queue.add([..._playlist]);
+  }
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems, {int startIndex = 0}) async {
     _playlist.addAll(mediaItems);

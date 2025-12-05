@@ -25,7 +25,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     _loadPlayerState();
     return AppPlayerState();
   }
-
   /// 从缓存恢复播放器状态
   void _loadPlayerState() async {
     final cacheService = CacheService.instance;
@@ -169,25 +168,38 @@ class PlayerController extends Notifier<AppPlayerState> {
     await handler.setRepeatMode(mode);
     _saveState();
   }
-
+  void replacePlaylist(List<MediaItem> newList) {
+    handler.updateQueue(newList);
+  }
   Future<void> add(MediaItem item) async {
     await handler.addQueueItem(item);
-    _saveState();
   }
 
   Future<void> addAll(List<MediaItem> items) async {
     await handler.addQueueItems(items);
-    _saveState();
   }
 
   Future<void> skipTo(int index) async {
     await handler.skipToQueueItem(index);
-    _saveState();
   }
 
   Future<void> clear() async {
     await (handler as MyAudioHandler).clearPlaylist();
-    _saveState();
+  }
+  Future<void> addSingleInQueue(FileNode node,Work work)async {
+    final mediaItem = MediaItem(
+      id: node.hash.toString(),
+      album: node.workTitle,
+      title: node.title,
+      artist: OtherUtil.joinVAs(work.vas),
+      extras: {
+        'url': node.mediaStreamUrl,
+        'mainCoverUrl': work.mainCoverUrl,
+        'samCorverUrl': work.samCoverUrl,
+        'work': work
+      },
+    );
+    await add(mediaItem);
   }
   Future<void> handleFileTap(FileNode node,Work work,List<FileNode> currentNodes,{HistoryEntry? history}) async {
     if (node.isAudio) {
@@ -220,10 +232,15 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   Future<HistoryEntry?> checkHistoryForWork(Work work) async {
     final historyList = await CacheService.instance.getHistoryList();
-    final history = historyList.firstWhere(
-          (h) => h.work.id == work.id,
-    );
-    return history;
+    try {
+      final history = historyList.firstWhere(
+            (h) => h.work.id == work.id,
+      );
+      return history;
+    }catch(e){
+      debugPrint('checkHistoryForWork: 当前作品暂无历史记录');
+    }
+    return null;
   }
   Map<String, dynamic>? findTrackParentAndIndex(
       List<FileNode> nodes, String trackId) {
@@ -250,6 +267,28 @@ class PlayerController extends Notifier<AppPlayerState> {
     final index = found['index'] as int;
     final currentNode = parentList[index];
     handleFileTap(currentNode, work, parentList,history: history);
+  }
+  Future<void> removeMediaItemInQueue(int index) async {
+    await handler.removeQueueItemAt(index);
+    _saveState();
+  }
+  Future<void> addMultiInQueue(List<FileNode> nodes,Work work) async {
+    debugPrint('addMultiInQueue:${nodes.map((e) => e.toJson())}');
+    final mediaList = nodes.map((node) {
+      return MediaItem(
+        id: node.hash.toString(),
+        album: node.workTitle,
+        title: node.title,
+        artist: OtherUtil.joinVAs(work.vas),
+        extras: {
+          'url': node.mediaStreamUrl,
+          'mainCoverUrl': work.mainCoverUrl,
+          'samCorverUrl': work.samCoverUrl,
+          'work': work
+        },
+      );
+    }).toList();
+    await addAll(mediaList);
   }
 
 }

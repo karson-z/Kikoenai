@@ -5,7 +5,7 @@ class CustomSideSheetType extends WoltModalType {
   const CustomSideSheetType()
       : super(
     shapeBorder: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.horizontal(left: Radius.circular(20)),
+      borderRadius: BorderRadius.horizontal(left: Radius.circular(12)),
     ),
     dismissDirection: WoltModalDismissDirection.endToStart,
     showDragHandle: false,
@@ -21,7 +21,7 @@ class CustomSideSheetType extends WoltModalType {
   // 控制尺寸
   @override
   BoxConstraints layoutModal(Size availableSize) {
-    const maxWidth = 360.0;
+    const maxWidth = 320.0;
     final maxHeight = availableSize.height * 0.8;
 
     return BoxConstraints(

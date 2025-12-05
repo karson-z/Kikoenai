@@ -1,5 +1,4 @@
 import '../../features/album/data/model/work.dart';
-import '../widgets/player/state/player_state.dart';
 
 class HistoryEntry {
   final Work work;

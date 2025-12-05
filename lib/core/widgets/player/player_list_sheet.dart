@@ -14,57 +14,89 @@ class PlayerPlaylistSheet {
       // 核心逻辑：根据宽度切换样式
       modalTypeBuilder: (_) {
         final width = MediaQuery.of(context).size.width;
-        final isMobile = width < 500; // 你可根据设计调整
+        final isMobile = width < 500;
 
         if (isMobile) {
           return const CustomBottomType() ;
         } else {
-          return const CustomSideSheetType(); // 你自定义的侧边栏类型
+          return const CustomSideSheetType();
         }
       },
       pageListBuilder: (modalContext) {
         return [
-          SliverWoltModalSheetPage(
-            backgroundColor: Colors.white,
-            isTopBarLayerAlwaysVisible: true,
-            topBarTitle: const Text(
-              '当前播放队列',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+        SliverWoltModalSheetPage(
+          backgroundColor: Colors.white,
+          isTopBarLayerAlwaysVisible: true,
 
-            mainContentSliversBuilder: (context) => [
-              const SliverPadding(padding: EdgeInsets.only(top: 8)),
-
-              // 让 Riverpod 参与
-              SliverToBoxAdapter(
-                child: Consumer(
-                  builder: (_, ref, __) {
-                    final state = ref.watch(playerControllerProvider);
-                    final playList = state.playlist;
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: playList.length,
-                      itemBuilder: (_, index) {
-                        final item = playList[index];
-
-                        return ListTile(
-                          leading: Text('${index + 1}'),
-                          title: Text(item.title,style: TextStyle(fontSize: 16)),
-                          subtitle: Text(item.artist ?? '未知艺术家',style: TextStyle(fontSize: 12,color: Colors.grey),),
-                          onTap: () {
-                            // 跳到歌曲
-                            ref.read(playerControllerProvider.notifier).skipTo(index);
-                            Navigator.of(modalContext).pop();
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+          topBarTitle: const Text(
+            '当前播放队列',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+
+          mainContentSliversBuilder: (context) => [
+            const SliverPadding(padding: EdgeInsets.only(top: 8)),
+
+            SliverToBoxAdapter(
+              child: Consumer(
+                builder: (_, ref, __) {
+                  final notifier = ref.read(playerControllerProvider.notifier);
+                  final state = ref.watch(playerControllerProvider);
+                  final playList = state.playlist;
+
+                  return ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: playList.length,
+
+                    onReorder: (oldIndex, newIndex) {
+                      final updated = [...playList];
+
+                      // Flutter 的 ReorderableListView 规则：如果 oldIndex < newIndex，newIndex 要 -1
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+
+                      final item = updated.removeAt(oldIndex);
+                      updated.insert(newIndex, item);
+
+                      notifier.replacePlaylist(updated);
+                    },
+
+                    itemBuilder: (_, index) {
+                      final item = playList[index];
+
+                      return Dismissible(
+                        key: ValueKey("dismiss-${item.hashCode}"),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (_) {
+                          notifier.removeMediaItemInQueue(index);
+                        },
+
+                        child: ListTile(
+                          key: ValueKey("tile-${item.hashCode}"),
+                          leading: Text('${index + 1}'),
+                          title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(item.artist ?? '未知艺术家', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          // 长按自动触发 reorder
+                          onTap: () {
+                            notifier.skipTo(index);
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
         ];
       },
     );
