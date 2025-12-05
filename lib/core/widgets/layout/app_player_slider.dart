@@ -42,7 +42,7 @@ class SlidingPlayerPanel extends ConsumerWidget {
       minHeight: minHeight,
       maxHeight: maxHeight,
       isDraggable: isDraggable,
-      panel: MusicPlayerView(
+      panel:  MusicPlayerView(
         onQueuePressed: () => PlayerPlaylistSheet.show(context),
       ),
       collapsed: collapsed,

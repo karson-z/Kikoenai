@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/widgets/layout/app_dropdown_sheet.dart';
+import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import '../../../../core/utils/data/other.dart';
@@ -223,12 +224,11 @@ class _BreadcrumbHeader extends StatelessWidget {
             iconSize: 18,
             splashRadius: 20,
             padding: const EdgeInsets.all(8),
-            icon: const Icon(Icons.manage_accounts, color: Colors.grey),
+            icon: const Icon(Icons.library_music, color: Colors.grey),
             onPressed: () {
               final ref = ProviderScope.containerOf(context);
 
               final audioFiles = _collectAllAudioFiles(rootNodes);
-
               CustomDropdownSheet.show(
                 // 关闭模态框时，重置状态
                 onClosed: () {
@@ -303,7 +303,7 @@ class _BreadcrumbHeader extends StatelessWidget {
                               ),
                               subtitle: Text("时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}"),
                               onTap: () {
-                                debugPrint("单选");
+                                ref.read(playerControllerProvider.notifier).addSingleInQueue(file,work);
                               },
                             );
                           }
@@ -355,8 +355,8 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 68;
+  double get maxExtent => 88;
 
   @override
-  double get minExtent => 68;
+  double get minExtent => 88;
 }

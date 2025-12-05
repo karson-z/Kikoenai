@@ -31,7 +31,7 @@ class OtherUtil {
   /// ```
   static bool isFullScreenPage(String location) {
     const fullScreenRoutes = [
-      '/album/detail',
+      '/detail',
       '/settingsTheme',
     ];
     return fullScreenRoutes.contains(location);

@@ -70,7 +70,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         buffered: p.bufferedPosition,
         total: handler.mediaItem.value?.duration ?? Duration.zero,
       );
-
       state = state.copyWith(
         playing: p.playing,
         loading: p.processingState == AudioProcessingState.loading ||
@@ -82,7 +81,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         _saveHistory(state);
       }
     });
-
     // 当前播放曲目
     handler.mediaItem.listen((item) {
       state = state.copyWith(currentTrack: item);
@@ -98,14 +96,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     handler.queue.listen((queue) {
       state = state.copyWith(playlist: queue);
       _updateSkipInfo();
-      _saveState();
+      if(state.currentTrack != null){
+        _saveState();
+      }
     });
 
     // 音量变化
     if (handler is MyAudioHandler) {
       (handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
-        _saveState();
+        if(state.currentTrack != null){
+          _saveState();
+        }
       });
     }
   }

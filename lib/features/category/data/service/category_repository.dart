@@ -52,21 +52,21 @@ class CategoryRepositoryImpl implements CategoryRepository {
   @override
   Future<Result<List>> getCircles() async {
     final response = await api.get<List<dynamic>>(
-      "/circles",
+      "/circles/",
     );
     return response;
   }
   @override
   Future<Result<List>> getTags() async {
     final response = await api.get<List<dynamic>>(
-      "/tags",
+      "/tags/",
     );
     return response;
   }
   @override
   Future<Result<List>> getVas() async {
     final response = await api.get<List<dynamic>>(
-      "/vas",
+      "/vas/",
     );
     return response;
   }

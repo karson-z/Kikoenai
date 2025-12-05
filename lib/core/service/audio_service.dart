@@ -40,6 +40,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPlaybackCompletion();
+    _listenForPositionChanges();
   }
   int get currentIndex => _currentIndex;
 
@@ -101,17 +102,6 @@ class MyAudioHandler extends BaseAudioHandler {
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.playbackEventStream.listen((event) {
       final playing = _player.playing;
-
-      // debugPrint('--- PlaybackEvent ---');
-      // debugPrint('playing: $playing');
-      // debugPrint('processingState: ${_player.processingState}');
-      // debugPrint('currentIndex: $_currentIndex');
-      // debugPrint('queue length: ${_playlist.length}');
-      // debugPrint('position: ${_player.position}');
-      // debugPrint('bufferedPosition: ${_player.bufferedPosition}');
-      // debugPrint('speed: ${_player.speed}');
-      // debugPrint('-------------------');
-
       // 更新 AudioService 播放状态
       playbackState.add(playbackState.value.copyWith(
         controls: [
@@ -136,14 +126,28 @@ class MyAudioHandler extends BaseAudioHandler {
         }[_player.loopMode]!,
         shuffleMode: AudioServiceShuffleMode.none,
         playing: playing,
-        updatePosition: _player.position,
-        bufferedPosition: _player.bufferedPosition,
+        // updatePosition: _player.position,
+        // bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: _currentIndex,
       ));
     });
   }
+  void _listenForPositionChanges() {
+    // just_audio 提供了一个专门用于播放进度监听的流，需要单独进行更新，而不是加入到播放事件流监听中进行更新
+    // 由于安卓和windows底层使用的播放器不同，playbackEventStream 在移动端被操作系统节流变成每隔3秒更新一次
+    _player.positionStream.listen((position) {
+      playbackState.add(playbackState.value.copyWith(
+        updatePosition: position,
+      ));
+    });
 
+    _player.bufferedPositionStream.listen((bufferedPosition) {
+      playbackState.add(playbackState.value.copyWith(
+        bufferedPosition: bufferedPosition,
+      ));
+    });
+  }
   void _listenForDurationChanges() {
     _player.durationStream.listen((duration) {
       if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
@@ -197,9 +201,13 @@ class MyAudioHandler extends BaseAudioHandler {
   }
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems, {int startIndex = 0}) async {
-    _playlist.addAll(mediaItems);
+    final existingIds = _playlist.map((e) => e.id).toSet();
 
-    // 如果是第一次添加歌曲，设置当前索引
+    // 过滤出 playlist 中没有的
+    final toAdd = mediaItems.where((e) => !existingIds.contains(e.id));
+
+    _playlist.addAll(toAdd);
+
     if (!_isPlaylistPrepared && _playlist.isNotEmpty) {
       _currentIndex = 0;
       _isPlaylistPrepared = true;
@@ -210,14 +218,22 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
+    // 1. 已存在则直接退出，不重复添加
+    final exists = _playlist.any((item) => item.id == mediaItem.id);
+    if (exists) {
+      return;
+    }
+
+    // 2. 不存在则添加
     _playlist.add(mediaItem);
 
-    // 如果是第一次添加歌曲，设置当前索引
+    // 3. 如果是首次添加，初始化 index
     if (!_isPlaylistPrepared) {
       _currentIndex = 0;
       _isPlaylistPrepared = true;
     }
 
+    // 4. 通知 queue 更新
     queue.add(_playlist);
   }
 

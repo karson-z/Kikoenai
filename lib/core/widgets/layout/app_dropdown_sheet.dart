@@ -21,14 +21,14 @@ class CustomDropdownSheet {
         final isMobile = width < 500;
 
         return isMobile
-            ? const CustomBottomType()
+            ?  WoltModalType.dialog()
             : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) => [
         SliverWoltModalSheetPage(
           backgroundColor: Colors.white,
           isTopBarLayerAlwaysVisible: true,
-          topBar: Container(
+          trailingNavBarWidget: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
