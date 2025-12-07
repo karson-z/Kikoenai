@@ -9,6 +9,7 @@ class CustomDropdownSheet {
   static Future<void> show({
     required BuildContext context,
     required String title,
+    bool? isDark,
     required Widget Function(BuildContext modalContext) contentBuilder,
     double? maxHeight,
     List<Widget>? actionButtons,
@@ -26,7 +27,7 @@ class CustomDropdownSheet {
       },
       pageListBuilder: (modalContext) => [
         SliverWoltModalSheetPage(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ?? false ? Colors.black : Colors.white,
           isTopBarLayerAlwaysVisible: true,
           trailingNavBarWidget: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

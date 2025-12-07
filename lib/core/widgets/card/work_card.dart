@@ -1,14 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
+import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
 import '../../enums/age_rating.dart';
+import '../../enums/tag_enum.dart';
 
 class WorkCard extends StatelessWidget {
   final Work work;
-  final void Function(dynamic tag)? onTagTap;
 
   // 新增可选字段
   final String? lastTrackTitle; // 上次播放到哪一集
@@ -17,7 +19,6 @@ class WorkCard extends StatelessWidget {
   WorkCard({
     super.key,
     required this.work,
-    this.onTagTap,
     this.lastTrackTitle,
     this.lastPlayedAt,
   });
@@ -43,7 +44,7 @@ class WorkCard extends StatelessWidget {
             double computeFontSize() => cardWidth / 20;
             double computePadding() => cardWidth / 30;
             final infoFontSize = cardWidth / 22;
-
+            final isSubTitle = work.hasSubtitle;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -83,6 +84,18 @@ class WorkCard extends StatelessWidget {
                             ),
                           ),
                           Positioned(
+                            bottom: 2,
+                            left: 8,
+                            child: AppBadge(
+                              color: Colors.black45,
+                              child: Icon(
+                                isSubTitle ?? false ? Icons.closed_caption :Icons.closed_caption_disabled ,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            )
+                          ),
+                          Positioned(
                             bottom: 0,
                             right: 0,
                             child: _buildBadge(
@@ -111,14 +124,27 @@ class WorkCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        work.name ?? "",
-                        style: TextStyle(
-                          fontSize: computedCircleFontSize,
-                          color: Colors.grey[700],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click, // 核心代码：设置鼠标样式为点击（小手）
+                        child: Consumer(
+                          builder: (context,ref,child){
+                            return GestureDetector(
+                              onTap: (){
+                                ref.read(categoryUiProvider.notifier).toggleTag(TagType.circle.stringValue,work.name!,refreshData: true);
+                                context.go(AppRoutes.category);
+                              },
+                              child: Text(
+                                work.name ?? "",
+                                style: TextStyle(
+                                  fontSize: computedCircleFontSize,
+                                  color: Colors.grey[700],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          },
+                        )
                       ),
                       const SizedBox(height: 6),
 
@@ -155,22 +181,16 @@ class WorkCard extends StatelessWidget {
                               fontSize: computeFontSize(),
                               borderRadius: 8,
                               padding: EdgeInsets.all(computePadding()),
-                              onTagTap: (tag) {
-                                onTagTap?.call(tag);
-                              },
                             ),
                             const SizedBox(height: 4),
 
                             /// 普通标签
                             TagRow(
                               tags: work.tags ?? [],
-                              type: TagType.normal,
+                              type: TagType.tag,
                               fontSize: computeFontSize(),
                               borderRadius: 25,
                               padding: EdgeInsets.all(computePadding()),
-                              onTagTap: (tag) {
-                                onTagTap?.call(tag);
-                              },
                             ),
                           ],
                         ),
@@ -203,6 +223,32 @@ class WorkCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+class AppBadge extends StatelessWidget {
+  final Widget child;
+  final Color color;
+  final EdgeInsets padding;
+  final double radius;
+
+  const AppBadge({
+    Key? key,
+    required this.child,
+    this.color = Colors.red,
+    this.padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+    this.radius = 4,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      padding: padding,
+      child: Center(child: child),
     );
   }
 }

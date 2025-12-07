@@ -187,7 +187,7 @@ class MusicPlayerView extends ConsumerWidget {
         children: [
           IconButton(
             onPressed: () =>
-                controller.setRepeat(AudioServiceRepeatMode.one),
+                controller.setRepeat(AudioServiceRepeatMode.none),
             icon: const Icon(Icons.repeat, color: Colors.white),
           ),
 

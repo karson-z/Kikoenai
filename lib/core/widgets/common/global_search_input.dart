@@ -20,10 +20,8 @@ class GlobalSearchInput extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeStateAsync = ref.watch(themeNotifierProvider);
-
     // 根据 AsyncValue 判断加载状态
-    final isDark = themeStateAsync.mode == ThemeMode.dark;
+    final isDark = ref.watch(explicitDarkModeProvider);
 
     // 背景色根据主题切换
     final bgColor = isDark ? Colors.grey.shade800 : Colors.white;

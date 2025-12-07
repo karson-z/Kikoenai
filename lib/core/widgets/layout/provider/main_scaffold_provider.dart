@@ -87,6 +87,7 @@ class MainScaffoldNotifier extends Notifier<MainScaffoldState> {
 
   void setPlayerDraggable(bool draggable) => state = state.copyWith(playerDraggable: draggable);
 
+
   /// 新增：设置动态主题颜色的方法
   void setDominantColor(Color color) {
     state = state.copyWith(dominantColor: color);

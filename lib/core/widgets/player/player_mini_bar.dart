@@ -15,13 +15,11 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeState = ref.watch(themeNotifierProvider);
     final bg = ref.watch(mainScaffoldProvider);
     final playerState = ref.watch(playerControllerProvider);
     final playController = ref.watch(playerControllerProvider.notifier);
-    bool isDark = themeState.mode == ThemeMode.dark ||
-        (themeState.mode == ThemeMode.system &&
-            MediaQuery.of(context).platformBrightness == Brightness.dark);
+    final isDark = ref.watch(explicitDarkModeProvider);
+
 
     final textColor = isDark ? Colors.white : Colors.black87;
     final iconColor = isDark ? Colors.white : Colors.black87;
@@ -93,10 +91,6 @@ class MiniPlayer extends ConsumerWidget {
                 ],
               ),
             ),
-            // ⭐️ 移除右侧多余的 SizedBox(width: 12)，或保持它并优化按钮
-            // const SizedBox(width: 12),
-
-            // 优化后的控制按钮组：通过减少 padding 解决溢出
             // 1. 上一首
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2.0), // 减少水平内边距

@@ -14,12 +14,9 @@ class MobileSearchAppBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 监听 ThemeNotifier
-    final themeStateAsync = ref.watch(themeNotifierProvider);
 
-    final themeMode = themeStateAsync.mode;
+    final isDark = ref.watch(explicitDarkModeProvider);
 
-    final isDark = themeMode == ThemeMode.dark;
     return LayoutBuilder(
       builder: (context, constraints) {
         final topPadding = MediaQuery.of(context).padding.top;

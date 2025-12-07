@@ -7,98 +7,111 @@ import 'custom_bottom_type.dart';
 import 'custom_side_sheet_type.dart';
 
 class PlayerPlaylistSheet {
-  static void show(BuildContext context) {
-    WoltModalSheet.show<void>(
+  static Future<void> show(
+      BuildContext context, {
+        bool? isDark,
+        VoidCallback? onClosed,
+      }) {
+    return WoltModalSheet.show<void>(
       context: context,
 
-      // 核心逻辑：根据宽度切换样式
       modalTypeBuilder: (_) {
         final width = MediaQuery.of(context).size.width;
         final isMobile = width < 500;
-
-        if (isMobile) {
-          return const CustomBottomType() ;
-        } else {
-          return const CustomSideSheetType();
-        }
+        return isMobile ? const CustomBottomType() : const CustomSideSheetType();
       },
+
       pageListBuilder: (modalContext) {
+        final bgColor = (isDark ?? false) ? Colors.black : Colors.white;
+        final titleColor = (isDark ?? false) ? Colors.white : Colors.black87;
+        final subtitleColor = (isDark ?? false) ? Colors.white70 : Colors.grey;
+
         return [
-        SliverWoltModalSheetPage(
-          backgroundColor: Colors.white,
-          isTopBarLayerAlwaysVisible: true,
+          SliverWoltModalSheetPage(
+            backgroundColor: bgColor,
+            isTopBarLayerAlwaysVisible: true,
 
-          topBarTitle: const Text(
-            '当前播放队列',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-
-          mainContentSliversBuilder: (context) => [
-            const SliverPadding(padding: EdgeInsets.only(top: 8)),
-
-            SliverToBoxAdapter(
-              child: Consumer(
-                builder: (_, ref, __) {
-                  final notifier = ref.read(playerControllerProvider.notifier);
-                  final state = ref.watch(playerControllerProvider);
-                  final playList = state.playlist;
-
-                  return ReorderableListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: playList.length,
-
-                    onReorder: (oldIndex, newIndex) {
-                      final updated = [...playList];
-
-                      // Flutter 的 ReorderableListView 规则：如果 oldIndex < newIndex，newIndex 要 -1
-                      if (oldIndex < newIndex) {
-                        newIndex -= 1;
-                      }
-
-                      final item = updated.removeAt(oldIndex);
-                      updated.insert(newIndex, item);
-
-                      notifier.replacePlaylist(updated);
-                    },
-
-                    itemBuilder: (_, index) {
-                      final item = playList[index];
-
-                      return Dismissible(
-                        key: ValueKey("dismiss-${item.hashCode}"),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (_) {
-                          notifier.removeMediaItemInQueue(index);
-                        },
-
-                        child: ListTile(
-                          key: ValueKey("tile-${item.hashCode}"),
-                          leading: Text('${index + 1}'),
-                          title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(item.artist ?? '未知艺术家', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          // 长按自动触发 reorder
-                          onTap: () {
-                            notifier.skipTo(index);
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
+            topBarTitle: Text(
+              '当前播放队列',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: titleColor,
               ),
             ),
-          ],
-        ),
+
+            mainContentSliversBuilder: (context) => [
+              const SliverPadding(padding: EdgeInsets.only(top: 8)),
+
+              SliverToBoxAdapter(
+                child: Consumer(
+                  builder: (_, ref, __) {
+                    final notifier = ref.read(playerControllerProvider.notifier);
+                    final state = ref.watch(playerControllerProvider);
+                    final playList = state.playlist;
+
+                    return ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: playList.length,
+
+                      onReorder: (oldIndex, newIndex) {
+                        final updated = [...playList];
+                        if (oldIndex < newIndex) newIndex -= 1;
+
+                        final item = updated.removeAt(oldIndex);
+                        updated.insert(newIndex, item);
+
+                        notifier.replacePlaylist(updated);
+                      },
+
+                      itemBuilder: (_, index) {
+                        final item = playList[index];
+
+                        return Dismissible(
+                          key: ValueKey("dismiss-${item.hashCode}"),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          onDismissed: (_) => notifier.removeMediaItemInQueue(index),
+
+                          child: ListTile(
+                            key: ValueKey("tile-${item.hashCode}"),
+                            leading: Text(
+                              '${index + 1}',
+                              style: TextStyle(color: titleColor),
+                            ),
+                            title: Text(
+                              item.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: titleColor),
+                            ),
+                            subtitle: Text(
+                              item.artist ?? '未知艺术家',
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
+                            ),
+
+                            onTap: () {
+                              notifier.skipTo(index);
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ];
       },
-    );
+    ).whenComplete(() {
+      if (onClosed != null) onClosed();
+    });
   }
 }

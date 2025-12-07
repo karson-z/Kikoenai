@@ -30,6 +30,7 @@ class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
     writer.writeBool(obj.playing);
     writer.writeBool(obj.loading);
 
+
     writer.write(obj.progressBarState);
     writer.write(obj.currentTrack);
     writer.writeList(obj.playlist);

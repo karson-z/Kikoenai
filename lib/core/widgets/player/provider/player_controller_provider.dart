@@ -6,6 +6,7 @@ import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 
+
 import '../../../../features/album/data/model/file_node.dart';
 import '../../../service/audio_service.dart';
 import '../state/player_state.dart';
@@ -78,7 +79,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       );
       if(state.currentTrack != null){
         _saveState();
-        _saveHistory(state);
+        _saveHistory();
       }
     });
     // 当前播放曲目
@@ -88,7 +89,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       if(state.currentTrack != null){
         _saveState();
-        _saveHistory(state);
+        _saveHistory();
       }
     });
 
@@ -131,17 +132,28 @@ class PlayerController extends Notifier<AppPlayerState> {
   void _saveState() {
     CacheService.instance.savePlayerState(state);
   }
-  void _saveHistory(AppPlayerState? playState) {
-    final work = playState?.currentTrack?.extras?['work'] ?? Work();
-    final history = HistoryEntry(
-      work: work,
-      lastTrackId: state.currentTrack?.id,
-      currentTrackTitle: state.currentTrack?.title,
-      lastProgressMs: state.progressBarState.current.inMilliseconds,
-      updatedAt: DateTime.now().millisecondsSinceEpoch, // 可先填一个值，saveOrUpdateHistory 会更新
-    );
+  void _saveHistory() {
+    final currentItem = state.currentTrack;
+    if (currentItem == null) return;
 
-    CacheService.instance.saveOrUpdateHistory(history);
+    // 从 extras 中尝试获取 work 数据
+    final workData = currentItem.extras?['workData'];
+    if (workData == null) return;
+
+    try {
+      final currentWork = Work.fromJson(Map<String, dynamic>.from(workData));
+
+      final history = HistoryEntry(
+        work: currentWork, // 使用解析出来的 work
+        lastTrackId: currentItem.id,
+        currentTrackTitle: currentItem.title,
+        lastProgressMs: state.progressBarState.current.inMilliseconds,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      CacheService.instance.saveOrUpdateHistory(history);
+    } catch (e) {
+      debugPrint('保存历史记录失败: $e');
+    }
   }
 
   // --- 控制方法 ---
@@ -189,36 +201,14 @@ class PlayerController extends Notifier<AppPlayerState> {
     await (handler as MyAudioHandler).clearPlaylist();
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
-    final mediaItem = MediaItem(
-      id: node.hash.toString(),
-      album: node.workTitle,
-      title: node.title,
-      artist: OtherUtil.joinVAs(work.vas),
-      extras: {
-        'url': node.mediaStreamUrl,
-        'mainCoverUrl': work.mainCoverUrl,
-        'samCorverUrl': work.samCoverUrl,
-        'work': work
-      },
-    );
+    final mediaItem = _fileNodeToMediaItem(node,work);
     await add(mediaItem);
   }
   Future<void> handleFileTap(FileNode node,Work work,List<FileNode> currentNodes,{HistoryEntry? history}) async {
     if (node.isAudio) {
       final audioFiles = currentNodes.where((n) => n.isAudio).toList();
       final mediaList = audioFiles.map((node) {
-        return MediaItem(
-          id: node.hash.toString(),
-          album: node.workTitle,
-          title: node.title,
-          artist: OtherUtil.joinVAs(work.vas),
-          extras: {
-            'url': node.mediaStreamUrl,
-            'mainCoverUrl': work.mainCoverUrl,
-            'samCorverUrl': work.samCoverUrl,
-            'work': work
-          },
-        );
+        return _fileNodeToMediaItem(node,work);
       }).toList();
       final audioTapIndex = audioFiles.indexOf(node);
       await clear();
@@ -229,7 +219,6 @@ class PlayerController extends Notifier<AppPlayerState> {
           await handler.seek(Duration(milliseconds: history.lastProgressMs!));
         }
       }
-      await play();
     }
   }
   Future<HistoryEntry?> checkHistoryForWork(Work work) async {
@@ -275,22 +264,24 @@ class PlayerController extends Notifier<AppPlayerState> {
     _saveState();
   }
   Future<void> addMultiInQueue(List<FileNode> nodes,Work work) async {
-    debugPrint('addMultiInQueue:${nodes.map((e) => e.toJson())}');
     final mediaList = nodes.map((node) {
-      return MediaItem(
-        id: node.hash.toString(),
-        album: node.workTitle,
-        title: node.title,
-        artist: OtherUtil.joinVAs(work.vas),
-        extras: {
-          'url': node.mediaStreamUrl,
-          'mainCoverUrl': work.mainCoverUrl,
-          'samCorverUrl': work.samCoverUrl,
-          'work': work
-        },
-      );
+      return _fileNodeToMediaItem(node,work);
     }).toList();
     await addAll(mediaList);
   }
-
+  MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
+    return MediaItem(
+      id: node.hash.toString(),
+      album: node.workTitle,
+      title: node.title,
+      artist: OtherUtil.joinVAs(work.vas),
+      artUri: Uri.parse(work.thumbnailCoverUrl ?? ''),
+      extras: {
+        'url': node.mediaStreamUrl,
+        'mainCoverUrl': work.mainCoverUrl,
+        'samCorverUrl': work.samCoverUrl,
+        'workData': work.toJson(),
+      },
+    );
+  }
 }

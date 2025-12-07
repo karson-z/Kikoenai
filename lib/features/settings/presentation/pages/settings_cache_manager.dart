@@ -90,12 +90,6 @@ Future<void> showCacheManagerSheet(
                                 onPressed: () async {
                                   await CacheService.instance
                                       .clearBoxFile(info.name);
-
-                                  Navigator.pop(context);
-                                  showCacheManagerSheet(
-                                    context,
-                                    boxNames: boxNames,
-                                  );
                                 },
                               ),
                             ),

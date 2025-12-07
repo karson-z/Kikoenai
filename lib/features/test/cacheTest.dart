@@ -1,66 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/widgets/card/work_card.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 
-class HistoryTestPage extends StatefulWidget {
-  const HistoryTestPage({super.key});
+import '../album/presentation/viewmodel/provider/audio_file_provider.dart';
+
+class WorkDetailTestPage extends ConsumerStatefulWidget {
+  const WorkDetailTestPage({super.key});
 
   @override
-  _HistoryTestPageState createState() => _HistoryTestPageState();
+  ConsumerState<WorkDetailTestPage> createState() => _WorkDetailTestPageState();
 }
 
-class _HistoryTestPageState extends State<HistoryTestPage> {
-  List<HistoryEntry> historyList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHistory();
-  }
-
-  Future<void> _loadHistory() async {
-    final list = await CacheService.instance.getHistoryList();
-    setState(() {
-      historyList = list;
-    });
-  }
+class _WorkDetailTestPageState extends ConsumerState<WorkDetailTestPage> {
+  final TextEditingController _controller = TextEditingController(text: "1476452");
+  int? currentId;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('历史记录网格布局'),
-      ),
-      body: historyList.isEmpty
-          ? const Center(child: Text('暂无历史记录'))
-          : LayoutBuilder(
-        builder: (context, constraints) {
-          // 根据屏幕宽度计算列数
-          final width = constraints.maxWidth;
-          final crossAxisCount = (width / 200).floor(); // 每个卡片最大 200 px
-          const spacing = 8.0;
+    final workId = currentId;
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount > 0 ? crossAxisCount : 1,
-              crossAxisSpacing: spacing,
-              mainAxisSpacing: spacing,
-              childAspectRatio: 0.75,
+    final asyncValue = workId == null
+        ? null
+        : ref.watch(workDetailProvider(workId)); // 关键调用
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("WorkDetailProvider 测试")),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "输入 Work ID",
+                border: OutlineInputBorder(),
+              ),
             ),
-            itemCount: historyList.length,
-            itemBuilder: (context, index) {
-              final history = historyList[index];
-              return WorkCard(
-                work: history.work,
-                lastTrackTitle: history.currentTrackTitle,
-                lastPlayedAt: DateTime.fromMillisecondsSinceEpoch(history.updatedAt),
-              );
-            },
-          );
-        },
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  currentId = int.tryParse(_controller.text);
+                });
+              },
+              child: const Text("加载 Work"),
+            ),
+            const SizedBox(height: 20),
+
+            if (asyncValue == null)
+              const Text("请输入 ID 后点击加载")
+            else
+              Expanded(
+                child: asyncValue.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (err, stack) => Center(
+                    child: Text(
+                      "加载失败：$err",
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  data: (Work work) => _buildWorkInfo(work),
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildWorkInfo(Work work) {
+    return ListView(
+      children: [
+        Text("作品ID: ${work.id}"),
+        const SizedBox(height: 8),
+        Text("标题: ${work.title ?? '无'}"),
+        const SizedBox(height: 8),
+        Text("作者: ${work.vas?.join(', ') ?? '无'}"),
+        const SizedBox(height: 8),
+        Text("封面: ${work.thumbnailCoverUrl ?? '无'}"),
+        const SizedBox(height: 20),
+        Text("Raw JSON:\n${work.toJson()}"),
+      ],
     );
   }
 }

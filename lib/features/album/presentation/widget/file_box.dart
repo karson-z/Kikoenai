@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/widgets/layout/app_dropdown_sheet.dart';
-import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
-import '../../../../core/utils/data/other.dart';
+import '../../../../core/theme/theme_view_model.dart';
+import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/player/provider/player_controller_provider.dart';
 import '../../data/model/file_node.dart';
 import '../viewmodel/provider/audio_manage_provider.dart';
@@ -34,22 +34,25 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     _checkHistoryOnce();
   }
   Future<void> _checkHistoryOnce() async {
+    final playerState = ref.read(playerControllerProvider);
     final playerController = ref.read(playerControllerProvider.notifier);
     final history = await playerController.checkHistoryForWork(widget.work);
-
-    if (!_historyChecked && mounted && history != null) {
+    if (!_historyChecked && mounted && history != null && history.lastTrackId != playerState.currentTrack?.id) {
       _historyChecked = true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('检测到上次播放: ${history.currentTrackTitle}'),
-          action: SnackBarAction(
-            label: '恢复',
-            onPressed: () {
-              playerController.restoreHistory(widget.rootNodes, widget.work, history);
-            },
-          ),
-          duration: const Duration(seconds: 5),
+      AppToast.show(
+        context,
+        '检测到上次播放: ${history.currentTrackTitle}',
+        action: SnackBarAction(
+          label: '恢复',
+          onPressed: () {
+            playerController.restoreHistory(
+              widget.rootNodes,
+              widget.work,
+              history,
+            );
+          },
         ),
+        backgroundColor: Colors.blueGrey,
       );
     }
   }
@@ -154,7 +157,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     return Icons.folder;
   }
 }
-class _BreadcrumbHeader extends StatelessWidget {
+class _BreadcrumbHeader extends ConsumerWidget {
   final List<FileNode> breadcrumb;
   final List<FileNode> rootNodes;
   final VoidCallback onRootTap;
@@ -162,12 +165,14 @@ class _BreadcrumbHeader extends StatelessWidget {
   final void Function(int index) onCrumbTap;
 
   const _BreadcrumbHeader({
+    Key? key,
     required this.work,
     required this.rootNodes,
     required this.breadcrumb,
     required this.onRootTap,
     required this.onCrumbTap,
-  });
+  }) : super(key: key);
+
   List<FileNode> _collectAllAudioFiles(List<FileNode> nodes) {
     final List<FileNode> audioFiles = [];
     for (var node in nodes) {
@@ -179,14 +184,17 @@ class _BreadcrumbHeader extends StatelessWidget {
     }
     return audioFiles;
   }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(explicitDarkModeProvider);
+
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.all(24.0),
       child: Row(
         children: [
-          // 面包屑可滚动部分
+          // 滚动面包屑
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -219,24 +227,29 @@ class _BreadcrumbHeader extends StatelessWidget {
               ),
             ),
           ),
-          // 固定右边的管理按钮
+
+          // 管理按钮
           IconButton(
             iconSize: 18,
             splashRadius: 20,
             padding: const EdgeInsets.all(8),
-            icon: const Icon(Icons.library_music, color: Colors.grey),
+            icon: Icon(
+              Icons.library_music,
+              color: isDark ? Colors.white70 : Colors.grey,
+            ),
             onPressed: () {
-              final ref = ProviderScope.containerOf(context);
-
               final audioFiles = _collectAllAudioFiles(rootNodes);
+
               CustomDropdownSheet.show(
-                // 关闭模态框时，重置状态
-                onClosed: () {
-                  ref.read(audioManageProvider.notifier).reset();
-                },
+                isDark: isDark,
                 context: context,
                 title: '管理音频文件',
                 maxHeight: 500,
+
+                onClosed: () {
+                  ref.read(audioManageProvider.notifier).reset();
+                },
+
                 actionButtons: [
                   Consumer(
                     builder: (_, ref, __) {
@@ -251,8 +264,9 @@ class _BreadcrumbHeader extends StatelessWidget {
                             ),
                             onPressed: () {
                               if (state.multiSelectMode) {
-                                // 退出多选模式
-                                ref.read(playerControllerProvider.notifier).addMultiInQueue(state.selected,work);
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .addMultiInQueue(state.selected, work);
                               }
                               ref.read(audioManageProvider.notifier).toggleMultiSelect();
                             },
@@ -262,6 +276,7 @@ class _BreadcrumbHeader extends StatelessWidget {
                     },
                   ),
                 ],
+
                 contentBuilder: (modalContext) {
                   return Consumer(
                     builder: (_, ref, __) {
@@ -284,29 +299,35 @@ class _BreadcrumbHeader extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text("时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}"),
+                              subtitle: Text(
+                                "时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}",
+                              ),
                               value: isSelected,
-                              onChanged: (v) {
-                                if (v == true) {
+                              onChanged: (checked) {
+                                if (checked == true) {
                                   ref.read(audioManageProvider.notifier).select(file);
                                 } else {
                                   ref.read(audioManageProvider.notifier).unselect(file);
                                 }
                               },
                             );
-                          } else {
-                            return ListTile(
-                              title: Text(
-                                file.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: Text("时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}"),
-                              onTap: () {
-                                ref.read(playerControllerProvider.notifier).addSingleInQueue(file,work);
-                              },
-                            );
                           }
+
+                          return ListTile(
+                            title: Text(
+                              file.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              "时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}",
+                            ),
+                            onTap: () {
+                              ref
+                                  .read(playerControllerProvider.notifier)
+                                  .addSingleInQueue(file, work);
+                            },
+                          );
                         },
                       );
                     },

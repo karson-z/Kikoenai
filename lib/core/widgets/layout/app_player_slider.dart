@@ -5,6 +5,7 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../theme/theme_view_model.dart';
 import '../player/player_view.dart';
 import '../player/player_list_sheet.dart';
 
@@ -33,6 +34,7 @@ class SlidingPlayerPanel extends ConsumerWidget {
     final panelController = controller ?? PanelController();
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
+    final isDark = ref.watch(explicitDarkModeProvider);
     final mainState = ref.watch(mainScaffoldProvider);
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
     final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location) ? minHeight + AppConstants.kAppBarHeight : minHeight;
@@ -43,7 +45,7 @@ class SlidingPlayerPanel extends ConsumerWidget {
       maxHeight: maxHeight,
       isDraggable: isDraggable,
       panel:  MusicPlayerView(
-        onQueuePressed: () => PlayerPlaylistSheet.show(context),
+        onQueuePressed: () => PlayerPlaylistSheet.show(context,isDark: isDark),
       ),
       collapsed: collapsed,
       body: Padding(

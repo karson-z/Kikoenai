@@ -58,7 +58,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card)
         .getDeviceType(context);
     final theme = ref.watch(themeNotifierProvider);
-    final isDark = theme.mode == ThemeMode.dark;
+    final isDark = ref.watch(explicitDarkModeProvider);
+
     // 监听 FutureProvider (异步数据，用于构建 UI)
     final tagAsync = ref.watch(tagsProvider);
     final circleAsync = ref.watch(circlesProvider);

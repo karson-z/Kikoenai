@@ -7,6 +7,7 @@ import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/auth/presentation/view_models/provider/auth_provider.dart';
 import '../../features/auth/presentation/view_models/state/auth_state.dart';
+import '../../features/settings/presentation/pages/permission_page.dart';
 import '../../features/settings/presentation/pages/settings_overview_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
@@ -101,7 +102,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.test,
             pageBuilder: (context, state) => MaterialPage(
-              child: const HistoryTestPage(),
+              child: const WorkDetailTestPage(),
             ),
           ),
         ],
@@ -111,6 +112,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settingsTheme,
         pageBuilder: (context, state) => MaterialPage(
           child: const SettingsPage(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.settingsPermission,
+        pageBuilder: (context, state) => MaterialPage(
+          child: const PermissionSettingsPage(),
         ),
       ),
     ],

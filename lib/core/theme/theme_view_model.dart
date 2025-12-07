@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Theme state
@@ -121,3 +122,19 @@ class ThemeNotifier extends Notifier<ThemeState> {
 /// Provider（同步 Notifier）
 final themeNotifierProvider =
 NotifierProvider<ThemeNotifier, ThemeState>(ThemeNotifier.new);
+final platformBrightnessProvider = Provider<Brightness>((ref) {
+  return MediaQuery.platformBrightnessOf(AppConstants.rootNavigatorKey.currentContext!);
+});
+final explicitDarkModeProvider = Provider<bool>((ref) {
+  final theme = ref.watch(themeNotifierProvider);
+  final systemBrightness = ref.watch(platformBrightnessProvider);
+
+  switch (theme.mode) {
+    case ThemeMode.light:
+      return false;
+    case ThemeMode.dark:
+      return true;
+    case ThemeMode.system:
+      return systemBrightness == Brightness.dark;
+  }
+});

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:kikoenai/core/adapter/history_adapter.dart';
 import 'package:kikoenai/core/adapter/work_adapter.dart';
@@ -32,6 +33,7 @@ class HiveStorage {
     // Hive 初始化（主目录）
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       await Hive.initFlutter('${appDocDir.path}/hive_storage');
+      debugPrint("Hive Desktop Path: ${appDocDir.path}/hive_storage");
     } else {
       await Hive.initFlutter();
     }

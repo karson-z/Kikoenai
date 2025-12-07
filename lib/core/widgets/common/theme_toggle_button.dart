@@ -7,14 +7,9 @@ class ThemeToggleButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 监听 ThemeNotifier 的状态
-    final themeStateAsync = ref.watch(themeNotifierProvider);
 
-    // 获取 ThemeMode，如果状态还在 loading 或 error，默认 system
-    final themeMode = themeStateAsync.mode;
+    final isDark = ref.watch(explicitDarkModeProvider);
 
-
-    final isDark = themeMode == ThemeMode.dark;
 
     return IconButton(
       tooltip: isDark ? '切换为浅色模式' : '切换为深色模式',

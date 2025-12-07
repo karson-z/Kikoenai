@@ -1,14 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
+import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/theme/theme_view_model.dart';
 
-enum TagType {
-  normal,
-  author,
-  category,
-  status,
-}
 
 class TagRow extends ConsumerWidget {
   final List<dynamic> tags;
@@ -18,26 +16,22 @@ class TagRow extends ConsumerWidget {
   final double? spacing;
   final double? borderRadius;
 
-  /// 新增：标签点击回调
-  final void Function(dynamic tag)? onTagTap;
-
   const TagRow({
     super.key,
     required this.tags,
-    this.type = TagType.normal,
+    this.type = TagType.tag,
     this.fontSize,
     this.padding,
     this.spacing,
     this.borderRadius,
-    this.onTagTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (tags.isEmpty) return const SizedBox.shrink();
 
-    final themeState = ref.watch(themeNotifierProvider);
-    final isDark = themeState.mode == ThemeMode.dark;
+    final isDark = ref.watch(explicitDarkModeProvider);
+    final categoryController = ref.read(categoryUiProvider.notifier);
 
     return SizedBox(
       child: ScrollConfiguration(
@@ -55,7 +49,12 @@ class TagRow extends ConsumerWidget {
             children: tags.map((tag) {
               return GestureDetector(
                 behavior: HitTestBehavior.opaque, // 阻止事件冒泡到卡片
-                onTap: () => onTagTap?.call(tag),
+                onTap: () {
+                  debugPrint("点击了标签 类型:$type 名称:${tag.name}");
+
+                  categoryController.toggleTag(type.stringValue, tag.name,refreshData: true);
+                  context.go(AppRoutes.category);
+                },
                 child: Container(
                   margin: EdgeInsets.only(right: spacing ?? 6),
                   child: _buildTag(tag, isDark),
@@ -81,15 +80,7 @@ class TagRow extends ConsumerWidget {
         bgColor = Colors.green.withAlpha(20);
         textColor = Colors.green;
         break;
-      case TagType.category:
-        bgColor = Colors.blue.withAlpha(10);
-        textColor = Colors.blue;
-        break;
-      case TagType.status:
-        bgColor = Colors.orange.withAlpha(10);
-        textColor = Colors.orange;
-        break;
-      case TagType.normal:
+      case TagType.tag:
       default:
         bgColor = Colors.grey.withAlpha(20);
         textColor = isDark ? Colors.white : Colors.black87;

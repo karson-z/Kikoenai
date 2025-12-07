@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/common/global_exception.dart';
+import '../../../../core/enums/tag_enum.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
 import '../widget/rating_section.dart';
@@ -17,7 +18,33 @@ class AlbumDetailPage extends ConsumerWidget {
     final work = extra['work'];
     final asyncData = ref.watch(trackFileNodeProvider(work.id));
     return Scaffold(
-      appBar: AppBar(title: const Text("专辑详情")),
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text("RJ${work.id}" ,style: TextStyle(fontSize: 18),),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            child: Row(
+              children: const [
+                Icon(
+                  Icons.table_chart,
+                  color: Colors.grey,                // 随便染成你要的颜色
+                ),
+                SizedBox(width: 4),
+                Text(
+                  "标记",
+                  style: TextStyle(fontSize: 16,color: Colors.black),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 600;

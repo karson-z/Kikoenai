@@ -27,6 +27,7 @@ abstract class WorkRepository {
     List<String>? withPlaylistStatus,
   });
   Future<Result<List<dynamic>>> getWorkTracks(int workId);
+  Future<Result<Map<String, dynamic>>>  getWorkDetail(int workId);
 }
 
 class WorkRepositoryImpl implements WorkRepository {
@@ -113,6 +114,14 @@ class WorkRepositoryImpl implements WorkRepository {
       'v': 2,
     };
     final response = await api.get<List<dynamic>>('/tracks/$workId',queryParameters: data);
+    return response;
+  }
+
+  @override
+  Future<Result<Map<String, dynamic>>> getWorkDetail(int workId) async {
+    final response = await api.get<Map<String, dynamic>>(
+      '/workInfo/$workId',
+    );
     return response;
   }
 }

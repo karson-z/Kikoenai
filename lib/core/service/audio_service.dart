@@ -18,8 +18,9 @@ class AudioServiceSingleton {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.karson.kikoenai.audio',
         androidNotificationChannelName: 'Kikoenai',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
+        androidShowNotificationBadge: true,
       ),
     );
   }
@@ -159,12 +160,22 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
   }
-
+  bool _alreadyCompleted = false;
   void _listenForPlaybackCompletion() {
     _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
-        // 自动播放下一首
+        if (_alreadyCompleted) return;  // 第二次 completed 会被直接忽略
+        _alreadyCompleted = true;
+
+        print("播放完成 → 跳下一首");
         _skipToNext();
+      }
+
+      // 当播放开始、缓冲、ready 时重置
+      if (state.processingState == ProcessingState.ready ||
+          state.processingState == ProcessingState.buffering ||
+          state.processingState == ProcessingState.loading) {
+        _alreadyCompleted = false;
       }
     });
   }
@@ -192,7 +203,6 @@ class MyAudioHandler extends BaseAudioHandler {
         _isPlaylistPrepared = false;
 
         await _player.stop();
-        mediaItem.add(null);
       }
     }
 
@@ -303,7 +313,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
     final nextIndex = (_currentIndex + 1) % _playlist.length;
     _currentIndex = nextIndex;
-    await _playCurrentIndex();
+    _playCurrentIndex();
   }
 
   @override
@@ -357,6 +367,5 @@ class MyAudioHandler extends BaseAudioHandler {
     _currentIndex = -1;
     _isPlaylistPrepared = false;
     queue.add(_playlist);
-    mediaItem.add(null);
   }
 }
