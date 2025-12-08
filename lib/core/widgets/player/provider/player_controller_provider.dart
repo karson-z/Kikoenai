@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
@@ -141,8 +143,9 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (workData == null) return;
 
     try {
-      final currentWork = Work.fromJson(Map<String, dynamic>.from(workData));
 
+      final workJson = jsonDecode(workData);
+      final currentWork = Work.fromJson(workJson);
       final history = HistoryEntry(
         work: currentWork, // 使用解析出来的 work
         lastTrackId: currentItem.id,
@@ -280,7 +283,8 @@ class PlayerController extends Notifier<AppPlayerState> {
         'url': node.mediaStreamUrl,
         'mainCoverUrl': work.mainCoverUrl,
         'samCorverUrl': work.samCoverUrl,
-        'workData': work.toJson(),
+        // 将其转化成多平台通用类型String,避免传输时导致类型模糊。
+        'workData': jsonEncode(work),
       },
     );
   }

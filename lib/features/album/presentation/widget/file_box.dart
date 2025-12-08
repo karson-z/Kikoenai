@@ -33,6 +33,13 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     super.initState();
     _checkHistoryOnce();
   }
+  void _handleBack() {
+    setState(() {
+      if (_breadcrumb.isNotEmpty) {
+        _breadcrumb.removeLast();
+      }
+    });
+  }
   Future<void> _checkHistoryOnce() async {
     final playerState = ref.read(playerControllerProvider);
     final playerController = ref.read(playerControllerProvider.notifier);
@@ -74,78 +81,95 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: CustomScrollView(
-        slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: BreadcrumbHeaderDelegate(
-              work: widget.work,
-              rootNodes: widget.rootNodes,
-              breadcrumb: _breadcrumb,
-              onRootTap: () => _goToBreadcrumbIndex(-1),
-              onCrumbTap: _goToBreadcrumbIndex,
+    // 判断是否在根目录
+    final bool isRoot = _breadcrumb.isEmpty;
+
+    // 使用 PopScope 拦截返回事件
+    return PopScope(
+      // 如果在根目录 (isRoot为true)，允许系统直接退出页面 (canPop: true)
+      // 如果在子目录 (isRoot为false)，禁止系统直接退出 (canPop: false)，由我们在 onPopInvoked 中手动处理
+      canPop: isRoot,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) {
+          // 如果系统已经处理了返回（即 canPop 为 true 时），我们什么都不做
+          return;
+        }
+        // 如果系统被拦截了（canPop 为 false），说明我们在子目录，执行返回上一级逻辑
+        _handleBack();
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: CustomScrollView(
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: BreadcrumbHeaderDelegate(
+                work: widget.work,
+                rootNodes: widget.rootNodes,
+                breadcrumb: _breadcrumb,
+                onRootTap: () => _goToBreadcrumbIndex(-1),
+                onCrumbTap: _goToBreadcrumbIndex,
+              ),
             ),
-          ),
 
-          const SliverToBoxAdapter(child: Divider(height: 1)),
+            const SliverToBoxAdapter(child: Divider(height: 1)),
 
-          if (_currentNodes.isEmpty)
-            const SliverFillRemaining(
-              child: Center(child: Text("该目录为空")),
-            )
-          else
-            SliverList.builder(
-              itemCount: _currentNodes.length,
-              itemBuilder: (_, index) {
-                final node = _currentNodes[index];
-                final tile = ListTile(
-                  leading: Icon(_iconByType(node)),
-                  title: Text(node.title),
-                  subtitle: Text(
-                    "${node.isAudio ? "时长:" : "类型："}"
-                        "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
-                  ),
-                  onTap: node.isFolder
-                      ? () => _enterFolder(node)
-                      : () => ref
-                      .read(playerControllerProvider.notifier)
-                      .handleFileTap(node, widget.work, _currentNodes),
-                );
-
-                // 只有音频文件才使用右键菜单
-                if (node.isAudio) {
-                  return ContextMenuWrapper(
-                    items: [
-                      PopupMenuItem(
-                        value: 'add',
-                        child: Row(
-                          children: const [
-                            Icon(Icons.edit, size: 18),
-                            SizedBox(width: 8),
-                            Text('添加到播放列表'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    child: tile,
-                    onSelected: (value) {
-                      // 处理音频文件右键操作
-                      debugPrint('Audio file ${node.toJson()} selected: $value');
-                      switch (value) {
-                        case 'add':
-                          ref
-                              .read(playerControllerProvider.notifier).addSingleInQueue(node, widget.work);
-                      }
-                    },
+            if (_currentNodes.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: Text("该目录为空")),
+              )
+            else
+              SliverList.builder(
+                itemCount: _currentNodes.length,
+                itemBuilder: (_, index) {
+                  final node = _currentNodes[index];
+                  final tile = ListTile(
+                    leading: Icon(_iconByType(node)),
+                    title: Text(node.title),
+                    subtitle: Text(
+                      "${node.isAudio ? "时长:" : "类型："}"
+                          "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
+                    ),
+                    // 修改：如果是文件夹，点击进入
+                    onTap: node.isFolder
+                        ? () => _enterFolder(node)
+                        : () => ref
+                        .read(playerControllerProvider.notifier)
+                        .handleFileTap(node, widget.work, _currentNodes),
                   );
-                } else {
-                  return tile;
-                }
-              },
-            ),
-        ],
+
+                  if (node.isAudio) {
+                    return ContextMenuWrapper(
+                      items: [
+                        PopupMenuItem(
+                          value: 'add',
+                          child: Row(
+                            children: const [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('添加到播放列表'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: tile,
+                      onSelected: (value) {
+                        debugPrint('Audio file ${node.toJson()} selected: $value');
+                        switch (value) {
+                          case 'add':
+                            ref
+                                .read(playerControllerProvider.notifier)
+                                .addSingleInQueue(node, widget.work);
+                        }
+                      },
+                    );
+                  } else {
+                    return tile;
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -173,6 +197,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
     required this.onCrumbTap,
   }) : super(key: key);
 
+  // ... (其他方法和属性保持不变)
   List<FileNode> _collectAllAudioFiles(List<FileNode> nodes) {
     final List<FileNode> audioFiles = [];
     for (var node in nodes) {
@@ -184,10 +209,24 @@ class _BreadcrumbHeader extends ConsumerWidget {
     }
     return audioFiles;
   }
+  // ...
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
+
+    final ScrollController scrollController = ScrollController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients) {
+        // 滚动到最右端（即最后一个节点）
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
 
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -197,6 +236,8 @@ class _BreadcrumbHeader extends ConsumerWidget {
           // 滚动面包屑
           Expanded(
             child: SingleChildScrollView(
+              // 💡 3. 将 ScrollController 赋给 SingleChildScrollView
+              controller: scrollController,
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
@@ -228,7 +269,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
             ),
           ),
 
-          // 管理按钮
+          // ... (管理按钮部分保持不变)
           IconButton(
             iconSize: 18,
             splashRadius: 20,

@@ -9,7 +9,8 @@ import '../../theme/theme_view_model.dart';
 import '../player/player_view.dart';
 import '../player/player_list_sheet.dart';
 
-class SlidingPlayerPanel extends ConsumerWidget {
+// 1. 改为 ConsumerStatefulWidget 以便管理状态
+class SlidingPlayerPanel extends ConsumerStatefulWidget {
   final double minHeight;
   final double maxHeight;
   final bool isDraggable;
@@ -30,36 +31,72 @@ class SlidingPlayerPanel extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final panelController = controller ?? PanelController();
+  ConsumerState<SlidingPlayerPanel> createState() => _SlidingPlayerPanelState();
+}
+
+class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
+  // 内部持有一个 Controller，如果外部没传就用这个，外部传了就用外部的
+  late final PanelController _panelController;
+
+  @override
+  void initState() {
+    super.initState();
+    _panelController = widget.controller ?? PanelController();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final isDark = ref.watch(explicitDarkModeProvider);
     final mainState = ref.watch(mainScaffoldProvider);
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
-    final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location) ? minHeight + AppConstants.kAppBarHeight : minHeight;
+
+    final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location)
+        ? widget.minHeight + AppConstants.kAppBarHeight
+        : widget.minHeight;
     final safePadding = isMobile ? paddingHeight : 0.0;
-    return SlidingUpPanel(
-      controller: panelController,
-      minHeight: minHeight,
-      maxHeight: maxHeight,
-      isDraggable: isDraggable,
-      panel:  MusicPlayerView(
-        onQueuePressed: () => PlayerPlaylistSheet.show(context,isDark: isDark),
-      ),
-      collapsed: collapsed,
-      body: Padding(
-        padding: EdgeInsets.only(bottom: safePadding),
-        child: body,
-      ),
-      onPanelOpened: () {
-        mainController.expandPlayer();
-        mainController.setBottomNav(false);
+
+    // 3. 使用 PopScope 拦截返回事件
+    return PopScope(
+      // 如果面板是打开的，canPop 为false(拦截)；否则为 true (放行)
+      canPop: !mainState.isPlayerExpanded,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) {
+          // 如果系统已经处理了返回（canPop为true时），我们什么都不做
+          return;
+        }
+        // 如果被拦截了（canPop为false），说明面板是开着的，我们手动关闭它
+        if (mainState.isPlayerExpanded) {
+          debugPrint("退出播放器");
+          _panelController.close();
+          // 注意：这里不需要手动 setState，因为 close() 动画完成后会触发 onPanelClosed
+        }
       },
-      onPanelClosed: () {
-        mainController.collapsePlayer();
-        mainController.setBottomNav(true);
-      },
+      child: SlidingUpPanel(
+        controller: _panelController,
+        minHeight: widget.minHeight,
+        maxHeight: widget.maxHeight,
+        isDraggable: widget.isDraggable,
+        panel: MusicPlayerView(
+          onQueuePressed: () => PlayerPlaylistSheet.show(context, isDark: isDark),
+        ),
+        collapsed: widget.collapsed,
+        body: Padding(
+          padding: EdgeInsets.only(bottom: safePadding),
+          child: widget.body,
+        ),
+        onPanelOpened: () {
+          // 4. 更新状态为打开
+          mainController.expandPlayer();
+          mainController.setBottomNav(false);
+        },
+        onPanelClosed: () {
+          // 5. 更新状态为关闭
+          mainController.collapsePlayer();
+          mainController.setBottomNav(true);
+        },
+      ),
     );
   }
 }

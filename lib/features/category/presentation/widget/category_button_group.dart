@@ -55,17 +55,17 @@ class EditableCheckGroup extends ConsumerWidget {
             children: [
               Chip(
                 label: Text(
-                  '筛选结果共：$count 条',
+                  '结果共:$count条',
                   style: const TextStyle(fontSize: 12),
                 ),
                 visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 2),
                 backgroundColor: Theme.of(context)
                     .colorScheme
                     .surfaceContainerHighest
                     .withOpacity(0.3),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                   side: BorderSide(
                     color: Theme.of(context).dividerColor.withOpacity(0.3),
                   ),
