@@ -55,6 +55,15 @@ class SettingsOverviewPage extends ConsumerWidget {
               onTap: () => context.push(AppRoutes.settingsPermission), // 跳转到缓存管理页
             ),
           ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.folder_copy_outlined),
+              title: const Text('路径管理'),
+              subtitle: const Text('文件保存路径管理'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(AppRoutes.settingsPath), // 跳转到缓存管理页
+            ),
+          ),
         ],
       ),
     );

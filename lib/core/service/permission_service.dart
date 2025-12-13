@@ -13,7 +13,7 @@ class PermissionService {
     if (_cachedSdk != null) return _cachedSdk!;
 
     final info = await DeviceInfoPlugin().androidInfo;
-    _cachedSdk = info.version.sdkInt ?? 30;
+    _cachedSdk = info.version.sdkInt;
     return _cachedSdk!;
   }
 

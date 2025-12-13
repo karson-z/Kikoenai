@@ -1,7 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/widgets/player/player_lyrics_view.dart';
+import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
@@ -82,9 +82,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
 
     return Column(
       children: [
-        SizedBox(height: MediaQuery.of(context).padding.top + 10),
+        SizedBox(height: MediaQuery.of(context).padding.top),
         _topBar(panelControl),
-
         // --- 中间区域：核心切换逻辑 ---
         Expanded(
           flex: 10,

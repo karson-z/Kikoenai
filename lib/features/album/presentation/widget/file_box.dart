@@ -133,9 +133,11 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                     // 修改：如果是文件夹，点击进入
                     onTap: node.isFolder
                         ? () => _enterFolder(node)
-                        : () => ref
-                        .read(playerControllerProvider.notifier)
-                        .handleFileTap(node, widget.work, _currentNodes),
+                        : () {
+                     final playerController = ref.read(playerControllerProvider.notifier);
+                     playerController.handleFileTap(node, widget.work, _currentNodes);
+                     playerController.addSubTitleFileList(widget.rootNodes);
+                    },
                   );
 
                   if (node.isAudio) {
@@ -157,9 +159,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                         debugPrint('Audio file ${node.toJson()} selected: $value');
                         switch (value) {
                           case 'add':
-                            ref
-                                .read(playerControllerProvider.notifier)
-                                .addSingleInQueue(node, widget.work);
+                            final playController = ref.read(playerControllerProvider.notifier);
+                            playController.addSubTitleFileList(widget.rootNodes);
+                            playController.addSingleInQueue(node, widget.work);
                         }
                       },
                     );
@@ -197,7 +199,6 @@ class _BreadcrumbHeader extends ConsumerWidget {
     required this.onCrumbTap,
   }) : super(key: key);
 
-  // ... (其他方法和属性保持不变)
   List<FileNode> _collectAllAudioFiles(List<FileNode> nodes) {
     final List<FileNode> audioFiles = [];
     for (var node in nodes) {
@@ -209,12 +210,10 @@ class _BreadcrumbHeader extends ConsumerWidget {
     }
     return audioFiles;
   }
-  // ...
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
-
     final ScrollController scrollController = ScrollController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -279,6 +278,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
               color: isDark ? Colors.white70 : Colors.grey,
             ),
             onPressed: () {
+              // 1. 先计算出所有的音频文件，供后面使用
               final audioFiles = _collectAllAudioFiles(rootNodes);
 
               CustomDropdownSheet.show(
@@ -286,30 +286,61 @@ class _BreadcrumbHeader extends ConsumerWidget {
                 context: context,
                 title: '管理音频文件',
                 maxHeight: 500,
-
                 onClosed: () {
                   ref.read(audioManageProvider.notifier).reset();
                 },
 
+                // --- 修改了这里 actionButtons ---
                 actionButtons: [
                   Consumer(
                     builder: (_, ref, __) {
                       final state = ref.watch(audioManageProvider);
+                      final notifier = ref.read(audioManageProvider.notifier);
+
+                      // 判断当前是否已经全选
+                      final isAllSelected = state.selected.length == audioFiles.length && audioFiles.isNotEmpty;
 
                       return Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
+                          // 只有在多选模式下才显示全选/取消全选按钮
+                          if (state.multiSelectMode)
+                            IconButton(
+                              tooltip: isAllSelected ? "取消全选" : "全选",
+                              icon: Icon(
+                                // 如果全选了显示清除图标，否则显示全选图标
+                                isAllSelected ? Icons.deselect : Icons.select_all,
+                                color: Colors.blue,
+                              ),
+                              onPressed: () {
+                                if (isAllSelected) {
+                                  notifier.clearSelection();
+                                } else {
+                                  notifier.selectAll(audioFiles);
+                                }
+                              },
+                            ),
+
+                          // 模式切换/确认播放按钮
                           IconButton(
+                            tooltip: state.multiSelectMode ? "加入队列" : "批量管理",
                             icon: Icon(
-                              state.multiSelectMode ? Icons.check : Icons.edit,
-                              color: state.multiSelectMode ? Colors.blue : Colors.grey,
+                              state.multiSelectMode ? Icons.play_arrow : Icons.edit, // 图标改得更直观一点
+                              color: state.multiSelectMode ? Colors.green : Colors.grey,
                             ),
                             onPressed: () {
                               if (state.multiSelectMode) {
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .addMultiInQueue(state.selected, work);
+                                // 确认播放逻辑
+                                if (state.selected.isNotEmpty) {
+                                  final playController = ref.read(playerControllerProvider.notifier);
+                                  playController.addSubTitleFileList(rootNodes);
+                                  playController.addMultiInQueue(state.selected.toList(), work);
+                                  Navigator.of(context).pop();
+                                }
+                              } else {
+                                // 进入多选模式
+                                notifier.toggleMultiSelect();
                               }
-                              ref.read(audioManageProvider.notifier).toggleMultiSelect();
                             },
                           ),
                         ],
@@ -331,6 +362,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
                         itemCount: audioFiles.length,
                         itemBuilder: (context, index) {
                           final file = audioFiles[index];
+                          // 检查是否包含
                           final isSelected = state.selected.contains(file);
 
                           if (state.multiSelectMode) {
@@ -341,10 +373,11 @@ class _BreadcrumbHeader extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Text(
-                                "时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}",
+                                "音频类型: ${file.title.substring(file.title.length - 4)}",
                               ),
                               value: isSelected,
                               onChanged: (checked) {
+                                // 这里的逻辑现在配合上面修正后的 Notifier 应该能正常工作了
                                 if (checked == true) {
                                   ref.read(audioManageProvider.notifier).select(file);
                                 } else {
@@ -354,6 +387,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
                             );
                           }
 
+                          // 非多选模式下的普通列表项
                           return ListTile(
                             title: Text(
                               file.title,
@@ -364,8 +398,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
                               "时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}",
                             ),
                             onTap: () {
-                              ref
-                                  .read(playerControllerProvider.notifier)
+                              ref.read(playerControllerProvider.notifier)
                                   .addSingleInQueue(file, work);
                             },
                           );

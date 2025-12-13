@@ -49,6 +49,10 @@ dependencies:
   permission_handler: ^12.0.1
   device_info_plus: ^10.1.0
   scroll_to_index: ^3.0.1
+  archive: ^4.0.7
+  file_picker: ^10.3.7   # 用于选择文件/文件夹
+  fast_gbk: ^1.0.0
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:

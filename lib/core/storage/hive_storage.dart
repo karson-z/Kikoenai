@@ -5,9 +5,11 @@ import 'package:kikoenai/core/adapter/history_adapter.dart';
 import 'package:kikoenai/core/adapter/work_adapter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../adapter/file_node_adapter.dart';
 import '../adapter/media_item_adapter.dart';
 import '../adapter/player_state_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
+import '../adapter/work_info_adapter.dart';
 
 class HiveStorage {
   static HiveStorage? _instance;
@@ -24,6 +26,8 @@ class HiveStorage {
     _instance = HiveStorage._internal(startupBoxes: startupBoxes);
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());
+    Hive.registerAdapter(WorkInfoAdapter());
+    Hive.registerAdapter(FileNodeAdapter());
     Hive.registerAdapter(PlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());

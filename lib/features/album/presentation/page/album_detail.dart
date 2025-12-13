@@ -22,11 +22,6 @@ class AlbumDetailPage extends ConsumerWidget {
         centerTitle: true,
         title: Text("RJ${work.id}" ,style: TextStyle(fontSize: 18),),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 10),
           GestureDetector(
             child: Row(
               children: const [

@@ -9,7 +9,6 @@ import '../storage/hive_key.dart';
 import '../storage/hive_storage.dart';
 import '../widgets/player/state/player_state.dart';
 
-/// ---------------------- CacheService 单例 ----------------------
 class CacheService {
   static const int _maxHistory = 200;
 

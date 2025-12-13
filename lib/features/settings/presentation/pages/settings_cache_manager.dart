@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
-import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 /// 普通 BottomSheet 缓存管理弹窗
 Future<void> showCacheManagerSheet(

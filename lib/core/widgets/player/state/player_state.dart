@@ -1,7 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
+import 'package:kikoenai/features/album/data/model/file_node.dart'; // 假设你用了这个包
 
-import '../../../../features/album/data/model/work.dart';
 class AppPlayerState {
   final bool playing;
   final bool loading;
@@ -14,6 +14,11 @@ class AppPlayerState {
   final AudioServiceRepeatMode repeatMode;
   final double volume;
 
+  // --- 新增状态 ---
+  final List<FileNode> subtitleList; // 字幕列表 (例如文件路径列表)
+  final FileNode? currentSubtitle;   // 当前选中的字幕 (可能为空)
+  // ----------------
+
   AppPlayerState({
     this.playing = false,
     this.loading = false,
@@ -25,6 +30,10 @@ class AppPlayerState {
     this.shuffleEnabled = false,
     this.repeatMode = AudioServiceRepeatMode.none,
     this.volume = 1.0,
+    // --- 初始化新增状态 ---
+    this.subtitleList = const [],
+    this.currentSubtitle,
+    // --------------------
   }) : progressBarState = progressBarState ??
       const ProgressBarState(
         current: Duration.zero,
@@ -43,6 +52,9 @@ class AppPlayerState {
     bool? shuffleEnabled,
     AudioServiceRepeatMode? repeatMode,
     double? volume,
+    List<FileNode>? subtitleList,
+    FileNode? currentSubtitle,
+    // --------------------
   }) {
     return AppPlayerState(
       playing: playing ?? this.playing,
@@ -55,6 +67,8 @@ class AppPlayerState {
       shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
       repeatMode: repeatMode ?? this.repeatMode,
       volume: volume ?? this.volume,
+      subtitleList: subtitleList ?? this.subtitleList,
+      currentSubtitle: currentSubtitle ?? this.currentSubtitle,
     );
   }
 }

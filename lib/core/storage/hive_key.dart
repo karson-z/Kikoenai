@@ -14,6 +14,13 @@ class StorageKeys {
 
   /// Logs Box Keys
   static const String lastError = 'lastError';       // 最近一次错误日志
+
+  static const String pathSubtitle = 'path_subtitle';
+  static const String pathVideo = 'path_video';
+  static const String pathAudio = 'path_audio';
+  static const String pathImage = 'path_image';
+  static const String pathArchive = 'path_archive';
+
 }
 /// 缓存 key 常量
 class CacheKeys {

@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
-
+import 'package:path/path.dart' as p;
 
 import '../../../../features/album/data/model/file_node.dart';
 import '../../../service/audio_service.dart';
@@ -33,6 +35,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     final cacheService = CacheService.instance;
     final savedState = await cacheService.getPlayerState();
     if (savedState == null) return;
+    // 恢复字幕
+    state = state.copyWith(subtitleList: savedState.subtitleList,currentSubtitle: savedState.currentSubtitle);
     // 1. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
@@ -62,6 +66,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     await handler.setShuffleMode(
       savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
+
   }
 
   /// 监听播放状态变化
@@ -86,9 +91,9 @@ class PlayerController extends Notifier<AppPlayerState> {
     });
     // 当前播放曲目
     handler.mediaItem.listen((item) {
+      _updateSubtitleState(item);
       state = state.copyWith(currentTrack: item);
       _updateSkipInfo();
-
       if(state.currentTrack != null){
         _saveState();
         _saveHistory();
@@ -158,7 +163,32 @@ class PlayerController extends Notifier<AppPlayerState> {
       debugPrint('保存历史记录失败: $e');
     }
   }
+  // 添加字幕文件列表
+  void addSubTitleFileList(List<FileNode> rootNode) {
+    // 1. 查找待添加的新文件
+    final subFiles = SearchLyricsService.findSubTitlesInFiles(rootNode);
 
+    final List<FileNode> resultList = List.from(state.subtitleList);
+
+    final Set<String> seenTitles = state.subtitleList
+        .map((e) => p.basenameWithoutExtension(e.title))
+        .toSet();
+
+    // 2. 遍历新文件进行去重和添加
+    for (var node in subFiles) {
+      final String cleanTitle = p.basenameWithoutExtension(node.title);
+
+      // 检查是否已存在
+      if (!seenTitles.contains(cleanTitle)) {
+        seenTitles.add(cleanTitle); // 标记为已存在
+        resultList.add(node);       // 添加到结果列表
+      }
+    }
+
+    if (resultList.length != state.subtitleList.length) {
+      state = state.copyWith(subtitleList: resultList);
+    }
+  }
   // --- 控制方法 ---
   Future<void> play() async => handler.play();
   Future<void> pause() async => handler.pause();
@@ -201,7 +231,38 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> clear() async {
+    // 为什么只清除列表，不清除当前播放记录呢(清除的话播放器页面就会使用占位符进行替代，太丑了，不如不要)！
+    state = state.copyWith(subtitleList: []); // 清空字幕列表
     await (handler as MyAudioHandler).clearPlaylist();
+  }
+  // 私有方法，交给监听器触发
+  void _updateSubtitleState(MediaItem? currentItem) {
+    if (currentItem?.id == state.currentTrack?.id){
+      //相等就说明状态已更新，避免重复更新
+      return;
+    }
+    debugPrint("当前字幕列表: ${state.subtitleList}");
+    if (currentItem == null || state.subtitleList.isEmpty) {
+      state = state.copyWith(subtitleList: [], currentSubtitle: null);
+      return;
+    }
+    // 2. 准备文件名列表供算法匹配
+    final currentSongName = currentItem.title; // 或者 currentItem.displayTitle
+    final subtitleNames = state.subtitleList.map((e) => e.title).toList();
+
+    // 3. 调用匹配服务 (假设你之前定义好的 SearchLyricsService)
+    final bestMatchName = SearchLyricsService.findBestMatch(
+      currentSongName,
+      subtitleNames,
+    );
+    // 4. 找到对应的 FileNode 对象
+    FileNode? bestNode;
+    if (bestMatchName != null) {
+      bestNode = state.subtitleList.firstWhere((e) => e.title == bestMatchName);
+    }
+    state = state.copyWith(
+      currentSubtitle: bestNode ?? FileNode(type: NodeType.text, title: currentSongName), // 如果没匹配到则为 null
+    );
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
     final mediaItem = _fileNodeToMediaItem(node,work);

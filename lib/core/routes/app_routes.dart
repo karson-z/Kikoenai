@@ -7,5 +7,6 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String settingsTheme = '/settings/theme';
   static const String settingsPermission = '/settings/permission';
+  static const String settingsPath = '/settings/path';
   static const String test = '/test';
 }
