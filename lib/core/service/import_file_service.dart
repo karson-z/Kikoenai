@@ -3,6 +3,8 @@ import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
+import 'package:kikoenai/core/service/file_service.dart';
+import 'package:kikoenai/core/service/permission_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 
@@ -22,31 +24,33 @@ class FileImportService {
 
   /// 权限检查
   Future<bool> requestPermissions() async {
-    // 1. 桌面端直接返回 true
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) return true;
+    // 1. 非 Android 平台直接通过 (iOS/Windows 等逻辑另写)
+    if (!Platform.isAndroid) return true;
 
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
 
-      // 2. 判断 Android 版本
-      if (androidInfo.version.sdkInt >= 33) {
-        // Android 13 (API 33) 及以上：必须请求 audio 权限
-        // 对应 Manifest 里的 READ_MEDIA_AUDIO
-        return (await Permission.audio.request()).isGranted;
-
-      } else {
-        // Android 12 及以下：请求 storage 权限
-        // 对应 Manifest 里的 READ_EXTERNAL_STORAGE
-        return (await Permission.storage.request()).isGranted;
+    // 2. Android 11 (SDK 30) 及以上：申请 "管理所有文件" 权限
+    if (androidInfo.version.sdkInt >= 30) {
+      // 检查当前状态
+      if (await Permission.manageExternalStorage.isGranted) {
+        return true;
       }
+
+      // 申请权限 (会跳转到系统设置页面)
+      final status = await Permission.manageExternalStorage.request();
+
+      // 返回申请后的最终状态
+      return status.isGranted;
     }
 
-    // iOS 逻辑
-    if (Platform.isIOS) {
-      return (await Permission.mediaLibrary.request()).isGranted;
+    // 3. Android 10 及以下：申请普通存储权限
+    else {
+      if (await Permission.storage.isGranted) {
+        return true;
+      }
+      final status = await Permission.storage.request();
+      return status.isGranted;
     }
-
-    return false;
   }
 
   /// 识别导入类型
@@ -178,19 +182,16 @@ class FileImportService {
     // 根据类型分发处理
     switch (type) {
       case ImportFileType.folder:
-      // 改为 _moveDirectory
         await _moveDirectory(
             sourcePaths.first, destinationPath, rootStorageDir, allowedExtensions, excludedPatterns, idRegExp, onProgress);
         break;
       case ImportFileType.archive:
-      // 改为 _extractAndConsumeArchive (解压并吞噬/删除源文件)
         await _extractAndConsumeArchive(
             sourcePaths.first, destinationPath, rootStorageDir, allowedExtensions, excludedPatterns, idRegExp, onProgress,
             parentMatched: initialParentMatched);
         break;
       case ImportFileType.singleFile:
       case ImportFileType.multipleFiles:
-      // 改为 _moveMultipleFiles
         await _moveMultipleFiles(sourcePaths, destinationPath, allowedExtensions, excludedPatterns, onProgress);
         break;
       default:
@@ -217,7 +218,7 @@ class FileImportService {
         final String newPath = p.join(dstDir, p.basename(srcPath));
 
         // ✅ 使用安全移动逻辑
-        await _safeMoveFile(file, newPath);
+        await _copyAndRecordFile(file, newPath);
       }
 
       // 更新进度
@@ -264,21 +265,10 @@ class FileImportService {
         // 扁平化路径：丢弃原目录结构，直接放进 targetBaseDir
         final newPath = p.join(targetBaseDir, p.basename(entity.path));
 
-        // ✅ 执行移动
-        await _safeMoveFile(entity, newPath);
+        await _copyAndRecordFile(entity, newPath);
 
         if (onProgress != null) onProgress(0.5, p.basename(entity.path));
       }
-    }
-
-    // ✅ 清理步骤：删除源文件夹
-    try {
-      // 这里的 recursive: true 会删除原本剩下的非目标文件和空文件夹
-      // 如果你希望保留非目标文件，需要写更复杂的逻辑判断 list().isEmpty
-      await sourceDir.delete(recursive: true);
-      print("源文件夹已清理: $src");
-    } catch (e) {
-      print("清理源文件夹失败 (可能被占用或权限不足): $e");
     }
   }
   // ==========================================
@@ -364,7 +354,7 @@ class FileImportService {
   }
   /// 3. 压缩包处理：解压后删除源压缩包
   Future<void> _extractAndConsumeArchive(
-      String src,
+      String src, // 这里参数名是 src
       String defaultDst,
       String rootStorage,
       Set<String> allowedExts,
@@ -374,9 +364,14 @@ class FileImportService {
       {int currentDepth = 0, int maxDepth = 3, bool parentMatched = false}) async {
 
     if (currentDepth > maxDepth) return;
+
+    // 1. 定义递归解压支持的格式
     const recursiveExts = {'.zip', '.rar', '.7z', '.tar'};
+
+    // 2. 标记是否有文件被成功写入 (用于决定是否记录源文件)
+    bool anyFileExtracted = false;
+
     final inputStream = InputFileStream(src);
-    bool extractSuccess = false; // 标记是否解压流程正常走完
 
     try {
       final archive = ZipDecoder().decodeStream(inputStream);
@@ -386,21 +381,24 @@ class FileImportService {
       for (var file in archive.files) {
         if (!file.isFile) continue;
 
-        final decodedName = CharsetCover.fixEncoding(file.name); // 假设你有这个辅助函数或用 CharsetCover
+        final decodedName = CharsetCover.fixEncoding(file.name);
         final ext = p.extension(decodedName).toLowerCase();
+
         final isNested = recursiveExts.contains(ext);
         final isTarget = _isTargetFile(decodedName, allowedExts, excludes);
 
+        // 如果既不是要递归的压缩包，也不是目标文件，跳过
         if (!isNested && !isTarget) {
           count++;
           continue;
         }
+
+        // --- 路径判断逻辑 (保持你原有的业务逻辑不变) ---
         String targetDir;
         String relativeFilePath = decodedName;
         bool currentMatched = false;
         String? matchedId;
 
-        // -- 为了代码完整性，简写路径判断逻辑 --
         if (idRegex != null) {
           final parts = p.split(decodedName);
           for (var part in parts) {
@@ -428,7 +426,7 @@ class FileImportService {
           targetDir = p.join(rootStorage, "未解析");
           relativeFilePath = decodedName;
         }
-        // -- 路径判断逻辑结束 --
+        // ---------------------------------------------
 
         final outputFilePath = p.join(targetDir, relativeFilePath);
 
@@ -436,46 +434,63 @@ class FileImportService {
         if (p.normalize(outputFilePath).startsWith(p.normalize(rootStorage))) {
           final outFile = File(outputFilePath);
           await outFile.parent.create(recursive: true);
+
           final outStream = OutputFileStream(outputFilePath);
           try {
             file.writeContent(outStream);
+            // 标记至少有一个文件成功写入
+            anyFileExtracted = true;
           } catch(e) {
-            print(e);
+            print("写入文件失败: $e");
           } finally {
             await outStream.close();
           }
 
           // 递归处理嵌套压缩包
           if (isNested) {
-            await _extractAndConsumeArchive(outputFilePath, targetDir, rootStorage, allowedExts, excludes, idRegex, onProgress,
-                currentDepth: currentDepth + 1, maxDepth: maxDepth, parentMatched: currentMatched);
-            // 嵌套的压缩包解压完后，通常不需要保留作为结果文件（除非它是漫画本身），这里根据需求选择是否删除
-            if (!isTarget) {
-              try { await outFile.delete(); } catch(e){}
+            await _extractAndConsumeArchive(
+                outputFilePath, // 这里的 src 变成了刚刚解压出来的临时文件
+                targetDir,
+                rootStorage,
+                allowedExts,
+                excludes,
+                idRegex,
+                onProgress,
+                currentDepth: currentDepth + 1,
+                maxDepth: maxDepth,
+                parentMatched: currentMatched
+            );
+
+            // 【重要】嵌套的压缩包是程序刚刚解压出来的临时文件，处理完后应该删除
+            // 这不会影响用户最开始导入的那个原始压缩包
+            try {
+              if (await outFile.exists()) {
+                await outFile.delete();
+              }
+            } catch(e){
+              print("删除临时嵌套压缩包失败: $e");
             }
           }
         }
-        if (onProgress != null && currentDepth == 0) onProgress(++count / total, decodedName);
-      }
-      extractSuccess = true;
-    } catch (e) {
-      if (currentDepth == 0) rethrow;
-      print("解压警告: $e");
-    } finally {
-      await inputStream.close();
-    }
 
-    // ✅ 核心修改：如果是最外层的压缩包，且流程没崩溃，则删除源文件
-    if (currentDepth == 0 && extractSuccess) {
-      try {
-        final srcFile = File(src);
-        if (await srcFile.exists()) {
-          await srcFile.delete();
-          print("源压缩包已删除: $src");
+        if (onProgress != null && currentDepth == 0) {
+          onProgress(++count / total, decodedName);
         }
-      } catch (e) {
-        print("删除源压缩包失败: $e");
       }
+
+      // 3. 【核心修改】只在最外层循环结束，且确实解压了内容时，记录源文件
+      if (currentDepth == 0 && anyFileExtracted) {
+        // 这里的 src 就是用户传入的原始文件路径
+        await FileService.record(src);
+      }
+
+    } catch (e) {
+      print("解压异常: $e");
+      // 如果是最外层，可以选择抛出异常通知 UI
+      if (currentDepth == 0) rethrow;
+    } finally {
+      // 4. 确保流关闭
+      await inputStream.close();
     }
   }
 
@@ -490,170 +505,18 @@ class FileImportService {
     return allowedExts.contains(p.extension(name).toLowerCase());
   }
 
-  // Future<void> _copyMultipleFiles(
-  //     List<String> files,
-  //     String dstDir,
-  //     Set<String> allowedExts,
-  //     Set<String>? excludes,
-  //     Function(double, String)? onProgress) async {
-  //
-  //   // ✅ 【核心修改】确保目标目录存在
-  //   // 如果 dstDir 不存在，这行代码会创建它；如果已存在，则什么都不做。
-  //   await Directory(dstDir).create(recursive: true);
-  //
-  //   int total = files.length;
-  //   int count = 0;
-  //
-  //   for (var srcPath in files) {
-  //     if (_isTargetFile(srcPath, allowedExts, excludes)) {
-  //       final file = File(srcPath);
-  //
-  //       // 拼接目标路径
-  //       final String newPath = p.join(dstDir, p.basename(srcPath));
-  //
-  //       // 执行复制
-  //       await file.copy(newPath);
-  //
-  //       if (onProgress != null) {
-  //         onProgress(++count / total, p.basename(srcPath));
-  //       }
-  //     } else {
-  //       // (可选建议) 如果该文件被跳过，也应该算作“已处理”，避免进度条卡住
-  //       // count++;
-  //     }
-  //   }
-  // }
-
-  // // 文件夹导入：扁平化处理 (根据你之前的要求)
-  // Future<void> _copyDirectory(
-  //     String src, String defaultDst, String rootStorage, Set<String> allowedExts, Set<String>? excludes, RegExp? idRegex, Function(double, String)? onProgress) async {
-  //
-  //   final sourceDir = Directory(src);
-  //   final sourceFolderName = p.basename(src);
-  //   String targetBaseDir;
-  //   String? matchedId;
-  //
-  //   if (idRegex != null && idRegex.hasMatch(sourceFolderName)) {
-  //     matchedId = idRegex.firstMatch(sourceFolderName)!.group(0);
-  //   }
-  //
-  //   if (matchedId != null) {
-  //     targetBaseDir = p.join(rootStorage, matchedId);
-  //   } else {
-  //     targetBaseDir = p.join(rootStorage, "未解析", sourceFolderName);
-  //   }
-  //
-  //   await Directory(targetBaseDir).create(recursive: true);
-  //
-  //   await for (var entity in sourceDir.list(recursive: true, followLinks: false)) {
-  //     if (entity is File && _isTargetFile(entity.path, allowedExts, excludes)) {
-  //       // 扁平化：直接用 basename，丢弃子目录结构
-  //       await entity.copy(p.join(targetBaseDir, p.basename(entity.path)));
-  //       if (onProgress != null) onProgress(0.5, p.basename(entity.path)); // 简化进度
-  //     }
-  //   }
-  // }
-
-  // // 压缩包导入：递归解压 + 智能路径
-  // Future<void> _extractArchive(String src, String defaultDst, String rootStorage, Set<String> allowedExts, Set<String>? excludes, RegExp? idRegex, Function(double, String)? onProgress,
-  //     {int currentDepth = 0, int maxDepth = 3, bool parentMatched = false}) async {
-  //
-  //   if (currentDepth > maxDepth) return;
-  //   const recursiveExts = {'.zip', '.rar', '.7z', '.tar'};
-  //   final inputStream = InputFileStream(src);
-  //
-  //   try {
-  //     final archive = ZipDecoder().decodeStream(inputStream);
-  //     int total = archive.files.length;
-  //     int count = 0;
-  //
-  //     for (var file in archive.files) {
-  //       if (!file.isFile) continue;
-  //
-  //       final decodedName = CharsetCover.fixEncoding(file.name);
-  //       final ext = p.extension(decodedName).toLowerCase();
-  //       final isNested = recursiveExts.contains(ext);
-  //       final isTarget = _isTargetFile(decodedName, allowedExts, excludes);
-  //
-  //       if (!isNested && !isTarget) {
-  //         count++;
-  //         continue;
-  //       }
-  //
-  //       String targetDir;
-  //       String relativeFilePath = decodedName;
-  //       bool currentMatched = false;
-  //       String? matchedId;
-  //
-  //       if (idRegex != null) {
-  //         final parts = p.split(decodedName);
-  //         for (var part in parts) {
-  //           if (idRegex.hasMatch(part)) {
-  //             matchedId = idRegex.firstMatch(part)!.group(0);
-  //             break;
-  //           }
-  //         }
-  //       }
-  //
-  //       if (matchedId != null) {
-  //         targetDir = p.join(rootStorage, matchedId);
-  //         currentMatched = true;
-  //         // 路径裁剪逻辑
-  //         final parts = p.split(decodedName);
-  //         int idIndex = parts.indexWhere((part) => part.contains(matchedId!));
-  //         if (idIndex != -1 && idIndex < parts.length - 1) {
-  //           relativeFilePath = p.joinAll(parts.sublist(idIndex + 1));
-  //         } else {
-  //           relativeFilePath = p.basename(decodedName);
-  //         }
-  //       } else if (parentMatched) {
-  //         targetDir = defaultDst;
-  //         currentMatched = true;
-  //         relativeFilePath = decodedName;
-  //       } else {
-  //         targetDir = p.join(rootStorage, "未解析");
-  //         relativeFilePath = decodedName;
-  //       }
-  //
-  //       final outputFilePath = p.join(targetDir, relativeFilePath);
-  //
-  //       if (p.normalize(outputFilePath).startsWith(p.normalize(rootStorage))) {
-  //         final outFile = File(outputFilePath);
-  //         await outFile.parent.create(recursive: true);
-  //         final outStream = OutputFileStream(outputFilePath);
-  //         try {
-  //           file.writeContent(outStream);
-  //         } catch(e) { print(e); } finally { await outStream.close(); }
-  //
-  //         if (isNested) {
-  //           await _extractArchive(outputFilePath, targetDir, rootStorage, allowedExts, excludes, idRegex, onProgress,
-  //               currentDepth: currentDepth + 1, maxDepth: maxDepth, parentMatched: currentMatched);
-  //           if (!isTarget) {
-  //             try { await outFile.delete(); } catch(e){}
-  //           }
-  //         }
-  //       }
-  //       if (onProgress != null && currentDepth == 0) onProgress(++count / total, decodedName);
-  //     }
-  //   } catch (e) {
-  //     if (currentDepth == 0) rethrow;
-  //   } finally {
-  //     await inputStream.close();
-  //   }
-  // }
   // 辅助函数：安全移动文件（核心逻辑）
   // 优先尝试 rename (剪切)，如果失败（通常因为跨分区），则执行 copy + delete
-  Future<void> _safeMoveFile(File sourceFile, String targetPath) async {
+  Future<void> _copyAndRecordFile(File sourceFile, String targetPath) async {
     try {
-      // 确保目标父目录存在
+      // 1. 确保目标路径存在
       await Directory(p.dirname(targetPath)).create(recursive: true);
-
-      // 尝试直接重命名（最快，毫秒级）
-      await sourceFile.rename(targetPath);
-    } catch (e) {
-      // 跨分区移动或权限问题，回退方案：复制 -> 删除
+      // 2. 复制文件 (如果目标存在则覆盖)
       await sourceFile.copy(targetPath);
-      await sourceFile.delete();
+      // 3. ✅ 成功后，记录源文件路径
+      await FileService.record(sourceFile.path);
+    } catch (e) {
+      print("文件复制失败: ${sourceFile.path} -> $e");
     }
   }
 }

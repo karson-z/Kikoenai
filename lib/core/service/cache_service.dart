@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:hive/hive.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../features/album/data/model/work.dart';
 import '../model/history_entry.dart';
 import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
@@ -210,5 +209,6 @@ class CacheService {
     }
     return size;
   }
+
 }
 

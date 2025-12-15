@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/features/user/presentation/view_models/provider/subtitles_provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:kikoenai/features/test/provider/subtitles_provider.dart';
+
 import '../state/subtitle_view_state.dart';
+
 
 // 3. Controller (Notifier)
 class SubtitleViewController extends Notifier<SubtitleViewState> {
@@ -77,8 +79,6 @@ final subtitleViewProvider = NotifierProvider<SubtitleViewController, SubtitleVi
   return SubtitleViewController();
 });
 
-// 4. 【核心】派生 Provider：输出经过排序和过滤的列表
-// 这样 UI 只需要监听这个 Provider，不需要自己写 sort/filter 逻辑
 final filteredFilesProvider = Provider<List<FileSystemEntity>>((ref) {
   // 1. 获取原始数据 (如果还在加载或出错，返回空列表)
   final asyncFiles = ref.watch(directoryContentsProvider);

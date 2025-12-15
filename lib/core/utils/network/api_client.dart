@@ -46,13 +46,13 @@ class ApiClient {
       final response = await request();
 
       return Result.success(
+        // 注意：如果 options 设置为 bytes，这里的 T 应该是 List<int> 或 dynamic
         data: response.data as T,
         code: response.statusCode ?? -1,
         message: 'success',
       );
     } catch (e, st) {
       final exception = mapToGlobalException(e);
-
       throw GlobalException(
         exception.message,
         originalError: exception.originalError,
@@ -63,23 +63,59 @@ class ApiClient {
     }
   }
 
-  /// HTTP 方法封装（泛型透传）
+  /// HTTP 方法封装（已添加 options 参数）
+
   Future<Result<T>> get<T>(
       String path, {
         Map<String, dynamic>? queryParameters,
+        Options? options,
       }) =>
       _request<T>(
-            () => _dio.get(path, queryParameters: queryParameters),
+            () => _dio.get(
+          path,
+          queryParameters: queryParameters,
+          options: options,
+        ),
       );
 
-  Future<Result<T>> post<T>(String path, {dynamic data}) =>
-      _request<T>(() => _dio.post(path, data: data));
+  Future<Result<T>> post<T>(
+      String path, {
+        dynamic data,
+        Options? options,
+      }) =>
+      _request<T>(
+            () => _dio.post(
+          path,
+          data: data,
+          options: options,
+        ),
+      );
 
-  Future<Result<T>> put<T>(String path, {dynamic data}) =>
-      _request<T>(() => _dio.put(path, data: data));
+  Future<Result<T>> put<T>(
+      String path, {
+        dynamic data,
+        Options? options,
+      }) =>
+      _request<T>(
+            () => _dio.put(
+          path,
+          data: data,
+          options: options,
+        ),
+      );
 
-  Future<Result<T>> delete<T>(String path, {dynamic data}) =>
-      _request<T>(() => _dio.delete(path, data: data));
+  Future<Result<T>> delete<T>(
+      String path, {
+        dynamic data,
+        Options? options,
+      }) =>
+      _request<T>(
+            () => _dio.delete(
+          path,
+          data: data,
+          options: options,
+        ),
+      );
 }
 
 /// 拦截器注册

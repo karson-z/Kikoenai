@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/common/login_dialog_manager.dart';
+import 'package:kikoenai/features/user/presentation/pages/subtitle_page.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
 import 'history_page.dart';
@@ -14,7 +15,7 @@ class UserPage extends ConsumerStatefulWidget {
 
 class _UserPageState extends ConsumerState<UserPage>
     with SingleTickerProviderStateMixin {
-  final tabs = const ["观看历史", "正在追", "准备追", "已追完"];
+  final tabs = const ["观看历史", "字幕库", "准备追", "已追完"];
 
   late TabController _tabController;
 
@@ -48,9 +49,8 @@ class _UserPageState extends ConsumerState<UserPage>
           children: [
             // 第一个 Tab 页面：观看历史
             const HistoryPage(),
-
+            const SubtitleManagerPage(),
             // 其他 Tab 页面：可替换为自己的网格或列表页面
-            Center(child: Text('正在追', style: const TextStyle(fontSize: 24))),
             Center(child: Text('准备追', style: const TextStyle(fontSize: 24))),
             Center(child: Text('已追完', style: const TextStyle(fontSize: 24))),
           ],

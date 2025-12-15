@@ -1,14 +1,18 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/test/provider/subtitle_view_controller.dart';
-import 'package:kikoenai/features/test/state/subtitle_view_state.dart';
+import 'package:kikoenai/features/user/presentation/view_models/state/subtitle_view_state.dart';
+import 'package:kikoenai/features/user/presentation/widget/explain_use.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:kikoenai/features/test/provider/subtitles_provider.dart';
-import 'package:kikoenai/features/test/state/improt_state.dart';
-import '../../core/service/import_file_service.dart';
-import '../../core/theme/theme_view_model.dart';
+import 'package:kikoenai/features/user/presentation/view_models/state/improt_state.dart';
+import '../../../../core/constants/app_use_explain.dart';
+import '../../../../core/service/import_file_service.dart';
+import '../../../../core/theme/theme_view_model.dart';
+import '../../../../core/widgets/text_preview/text_preview_page.dart';
+import '../view_models/provider/subtitle_view_provider.dart';
+import '../view_models/provider/subtitles_provider.dart';
+import '../widget/improt_history_dialog.dart';
 
 
 class SubtitleManagerPage extends ConsumerStatefulWidget {
@@ -255,6 +259,11 @@ class _SubtitleManagerPageState extends ConsumerState<SubtitleManagerPage> {
               tooltip: '批量管理',
               onPressed: () => controller.toggleSelectionMode(),
             ),
+            IconButton(icon: const Icon(Icons.cleaning_services),
+                tooltip: '已导入源文件清理',
+                onPressed: () {
+                  showImportHistoryDialog(context);
+                }),
             // 4. 说明
             IconButton(
               icon: const Icon(Icons.help_outline),
@@ -314,7 +323,14 @@ class _SubtitleManagerPageState extends ConsumerState<SubtitleManagerPage> {
             }
             ref.read(currentPathProvider.notifier).state = entity.path;
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("选中文件: $name")));
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => TextPreviewPage(
+                  url: entity.path,
+                  title: name,
+                ),
+              ),
+            );
           }
         }
       },
@@ -371,10 +387,7 @@ class _SubtitleManagerPageState extends ConsumerState<SubtitleManagerPage> {
   void _showHelpDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => const AlertDialog(
-        title: Text("使用说明"),
-        content: Text("1. 搜索：支持模糊搜索文件名\n2. 排序：支持名称、日期、大小排序\n3. 导入：支持文件或文件夹导入\n4. 长按列表项可进入多选模式"),
-      ),
+      builder: (context) => const ImportExplainDialog(),
     );
   }
 

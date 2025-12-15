@@ -8,6 +8,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/player/provider/player_controller_provider.dart';
+import '../../../../core/widgets/text_preview/text_preview_page.dart';
 import '../../data/model/file_node.dart';
 import '../viewmodel/provider/audio_manage_provider.dart';
 
@@ -131,12 +132,26 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                           "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
                     ),
                     // 修改：如果是文件夹，点击进入
-                    onTap: node.isFolder
-                        ? () => _enterFolder(node)
-                        : () {
-                     final playerController = ref.read(playerControllerProvider.notifier);
-                     playerController.handleFileTap(node, widget.work, _currentNodes);
-                     playerController.addSubTitleFileList(widget.rootNodes);
+                    onTap: () {
+                      if (node.isFolder) {
+                        _enterFolder(node);
+                      } else if (node.isText) {
+                        // 跳转到文本预览页面
+                        // 请确保 node 对象中有 url 字段，或者根据你的 FileNode 定义获取下载链接
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => TextPreviewPage(
+                              url: node.mediaStreamUrl ?? "", // 这里填入文件的实际下载链接
+                              title: node.title,
+                            ),
+                          ),
+                        );
+                      } else {
+                        // 音频播放逻辑
+                        final playerController = ref.read(playerControllerProvider.notifier);
+                        playerController.handleFileTap(node, widget.work, _currentNodes);
+                        playerController.addSubTitleFileList(widget.rootNodes);
+                      }
                     },
                   );
 
