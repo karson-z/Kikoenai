@@ -3,6 +3,7 @@ enum NodeType {
   audio,
   image,
   text,
+  video,
   other,
   unknown, // 预留一个未知类型，防止后端增加新类型导致前端崩溃
 }
@@ -21,6 +22,8 @@ extension NodeTypeExtension on NodeType {
         return NodeType.text;
       case 'other':
         return NodeType.other;
+      case 'video':
+        return NodeType.video;
       default:
         return NodeType.unknown;
     }

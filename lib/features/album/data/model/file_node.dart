@@ -16,12 +16,14 @@ class FileNode {
   final int? size;
   final String? workTitle;
   final WorkInfo? work;
+  final String? artist;
 
   // --- 便捷判断属性 ---
   bool get isFolder => type == NodeType.folder;
   bool get isAudio => type == NodeType.audio;
   bool get isImage => type == NodeType.image;
   bool get isText => type == NodeType.text;
+  bool get isVideo => type == NodeType.video;
   bool get isOther => type == NodeType.other;
 
   FileNode({
@@ -34,7 +36,8 @@ class FileNode {
     this.duration,
     this.size,
     this.workTitle,
-    this.work
+    this.work,
+    this.artist,
   });
 
   // 自动生成

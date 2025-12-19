@@ -9,6 +9,9 @@ class BoxNames {
   /// 缓存数据
   static const String cache = 'cache';
 
+  /// 扫描路径
+  static const String scanner = 'scanner';
+
   /// 日志数据
   static const String logs = 'logs';
 

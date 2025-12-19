@@ -47,27 +47,45 @@ class MyAudioHandler extends BaseAudioHandler {
 
   Future<void> setCurrentIndex(int index) async {
     _currentIndex = index;
+
     if (_currentIndex < 0 || _currentIndex >= _playlist.length) {
       return;
     }
 
     final newMediaItem = _playlist[_currentIndex];
     final url = newMediaItem.extras!['url'] as String;
-    // 手动改变当前播放的歌曲
+
     mediaItem.add(newMediaItem);
     playbackState.add(playbackState.value.copyWith(
       queueIndex: _currentIndex,
       playing: false,
-      processingState: AudioProcessingState.loading, // 标记加载中
+      processingState: AudioProcessingState.loading,
     ));
+
     try {
-      // 设置当前播放音频URI 如果设置多个播放列表，桌面端无法兼容；
-      await _player.setAudioSource(AudioSource.uri(Uri.parse(url)));
+      await _player.setAudioSource(_buildAudioSource(url));
+
+      playbackState.add(playbackState.value.copyWith(
+        queueIndex: _currentIndex,
+      ));
     } catch (e) {
-      debugPrint("Error playing audio: $e");
+      debugPrint("Error setting audio source: $e");
+      playbackState.add(playbackState.value.copyWith(
+        processingState: AudioProcessingState.error,
+      ));
     }
   }
+  AudioSource _buildAudioSource(String url) {
+    final bool isNetwork =
+        url.startsWith('http://') || url.startsWith('https://');
 
+    if (isNetwork) {
+      return AudioSource.uri(Uri.parse(url));
+    } else {
+      // 本地文件路径（Windows / macOS / Linux 都安全）
+      return AudioSource.file(url);
+    }
+  }
   // 播放
   Stream<double> get volumeStream => _player.volumeStream;
   double get volume => _player.volume;
@@ -81,22 +99,27 @@ class MyAudioHandler extends BaseAudioHandler {
 
     final newMediaItem = _playlist[_currentIndex];
     final url = newMediaItem.extras!['url'] as String;
-    // 手动改变当前播放的歌曲
+
     mediaItem.add(newMediaItem);
     playbackState.add(playbackState.value.copyWith(
       queueIndex: _currentIndex,
       playing: false,
-      processingState: AudioProcessingState.loading, // 标记加载中
+      processingState: AudioProcessingState.loading,
     ));
+
     try {
-      // 设置当前播放音频URI 如果设置多个播放列表，桌面端无法兼容；
-      await _player.setAudioSource(AudioSource.uri(Uri.parse(url)));
+      await _player.setAudioSource(_buildAudioSource(url));
+
       playbackState.add(playbackState.value.copyWith(
         queueIndex: _currentIndex,
       ));
+
       await _player.play();
     } catch (e) {
       debugPrint("Error playing audio: $e");
+      playbackState.add(playbackState.value.copyWith(
+        processingState: AudioProcessingState.error,
+      ));
     }
   }
 

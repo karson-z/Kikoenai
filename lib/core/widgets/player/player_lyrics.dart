@@ -20,7 +20,6 @@ class LyricsView extends ConsumerStatefulWidget {
 }
 
 class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAliveClientMixin {
-  // 2. 替换 Controller
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
 
@@ -170,7 +169,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
             itemScrollController: _itemScrollController,
             itemPositionsListener: _itemPositionsListener,
             padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: 24),
-            // minCacheExtent: 1000, // 可选：如果你觉得滚动有卡顿，可以开启这个
             itemBuilder: (context, index) {
               final line = lyrics[index];
               final isActive = index == activeIndex;

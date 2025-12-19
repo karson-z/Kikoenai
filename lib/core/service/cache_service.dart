@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:path_provider/path_provider.dart';
+import '../model/app_media_item.dart';
 import '../model/history_entry.dart';
 import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
@@ -98,6 +100,69 @@ class CacheService {
     }
     return null;
   }
+  // ----------------------------- 扫描路径缓存  -------------------------
+
+  /// 保存用户添加的扫描根路径列表
+  /// 不需要过期时间，因为这是用户配置，除非手动删除
+  Future<void> saveScanRootPaths(List<String> paths, {required bool isAudio}) async {
+    // 根据模式选择 Key
+    final key = isAudio ? StorageKeys.scannerAudioPath : StorageKeys.scannerVideoPath;
+    await _storage.put(BoxNames.scanner, key, paths);
+  }
+
+  /// 获取保存的扫描路径列表 (区分模式)
+  Future<List<String>> getScanRootPaths({required bool isAudio}) async {
+    // 根据模式选择 Key
+    final key = isAudio ? StorageKeys.scannerAudioPath : StorageKeys.scannerVideoPath;
+
+    final list = await _storage.get(BoxNames.scanner, key);
+    if (list is List) {
+      // 强转确保类型安全
+      return list.cast<String>();
+    }
+    return [];
+  }
+  Future<void> saveScanResults(List<AppMediaItem> items, {required bool isAudio}) async {
+    // 1. 根据模式决定 Key
+    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
+
+    // 2. 将对象转为 List<Map>
+    // Hive 可以直接存储 List<Map>，不需要像 SharedPreferences 那样转 String
+    final jsonList = items.map((e) => e.toJson()).toList();
+
+    // 3. 存储
+    await _storage.put(BoxNames.scanner, key, jsonList);
+  }
+  Future<void> clearScanResults({required bool isAudio}) async {
+    // 1. 根据模式决定要删除的 Key
+    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
+
+    // 2. 执行删除操作
+    await _storage.delete(BoxNames.scanner, key);
+  }
+  // --- 修改重点 2：增加 isAudio 参数，读取并转换类型 ---
+  Future<List<AppMediaItem>> getCachedScanResults({required bool isAudio}) async {
+    // 1. 根据模式决定 Key
+    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
+
+    // 2. 读取数据
+    final list = await _storage.get(BoxNames.scanner, key);
+
+    if (list is List) {
+      try {
+        return list.map((e) {
+          final map = Map<String, dynamic>.from(e as Map);
+          return AppMediaItem.fromJson(map);
+        }).toList();
+      } catch (e) {
+        print("CacheService: 解析缓存失败 $e");
+        return [];
+      }
+    }
+    return [];
+  }
+
+
   // ------------------------------- 播放历史 -------------------------------
 
   /// 获取历史列表

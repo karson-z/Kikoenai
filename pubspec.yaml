@@ -15,8 +15,8 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
+  hive_ce: ^2.15.1
+  hive_ce_flutter: ^2.3.3
   path_provider: ^2.1.2
   cupertino_icons: ^1.0.2
   flutter_riverpod: ^3.0.3
@@ -33,6 +33,7 @@ dependencies:
   equatable: ^2.0.5
   freezed_annotation: ^3.0.0
   cached_network_image: ^3.2.3
+  flutter_cache_manager: ^3.4.0
   uuid: ^4.5.2
   shimmer: ^3.0.0
   skeletonizer: ^2.1.0
@@ -53,6 +54,7 @@ dependencies:
   file_picker: ^10.3.7   # 用于选择文件/文件夹
   fast_gbk: ^1.0.0
   scrollable_positioned_list: ^0.3.8
+  audio_metadata_reader: ^1.4.2
 
 dev_dependencies:
   flutter_test:
@@ -64,3 +66,4 @@ dev_dependencies:
   riverpod_lint: ^3.0.3
   hive_test: ^1.0.0
   freezed: ^3.0.0
+  hive_ce_generator: ^1.9.3

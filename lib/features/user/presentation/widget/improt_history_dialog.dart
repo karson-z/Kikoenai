@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+// 确保导入您的 FileService
 import '../../../../core/service/file_service.dart';
 
 /// 调用此方法显示弹窗
 void showImportHistoryDialog(BuildContext context) {
   showDialog(
     context: context,
+    barrierDismissible: false, // 正在删除时防止误触关闭
     builder: (context) => const _ImportHistoryDialog(),
   );
 }
@@ -40,46 +42,38 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
       });
     }
   }
+
   Future<void> _deleteSingleFile(int index) async {
     final path = _paths[index];
-
-    // 1. 物理删除文件
     try {
       final file = File(path);
       if (await file.exists()) {
         await file.delete();
-        print("已物理删除: $path");
       }
     } catch (e) {
-      print("文件删除出错 (可能文件已被手动删除): $e");
-      // 即使出错，通常也应该从列表中移除，避免死循环
+      debugPrint("文件删除出错: $e");
     }
 
-    // 2. 更新 UI
     setState(() {
       _paths.removeAt(index);
     });
-
-    // 3. 同步更新本地 JSON 记录，防止下次打开还在
     await FileService.overwriteRecords(_paths);
 
-    // 4. (可选) 给个轻提示
     if (mounted) {
-      ScaffoldMessenger.of(context).clearSnackBars(); // 清除旧的防止堆积
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("已删除: ${p.basename(path)}"),
           duration: const Duration(milliseconds: 1000),
-          behavior: SnackBarBehavior.floating, // 浮动样式，避免遮挡
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
-  /// 执行物理删除逻辑
+
   Future<void> _executeDeleteAll() async {
     if (_paths.isEmpty) return;
 
-    // 二次确认
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -115,7 +109,7 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
         }
         successCount++;
       } catch (e) {
-        print("删除失败: $path - $e");
+        debugPrint("删除失败: $path - $e");
       }
 
       if (mounted) {
@@ -125,7 +119,6 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
       }
     }
 
-    // 清理 JSON 记录
     await FileService.clearRecords();
 
     if (mounted) {
@@ -135,7 +128,7 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
         _statusMessage = "清理完成，共移除 $successCount 个文件";
       });
 
-      // 延迟关闭或让用户手动关闭
+      // 延迟一秒自动关闭，体验更好
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted && Navigator.canPop(context)) {
           Navigator.pop(context);
@@ -144,94 +137,141 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
     }
   }
 
-  /// 仅从列表中移除记录（不删除物理文件）
-  Future<void> _removeFromList(int index) async {
-    setState(() {
-      _paths.removeAt(index);
-    });
-    // 更新本地存储的 JSON，防止下次打开还在
-    // 注意：这里需要 FileService 提供一个覆写方法，或者这里简单处理为
-    // 暂时不回写，等全部清理，或者你可以扩展 FileService 增加 removePath 方法
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("已导入源文件管理"),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: _buildContent(),
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
-      actions: _buildActions(),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxHeight: 500, // 👈 保持高度限制
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(context),
+            const Divider(height: 1),
+            // 中间内容区域，使用 Expanded 自动填充剩余空间
+            Expanded(
+              child: _buildBody(),
+            ),
+            const Divider(height: 1),
+            _buildFooter(context),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildContent() {
-    if (_isDeleting) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
+  // --- Header ---
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      child: Row(
         children: [
-          LinearProgressIndicator(value: _progress),
-          const SizedBox(height: 16),
-          Text(_statusMessage),
-        ],
-      );
-    }
-
-    if (_isLoading) {
-      return const SizedBox(
-        height: 100,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_paths.isEmpty) {
-      return const SizedBox(
-        height: 100,
-        child: Center(
-          child: Text(
-            "没有待清理的源文件记录",
-            style: TextStyle(color: Colors.grey),
+          const Icon(Icons.history, color: Colors.amber), // 换个图标区分
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              '已导入源文件管理',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+          // 如果正在删除，禁用关闭按钮
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Body (根据状态切换内容) ---
+  Widget _buildBody() {
+    // 1. 正在删除中
+    if (_isDeleting) {
+      return Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LinearProgressIndicator(value: _progress),
+            const SizedBox(height: 16),
+            Text(
+              _statusMessage,
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+          ],
         ),
       );
     }
 
+    // 2. 正在加载数据
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // 3. 数据为空
+    if (_paths.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              "没有待清理的源文件记录",
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 4. 显示文件列表
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "以下文件已成功导入到新位置，你可以选择删除原始文件以释放空间。",
-          style: Theme.of(context).textTheme.bodySmall,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Text(
+            "以下文件已成功导入到新位置，建议删除原始文件以释放空间。",
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade700,
+            ),
+          ),
         ),
-        const SizedBox(height: 10),
-        const Divider(),
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             itemCount: _paths.length,
+            separatorBuilder: (ctx, i) => const Divider(height: 1, indent: 16, endIndent: 16),
             itemBuilder: (context, index) {
               final path = _paths[index];
               return ListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
                 title: Text(
                   p.basename(path),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                 ),
                 subtitle: Text(
                   path,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.close, size: 16),
+                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
                   onPressed: () => _deleteSingleFile(index),
-                  tooltip: "删除当个记录",
+                  tooltip: "移除此记录",
                 ),
               );
             },
@@ -241,37 +281,55 @@ class _ImportHistoryDialogState extends State<_ImportHistoryDialog> {
     );
   }
 
-  List<Widget> _buildActions() {
-    if (_isDeleting || _isLoading) return [];
+  // --- Footer (操作按钮区) ---
+  Widget _buildFooter(BuildContext context) {
+    // 如果正在删除或加载，不显示按钮
+    if (_isDeleting || _isLoading) return const SizedBox.shrink();
 
+    // 如果没有数据，只显示“关闭”
     if (_paths.isEmpty) {
-      return [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("关闭"),
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
         ),
-      ];
+      );
     }
 
-    return [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text("稍后处理"),
+    // 有数据时，显示操作按钮组
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("稍后处理"),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () async {
+              await FileService.clearRecords(); // 只清除记录
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text("忽略记录"),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade400, // 柔和一点的红色
+              foregroundColor: Colors.white,
+            ),
+            onPressed: _executeDeleteAll,
+            icon: const Icon(Icons.delete_forever, size: 16),
+            label: const Text("一键删除"),
+          ),
+        ],
       ),
-      TextButton(
-        onPressed: () async {
-          // 仅清空记录，不删除文件
-          await FileService.clearRecords();
-          if(mounted) Navigator.pop(context);
-        },
-        child: const Text("忽略记录"),
-      ),
-      FilledButton.icon(
-        style: FilledButton.styleFrom(backgroundColor: Colors.red),
-        onPressed: _executeDeleteAll,
-        icon: const Icon(Icons.delete),
-        label: const Text("一键物理删除"),
-      ),
-    ];
+    );
   }
 }

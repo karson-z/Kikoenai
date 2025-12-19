@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:kikoenai/core/adapter/history_adapter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/adapter/work_adapter.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../features/album/data/model/work_info.dart';
 import '../adapter/file_node_adapter.dart';
+import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
 import '../adapter/player_state_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
@@ -23,7 +26,17 @@ class HiveStorage {
   static Future<HiveStorage> getInstance({List<String> startupBoxes = const []}) async {
     if (_instance != null) return _instance!;
 
-    _instance = HiveStorage._internal(startupBoxes: startupBoxes);
+    // 1. 先获取路径并初始化 Hive
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      // 统一指定根目录，之后 openBox 不需要再手动拼路径
+      await Hive.initFlutter('${appDocDir.path}/hive_storage');
+      debugPrint("Hive Desktop Root: ${appDocDir.path}/hive_storage");
+    } else {
+      await Hive.initFlutter();
+    }
+
+    // 2. 注册所有 Adapter
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
@@ -31,18 +44,11 @@ class HiveStorage {
     Hive.registerAdapter(PlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
-    // 获取应用文档目录
-    final appDocDir = await getApplicationDocumentsDirectory();
 
-    // Hive 初始化（主目录）
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      await Hive.initFlutter('${appDocDir.path}/hive_storage');
-      debugPrint("Hive Desktop Path: ${appDocDir.path}/hive_storage");
-    } else {
-      await Hive.initFlutter();
-    }
+    // 3. 创建实例
+    _instance = HiveStorage._internal();
 
-    // 启动时打开常用 box
+    // 4. 启动时打开常用 box
     for (var boxName in startupBoxes) {
       await _instance!._openBox(boxName);
     }
@@ -52,22 +58,24 @@ class HiveStorage {
 
   /// 内部打开 box，每个 box 使用单独文件夹管理
   Future<Box> _openBox(String boxName) async {
+    // 1. 如果内存缓存中有，直接返回
     if (_boxes.containsKey(boxName)) return _boxes[boxName]!;
 
-    String path;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      final appDocDir = await getApplicationDocumentsDirectory();
-      path = '${appDocDir.path}/hive_storage/$boxName'; // 每个 box 一个文件夹
-      await Directory(path).create(recursive: true);
-      final box = await Hive.openBox(boxName, path: path);
-      _boxes[boxName] = box;
-    } else {
-      // 移动端默认路径，Hive 会自动创建文件
+    try {
+      // 2. 尝试正常打开
       final box = await Hive.openBox(boxName);
       _boxes[boxName] = box;
+      return box;
+    } catch (e) {
+      try {
+        await Hive.deleteBoxFromDisk(boxName);
+      } catch (delError) {
+        debugPrint("❌ 删除 Box 失败 (可能文件被占用): $delError");
+      }
+      final box = await Hive.openBox(boxName);
+      _boxes[boxName] = box;
+      return box;
     }
-
-    return _boxes[boxName]!;
   }
 
   /// 公共接口：打开 box

@@ -149,7 +149,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                       } else {
                         // 音频播放逻辑
                         final playerController = ref.read(playerControllerProvider.notifier);
-                        playerController.handleFileTap(node, widget.work, _currentNodes);
+                        playerController.handleFileTap(node,_currentNodes,work: widget.work);
                         playerController.addSubTitleFileList(widget.rootNodes);
                       }
                     },

@@ -21,6 +21,7 @@ FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
       work: json['work'] == null
           ? null
           : WorkInfo.fromJson(json['work'] as Map<String, dynamic>),
+      artist: json['artist'] as String?,
     );
 
 Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
@@ -34,6 +35,7 @@ Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
       'size': instance.size,
       'workTitle': instance.workTitle,
       'work': instance.work,
+      'artist': instance.artist,
     };
 
 const _$NodeTypeEnumMap = {
@@ -41,6 +43,7 @@ const _$NodeTypeEnumMap = {
   NodeType.audio: 'audio',
   NodeType.image: 'image',
   NodeType.text: 'text',
+  NodeType.video: 'video',
   NodeType.other: 'other',
   NodeType.unknown: 'unknown',
 };

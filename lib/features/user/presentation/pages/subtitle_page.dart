@@ -217,7 +217,7 @@ class _SubtitleManagerPageState extends ConsumerState<SubtitleManagerPage> {
             icon: const Icon(Icons.delete_outline),
             tooltip: "批量删除",
             onPressed: count == 0 ? null : () {
-              // TODO: 这里可以实现批量删除逻辑
+              // TODO: 实现批量删除逻辑
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("待实现批量删除 $count 个文件")));
             },
           ),

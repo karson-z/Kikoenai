@@ -1,4 +1,5 @@
-import 'package:hive/hive.dart';
+
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/features/album/data/model/work_info.dart';
 
 class WorkInfoAdapter extends TypeAdapter<WorkInfo> {

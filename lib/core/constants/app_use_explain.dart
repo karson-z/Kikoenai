@@ -38,4 +38,70 @@ class AppUseExplain {
       ]
     },
   ];
+  static const List<Map<String, dynamic>> scannerRules = [
+    {
+      'title': '支持的文件类型',
+      'icon': Icons.library_music_outlined,
+      'color': Colors.green,
+      'rules': [
+        {
+          'label': '支持音频与视频',
+          'content': '本地扫描支持音频文件和视频文件。'
+        },
+        {
+          'label': '路径独立管理',
+          'content': '音频与视频的扫描路径是分开管理的，互不影响。'
+        },
+        {
+          'label': '文件夹建议',
+          'content': '建议分别放在不同文件夹中（不分开也可以正常使用）。'
+        },
+      ]
+    },
+    {
+      'title': '封面获取规则（rjCode）',
+      'icon': Icons.image_outlined,
+      'color': Colors.purple,
+      'rules': [
+        {
+          'label': '推荐放置方式',
+          'content': '建议将文件放在包含 rjCode 的文件夹路径下。'
+        },
+        {
+          'label': '路径包含 rjCode',
+          'content': '如果路径中存在 rjCode，播放时会自动显示对应作品封面。'
+        },
+        {
+          'label': '路径不包含 rjCode',
+          'content': '如果路径中未检测到 rjCode，则不显示封面，仅使用音频文件自带信息。'
+        },
+      ]
+    },
+    {
+      'title': '本地播放说明',
+      'icon': Icons.play_circle_outline,
+      'color': Colors.blueGrey,
+      'rules': [
+        {
+          'label': '播放历史',
+          'content': '当前版本暂不支持本地播放历史记录功能。'
+        },
+      ]
+    },
+    {
+      'title': '扫描数量建议',
+      'icon': Icons.warning_amber_outlined,
+      'color': Colors.orange,
+      'rules': [
+        {
+          'label': '单文件夹限制',
+          'content': '为保证扫描速度和稳定性，单个文件夹内建议不超过 2000 个文件。'
+        },
+        {
+          'label': '性能提示',
+          'content': '文件数量过多可能导致扫描变慢或界面卡顿。'
+        },
+      ]
+    },
+  ];
 }

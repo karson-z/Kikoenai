@@ -1,5 +1,6 @@
+
+import 'package:hive_ce/hive.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:hive/hive.dart';
 
 class MediaItemAdapter extends TypeAdapter<MediaItem> {
   @override
@@ -7,29 +8,41 @@ class MediaItemAdapter extends TypeAdapter<MediaItem> {
 
   @override
   MediaItem read(BinaryReader reader) {
+
+    final id = reader.read() as String;
+    final title = reader.read() as String;
+    final artist = reader.read() as String?;
+    final album = reader.read() as String?;
+
+    // 处理 Duration (存的是 int 毫秒)
+    final durationMs = reader.read() as int?;
+    final duration = durationMs != null ? Duration(milliseconds: durationMs) : null;
+
+    // 处理 Map
+    final extras = (reader.read() as Map?)?.cast<String, dynamic>();
+
     return MediaItem(
-      id: reader.readString(),
-      title: reader.readString(),
-      artist: reader.readString(),
-      album: reader.readString(),
-      duration: Duration(milliseconds: reader.readInt()),
-      extras: reader.readMap().cast<String, dynamic>(),
+      id: id,
+      title: title,
+      artist: artist,
+      album: album,
+      duration: duration,
+      extras: extras,
     );
   }
 
   @override
-  void write(BinaryWriter writer, MediaItem item) {
-    writer.writeString(item.id);
-    writer.writeString(item.title);
-    writer.writeString(item.artist ?? '');
-    writer.writeString(item.album ?? '');
-    writer.writeInt(item.duration?.inMilliseconds ?? 0);
-    writer.writeMap(castMap(item.extras));
+  void write(BinaryWriter writer, MediaItem obj) {
+
+    writer.write(obj.id);
+    writer.write(obj.title);
+    writer.write(obj.artist); // Hive 会自动处理 null
+    writer.write(obj.album);
+
+    // Duration 转 int 存储
+    writer.write(obj.duration?.inMilliseconds);
+
+    // 写入 Map
+    writer.write(obj.extras);
   }
-}
-Map<String, dynamic> castMap(Map<dynamic, dynamic>? raw) {
-  if (raw == null) return {};
-  return raw.map(
-        (key, value) => MapEntry(key.toString(), value),
-  );
 }

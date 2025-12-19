@@ -1,4 +1,6 @@
-import 'package:hive/hive.dart';
+
+
+import 'package:hive_ce/hive.dart';
 
 import '../../features/album/data/model/work.dart';
 import '../model/history_entry.dart';

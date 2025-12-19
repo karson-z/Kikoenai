@@ -69,4 +69,33 @@ class PermissionService {
     final result = await Permission.notification.status;
     return result.isGranted;
   }
+  static Future<bool> requestExternalPermissions() async {
+    // 1. 非 Android 平台直接通过 (iOS/Windows 等逻辑另写)
+    if (!Platform.isAndroid) return true;
+
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+    // 2. Android 11 (SDK 30) 及以上：申请 "管理所有文件" 权限
+    if (androidInfo.version.sdkInt >= 30) {
+      // 检查当前状态
+      if (await Permission.manageExternalStorage.isGranted) {
+        return true;
+      }
+
+      // 申请权限 (会跳转到系统设置页面)
+      final status = await Permission.manageExternalStorage.request();
+
+      // 返回申请后的最终状态
+      return status.isGranted;
+    }
+
+    // 3. Android 10 及以下：申请普通存储权限
+    else {
+      if (await Permission.storage.isGranted) {
+        return true;
+      }
+      final status = await Permission.storage.request();
+      return status.isGranted;
+    }
+  }
 }

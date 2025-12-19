@@ -8,6 +8,7 @@ import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:path/path.dart' as p;
 
@@ -148,9 +149,9 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (workData == null) return;
 
     try {
-
       final workJson = jsonDecode(workData);
       final currentWork = Work.fromJson(workJson);
+      if(currentWork.id == null) return;// 如果没有作品信息，则不保存历史记录，因为是本地的作品
       final history = HistoryEntry(
         work: currentWork, // 使用解析出来的 work
         lastTrackId: currentItem.id,
@@ -250,7 +251,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final currentSongName = currentItem.title; // 或者 currentItem.displayTitle
     final subtitleNames = state.subtitleList.map((e) => e.title).toList();
 
-    // 3. 调用匹配服务 (假设你之前定义好的 SearchLyricsService)
+    // 3. 调用匹配服务
     final bestMatchName = SearchLyricsService.findBestMatch(
       currentSongName,
       subtitleNames,
@@ -268,11 +269,11 @@ class PlayerController extends Notifier<AppPlayerState> {
     final mediaItem = _fileNodeToMediaItem(node,work);
     await add(mediaItem);
   }
-  Future<void> handleFileTap(FileNode node,Work work,List<FileNode> currentNodes,{HistoryEntry? history}) async {
+  Future<void> handleFileTap(FileNode node,List<FileNode> currentNodes,{HistoryEntry? history,Work? work}) async {
     if (node.isAudio) {
       final audioFiles = currentNodes.where((n) => n.isAudio).toList();
       final mediaList = audioFiles.map((node) {
-        return _fileNodeToMediaItem(node,work);
+        return _fileNodeToMediaItem(node,work ?? Work()); //TODO 本地音频没有作品信息暂时不处理，且不做历史记录
       }).toList();
       final audioTapIndex = audioFiles.indexOf(node);
       await clear();
@@ -321,7 +322,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final parentList = found['parentList'] as List<FileNode>;
     final index = found['index'] as int;
     final currentNode = parentList[index];
-    handleFileTap(currentNode, work, parentList,history: history);
+    handleFileTap(currentNode, parentList,history: history,work: work);
   }
   Future<void> removeMediaItemInQueue(int index) async {
     await handler.removeQueueItemAt(index);
@@ -334,17 +335,38 @@ class PlayerController extends Notifier<AppPlayerState> {
     await addAll(mediaList);
   }
   MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
+    String? imagePath;
+
+    // 当作品本身没有主封面时，尝试从路径推导
+    if (work.mainCoverUrl == null) {
+      final mediaUrl = node.mediaStreamUrl;
+      if (mediaUrl != null) {
+        final rjCode = RJPathUtils.getRjcode(mediaUrl);
+        if (rjCode != null) {
+          imagePath = RJPathUtils.buildPath(rjCode);
+        }
+      }
+    }
+
     return MediaItem(
       id: node.hash.toString(),
       album: node.workTitle,
       title: node.title,
-      artist: OtherUtil.joinVAs(work.vas),
-      artUri: Uri.parse(work.thumbnailCoverUrl ?? ''),
+      artist: work.vas == null
+          ? node.artist
+          : OtherUtil.joinVAs(work.vas),
+
+      // artUri 只放“明确可用的封面 URL”
+      artUri: work.thumbnailCoverUrl != null
+          ? Uri.parse(work.thumbnailCoverUrl!)
+          : null,
+
       extras: {
         'url': node.mediaStreamUrl,
-        'mainCoverUrl': work.mainCoverUrl,
-        'samCorverUrl': work.samCoverUrl,
-        // 将其转化成多平台通用类型String,避免传输时导致类型模糊。
+
+        'mainCoverUrl': work.mainCoverUrl ?? imagePath,
+
+        'samCorverUrl': work.samCoverUrl ?? imagePath,
         'workData': jsonEncode(work),
       },
     );

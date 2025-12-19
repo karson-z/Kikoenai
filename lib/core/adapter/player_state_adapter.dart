@@ -1,5 +1,5 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/widgets/player/state/player_state.dart';
 import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart'; // 确保导入 FileNode

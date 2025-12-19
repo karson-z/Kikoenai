@@ -137,7 +137,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
             children: [
               // 左侧：封面 + 控制区
               Expanded(
-                flex: 1,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

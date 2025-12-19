@@ -21,6 +21,11 @@ class StorageKeys {
   static const String pathImage = 'path_image';
   static const String pathArchive = 'path_archive';
 
+  static const String scannerAudioPath = 'scanner_audio_path';
+  static const String scannerVideoPath = 'scanner_video_path';
+  static const String scannerAudioItem = 'scanner_audio_item';
+  static const String scannerVideoItem = 'scanner_video_item';
+
 }
 /// 缓存 key 常量
 class CacheKeys {
@@ -33,4 +38,5 @@ class CacheKeys {
   static const String circleOption = 'circle';
 
   static const String playerState = 'playerstate';
+
 }

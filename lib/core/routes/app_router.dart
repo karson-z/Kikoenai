@@ -12,7 +12,7 @@ import '../../features/settings/presentation/pages/settings_overview_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
-import '../../features/user/presentation/pages/subtitle_page.dart';
+import '../../features/test/image.dart';
 import '../widgets/common/login_dialog_manager.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_auth_config.dart';
@@ -102,7 +102,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.test,
             pageBuilder: (context, state) => MaterialPage(
-              child: const SubtitleManagerPage(),
+              child: const ImageCacheTestPage(),
             ),
           ),
         ],

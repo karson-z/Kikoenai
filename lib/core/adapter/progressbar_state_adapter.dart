@@ -1,7 +1,6 @@
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
 
-import '../widgets/player/provider/player_controller_provider.dart';
 
 class ProgressBarStateAdapter extends TypeAdapter<ProgressBarState> {
   @override
