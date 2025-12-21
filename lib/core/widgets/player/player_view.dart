@@ -77,46 +77,66 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
       MediaItem? currentTrack,
       PanelController panelControl,
       ) {
-    final width = MediaQuery.of(context).size.width;
-    final imageSize = width.clamp(260, 340).toDouble();
+    // 1. 使用 LayoutBuilder 获取当前父容器的实际可用宽高
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      final height = constraints.maxHeight;
 
-    return Column(
-      children: [
-        SizedBox(height: MediaQuery.of(context).padding.top),
-        _topBar(panelControl),
-        // --- 中间区域：核心切换逻辑 ---
-        Expanded(
-          flex: 10,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            // 使用 switchInCurve 和 switchOutCurve 让切换更顺滑
-            switchInCurve: Curves.easeInOut,
-            switchOutCurve: Curves.easeInOut,
-            child: _showLyrics
-                ? LyricsView(
-              key: const ValueKey('lyrics'),
-              onTap: _toggleLyrics, // 点击歌词切回封面
-            )
-                : _buildCoverAndInfo(context, imageSize, currentTrack), // 封装封面+信息
+      // 2. 动态计算图片大小
+      // 逻辑：图片既不能超过宽度的 80%，也不能超过高度的 45%（给上下留空间）
+      // 同时限制在 150 到 340 之间。这样在矮屏幕上图片会自动变小。
+      final double imageSize = (width * 0.8)
+          .clamp(0.0, height * 0.45)
+          .clamp(150.0, 340.0);
+
+      // 3. 判断是否是小屏幕/矮屏幕，如果是，减少垂直间距
+      final bool isSmallScreen = height < 600;
+      final double gapSmall = isSmallScreen ? 10 : 20;
+      final double gapLarge = isSmallScreen ? 15 : 30;
+
+      return Column(
+        children: [
+          SizedBox(height: MediaQuery.of(context).padding.top),
+          _topBar(panelControl),
+
+          // --- 中间区域 ---
+          Expanded(
+            flex: 10,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              child: _showLyrics
+                  ? LyricsView(
+                key: const ValueKey('lyrics'),
+                onTap: _toggleLyrics,
+              )
+              // 传入计算好的自适应 imageSize
+                  : _buildCoverAndInfo(context, imageSize, currentTrack),
+            ),
           ),
-        ),
-        // ---------------------------
+          // ---------------------------
 
-        const SizedBox(height: 20),
+          SizedBox(height: gapSmall), // 动态间距
 
-        // 进度条 (保持在底部固定区域，不随歌词切换消失)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.0),
-          child: PlayerProgressBar(),
-        ),
+          // 进度条
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.0),
+            child: PlayerProgressBar(),
+          ),
 
-        const Spacer(),
-        _controls(ref),
-        const SizedBox(height: 20),
-        _volume(ref),
-        const SizedBox(height: 30),
-      ],
-    );
+          SizedBox(height: gapSmall), // 进度条和控制栏之间的间距
+
+          _controls(ref),
+
+          SizedBox(height: gapSmall),
+
+          _volume(ref),
+
+          SizedBox(height: gapLarge), // 底部间距
+        ],
+      );
+    });
   }
 
   Widget _buildDesktopLayout(
@@ -200,26 +220,22 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
   }
   Widget _buildCoverAndInfo(BuildContext context, double imageSize, MediaItem? currentTrack) {
     return Container(
-      key: const ValueKey('cover_info_group'), // 关键：给 AnimatedSwitcher 识别的 Key
+      key: const ValueKey('cover_info_group'),
       width: double.infinity,
-      color: Colors.transparent, // 确保点击空白处也能响应（如果需要）
+      color: Colors.transparent,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center, // 居中对齐即可，代替 Spacer
         children: [
-          const Spacer(flex: 2), // 顶部弹簧
-
           // 封面区域
           GestureDetector(
-            onTap: _toggleLyrics, // 点击封面切换
+            onTap: _toggleLyrics,
             child: _cover(imageSize, currentTrack),
           ),
 
-          const SizedBox(height: 28), // 封面和文字的间距
+          const SizedBox(height: 28),
 
-          // 信息区域 (现在包含在切换组里了)
+          // 信息区域
           _info(currentTrack),
-
-          const Spacer(flex: 3), // 底部弹簧，通常底部留白比顶部多一点视觉上更平衡
         ],
       ),
     );

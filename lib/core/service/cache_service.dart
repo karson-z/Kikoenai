@@ -9,6 +9,7 @@ import '../storage/hive_box.dart';
 import '../storage/hive_key.dart';
 import '../storage/hive_storage.dart';
 import '../widgets/player/state/player_state.dart';
+import 'file_scanner_service.dart';
 
 class CacheService {
   static const int _maxHistory = 200;
@@ -102,50 +103,71 @@ class CacheService {
   }
   // ----------------------------- 扫描路径缓存  -------------------------
 
+  String _getPathKey(ScanMode mode) {
+    switch (mode) {
+      case ScanMode.audio:
+        return StorageKeys.scannerAudioPath;
+      case ScanMode.video:
+        return StorageKeys.scannerVideoPath;
+      case ScanMode.subtitles:
+        return StorageKeys.scannerSubtitlePath;
+    }
+  }
+
+  // --- 内部辅助方法：根据模式获取 Item Key ---
+  String _getItemKey(ScanMode mode) {
+    switch (mode) {
+      case ScanMode.audio:
+        return StorageKeys.scannerAudioItem;
+      case ScanMode.video:
+        return StorageKeys.scannerVideoItem;
+      case ScanMode.subtitles:
+        return StorageKeys.scannerSubtitleItem;
+    }
+  }
+
   /// 保存用户添加的扫描根路径列表
-  /// 不需要过期时间，因为这是用户配置，除非手动删除
-  Future<void> saveScanRootPaths(List<String> paths, {required bool isAudio}) async {
-    // 根据模式选择 Key
-    final key = isAudio ? StorageKeys.scannerAudioPath : StorageKeys.scannerVideoPath;
+  /// [修改] 参数由 bool isAudio 改为 ScanMode mode
+  Future<void> saveScanRootPaths(List<String> paths, {required ScanMode mode}) async {
+    final key = _getPathKey(mode);
     await _storage.put(BoxNames.scanner, key, paths);
   }
 
-  /// 获取保存的扫描路径列表 (区分模式)
-  Future<List<String>> getScanRootPaths({required bool isAudio}) async {
-    // 根据模式选择 Key
-    final key = isAudio ? StorageKeys.scannerAudioPath : StorageKeys.scannerVideoPath;
+  /// 获取保存的扫描路径列表
+  /// [修改] 参数由 bool isAudio 改为 ScanMode mode
+  Future<List<String>> getScanRootPaths({required ScanMode mode}) async {
+    final key = _getPathKey(mode);
 
     final list = await _storage.get(BoxNames.scanner, key);
     if (list is List) {
-      // 强转确保类型安全
       return list.cast<String>();
     }
     return [];
   }
-  Future<void> saveScanResults(List<AppMediaItem> items, {required bool isAudio}) async {
-    // 1. 根据模式决定 Key
-    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
 
-    // 2. 将对象转为 List<Map>
-    // Hive 可以直接存储 List<Map>，不需要像 SharedPreferences 那样转 String
+  /// 保存扫描结果
+  /// [修改] 参数由 bool isAudio 改为 ScanMode mode
+  Future<void> saveScanResults(List<AppMediaItem> items, {required ScanMode mode}) async {
+    final key = _getItemKey(mode);
+
+    // 将对象转为 List<Map>
     final jsonList = items.map((e) => e.toJson()).toList();
 
-    // 3. 存储
     await _storage.put(BoxNames.scanner, key, jsonList);
   }
-  Future<void> clearScanResults({required bool isAudio}) async {
-    // 1. 根据模式决定要删除的 Key
-    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
 
-    // 2. 执行删除操作
+  /// 清除扫描结果
+  /// [修改] 参数由 bool isAudio 改为 ScanMode mode
+  Future<void> clearScanResults({required ScanMode mode}) async {
+    final key = _getItemKey(mode);
     await _storage.delete(BoxNames.scanner, key);
   }
-  // --- 修改重点 2：增加 isAudio 参数，读取并转换类型 ---
-  Future<List<AppMediaItem>> getCachedScanResults({required bool isAudio}) async {
-    // 1. 根据模式决定 Key
-    final key = isAudio ? StorageKeys.scannerAudioItem : StorageKeys.scannerVideoItem;
 
-    // 2. 读取数据
+  /// 获取缓存的扫描结果
+  /// [修改] 参数由 bool isAudio 改为 ScanMode mode
+  Future<List<AppMediaItem>> getCachedScanResults({required ScanMode mode}) async {
+    final key = _getItemKey(mode);
+
     final list = await _storage.get(BoxNames.scanner, key);
 
     if (list is List) {
@@ -161,7 +183,6 @@ class CacheService {
     }
     return [];
   }
-
 
   // ------------------------------- 播放历史 -------------------------------
 

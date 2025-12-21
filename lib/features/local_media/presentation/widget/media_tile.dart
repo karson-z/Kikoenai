@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../album/data/model/file_node.dart';
 
-// import 'path/to/media_node.dart';
 
 class MediaNodeTile extends StatelessWidget {
   final FileNode node;

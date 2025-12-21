@@ -23,8 +23,11 @@ class StorageKeys {
 
   static const String scannerAudioPath = 'scanner_audio_path';
   static const String scannerVideoPath = 'scanner_video_path';
+  static const String scannerSubtitlePath = 'scanner_subtitle_path'; // [新增]
+
   static const String scannerAudioItem = 'scanner_audio_item';
   static const String scannerVideoItem = 'scanner_video_item';
+  static const String scannerSubtitleItem = 'scanner_subtitle_item';
 
 }
 /// 缓存 key 常量

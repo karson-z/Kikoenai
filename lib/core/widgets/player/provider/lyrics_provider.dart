@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:kikoenai/core/utils/network/api_client.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 
 import '../../../model/lyric_model.dart';
+import '../../../service/archive_service.dart';
 import '../../../service/lyrics_parse_service.dart';
 
 // 定义 Provider
@@ -30,45 +32,59 @@ class LyricsNotifier extends AsyncNotifier<List<LyricsLineModel>> {
     final currentSub = playerState.currentSubtitle;
     final newUrl = currentSub?.mediaStreamUrl;
 
-    // 1. 【核心判断逻辑】
-    // 如果没有 URL，或者 URL 为空，直接清空状态
+    // 1. 基础判断
     if (newUrl == null || newUrl.isEmpty) {
-      if (_loadedUrl != null) { // 只有当前有值时才去清空，避免重复清空
+      if (_loadedUrl != null) {
         _loadedUrl = null;
         state = const AsyncValue.data([]);
       }
       return;
     }
 
-    // 2. 【防抖/缓存判断】
-    // 如果“目标URL”和“当前已加载URL”一致，且当前状态不是 Error 或 Loading，
-    // 说明内存里已经是这首歌的歌词了，直接返回，不做任何操作。
+    // 2. 缓存判断
     if (newUrl == _loadedUrl && state.hasValue && !state.isLoading) {
-      debugPrint(" 歌词已存在，跳过加载: $newUrl");
       return;
     }
 
-    // --- 开始加载新歌词 ---
-
-    // 3. 记录新 URL (立即记录，防止并发调用)
     _loadedUrl = newUrl;
-
     state = const AsyncValue.loading();
 
     try {
       final format = LyricsParserFactory.guessFormat(currentSub?.title ?? '');
-      final api = ref.read(apiClientProvider);
+      String content;
 
-      final response = await api.get(newUrl);
-      final String content = response.data.toString();
+      // 3. [修改] 区分 远程 / 本地普通文件 / 压缩包文件
+      if (newUrl.startsWith('http') || newUrl.startsWith('https')) {
+        // A. 远程网络加载
+        final api = ref.read(apiClientProvider);
+        final response = await api.get(newUrl);
+        content = response.data.toString();
+      } else {
+        // B. 本地加载逻辑
+        final file = File(newUrl);
 
+        if (await file.exists()) {
+          // B1. 是普通存在的本地文件 (例如已经解压出来的，或者外挂字幕)
+          content = await file.readAsString();
+        } else {
+          // B2.  尝试从压缩包读取
+          final zipContent = await ArchiveService.extractText(newUrl);
+
+          if (zipContent != null) {
+            content = zipContent;
+          } else {
+            throw Exception("本地字幕不存在，且无法从压缩包提取: $newUrl");
+          }
+        }
+      }
+
+      // 4. 解析逻辑（保持不变）
       final lines = await compute(
         _parseLyricsInIsolate,
         _ParseParams(content, format),
       );
 
-      // 再次检查：在异步等待期间，如果用户又切歌了（_loadedUrl 变了），
-      // 那么这次解析结果就作废，不要更新 state，防止“歌词错位”
+      // 5. 竞态检查
       if (_loadedUrl != newUrl) {
         debugPrint("加载期间发生了切歌，丢弃本次结果");
         return;
@@ -76,7 +92,6 @@ class LyricsNotifier extends AsyncNotifier<List<LyricsLineModel>> {
 
       state = AsyncValue.data(lines);
     } catch (e, st) {
-      // 只有 URL 没变才报错
       if (_loadedUrl == newUrl) {
         debugPrint('歌词加载/解析失败: $e');
         state = AsyncValue.error(e, st);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/local_media/presentation/page/scanner.dart';
-import 'package:kikoenai/features/user/presentation/pages/subtitle_page.dart';
+import 'package:kikoenai/features/local_media/presentation/page/scanner_page.dart';
 import 'history_page.dart';
 
 class UserPage extends ConsumerStatefulWidget {
@@ -13,7 +12,7 @@ class UserPage extends ConsumerStatefulWidget {
 
 class _UserPageState extends ConsumerState<UserPage>
     with SingleTickerProviderStateMixin {
-  final tabs = const ["观看历史", "字幕库", "本地媒体", "已追完"];
+  final tabs = const ["观看历史", "本地媒体", "已追完"];
 
   late TabController _tabController;
 
@@ -47,7 +46,6 @@ class _UserPageState extends ConsumerState<UserPage>
           children: [
             // 第一个 Tab 页面：观看历史
             const HistoryPage(),
-            const SubtitleManagerPage(),
             const ScannerPage(),
             Center(child: Text('已追完', style: const TextStyle(fontSize: 24))),
           ],

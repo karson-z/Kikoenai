@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
-import 'package:kikoenai/features/settings/presentation/pages/path_setting_page.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/auth/presentation/view_models/provider/auth_provider.dart';
@@ -118,12 +117,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settingsPermission,
         pageBuilder: (context, state) => MaterialPage(
           child: const PermissionSettingsPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsPath,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const PathSettingsPage(),
         ),
       ),
     ],

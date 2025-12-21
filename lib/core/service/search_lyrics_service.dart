@@ -1,5 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:path/path.dart' as p;
+
+import '../enums/node_type.dart';
+import 'archive_service.dart';
 class SearchLyricsService {
 
   // --- 你现有的代码 (保持不变) ---
@@ -97,9 +104,62 @@ class SearchLyricsService {
     }
     return maxScore >= threshold ? bestMatchFile : null;
   }
+  static FileNode? findNodeInTree(List<FileNode> nodes, String workId) {
+    if (workId.isEmpty) return null;
+    final inputRaw = workId.trim().toLowerCase();
+    final inputNumeric = inputRaw.replaceAll(RegExp(r'[^0-9]'), '');
 
-  /// 内部标准化方法：用于最终比对前的清洗
-  /// 这一步非常关键，它消除 "Song_Name" 和 "Song Name" 之间的差异
+    for (final node in nodes) {
+      // 1. 检查当前节点是否匹配 (逻辑同之前的 matchTarget)
+      // 注意：只匹配文件夹或压缩包类型的节点 (通常都有 children)
+      if (node.isFolder || node.children != null && node.children!.isNotEmpty) {
+        final folderName = node.title.toLowerCase();
+        bool isMatch = false;
+
+        // 匹配逻辑: 包含原始ID 或 包含纯数字ID
+        if (folderName.contains(inputRaw)) {
+          isMatch = true;
+        } else if (inputNumeric.isNotEmpty && folderName.contains(inputNumeric)) {
+          // 短数字保护
+          if (inputNumeric.length < 3) {
+            if (folderName == inputNumeric) isMatch = true;
+          } else {
+            isMatch = true;
+          }
+        }
+
+        if (isMatch) return node; // 找到了！
+      }
+
+      // 2. 没匹配上，且有子节点，继续递归查找子节点
+      if (node.children != null && node.children!.isNotEmpty) {
+        final result = findNodeInTree(node.children!, workId);
+        if (result != null) return result;
+      }
+    }
+    return null;
+  }
+
+// --- 工具方法 B: 将目标节点下的所有字幕文件“拍扁” ---
+ static List<FileNode> flattenSubtitles(FileNode targetNode) {
+    List<FileNode> results = [];
+
+    // 辅助递归函数
+    void traverse(FileNode node) {
+      if (node.isFolder || (node.children != null && node.children!.isNotEmpty)) {
+        // 如果是文件夹/压缩包，继续深入
+        node.children?.forEach(traverse);
+      } else {
+        // 如果是文件，直接加入结果
+        // 这里可以加个双重保险，判断一下是否是字幕类型
+        // if (node.type == NodeType.text || node.type == NodeType.subtitle)
+        results.add(node);
+      }
+    }
+
+    traverse(targetNode);
+    return results;
+  }
   static String _normalizeForComparison(String input) {
     String text = input.toLowerCase();
 

@@ -1,6 +1,4 @@
 import 'dart:typed_data';
-// 如果你想在 operator== 中比较图片内容的相等性，需要引入此库
-// import 'package:flutter/foundation.dart';
 
 class AppMediaItem {
   final String path;

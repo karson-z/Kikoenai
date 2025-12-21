@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../../core/constants/app_use_explain.dart';
 
 class UsageGuideDialog extends StatelessWidget {

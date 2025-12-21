@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/gestures.dart'; // 用于监听鼠标滚轮
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart'; // 1. 引入新库
-
-// 假设这些是你项目中的其他文件导入
 import 'package:kikoenai/core/widgets/player/provider/lyrics_provider.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../model/lyric_model.dart';
@@ -29,8 +27,8 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   @override
   void initState() {
     super.initState();
+    ref.read(lyricsProvider.notifier).loadLyrics();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(lyricsProvider.notifier).loadLyrics();
       if (mounted) {
         // 初始定位
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -43,7 +41,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
 
   @override
   void dispose() {
-    // ItemScrollController 不需要 dispose
     super.dispose();
   }
 
@@ -70,11 +67,11 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   Widget build(BuildContext context) {
     super.build(context);
 
-    // 监听切歌
+    // 监听字幕变化，如果发生变化，重新加载歌词
     ref.listen(
-        playerControllerProvider.select((s) => s.currentTrack),
+        playerControllerProvider.select((s) => s.subtitleList),
             (previous, next) {
-          if (next != previous && next != null) {
+          if (next != previous) {
             ref.read(lyricsProvider.notifier).loadLyrics();
           }
         });

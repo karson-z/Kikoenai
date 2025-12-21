@@ -1,12 +1,14 @@
-// file_browser_panel.dart
-import 'package:extended_image/extended_image.dart' as ref;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
+import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
 
+import '../../../../core/service/file_scanner_service.dart';
 import '../../../../core/widgets/player/provider/player_controller_provider.dart';
+import '../../../album/data/model/file_node.dart';
 import '../../data/model/file_scanner_state.dart';
 import '../provider/file_scanner_provider.dart';
-
 
 class FileBrowserPanel extends ConsumerWidget {
   const FileBrowserPanel({super.key});
@@ -47,7 +49,7 @@ class FileBrowserPanel extends ConsumerWidget {
   }
 }
 
-// --- 子组件：面包屑导航条 ---
+// --- 子组件：面包屑导航条 (保持不变) ---
 class _BreadcrumbBar extends StatelessWidget {
   final List<String> pathStack;
   final Function(int) onItemTap;
@@ -67,7 +69,6 @@ class _BreadcrumbBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          // 根目录图标
           InkWell(
             onTap: () => onItemTap(-1),
             borderRadius: BorderRadius.circular(4),
@@ -76,13 +77,10 @@ class _BreadcrumbBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Icon(Icons.home_outlined,
                     size: 20,
-                    color: pathStack.isEmpty ? Colors.grey : Colors.blue
-                ),
+                    color: pathStack.isEmpty ? Colors.grey : Colors.blue),
               ),
             ),
           ),
-
-          // 路径节点
           for (int i = 0; i < pathStack.length; i++) ...[
             const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
             InkWell(
@@ -95,7 +93,6 @@ class _BreadcrumbBar extends StatelessWidget {
                     pathStack[i],
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      // 当前层级黑色，之前的层级蓝色
                       color: i == pathStack.length - 1
                           ? Theme.of(context).colorScheme.onInverseSurface
                           : Theme.of(context).textTheme.bodyLarge?.color,
@@ -111,7 +108,7 @@ class _BreadcrumbBar extends StatelessWidget {
   }
 }
 
-// --- 子组件：文件列表 ---
+// --- 子组件：文件列表 (重点修改) ---
 class _FileList extends ConsumerWidget {
   final FileScannerState state;
   final FileScannerNotifier notifier;
@@ -125,7 +122,7 @@ class _FileList extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // 2. 获取当前视图数据 (利用 State 中的 Getter)
+    // 2. 获取当前视图数据
     final currentNodes = state.currentViewNodes;
 
     // 3. 空文件夹
@@ -149,35 +146,112 @@ class _FileList extends ConsumerWidget {
         final node = currentNodes[index];
 
         if (node.isFolder) {
-          return ListTile(
-            leading: const Icon(Icons.folder, color: Colors.amber),
-            title: Text(node.title),
-            subtitle: Text("${node.children?.length ?? 0} 项"),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-            onTap: () => notifier.enterFolder(node.title),
+          return _buildFolderItem(context, node);
+        } else {
+          return _buildFileItem(context, ref, node, currentNodes);
+        }
+      },
+    );
+  }
+
+  // --- 抽取：构建文件夹/压缩包 Item ---
+  Widget _buildFolderItem(BuildContext context, FileNode node) {
+    final isArchiveFolder = FileExtensions.isArchive(node.title);
+
+    return ListTile(
+      leading: Icon(
+        isArchiveFolder ? Icons.folder_zip : Icons.folder,
+        color: isArchiveFolder ? Colors.purpleAccent : Colors.amber,
+      ),
+      title: Text(node.title),
+      subtitle: Text(
+        "${node.children?.length ?? 0} 项",
+        style: TextStyle(color: Theme.of(context).colorScheme.outline),
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+
+      // [修复] 添加长按事件！
+      onLongPress: () {
+        RenameFileDialog.show(context, node);
+      },
+
+      onTap: () => notifier.enterFolder(node.title),
+    );
+  }
+
+  // --- 抽取：构建普通文件 Item ---
+  Widget _buildFileItem(
+      BuildContext context,
+      WidgetRef ref,
+      FileNode node,
+      List<FileNode> currentNodes
+      ) {
+    // 1. 准备图标和颜色
+    IconData icon;
+    Color iconColor;
+
+    switch (state.scanMode) {
+      case ScanMode.audio:
+        icon = Icons.audiotrack;
+        iconColor = Colors.blue;
+        break;
+      case ScanMode.video:
+        icon = Icons.videocam;
+        iconColor = Colors.orange;
+        break;
+      case ScanMode.subtitles:
+        icon = Icons.subtitles;
+        iconColor = Colors.teal;
+        break;
+    }
+
+    // 2. 准备副标题 (时长 或 路径)
+    Widget? subtitleWidget;
+    if (state.scanMode != ScanMode.subtitles) {
+      // 音视频显示时长
+      if (node.duration != null && node.duration! > 0) {
+        subtitleWidget = Text(_formatDuration(node.duration!));
+      }
+    } else {
+      // 字幕显示路径 (防止溢出)
+      subtitleWidget = Text(
+        node.mediaStreamUrl ?? "",
+        style: const TextStyle(fontSize: 10, color: Colors.grey),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: subtitleWidget,
+
+      // [新增] 长按重命名 (直接调用封装好的组件)
+      onLongPress: () {
+        RenameFileDialog.show(context, node);
+      },
+
+      onTap: () {
+        if (state.scanMode == ScanMode.subtitles) {
+
+          Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash!));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("已复制路径: ${node.title}"),
+                duration: const Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+              )
           );
         } else {
-          return ListTile(
-            leading: Icon(
-              node.isAudio ? Icons.audiotrack : Icons.movie,
-              color: node.isAudio ? Colors.blue : Colors.orange,
-            ),
-            title: Text(node.title),
-            subtitle: node.duration != null
-                ? Text(_formatDuration(node.duration!))
-                : null,
-            onTap: () {
-              debugPrint("点击了: ${node.toJson()}");
-              debugPrint("当前层级：${currentNodes.toString()}");
-              final playerController = ref.read(playerControllerProvider.notifier);
-              playerController.handleFileTap(node, currentNodes);
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("播放: ${node.title}"),
-                    duration: const Duration(milliseconds: 500),
-                  )
-              );
-            },
+          final playerController = ref.read(playerControllerProvider.notifier);
+          playerController.handleFileTap(node, currentNodes);
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("开始播放: ${node.title}"),
+                duration: const Duration(milliseconds: 500),
+                behavior: SnackBarBehavior.floating, // 悬浮样式体验更好
+              )
           );
         }
       },
@@ -185,6 +259,7 @@ class _FileList extends ConsumerWidget {
   }
 
   String _formatDuration(double seconds) {
+    if (seconds <= 0) return "";
     final int min = seconds ~/ 60;
     final int sec = (seconds % 60).toInt();
     return "$min:${sec.toString().padLeft(2, '0')}";

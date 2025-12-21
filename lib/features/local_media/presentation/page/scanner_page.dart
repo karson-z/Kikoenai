@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// 确保导入了 ScanMode 枚举定义的文件
+import '../../../../core/service/file_scanner_service.dart';
 import '../provider/file_scanner_provider.dart';
 import '../widget/file_scanner_panel.dart';
 import '../widget/path_sheet.dart';
@@ -23,10 +25,10 @@ class ScannerPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Flexible(
+                const Flexible(
                   child: Text(
                     '媒体库',
-                    style: const TextStyle(fontSize: 18),
+                    style: TextStyle(fontSize: 18),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -42,7 +44,10 @@ class ScannerPage extends ConsumerWidget {
               ],
             ),
             Text(
-              state.isScanning ? state.statusMsg : '共 ${state.totalCount} 个文件',
+              // 这里显示当前模式更友好
+              state.isScanning
+                  ? state.statusMsg
+                  : '共 ${state.totalCount} 个文件',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.outline,
               ),
@@ -50,40 +55,46 @@ class ScannerPage extends ConsumerWidget {
           ],
         ),
         actions: [
-          SizedBox(
+          // 修改点：调整容器宽度以适应 3 个按钮，或者让它自适应
+          Container(
             height: 32,
-            child: SegmentedButton<bool>(
-              // 1. 【核心修复】添加样式配置
+            margin: const EdgeInsets.only(right: 8), // 稍微留点右边距
+            // [修改 1] 泛型改为 ScanMode
+            child: SegmentedButton<ScanMode>(
               style: ButtonStyle(
-                // 压缩视觉密度，减少默认的垂直间距（非常重要）
                 visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-                // 移除或减小内部的 Padding，确保内容能居中
                 padding: WidgetStateProperty.all(
-                  const EdgeInsets.symmetric(horizontal: 8),
+                  // 3个按钮空间较挤，进一步减小横向 Padding
+                  const EdgeInsets.symmetric(horizontal: 4),
                 ),
-                // 确保点击区域和布局对齐
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-
               showSelectedIcon: false,
+              // [修改 2] 增加字幕 Segment
               segments: const [
-                ButtonSegment<bool>(
-                  value: true,
-                  // 建议：在该高度下，Icon 和 Text 可能有些拥挤，可以微调 Icon 大小
-                  icon: Icon(Icons.music_note, size: 16),
-                  label: Text("音频", style: TextStyle(fontSize: 12)),
+                ButtonSegment<ScanMode>(
+                  value: ScanMode.audio,
+                  icon: Icon(Icons.music_note, size: 14), // 稍微调小图标以防溢出
+                  label: Text("音频", style: TextStyle(fontSize: 11)),
                 ),
-                ButtonSegment<bool>(
-                  value: false,
-                  icon: Icon(Icons.videocam, size: 16),
-                  label: Text("视频", style: TextStyle(fontSize: 12)),
+                ButtonSegment<ScanMode>(
+                  value: ScanMode.video,
+                  icon: Icon(Icons.videocam, size: 14),
+                  label: Text("视频", style: TextStyle(fontSize: 11)),
+                ),
+                ButtonSegment<ScanMode>(
+                  value: ScanMode.subtitles,
+                  icon: Icon(Icons.subtitles, size: 14),
+                  label: Text("字幕", style: TextStyle(fontSize: 11)),
                 ),
               ],
-              selected: {state.isAudioMode},
+              // [修改 3] 绑定新的 state.scanMode
+              selected: {state.scanMode},
+              // [修改 4] 调用 switchMode
               onSelectionChanged: state.isScanning
                   ? null
-                  : (Set<bool> newSelection) {
-                notifier.toggleMode(newSelection.first);
+                  : (Set<ScanMode> newSelection) {
+                notifier.switchMode(newSelection.first);
               },
             ),
           ),
@@ -107,7 +118,6 @@ class ScannerPage extends ConsumerWidget {
         icon: const Icon(Icons.folder_copy_outlined),
         label: const Text("管理路径"),
         onPressed: () {
-          // --- 调用新封装的组件 ---
           PathManagerSheet.show(context);
         },
       ),

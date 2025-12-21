@@ -1,15 +1,16 @@
 import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/service/file_scanner_service.dart';
 import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/local_media/data/service/tree_service.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../features/album/data/model/file_node.dart';
@@ -93,7 +94,11 @@ class PlayerController extends Notifier<AppPlayerState> {
     // 当前播放曲目
     handler.mediaItem.listen((item) {
       _updateSubtitleState(item);
-      state = state.copyWith(currentTrack: item);
+      if (state.currentTrack?.id != item?.id) {
+        state = state.copyWith(
+          currentTrack: item,
+        );
+      }
       _updateSkipInfo();
       if(state.currentTrack != null){
         _saveState();
@@ -237,32 +242,81 @@ class PlayerController extends Notifier<AppPlayerState> {
     await (handler as MyAudioHandler).clearPlaylist();
   }
   // 私有方法，交给监听器触发
-  void _updateSubtitleState(MediaItem? currentItem) {
-    if (currentItem?.id == state.currentTrack?.id){
-      //相等就说明状态已更新，避免重复更新
-      return;
-    }
-    debugPrint("当前字幕列表: ${state.subtitleList}");
-    if (currentItem == null || state.subtitleList.isEmpty) {
-      state = state.copyWith(subtitleList: [], currentSubtitle: null);
-      return;
-    }
-    // 2. 准备文件名列表供算法匹配
-    final currentSongName = currentItem.title; // 或者 currentItem.displayTitle
-    final subtitleNames = state.subtitleList.map((e) => e.title).toList();
+  void _updateSubtitleState(MediaItem? currentItem) async {
+    // 1. 状态拦截
+    if (currentItem?.id == state.currentTrack?.id) return;
 
-    // 3. 调用匹配服务
-    final bestMatchName = SearchLyricsService.findBestMatch(
-      currentSongName,
-      subtitleNames,
-    );
-    // 4. 找到对应的 FileNode 对象
-    FileNode? bestNode;
-    if (bestMatchName != null) {
-      bestNode = state.subtitleList.firstWhere((e) => e.title == bestMatchName);
+    if (currentItem == null) {
+      state = state.copyWith(subtitleList: [], currentSubtitle: null, currentTrack: null);
+      return;
     }
+    // 临时存放候选字幕列表
+    List<FileNode> foundSubtitles = List.from(state.subtitleList);
+    final currentSongName = currentItem.title;
+
+    // 2. 如果当前 state 没有字幕，则去本地库查找
+    if (foundSubtitles.isEmpty) {
+      // 1. 获取缓存数据并构建树 (内存操作，很快)
+      final subTitleFiles = await CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
+      final paths = await CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
+
+      // 这里的 fileTree 包含了文件夹结构和压缩包结构(因为之前的MediaTreeBuilder改造过)
+      final fileTree = MediaTreeBuilder.build(subTitleFiles, paths);
+
+      final workString = currentItem.extras?['workData'];
+
+      if (workString != null) {
+        try {
+          final workJson = jsonDecode(workString);
+          final workId = workJson['id']?.toString() ?? "";
+
+          if (workId.isNotEmpty) {
+            debugPrint("开始在内存树中查找 ID: $workId");
+
+            // 2. 在树中查找目标节点
+            final targetNode = SearchLyricsService.findNodeInTree(fileTree, workId);
+
+            if (targetNode != null) {
+              debugPrint("命中树节点: ${targetNode.title} (Hash: ${targetNode.hash})");
+
+              // 3. 提取该节点下的所有字幕
+              final subNodes = SearchLyricsService.flattenSubtitles(targetNode);
+
+              if (subNodes.isNotEmpty) {
+                foundSubtitles = subNodes;
+                debugPrint("从缓存树中提取到 ${subNodes.length} 个字幕");
+              }
+            } else {
+              debugPrint("缓存树中未找到匹配的文件夹或压缩包");
+              //TODO 如果缓存没找到，是否要触发一次磁盘扫描？
+            }
+          }
+        } catch (e) {
+          debugPrint("处理树查找失败: $e");
+        }
+      }
+    }
+
+    // 3. 执行匹配算法
+    FileNode? bestMatchNode;
+    if (foundSubtitles.isNotEmpty) {
+      final subtitleNames = foundSubtitles.map((e) => e.title).toList();
+      final bestMatchName = SearchLyricsService.findBestMatch(
+        currentSongName,
+        subtitleNames,
+      );
+
+      if (bestMatchName != null) {
+        bestMatchNode = foundSubtitles.firstWhere((e) => e.title == bestMatchName);
+      }
+    }
+
+    // 4. 最终状态更新
     state = state.copyWith(
-      currentSubtitle: bestNode ?? FileNode(type: NodeType.text, title: currentSongName), // 如果没匹配到则为 null
+      currentTrack: currentItem,
+      subtitleList: foundSubtitles,
+      // 如果匹配到了就用匹配的，否则给一个占位符或保持为 null
+      currentSubtitle: bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName),
     );
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
