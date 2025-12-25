@@ -10,6 +10,8 @@
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
-![输入图片说明](assets/images/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-12-25%20204723.png)
+<div align="center">
+  <img src="assets/images/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-12-25%20204723.png" width="900" alt="ui展示">
+</div>
 
 
