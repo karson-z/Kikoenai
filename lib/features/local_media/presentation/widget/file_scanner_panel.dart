@@ -117,7 +117,6 @@ class _FileList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. 扫描中且无数据
     if (state.isScanning && state.treeRoot.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/routes/app_routes.dart'; // 确保这个路径正确
 
@@ -25,7 +26,7 @@ const List<NavigationItem> appNavigationItems = [
   ),
   NavigationItem(
     label: '分类',
-    icon: Icon(Icons.category_rounded),
+    icon: Icon(Icons.auto_awesome_outlined),
     routePath: AppRoutes.category, // e.g., "/album"
   ),
   NavigationItem(
@@ -33,6 +34,11 @@ const List<NavigationItem> appNavigationItems = [
     icon: Icon(Icons.settings_outlined),
     routePath: AppRoutes.settings, // e.g., "/settings"
   ),
-  NavigationItem(label: '我的', icon:Icon(Icons.person_pin), routePath: AppRoutes.user),
+  NavigationItem(
+    label: '我的',
+    // 完美符合：带外圆的用户图标
+    icon: Icon(Icons.account_circle_outlined),
+    routePath: AppRoutes.user,
+  ),
   NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)
 ];

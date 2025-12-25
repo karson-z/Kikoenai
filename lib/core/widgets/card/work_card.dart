@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
@@ -61,7 +62,7 @@ class WorkCard extends StatelessWidget {
                             imageUrl: work.thumbnailCoverUrl ?? "",
                             fit: BoxFit.cover,
                             placeholder: (_, __) =>
-                            const Center(child: CircularProgressIndicator()),
+                            const Center(child: LottieLoadingIndicator(size: 100)),
                             errorWidget: (_, __, ___) => Container(
                               color: Colors.grey[300],
                               child: const Icon(Icons.broken_image),
@@ -125,7 +126,7 @@ class WorkCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       MouseRegion(
-                        cursor: SystemMouseCursors.click, // 核心代码：设置鼠标样式为点击（小手）
+                        cursor: SystemMouseCursors.click,
                         child: Consumer(
                           builder: (context,ref,child){
                             return GestureDetector(

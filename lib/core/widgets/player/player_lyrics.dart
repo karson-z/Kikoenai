@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart'; // 1. 引入新库
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:kikoenai/core/widgets/player/provider/lyrics_provider.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../model/lyric_model.dart';
@@ -27,14 +27,10 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   @override
   void initState() {
     super.initState();
-    ref.read(lyricsProvider.notifier).loadLyrics();
+    // 初始化加载歌词
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
-        // 初始定位
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final index = ref.read(currentLyricIndexProvider);
-          _scrollToIndex(index);
-        });
+        ref.read(lyricsProvider.notifier).loadLyrics();
       }
     });
   }
@@ -44,19 +40,19 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
     super.dispose();
   }
 
+  // 滚动到指定索引的通用方法
   Future<void> _scrollToIndex(int index) async {
     final isDragging = ref.read(lyricScrollStateProvider);
 
-    // 检查是否正在拖拽，以及 controller 是否已绑定
+    // 如果正在拖拽，或者控制器还没绑定好，就不自动滚动
     if (isDragging || !_itemScrollController.isAttached) return;
 
-    // 3. 使用新库的滚动 API
     try {
       _itemScrollController.scrollTo(
         index: index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
-        alignment: 0.5, // 【核心】0.5 表示将 item 的中心对齐到视窗的中心
+        alignment: 0.5, // 0.5 表示垂直居中
       );
     } catch (e) {
       debugPrint("Scroll Error: $e");
@@ -66,8 +62,9 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final activeIndex = ref.watch(currentLyricIndexProvider);
 
-    // 监听字幕变化，如果发生变化，重新加载歌词
+    // 监听字幕源变化，重新加载歌词
     ref.listen(
         playerControllerProvider.select((s) => s.subtitleList),
             (previous, next) {
@@ -77,7 +74,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
         });
 
     final lyricsAsync = ref.watch(lyricsProvider);
-    final activeIndex = ref.watch(currentLyricIndexProvider);
 
     // 监听拖拽状态结束 -> 恢复位置
     ref.listen<bool>(lyricScrollStateProvider, (previous, isDragging) {
@@ -121,15 +117,14 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   }
 
   Widget _buildLyricsList(List<LyricsLineModel> lyrics, int activeIndex) {
-    // 为了让第一行和最后一行也能居中，Padding 依然需要很大
-    // 但 ScrollablePositionedList 处理 padding 的方式更智能，通常建议设置为视窗的一半
-    final double verticalPadding = MediaQuery.of(context).size.height / 2.2;
+    // 1. 获取屏幕高度
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double topPadding = screenHeight * 0.15;
+    final double bottomPadding = screenHeight / 2;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         final notifier = ref.read(lyricScrollStateProvider.notifier);
-
-        // 触屏/触控板拖拽逻辑
         if (notification is ScrollStartNotification) {
           if (notification.dragDetails != null) {
             notifier.startDragging();
@@ -141,7 +136,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
         }
         return false;
       },
-      // 电脑端鼠标滚轮支持
       child: Listener(
         onPointerSignal: (event) {
           if (event is PointerScrollEvent) {
@@ -155,22 +149,29 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
             return const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              // 顶部 0.0~0.15 渐变透明，底部 0.85~1.0 渐变透明
               colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
               stops: [0.0, 0.15, 0.85, 1.0],
             ).createShader(bounds);
           },
           blendMode: BlendMode.dstIn,
-          // 4. 替换 ListView 为 ScrollablePositionedList
           child: ScrollablePositionedList.builder(
             itemCount: lyrics.length,
             itemScrollController: _itemScrollController,
             itemPositionsListener: _itemPositionsListener,
-            padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: 24),
+            padding: EdgeInsets.only(
+                top: topPadding,
+                bottom: bottomPadding,
+                left: 24,
+                right: 24
+            ),
+
+            initialScrollIndex: activeIndex,
+            initialAlignment: 0.5,
+
             itemBuilder: (context, index) {
               final line = lyrics[index];
               final isActive = index == activeIndex;
-
-              // 5. 不再需要 AutoScrollTag，直接返回 Item
               return _buildLyricItem(line, isActive);
             },
           ),

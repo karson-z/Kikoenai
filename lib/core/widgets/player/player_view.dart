@@ -144,7 +144,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
       MediaItem? currentTrack,
       PanelController panelControl
       ) {
-    // 桌面端封面尺寸可以固定或稍大
     const imageSize = 350.0;
 
     return Column(
@@ -157,40 +156,47 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
             children: [
               // 左侧：封面 + 控制区
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _cover(imageSize, currentTrack),
-                    const SizedBox(height: 40),
-                    _info(currentTrack),
-                    const SizedBox(height: 30),
-                    // 桌面端进度条可以放在左侧，也可以放底部，这里放在左侧示例
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 48.0),
-                      child: PlayerProgressBar(),
+                // 【修改点 1】包裹 Center，确保高度充足时内容垂直居中
+                child: Center(
+                  // 【修改点 2】包裹 SingleChildScrollView，确保高度不足时可滚动，消除溢出
+                  child: SingleChildScrollView(
+                    child: Column(
+                      // 【修改点 3】设为 min，让 Column 高度随内容自适应，配合 Center 使用
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _cover(imageSize, currentTrack),
+                        const SizedBox(height: 40),
+                        _info(currentTrack),
+                        const SizedBox(height: 30),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 48.0),
+                          child: PlayerProgressBar(),
+                        ),
+                        const SizedBox(height: 30),
+                        _controls(ref),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                            width: 300,
+                            child: _volume(ref)
+                        ),
+                        // 底部加一点安全距离，防止滚动到底太贴边
+                        const SizedBox(height: 20),
+                      ],
                     ),
-                    const SizedBox(height: 30),
-                    _controls(ref),
-                    const SizedBox(height: 20),
-                    // 限制音量条宽度
-                    SizedBox(
-                        width: 300,
-                        child: _volume(ref)
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
-              // 右侧：歌词区
+              // 右侧：歌词区 (保持不变)
               Expanded(
                 flex: 1,
                 child: Container(
                   margin: const EdgeInsets.only(right: 32, top: 32, bottom: 32),
                   decoration: BoxDecoration(
-                    color: Colors.black12, // 可选：给歌词区加一点背景区分
+                    color: Colors.black12,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  // 桌面端歌词不需要点击切换，一直显示
                   child: const LyricsView(),
                 ),
               ),
@@ -223,20 +229,26 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
       key: const ValueKey('cover_info_group'),
       width: double.infinity,
       color: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, // 居中对齐即可，代替 Spacer
-        children: [
-          // 封面区域
-          GestureDetector(
-            onTap: _toggleLyrics,
-            child: _cover(imageSize, currentTrack),
-          ),
+      // 【修改点】包裹一个 SingleChildScrollView
+      child: SingleChildScrollView(
+        // 设置为 BouncingScrollPhysics 或 ClampingScrollPhysics
+        // 这样在没有大幅溢出时不会出现滚动条的视觉干扰
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 封面区域
+            GestureDetector(
+              onTap: _toggleLyrics,
+              child: _cover(imageSize, currentTrack),
+            ),
 
-          const SizedBox(height: 28),
+            const SizedBox(height: 28),
 
-          // 信息区域
-          _info(currentTrack),
-        ],
+            // 信息区域
+            _info(currentTrack),
+          ],
+        ),
       ),
     );
   }
@@ -297,43 +309,53 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
     final isFirst = ref.watch(playerControllerProvider.select((s) => s.isFirst));
     final isLast = ref.watch(playerControllerProvider.select((s) => s.isLast));
 
-    return Row( // 去掉 padding，由外部控制
-      mainAxisAlignment: MainAxisAlignment.center, // 居中
-      children: [
-        IconButton(
-          onPressed: () => controller.setRepeat(AudioServiceRepeatMode.none),
-          icon: const Icon(Icons.repeat, color: Colors.white),
-        ),
-        const SizedBox(width: 24),
-        IconButton(
-          onPressed: isFirst ? null : controller.previous,
-          icon: const Icon(Icons.skip_previous_rounded,
-              color: Colors.white, size: 36),
-        ),
-        const SizedBox(width: 16),
-        GestureDetector(
-          onTap: () => playing ? controller.pause() : controller.play(),
-          child: Container( // 加个圆圈背景更好看
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 54,
-              color: Colors.white,
+    // 【修改点】添加 Padding 和 FittedBox
+    return Padding(
+      // 给左右留一点安全边距，防止贴边
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: FittedBox(
+        // BoxFit.scaleDown 表示：只有当宽度不足时才缩小，宽度够时保持原大
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () => controller.setRepeat(AudioServiceRepeatMode.none),
+              icon: const Icon(Icons.repeat, color: Colors.white),
             ),
-          ),
+            const SizedBox(width: 24),
+            IconButton(
+              onPressed: isFirst ? null : controller.previous,
+              icon: const Icon(Icons.skip_previous_rounded,
+                  color: Colors.white, size: 36),
+            ),
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: () => playing ? controller.pause() : controller.play(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  size: 54,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            IconButton(
+              onPressed: isLast ? null : controller.next,
+              icon: const Icon(Icons.skip_next_rounded,
+                  color: Colors.white, size: 36),
+            ),
+            const SizedBox(width: 24),
+            IconButton(
+              onPressed: widget.onQueuePressed,
+              icon: const Icon(Icons.queue_music_sharp, color: Colors.white),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        IconButton(
-          onPressed: isLast ? null : controller.next,
-          icon: const Icon(Icons.skip_next_rounded,
-              color: Colors.white, size: 36),
-        ),
-        const SizedBox(width: 24),
-        IconButton(
-          onPressed: widget.onQueuePressed, // 使用 widget.onQueuePressed
-          icon: const Icon(Icons.queue_music_sharp, color: Colors.white),
-        ),
-      ],
+      ),
     );
   }
 

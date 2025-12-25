@@ -124,12 +124,11 @@ class ScannerService {
         isolate?.kill(priority: Isolate.immediate);
       },
     );
-
     return controller.stream;
   }
 
   // --- 后台 Isolate 入口 ---
-  static void _isolateEntry(IsolateInitParams params) {
+  static Future<void> _isolateEntry(IsolateInitParams params) async {
     final dir = Directory(params.rootPath);
     List<AppMediaItem> buffer = [];
     const int batchSize = 10;
@@ -137,44 +136,50 @@ class ScannerService {
     final validExts = params.allowExts.map((e) => e.toLowerCase()).toSet();
     final bool scanArchives = params.mode == ScanMode.subtitles;
 
-    try {
-      if (dir.existsSync()) {
-        final entities = dir.listSync(recursive: true);
+    void addToBuffer(AppMediaItem item) {
+      buffer.add(item);
+      // 严格控制：每加一条都检查，确保压缩包内产生的数据也会分批发送
+      if (buffer.length >= batchSize) {
+        params.sendPort.send(List<AppMediaItem>.from(buffer));
+        buffer.clear();
+      }
+    }
 
-        for (var entity in entities) {
+    try {
+      if (await dir.exists()) {
+        // 1. 使用 stream 流式遍历，不再阻塞等待整个列表构建
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
           if (entity is File) {
             final path = entity.path;
-            // 简单检查是否有扩展名
             if (!path.contains('.')) continue;
 
             final ext = path.substring(path.lastIndexOf('.')).toLowerCase();
 
-            // 1. 普通文件处理
+            // A. 普通文件处理
             if (validExts.contains(ext)) {
               final item = _parseItemByMode(entity, params.mode);
-              buffer.add(item);
+              addToBuffer(item);
             }
-            // 2. [修改] 压缩包文件处理 (使用 ArchiveService)
+            // B. 压缩包文件处理
             else if (scanArchives && ArchiveService.isArchive(path)) {
-              // 调用服务扫描
-              final entries = ArchiveService.scanZip(entity, allowedExts: validExts);
+              try {
+                final entries = ArchiveService.scanZip(entity, allowedExts: validExts);
 
-              for (var entry in entries) {
-                buffer.add(AppMediaItem(
-                  path: entry.virtualPath, // 现在是 /path/to.zip/sub.srt
-                  fileName: entry.name,
-                  title: entry.name,
-                  artist: "压缩包字幕",
-                  album: entity.uri.pathSegments.last,
-                  durationSeconds: 0,
-                  coverBytes: null,
-                ));
+                for (var entry in entries) {
+                  final zipItem = AppMediaItem(
+                    path: entry.virtualPath,
+                    fileName: entry.name,
+                    title: entry.name,
+                    artist: "压缩包字幕",
+                    album: entity.uri.pathSegments.last,
+                    durationSeconds: 0,
+                    coverBytes: null,
+                  );
+                  addToBuffer(zipItem); // 关键点：在循环内部调用，严格切分
+                }
+              } catch (e) {
+                debugPrint("ScannerService: 压缩包解析失败 $path - $e");
               }
-            }
-            // 发送缓冲
-            if (buffer.length >= batchSize) {
-              params.sendPort.send(List<AppMediaItem>.from(buffer));
-              buffer.clear();
             }
           }
         }
@@ -182,8 +187,10 @@ class ScannerService {
     } catch (e) {
       debugPrint("ScannerService: 后台扫描错误: $e");
     } finally {
+      // 发送剩余的不足 batchSize 的数据
       if (buffer.isNotEmpty) {
-        params.sendPort.send(buffer);
+        params.sendPort.send(List<AppMediaItem>.from(buffer));
+        buffer.clear();
       }
       params.sendPort.send('DONE');
     }

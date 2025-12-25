@@ -1,6 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart'; // 假设你用了这个包
+import 'package:kikoenai/features/album/data/model/file_node.dart';
 
 class AppPlayerState {
   final bool playing;
@@ -13,10 +13,8 @@ class AppPlayerState {
   final bool shuffleEnabled;
   final AudioServiceRepeatMode repeatMode;
   final double volume;
-
-  // --- 新增状态 ---
   final List<FileNode> subtitleList; // 字幕列表 (例如文件路径列表)
-  final FileNode? currentSubtitle;   // 当前选中的字幕 (可能为空)
+  final FileNode? currentSubtitle;   // 当前选中的字幕
   // ----------------
 
   AppPlayerState({

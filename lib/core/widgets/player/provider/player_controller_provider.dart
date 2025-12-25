@@ -37,8 +37,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     final cacheService = CacheService.instance;
     final savedState = await cacheService.getPlayerState();
     if (savedState == null) return;
-    // 恢复字幕
-    state = state.copyWith(subtitleList: savedState.subtitleList,currentSubtitle: savedState.currentSubtitle);
     // 1. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
@@ -55,7 +53,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (progress > Duration.zero) {
       await handler.seek(progress);
     }
-
+    // 恢复字幕
+    state = state.copyWith(subtitleList: savedState.subtitleList,currentSubtitle: savedState.currentSubtitle);
     // 4. 恢复音量
     if (handler is MyAudioHandler) {
       await (handler as MyAudioHandler).setVolume(savedState.volume);
@@ -68,7 +67,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     await handler.setShuffleMode(
       savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
-
   }
 
   /// 监听播放状态变化

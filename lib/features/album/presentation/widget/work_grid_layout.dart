@@ -3,7 +3,8 @@ import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
-/// 响应式卡片网格布局
+import '../../../../core/widgets/loading/lottie_loading.dart';
+
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Work> work;
   final bool hasMore;
@@ -19,45 +20,65 @@ class ResponsiveCardGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
 
-    return SliverGrid.builder(
-      itemCount: work.length + 1, // 多 1 个专门用来显示 footer
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 240,
-        crossAxisSpacing: horizontalSpacing,
-        mainAxisSpacing: verticalSpacing,
-        childAspectRatio: 0.75,
-      ),
-      itemBuilder: (context, index) {
-        // 到达列表最后一个 index → 触发加载更多
-        if (index == work.length) {
-          // 调用 loadMore（但不重复触发）
-          if (hasMore) {
-            onLoadMore();
-          }
-          return _buildFooter();
-        }
-        return WorkCard(work: work[index]);
-      },
+    return SliverMainAxisGroup(
+      slivers: [
+        // 1. 内容区域 (负责触发加载)
+        SliverGrid.builder(
+          itemCount: work.length,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            crossAxisSpacing: horizontalSpacing,
+            mainAxisSpacing: verticalSpacing,
+            childAspectRatio: 0.75,
+          ),
+          itemBuilder: (context, index) {
+            // --- 核心修复：基于 Index 的触发逻辑 ---
+            // 只有当渲染到最后一个 Item，且还有更多数据，且当前没有在加载时，才触发
+            if (index == work.length - 1 && hasMore) {
+              // 使用 postFrameCallback 确保不在 build 周期内直接 setState
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onLoadMore();
+              });
+            }
+            // -------------------------------------
+
+            return WorkCard(work: work[index]);
+          },
+        ),
+
+        // 2. 底部 Footer 区域 (只负责显示，不负责逻辑)
+        SliverToBoxAdapter(
+          child: _buildFooter(context),
+        ),
+      ],
     );
   }
 
-  Widget _buildFooter() {
-    if (!hasMore) {
+// ... 在 ResponsiveCardGrid 类中 ...
+
+  Widget _buildFooter(BuildContext context) {
+    // 1. 没有更多数据
+    if (!hasMore && work.isNotEmpty) {
       return const Center(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(24),
           child: Text(
-            "没有更多内容了",
-            style: TextStyle(color: Colors.grey),
+            "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
+            style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
         ),
       );
     }
 
-    return const SizedBox.shrink();
+    // 2. 加载中 / 待机中 (显示 Lottie)
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: LottieLoadingIndicator(
+        size: 80, // Lottie 动画通常需要稍微大一点才看得清细节
+      ),
+    );
   }
 }

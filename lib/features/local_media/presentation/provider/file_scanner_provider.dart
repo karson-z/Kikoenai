@@ -39,8 +39,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       return false;
     }
 
-    // --- [关键步骤 1] 操作前，必须暂停所有文件监听 ---
-    // 否则 Android 会认为文件夹正在被使用，禁止重命名
     _stopAllWatchers();
     // ---------------------------------------------
 
@@ -231,12 +229,29 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     }
 
     List<AppMediaItem> accumulator = [];
+
+    // [新增] 用于节流的时间戳
+    DateTime lastUiUpdateTime = DateTime.now();
+    // [新增] 定义节流阈值 (例如 500毫秒刷新一次 UI)
+    const throttleDuration = Duration(milliseconds: 500);
+
     _scanSubscription = mergedController.stream.listen(
             (batch) {
           accumulator.addAll(batch);
-          state = state.copyWith(statusMsg: "已发现 ${accumulator.length} 个文件...");
+          final now = DateTime.now();
+          if (now.difference(lastUiUpdateTime) > throttleDuration) {
+            _updateStateAndPersistence(
+                accumulator,
+                paths,
+                msg: "正在扫描...已发现 ${accumulator.length} 个文件"
+            );
+            lastUiUpdateTime = now; // 重置时间戳
+          } else {
+            state = state.copyWith(statusMsg: "正在扫描...已发现 ${accumulator.length} 个文件");
+          }
         },
         onDone: () {
+          // 3. 扫描结束，必须执行最后一次完整的更新，确保没有遗漏数据
           _updateStateAndPersistence(accumulator, paths, msg: "扫描完成");
           _setupFileWatchers(paths);
         },

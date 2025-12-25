@@ -12,7 +12,7 @@ class VerticalCardColumn extends StatelessWidget {
     super.key,
     required this.items,
     required this.width,
-    this.cardHeight = 75,
+    this.cardHeight = 35,
     required this.maxHeight,
   });
 

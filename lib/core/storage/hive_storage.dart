@@ -1,12 +1,8 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive_ce/hive.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/adapter/work_adapter.dart';
 import 'package:path_provider/path_provider.dart';
-
-import '../../features/album/data/model/work_info.dart';
 import '../adapter/file_node_adapter.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
@@ -35,7 +31,6 @@ class HiveStorage {
     } else {
       await Hive.initFlutter();
     }
-
     // 2. 注册所有 Adapter
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());
@@ -70,7 +65,7 @@ class HiveStorage {
       try {
         await Hive.deleteBoxFromDisk(boxName);
       } catch (delError) {
-        debugPrint("❌ 删除 Box 失败 (可能文件被占用): $delError");
+        debugPrint("删除 Box 失败 (可能文件被占用): $delError");
       }
       final box = await Hive.openBox(boxName);
       _boxes[boxName] = box;

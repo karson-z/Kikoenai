@@ -5,7 +5,6 @@ import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../theme/theme_view_model.dart';
-
 class MiniPlayer extends ConsumerWidget {
   final VoidCallback onTap;
   const MiniPlayer({
@@ -25,7 +24,7 @@ class MiniPlayer extends ConsumerWidget {
     final iconColor = isDark ? Colors.white : Colors.black87;
     final baseColor = isDark ? Colors.black : Colors.white;
     final progressColor = bg.dominantColor;
-    final total = (playerState.currentTrack?.duration ?? Duration.zero).inMilliseconds.toDouble();
+    final total = (playerState.progressBarState.total).inMilliseconds.toDouble();
     final progressValue = total == 0 ? 0.0 : (playerState.progressBarState.current.inMilliseconds / total).clamp(0.0, 1.0);
 
     const String placeholderImage = 'assets/images/placeholder.png'; // 替换为实际占位图路径
@@ -46,7 +45,7 @@ class MiniPlayer extends ConsumerWidget {
             stops: [
               0.0,
               progressValue,
-              progressValue + 0.03,
+              progressValue + 0.01,
               1.0,
             ],
             begin: Alignment.centerLeft,

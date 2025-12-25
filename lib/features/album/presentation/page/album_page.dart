@@ -20,12 +20,11 @@ class AlbumPage extends ConsumerStatefulWidget {
   ConsumerState<AlbumPage> createState() => _AlbumPageState();
 }
 
-class _AlbumPageState extends ConsumerState<AlbumPage> {
+class _AlbumPageState extends ConsumerState<AlbumPage> with TickerProviderStateMixin {
   final List<SortOrder> sortOrders = SortOrder.values;
   @override
   void initState() {
     super.initState();
-
     // 仅保留数据加载逻辑
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final workNotifier = ref.read(worksNotifierProvider.notifier);

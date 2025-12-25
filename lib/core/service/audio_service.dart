@@ -32,10 +32,13 @@ final audioHandlerFutureProvider = Provider<AudioHandler>((ref) {
 
 class MyAudioHandler extends BaseAudioHandler {
   final AudioPlayer _player = AudioPlayer();
+  bool _alreadyCompleted = false;
   // 自己维护的播放列表
   final List<MediaItem> _playlist = [];
   int _currentIndex = -1;
   bool _isPlaylistPrepared = false;
+  // 获取当前播放列表
+  List<MediaItem> get playlist => List.unmodifiable(_playlist);
 
   MyAudioHandler() {
     _notifyAudioHandlerAboutPlaybackEvents();
@@ -52,26 +55,23 @@ class MyAudioHandler extends BaseAudioHandler {
       return;
     }
 
+    // 1. 更新当前媒体项信息
     final newMediaItem = _playlist[_currentIndex];
-    final url = newMediaItem.extras!['url'] as String;
-
     mediaItem.add(newMediaItem);
-    playbackState.add(playbackState.value.copyWith(
-      queueIndex: _currentIndex,
-      playing: false,
-      processingState: AudioProcessingState.loading,
-    ));
 
+    // 2. 更新队列索引给 AudioService
+    playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
+
+    // 3. 准备播放源
     try {
+      final url = newMediaItem.extras!['url'] as String;
       await _player.setAudioSource(_buildAudioSource(url));
-
-      playbackState.add(playbackState.value.copyWith(
-        queueIndex: _currentIndex,
-      ));
     } catch (e) {
       debugPrint("Error setting audio source: $e");
       playbackState.add(playbackState.value.copyWith(
         processingState: AudioProcessingState.error,
+        // 将错误信息传递给UI层
+        errorMessage: "无法加载音频，请检查网络或文件是否有效。",
       ));
     }
   }
@@ -119,6 +119,8 @@ class MyAudioHandler extends BaseAudioHandler {
       debugPrint("Error playing audio: $e");
       playbackState.add(playbackState.value.copyWith(
         processingState: AudioProcessingState.error,
+        // 将错误信息传递给UI层
+        errorMessage: "无法加载音频，请检查网络或文件是否有效。",
       ));
     }
   }
@@ -183,13 +185,11 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
   }
-  bool _alreadyCompleted = false;
   void _listenForPlaybackCompletion() {
     _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         if (_alreadyCompleted) return;  // 第二次 completed 会被直接忽略
         _alreadyCompleted = true;
-
         print("播放完成 → 跳下一首");
         _skipToNext();
       }
@@ -310,7 +310,9 @@ class MyAudioHandler extends BaseAudioHandler {
       _currentIndex = 0;
       await _playCurrentIndex();
     } else {
-      await _player.play();
+      if(_player.playerState.processingState == ProcessingState.ready){
+        await _player.play();
+      }
     }
   }
 
@@ -379,13 +381,14 @@ class MyAudioHandler extends BaseAudioHandler {
     _isPlaylistPrepared = false;
     return super.stop();
   }
-
-  // 获取当前播放列表
-  List<MediaItem> get playlist => List.unmodifiable(_playlist);
-
+  @override
+  Future<void> onTaskRemoved() async {
+    await _player.stop();
+    await _player.dispose();
+    await super.stop();
+  }
   // 清空播放列表
   Future<void> clearPlaylist() async {
-    await _player.stop();
     _playlist.clear();
     _currentIndex = -1;
     _isPlaylistPrepared = false;
