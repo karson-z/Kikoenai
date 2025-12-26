@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/utils/data/other.dart';

@@ -17,7 +17,6 @@ class ResponsiveHorizontalCardList extends StatefulWidget {
 class _ResponsiveHorizontalCardListState
     extends State<ResponsiveHorizontalCardList> {
   late final ScrollController _scrollController;
-  bool _isSnapping = false;
 
   @override
   void initState() {

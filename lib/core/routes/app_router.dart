@@ -11,7 +11,6 @@ import '../../features/settings/presentation/pages/settings_overview_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
-import '../../features/category/presentation/page/category_page.dart';
 import '../../features/search/presentation/page/search_page.dart';
 import '../widgets/common/login_dialog_manager.dart';
 import '../widgets/layout/app_main_scaffold.dart';
