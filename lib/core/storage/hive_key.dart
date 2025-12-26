@@ -35,6 +35,7 @@ class CacheKeys {
   static const String playlist = 'playlist';
   static const String currentTrack = 'currentTrack';
   static const String currentIndex = 'currentIndex';
+  static const String searchHistory = 'search_history';
   static const String history = 'history';
   static const String tagOption = 'tag';
   static const String vasOption = 'vas';

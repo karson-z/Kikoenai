@@ -19,13 +19,21 @@ class ResponsiveCardGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. 如果完全没有数据且没有更多了，显示“空状态”占满屏幕
+    if (work.isEmpty && !hasMore) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _buildEmptyView(),
+      );
+    }
+
     final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
 
     return SliverMainAxisGroup(
       slivers: [
-        // 1. 内容区域 (负责触发加载)
+        // 2. 内容区域
         SliverGrid.builder(
           itemCount: work.length,
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
@@ -35,21 +43,17 @@ class ResponsiveCardGrid extends StatelessWidget {
             childAspectRatio: 0.75,
           ),
           itemBuilder: (context, index) {
-            // --- 核心修复：基于 Index 的触发逻辑 ---
-            // 只有当渲染到最后一个 Item，且还有更多数据，且当前没有在加载时，才触发
+            // 触发加载更多的逻辑保持不变
             if (index == work.length - 1 && hasMore) {
-              // 使用 postFrameCallback 确保不在 build 周期内直接 setState
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 onLoadMore();
               });
             }
-            // -------------------------------------
-
             return WorkCard(work: work[index]);
           },
         ),
 
-        // 2. 底部 Footer 区域 (只负责显示，不负责逻辑)
+        // 3. 底部 Footer (负责 加载动画 或 到底提示)
         SliverToBoxAdapter(
           child: _buildFooter(context),
         ),
@@ -57,27 +61,41 @@ class ResponsiveCardGrid extends StatelessWidget {
     );
   }
 
-// ... 在 ResponsiveCardGrid 类中 ...
+  /// 专门的空状态视图
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.search_off, size: 54, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "这里什么都没有哦",
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildFooter(BuildContext context) {
-    // 1. 没有更多数据
-    if (!hasMore && work.isNotEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
+    // 情况 A: 还有数据，正在进行初始加载（此时 work 也是空）
+    // 或者滚动到底部触发加载更多时
+    if (hasMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: LottieLoadingIndicator(
+          message: "loading...",
+          size: 80,
         ),
       );
     }
 
-    // 2. 加载中 / 待机中 (显示 Lottie)
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: LottieLoadingIndicator(
-        size: 80, // Lottie 动画通常需要稍微大一点才看得清细节
+    // 情况 B: 没有更多数据了 (且列表不为空，因为空的已经被上面 SliverFillRemaining 拦截了)
+    return const Center(
+      child: Text(
+        "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
+        style: TextStyle(color: Colors.grey, fontSize: 12),
       ),
     );
   }

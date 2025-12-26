@@ -3,7 +3,7 @@ import '../../../../../core/model/search_tag.dart';
 
 class CategoryUiState {
   final bool editing;
-  final String? keyword;
+  final String? keyword; // 搜索的关键词
   final List<SearchTag> selected;
   final SortOrder sortOption;
   final SortDirection sortDirection;

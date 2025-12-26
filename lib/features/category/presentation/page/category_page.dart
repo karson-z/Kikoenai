@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/enums/tag_enum.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../../../../../../../core/enums/age_rating.dart';
 import '../../../../../../../core/enums/sort_options.dart';
-import '../../../../../../../core/widgets/common/collapsible_tab_bar.dart';
 import '../../../../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../../../album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../album/presentation/widget/work_grid_layout.dart';
@@ -97,103 +100,115 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
     return SafeArea(child: Scaffold(
       backgroundColor: bgColor,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // 1. 搜索栏 (Floating)
-          if(isMobile)
-          SliverAppBar(
-            expandedHeight: 80,
-            // 核心修复：面板打开时禁止悬浮，防止遮挡
-            floating: !uiState.isFilterOpen,
-            snap: !uiState.isFilterOpen,
+      body: RefreshIndicator(
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              // 1. 搜索栏 (Floating)
+              if(isMobile)
+                SliverAppBar(
+                  expandedHeight: 80,
+                  // 核心修复：面板打开时禁止悬浮，防止遮挡
+                  floating: !uiState.isFilterOpen,
+                  snap: !uiState.isFilterOpen,
 
-            backgroundColor: bgColor,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              background: MobileSearchAppBar(),
-            ),
-          ),
+                  backgroundColor: bgColor,
+                  elevation: 0,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: MobileSearchAppBar(
+                      onSearchTap: (){
+                        debugPrint("跳转到搜索页面");
+                        context.push(AppRoutes.search);
+                      },
+                    ),
+                  ),
+                ),
 
-          // 2. 排序与筛选栏 (Pinned)
-          SliverOverlapAbsorber(
-            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            sliver: SliverPersistentHeader(
-              pinned: true,
-              delegate: FilterHeaderDelegate(
-                ref: ref,
-                tabController: _tabController,
-                pinnedHeight: pinnedHeaderHeight, // 使用更紧凑的高度
-                sortOrders: sortOrders,
-                uiState: uiState,
-                uiNotifier: uiNotifier,
-                totalCount: totalCount,
-                scrollController: _autoScrollController,
-                buildFilterRow: _buildFilterRowContent, // 将你的构建函数传进去
-              ),
-            ),
-          ),
-        ],
-
-        // 3. Body (Stack 实现筛选面板覆盖)
-        body: Stack(
-          children: [
-            TabBarView(
-              controller: _tabController,
-              children: sortOrders.map((sortOrder) {
-                // 使用 Builder 获取正确的 context (用于 Injector)
-                return Builder(builder: (context) {
-                  return CustomScrollView(
-                    // 必须加上 key，保证每个 Tab 滚动状态独立
-                    key: PageStorageKey<String>(sortOrder.label),
-                    // 核心修复：面板打开时禁止底层滚动
-                    physics: uiState.isFilterOpen
-                        ? const NeverScrollableScrollPhysics()
-                        : const AlwaysScrollableScrollPhysics(),
-
-                    slivers: [
-                      // 1. 注入器：防止内容被吸顶 Header 遮挡
-                      SliverOverlapInjector(
-                        handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                      ),
-
-                      // 2. 列表内容
-                      ..._buildCommonContent(worksAsync, categoryController),
-
-                      // 3. 底部留白
-                      const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
-                    ],
-                  );
-                });
-              }).toList(),
-            ),
-
-            // 遮罩层
-            if (uiState.isFilterOpen)
-              Positioned.fill(
-                top: pinnedHeaderHeight,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque, // 拦截点击
-                  onTap: () => uiNotifier.toggleFilterDrawer(),
-                  child: Container(color: Colors.black54),
+              // 2. 排序与筛选栏 (Pinned)
+              SliverOverlapAbsorber(
+                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                sliver: SliverPersistentHeader(
+                  pinned: true,
+                  delegate: FilterHeaderDelegate(
+                    ref: ref,
+                    tabController: _tabController,
+                    pinnedHeight: pinnedHeaderHeight, // 使用更紧凑的高度
+                    sortOrders: sortOrders,
+                    uiState: uiState,
+                    uiNotifier: uiNotifier,
+                    totalCount: totalCount,
+                    scrollController: _autoScrollController,
+                    buildFilterRow: _buildFilterRowContent, // 将你的构建函数传进去
+                  ),
                 ),
               ),
+            ],
 
-            // 筛选面板 (动画)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              top: pinnedHeaderHeight,
-              left: 0,
-              right: 0,
-              child: _buildFilterDrawer(
-                  uiState, uiNotifier,
-                  bgColor, textColor, subTextColor, fillColor, dividerColor, primaryColor,
-                  _searchController // 传入控制器
-              ),
+            // 3. Body (Stack 实现筛选面板覆盖)
+            body: Stack(
+              children: [
+                TabBarView(
+                  controller: _tabController,
+                  children: sortOrders.map((sortOrder) {
+                    // 使用 Builder 获取正确的 context (用于 Injector)
+                    return Builder(builder: (context) {
+                      return CustomScrollView(
+                        // 必须加上 key，保证每个 Tab 滚动状态独立
+                        key: PageStorageKey<String>(sortOrder.label),
+                        // 核心修复：面板打开时禁止底层滚动
+                        physics: uiState.isFilterOpen
+                            ? const NeverScrollableScrollPhysics()
+                            : const AlwaysScrollableScrollPhysics(),
+
+                        slivers: [
+                          // 1. 注入器：防止内容被吸顶 Header 遮挡
+                          SliverOverlapInjector(
+                            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                          ),
+
+                          // 2. 列表内容
+                          ..._buildCommonContent(worksAsync, categoryController),
+
+                          // 3. 底部留白
+                          const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+                        ],
+                      );
+                    });
+                  }).toList(),
+                ),
+                if (uiState.isFilterOpen)
+                  Positioned.fill(
+                    top: pinnedHeaderHeight,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque, // 拦截点击
+                      onTap: () => uiNotifier.toggleFilterDrawer(),
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
+
+                // 筛选面板 (动画)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  top: pinnedHeaderHeight,
+                  left: 0,
+                  right: 0,
+                  child: _buildFilterDrawer(
+                      uiState, uiNotifier,
+                      bgColor, textColor, subTextColor, fillColor, dividerColor, primaryColor,
+                      _searchController // 传入控制器
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        onRefresh: () async {
+          await ref.refresh(categoryProvider.future);
+        },
+        notificationPredicate: (notification) {
+          // 默认只要深度不为 0 (即不是最外层) 就处理，通常不需要改
+          // 如果发现拉不动，可以尝试 return notification.depth == 2;
+          return defaultScrollNotificationPredicate(notification);
+        })
     ));
   }
 
@@ -222,24 +237,25 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     ];
   }
 
-
+  // ----------- 筛选行 --------------
   Widget _buildFilterRowContent(
       CategoryUiState uiState, CategoryUiNotifier notifier, int totalCount,
       Color bgColor, Color textColor, Color subTextColor, Color fillColor, Color primaryColor,
       AutoScrollController scrollController
       ) {
 
-    // 定义高度常量，方便统一调整
     const double rowHeight = 40.0;
     // 定义为了显示角标而需要的顶部偏移量
     const double badgeSpaceOffset = 6.0;
-
+    // 1. 判断是否有关键字
+    final bool hasKeyword = uiState.keyword != null && uiState.keyword!.isNotEmpty;
+    // 2. 计算列表总长度 (标签数 + 关键字占位)
+    final int itemCount = uiState.selected.length + (hasKeyword ? 1 : 0);
     return Container(
       color: bgColor,
       padding: const EdgeInsets.only(left: 16, right: 0),
       alignment: Alignment.centerLeft,
       child: Row(
-        // 使用 CrossAxisAlignment.start 让大家以顶部为基准对齐
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
@@ -278,74 +294,95 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
           // --- 2. 选中的 Tag 列表 (【核心修改区域】) ---
           Expanded(
-            // 【关键点】使用 ShaderMask 包裹 ListView 的容器
             child: ShaderMask(
               shaderCallback: (Rect bounds) {
-                // 创建一个从左到右的线性渐变
                 return const LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  // 颜色数组：前面是白色（代表不透明），最后是透明色
                   colors: [Colors.white, Colors.white, Colors.transparent],
-                  // 颜色分布点：0%~85% 是纯白（完全显示），85%~100% 渐变到透明（淡出）
                   stops: [0.0, 0.85, 1.0],
                 ).createShader(bounds);
               },
-              // 【关键混合模式】使用 dstIn，根据 shader 的 alpha 值来决定子组件的显示
               blendMode: BlendMode.dstIn,
 
               child: SizedBox(
                 height: rowHeight,
                 child: ListView.builder(
-                  // 保持裁剪，防止内容溢出边界
                   clipBehavior: Clip.hardEdge,
-
                   controller: scrollController,
                   scrollDirection: Axis.horizontal,
-                  itemCount: uiState.selected.length,
-
-                  // 顶部留出空间给角标
+                  itemCount: itemCount,
                   padding: const EdgeInsets.fromLTRB(0, 8, 4, 4),
 
                   itemBuilder: (context, index) {
-                    final tag = uiState.selected[index];
-                    final color = tag.isExclude ? const Color(0xFFFF4D4F) : primaryColor;
+                    final String displayText;
+                    final Color itemColor;
+                    final VoidCallback onDelete;
+                    final bool isKeywordItem = hasKeyword && index == 0;
+                    if (isKeywordItem) {
+                      displayText = "搜: ${uiState.keyword}";
+                      itemColor = primaryColor;
+                      onDelete = () => notifier.updateKeyword("", refreshData: true);
+                    } else {
+                      final tagIndex = hasKeyword ? index - 1 : index;
+                      final tag = uiState.selected[tagIndex];
+                      displayText = tag.name;
+                      itemColor = tag.isExclude ? const Color(0xFFFF4D4F) : primaryColor;
+                      onDelete = () => notifier.removeTag(tag.type, tag.name, refreshData: true);
+                    }
 
                     return AutoScrollTag(
-                      key: ValueKey(index),
+                      key: ValueKey(isKeywordItem ? "keyword_special_key" : index), // 确保 Key 唯一
                       controller: scrollController,
                       index: index,
                       child: Padding(
                         padding: const EdgeInsets.only(right: 12),
                         child: Stack(
-                          clipBehavior: Clip.none, // 允许角标悬浮
+                          clipBehavior: Clip.none,
                           children: [
                             Container(
                               alignment: Alignment.center,
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.1),
+                                color: itemColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: color, width: 1),
+                                border: Border.all(color: itemColor, width: 1),
                               ),
-                              child: Text(
-                                tag.name,
-                                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold, height: 1.2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 如果是关键字，额外加个小图标增强识别度（可选）
+                                  if (isKeywordItem)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Icon(Icons.search, size: 10, color: itemColor),
+                                    ),
+                                  Text(
+                                    displayText,
+                                    style: TextStyle(fontSize: 12, color: itemColor, fontWeight: FontWeight.bold, height: 1.2),
+                                  ),
+                                ],
                               ),
                             ),
-                            // 删除按钮
+                            // 删除按钮 (共用逻辑)
                             Positioned(
-                              top: -6, right: -6,
+                              top: -16,
+                              right: -16,
                               child: GestureDetector(
-                                onTap: () => notifier.removeTag(tag.type, tag.name, refreshData: true),
+                                onTap: onDelete,
+                                behavior: HitTestBehavior.opaque,
                                 child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[400],
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: bgColor, width: 1),
+                                  color: Colors.transparent, // 扩大点击区域
+                                  padding: const EdgeInsets.all(10),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[400],
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: bgColor, width: 1),
+                                    ),
+                                    child: const Icon(Icons.close, size: 10, color: Colors.white),
                                   ),
-                                  child: const Icon(Icons.close, size: 10, color: Colors.white),
                                 ),
                               ),
                             )
@@ -382,7 +419,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     return Material(
       color: bgColor,
       elevation: 4,
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
       child: AnimatedSize(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -561,7 +597,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: tagsAsync,
           uiState: uiState,
-          type: "tag", // 根据你实际后端的 type 字符串调整
+          type: TagType.tag.stringValue, // 根据你实际后端的 type 字符串调整
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
           fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
@@ -571,7 +607,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: circlesAsync,
           uiState: uiState,
-          type: "circle", // 根据你实际后端的 type 字符串调整
+          type: TagType.circle.stringValue, // 根据你实际后端的 type 字符串调整
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
           fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
@@ -581,7 +617,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: vasAsync,
           uiState: uiState,
-          type: "va", // 根据你实际后端的 type 字符串调整 (例如 "artist" 或 "va")
+          type: TagType.author.stringValue, // 根据你实际后端的 type 字符串调整 (例如 "artist" 或 "va")
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
           fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
@@ -606,6 +642,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     required Color textColor,
     required Color primaryColor,
   }) {
+
     return asyncValue.when(
       data: (originalList) {
         // 前端搜索过滤
@@ -650,7 +687,10 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         );
       },
       error: (err, stack) => const Center(child: Text("加载失败", style: TextStyle(color: Colors.red))),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(child: LottieLoadingIndicator(
+        assetPath: 'assets/animation/sakiko.json',
+        message: notifier.getLoadingMessage(type), // <--- 调用上面定义的方法
+      )),
     );
   }
 
@@ -723,7 +763,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       runSpacing: 12,
       children: ratings.map((rating) {
         final tagIndex = uiState.selected.indexWhere(
-              (t) => t.type == "age_rating" && t.name == rating.value,
+              (t) => t.type == TagType.age.stringValue && t.name == rating.value,
         );
         final isSelected = tagIndex != -1;
         final isExclude = isSelected ? uiState.selected[tagIndex].isExclude : false;
@@ -748,7 +788,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         }
 
         return InkWell(
-          onTap: () => notifier.toggleTag("age_rating", rating.value, refreshData: false),
+          onTap: () => notifier.toggleTag(TagType.age.stringValue, rating.value, refreshData: false),
           borderRadius: BorderRadius.circular(8),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),

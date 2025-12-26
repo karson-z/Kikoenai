@@ -55,6 +55,48 @@ class CacheService {
     }
     return null;
   }
+  //-------------------------------- 搜索关键字 -----------------------------
+  /// 获取搜索历史列表
+  Future<List<String>> getSearchHistory() async {
+    // 假设 key 为 'search_history'
+    final list = await _storage.get(BoxNames.cache, CacheKeys.searchHistory);
+    if (list is List) {
+      return list.cast<String>();
+    }
+    return [];
+  }
+
+  /// 添加搜索历史 (自动去重、置顶、限制数量)
+  Future<void> addSearchHistory(String keyword) async {
+    if (keyword.trim().isEmpty) return;
+
+    List<String> history = await getSearchHistory();
+
+    // 如果已存在，先移除（为了移到最前面）
+    history.remove(keyword);
+
+    // 插入到头部
+    history.insert(0, keyword);
+
+    // 限制最大数量 (例如 20 条)
+    if (history.length > 20) {
+      history = history.sublist(0, 20);
+    }
+
+    await _storage.put(BoxNames.cache, CacheKeys.searchHistory, history);
+  }
+
+  /// 删除单条历史
+  Future<void> removeSearchHistory(String keyword) async {
+    List<String> history = await getSearchHistory();
+    history.remove(keyword);
+    await _storage.put(BoxNames.cache, CacheKeys.searchHistory, history);
+  }
+
+  /// 清空所有历史
+  Future<void> clearSearchHistory() async {
+    await _storage.delete(BoxNames.cache, CacheKeys.searchHistory);
+  }
   // ------------------------------- 播放状态 -------------------------------
 
   Future<void> savePlayerState(AppPlayerState state) async {

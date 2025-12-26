@@ -3,7 +3,9 @@ enum TagType {
 
   author("va"),
 
-  circle("circle");
+  circle("circle"),
+
+  age("age");
 
   final String stringValue;
 

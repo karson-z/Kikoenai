@@ -12,7 +12,7 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
-import '../../features/test/search_page.dart';
+import '../../features/search/presentation/page/search_page.dart';
 import '../widgets/common/login_dialog_manager.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_auth_config.dart';
@@ -102,7 +102,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.test,
             pageBuilder: (context, state) => MaterialPage(
-              child: const AdvancedSearchPage(),
+              child: const SearchPage(),
             ),
           ),
         ],
@@ -119,6 +119,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MaterialPage(
           child: const PermissionSettingsPage(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.search,
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const SearchPage(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final tween = Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).chain(CurveTween(curve: Curves.easeOutQuart));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
+        },
       ),
     ],
   );

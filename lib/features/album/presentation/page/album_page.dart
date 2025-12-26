@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/enums/sort_options.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../viewmodel/provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
@@ -32,12 +34,6 @@ class _AlbumPageState extends ConsumerState<AlbumPage> with TickerProviderStateM
     });
   }
 
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final deviceType = WorkListLayout(
@@ -45,13 +41,17 @@ class _AlbumPageState extends ConsumerState<AlbumPage> with TickerProviderStateM
         .getDeviceType(context);
 
     final worksState = ref.watch(worksNotifierProvider);
-    // 保持 workNotifier 仅在需要时通过 ref.read() 获取
 
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
           ? PreferredSize(
         preferredSize: const Size.fromHeight(80), // 高度可根据需求调整
-        child: MobileSearchAppBar(),
+        child: MobileSearchAppBar(
+          onSearchTap: (){
+            debugPrint("跳转到搜索页面");
+            context.push(AppRoutes.search);
+          },
+        ),
       )
           :null,
       body: CustomScrollView(

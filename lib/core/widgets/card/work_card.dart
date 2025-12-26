@@ -62,7 +62,7 @@ class WorkCard extends StatelessWidget {
                             imageUrl: work.thumbnailCoverUrl ?? "",
                             fit: BoxFit.cover,
                             placeholder: (_, __) =>
-                            const Center(child: LottieLoadingIndicator(size: 100)),
+                            const Center(child: LottieLoadingIndicator(assetPath:'assets/animation/StarLoader.json',size: 80)),
                             errorWidget: (_, __, ___) => Container(
                               color: Colors.grey[300],
                               child: const Icon(Icons.broken_image),

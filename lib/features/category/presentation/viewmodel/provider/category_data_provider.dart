@@ -43,6 +43,10 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
       _debounceRefresh(); // 搜索建议使用防抖
     }
   }
+  void searchImmediately() {
+    _debounceTimer?.cancel();
+    ref.read(categoryProvider.notifier).refresh();
+  }
   void resetSelected(){
     state = state.copyWith(selected: []);
   }
@@ -92,7 +96,6 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
       if (!old.isExclude) {
         // 状态 2: 已选中(Include) -> 排除 (Exclude)
         // isExclude = true
-        // 保持在原位置修改状态
         tags[idx] = SearchTag(type, name, true);
       } else {
         // 状态 3: 已排除(Exclude) -> 取消 (Remove)
@@ -107,9 +110,23 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
       _debounceRefresh();
     }
   }
+  String getLoadingMessage(String type) {
+    switch (type) {
+      case 'tag':     // 请确保这里匹配你传入的 TagType.tag.stringValue
+        return "正在获取标签...";
+      case 'circle':  // 匹配 TagType.circle.stringValue
+        return "正在获取社团...";
+      case 'author':  // 匹配 TagType.author.stringValue (或 "va")
+      case 'va':
+        return "正在获取声优/作者...";
+      case 'age':
+        return "正在获取分级信息...";
+      default:
+        return "正在努力加载中...";
+    }
+  }
 
   /// 防抖刷新逻辑
-  /// 避免在三态切换过程中（例如用户快速连点两下切换到排除）频繁请求接口
   void _debounceRefresh({Duration duration = const Duration(milliseconds: 800)}) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(duration, () {
@@ -137,8 +154,8 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final prev = state.value ?? const CategoryState();
     final page = reset ? 1 : prev.currentPage + 1;
 
-    // 构建查询参数 (OtherUtil 内部需要支持 isExclude 字段的处理)
-    final queryParams = OtherUtil.buildTagQueryPath(ui.selected);
+    // 构建查询参数
+    final queryParams = OtherUtil.buildTagQueryPath(ui.selected,keyword: ui.keyword);
 
     if (reset) {
       state = const AsyncLoading();

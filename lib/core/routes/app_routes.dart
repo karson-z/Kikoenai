@@ -5,6 +5,7 @@ class AppRoutes {
   static const String detail = '/detail';
   static const String category = '/category';
   static const String settings = '/settings';
+  static const String search = '/search';
   static const String settingsTheme = '/settings/theme';
   static const String settingsPermission = '/settings/permission';
   static const String settingsPath = '/settings/path';

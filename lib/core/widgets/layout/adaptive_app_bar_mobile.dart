@@ -5,26 +5,36 @@ import '../../theme/theme_view_model.dart';
 
 class MobileSearchAppBar extends ConsumerWidget {
   final String hintText;
-  final Widget? bottom;
+  final VoidCallback? onSearchTap;
+
   const MobileSearchAppBar({
     Key? key,
-    this.bottom,
     this.hintText = '搜索作品...',
+    this.onSearchTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-
     final isDark = ref.watch(explicitDarkModeProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final topPadding = MediaQuery.of(context).padding.top;
         return Padding(
-          padding: EdgeInsets.only(top: topPadding + 16, left: 16, right: 16,bottom: 16),
+          padding: EdgeInsets.only(
+              top: topPadding + 16,
+              left: 16,
+              right: 16,
+              bottom: 16
+          ),
           child: Row(
             children: [
-              Expanded(child: GlobalSearchInput(hintText: hintText)),
+              Expanded(
+                child: GlobalSearchInput(
+                  hintText: hintText,
+                  onTap: onSearchTap,
+                ),
+              ),
               const SizedBox(width: 8),
               IconButton(
                 tooltip: isDark ? '切换为浅色模式' : '切换为深色模式',

@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
@@ -31,21 +30,6 @@ class _ResponsiveHorizontalCardListState
     _scrollController.dispose();
     super.dispose();
   }
-
-  // void _snapScroll(double cardWidth, double spacing) {
-  //   if (!_scrollController.hasClients || _isSnapping) return;
-  //
-  //   final scrollOffset = _scrollController.offset;
-  //   final singleItemExtent = cardWidth + spacing;
-  //   final targetIndex = (scrollOffset / singleItemExtent).round();
-  //   final targetOffset = targetIndex * singleItemExtent;
-  //
-  //   _isSnapping = true;
-  //   _scrollController
-  //       .animateTo(targetOffset,
-  //       duration: const Duration(milliseconds: 200), curve: Curves.easeOut)
-  //       .whenComplete(() => _isSnapping = false);
-  // }
 
   @override
   Widget build(BuildContext context) {
