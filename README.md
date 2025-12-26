@@ -1,16 +1,17 @@
-# demo
+<div align="center">
+  <img src="assets/images/138787745_p0_master1200.jpg" alt="Kikoenai" width="120" height="120">
 
-A new Flutter project.
+  # Kikoenai
 
-## Getting Started
+  **一个跨平台同人音声客户端，基于Kikoenai**
 
-This project is a starting point for a Flutter application.
+  [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
+  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A few resources to get you started if this is your first Flutter project:
+</div>
+<div align="center">
+  <img src="assets/images/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-12-25%20204723.png" width="900" alt="ui展示">
+</div>
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
