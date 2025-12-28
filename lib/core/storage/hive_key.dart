@@ -36,11 +36,12 @@ class CacheKeys {
   static const String currentTrack = 'currentTrack';
   static const String currentIndex = 'currentIndex';
   static const String searchHistory = 'search_history';
+  static const String currentHost = 'current_host';
   static const String history = 'history';
   static const String tagOption = 'tag';
   static const String vasOption = 'vas';
   static const String circleOption = 'circle';
-
+  static const String recommendUuid = 'recommend_uuid';
   static const String playerState = 'playerstate';
 
 }

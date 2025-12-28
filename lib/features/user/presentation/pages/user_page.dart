@@ -12,7 +12,7 @@ class UserPage extends ConsumerStatefulWidget {
 
 class _UserPageState extends ConsumerState<UserPage>
     with SingleTickerProviderStateMixin {
-  final tabs = const ["观看历史", "本地媒体", "已追完"];
+  final tabs = const ["观看历史", "本地媒体"];
 
   late TabController _tabController;
 
@@ -47,7 +47,6 @@ class _UserPageState extends ConsumerState<UserPage>
             // 第一个 Tab 页面：观看历史
             const HistoryPage(),
             const ScannerPage(),
-            Center(child: Text('已追完', style: const TextStyle(fontSize: 24))),
           ],
         ),
       ),

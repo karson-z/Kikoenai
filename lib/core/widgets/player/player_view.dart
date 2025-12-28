@@ -363,7 +363,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
     final controller = ref.read(playerControllerProvider.notifier);
     final volume = ref.watch(playerControllerProvider.select((s) => s.volume));
 
-    return Row( // 去掉 Padding，由外部控制
+    return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Icon(Icons.volume_up_rounded, color: Colors.white, size: 20),

@@ -178,7 +178,7 @@ class WorkCard extends StatelessWidget {
                             /// 作者标签
                             TagRow(
                               tags: work.vas ?? [],
-                              type: TagType.author,
+                              type: TagType.va,
                               fontSize: computeFontSize(),
                               borderRadius: 8,
                               padding: EdgeInsets.all(computePadding()),

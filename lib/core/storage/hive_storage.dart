@@ -21,16 +21,10 @@ class HiveStorage {
   /// 获取单例，并初始化 Hive
   static Future<HiveStorage> getInstance({List<String> startupBoxes = const []}) async {
     if (_instance != null) return _instance!;
-
-    // 1. 先获取路径并初始化 Hive
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      final appDocDir = await getApplicationDocumentsDirectory();
-      // 统一指定根目录，之后 openBox 不需要再手动拼路径
-      await Hive.initFlutter('${appDocDir.path}/hive_storage');
-      debugPrint("Hive Desktop Root: ${appDocDir.path}/hive_storage");
-    } else {
-      await Hive.initFlutter();
-    }
+    final appDocDir = await getApplicationSupportDirectory();
+    debugPrint("HiveStorage: appDocDir: ${appDocDir.path}/hive_storage");
+    // 统一指定根目录，之后 openBox 不需要再手动拼路径
+    await Hive.initFlutter('${appDocDir.path}/hive_storage');
     // 2. 注册所有 Adapter
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());

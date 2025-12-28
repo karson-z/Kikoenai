@@ -12,6 +12,7 @@ import '../../../../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../../../album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../album/presentation/widget/work_grid_layout.dart';
 import '../../widget/filter_header_delegate.dart';
+import '../../widget/special_search.dart';
 import '../viewmodel/provider/category_data_provider.dart';
 import '../viewmodel/provider/category_option_provider.dart';
 import '../viewmodel/state/category_ui_state.dart';
@@ -143,7 +144,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
               ),
             ],
 
-            // 3. Body (Stack 实现筛选面板覆盖)
+            // 3. Body
             body: Stack(
               children: [
                 TabBarView(
@@ -154,7 +155,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                       return CustomScrollView(
                         // 必须加上 key，保证每个 Tab 滚动状态独立
                         key: PageStorageKey<String>(sortOrder.label),
-                        // 核心修复：面板打开时禁止底层滚动
+                        // 面板打开时禁止底层滚动
                         physics: uiState.isFilterOpen
                             ? const NeverScrollableScrollPhysics()
                             : const AlwaysScrollableScrollPhysics(),
@@ -205,8 +206,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
           await ref.refresh(categoryProvider.future);
         },
         notificationPredicate: (notification) {
-          // 默认只要深度不为 0 (即不是最外层) 就处理，通常不需要改
-          // 如果发现拉不动，可以尝试 return notification.depth == 2;
           return defaultScrollNotificationPredicate(notification);
         })
     ));
@@ -414,7 +413,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       TextEditingController searchController // 接收控制器
       ) {
     // 定义筛选分类
-    final categories = ["标签", "社团", "声优", "年龄分级"];
+    final categories = ["标签", "社团", "声优", "特殊"];
 
     return Material(
       color: bgColor,
@@ -617,7 +616,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: vasAsync,
           uiState: uiState,
-          type: TagType.author.stringValue, // 根据你实际后端的 type 字符串调整 (例如 "artist" 或 "va")
+          type: TagType.va.stringValue,
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
           fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
@@ -625,7 +624,12 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       case 3: // 年龄分级
         return SingleChildScrollView(
           primary: false,
-          child: _buildAgeRatingSection(uiState, notifier, fillColor, textColor, primaryColor),
+          child: AdvancedFilterPanel(
+            uiState: uiState,
+            notifier: notifier,
+            fillColor: Colors.grey.shade200, // 示例颜色
+            textColor: Colors.black,
+          ),
         );
       default:
         return const SizedBox();
@@ -748,9 +752,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       ),
     );
   }
-
-  // --- 分级 UI ---
-
   Widget _buildAgeRatingSection(
       CategoryUiState uiState, CategoryUiNotifier notifier,
       Color fillColor, Color textColor, Color primaryColor

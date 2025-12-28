@@ -78,14 +78,32 @@ class _AlbumPageState extends ConsumerState<AlbumPage> with TickerProviderStateM
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
         ),
       ),
-
-      SectionHeader(title: '推荐作品',isShowMoreButton: true, onMore: () {}),
+      SectionHeader(
+        title: '推荐作品',
+        isShowMoreButton: true,
+        onMore: () {},
+      ),
       worksState.when(
-        data: (data) => SliverToBoxAdapter(
-            child: WorkListHorizontal(items: data.recommendedWorks)),
+        data: (data) {
+          // 1. 如果推荐列表为空，则不显示任何内容（包括标题）
+          if (data.recommendedWorks.isEmpty) {
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          }
+
+          // 2. 如果有数据，显示标题 + 列表
+          return SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 将 Header 移入此处
+                WorkListHorizontal(items: data.recommendedWorks),
+              ],
+            ),
+          );
+        },
         loading: () => const SliverToBoxAdapter(
-          child:
-          WorkListHorizontalSkeleton(),
+          // 加载中通常不需要显示 Header，或者你可以根据设计决定是否把 Header 加进来
+          child: WorkListHorizontalSkeleton(),
         ),
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),

@@ -76,7 +76,7 @@ class TagRow extends ConsumerWidget {
     Color textColor;
 
     switch (type) {
-      case TagType.author:
+      case TagType.va:
         bgColor = Colors.green.withAlpha(20);
         textColor = Colors.green;
         break;

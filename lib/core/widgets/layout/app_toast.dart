@@ -8,10 +8,11 @@ class AppToast {
         Duration duration = const Duration(seconds: 4),
         Color? backgroundColor,
       }) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar(); // 建议加上这句，防止Toast堆积
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        action: action,
+        action: action, // 这里接收 action
         duration: duration,
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
@@ -47,10 +48,15 @@ class AppToast {
   }
 
   // 错误
-  static void error(BuildContext context, String message) {
+  static void error(
+      BuildContext context,
+      String message,
+      {SnackBarAction? action} // 新增参数
+      ) {
     show(
       context,
       message,
+      action: action, // 透传参数
       backgroundColor: Colors.red.withOpacity(0.9),
     );
   }

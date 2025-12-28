@@ -12,8 +12,6 @@ class SearchHistoryNotifier extends AsyncNotifier<List<String>> {
 
   @override
   Future<List<String>> build() async {
-    // 获取 CacheService 实例 (假设你已在 main 中初始化或通过 provider 获取)
-    // 这里假设 CacheService.instance 可用，或者你可以通过 ref.read(cacheServiceProvider) 获取
     _cacheService = CacheService.instance;
     return await _cacheService.getSearchHistory();
   }

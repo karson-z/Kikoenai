@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:audio_service/audio_service.dart';
 import '../../../features/album/data/model/va.dart';
 import '../../../features/album/data/model/work.dart';
@@ -110,6 +112,14 @@ class OtherUtil {
       }
     });
   }
+  /// 格式化字节数为人类可读的字符串
+  static String formatBytes(int bytes, {int decimals = 2}) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB", "TB"];
+    var i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+  }
+
   static String buildTagQueryPath(List<SearchTag> tags, {String? keyword}) {
     final tagPath = tags.map((tag) {
       final prefix = tag.isExclude ? "-${tag.type}" : tag.type;

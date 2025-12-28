@@ -4,8 +4,6 @@ import 'package:kikoenai/config/environment_config.dart';
 class AppConstants {
   static const String appName = 'Kikoenai';
   static const tokenKey = 'TOKEN';
-  static const userInfoKey = 'USER_INFO';
-
   static final rootNavigatorKey = GlobalKey<NavigatorState>();
   // Layout
   static const double kPadding = 16.0;
@@ -16,3 +14,4 @@ class AppConstants {
   // Network - 使用平台特定的基础URL
   static String get apiBaseUrl => '${EnvironmentConfig.baseUrl}/api';
 }
+// https://api.asmr-200.com/api/health

@@ -1,75 +1,116 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/storage/hive_key.dart';
-import 'package:kikoenai/core/storage/hive_storage.dart';
-import '../../../../../core/common/shared_preferences_service.dart';
-import '../../../../../core/storage/hive_box.dart';
+// 确保导入路径正确
+import 'package:kikoenai/core/service/cache_service.dart';
 import '../../../../user/data/models/user.dart';
 import '../../../data/model/login_params.dart';
+import '../../../data/model/register_model.dart';
 import '../../../data/service/auth_repository.dart';
 import '../state/auth_state.dart';
+import '../../../data/model/auth_response.dart'; // 导入之前定义的 AuthResponse
 
 class AuthNotifier extends AsyncNotifier<AuthState> {
   late final AuthRepository _authRepository;
-  late final SharedPreferencesService _service;
-  late final HiveStorage _hiveStorage;
+  late final CacheService _cacheService;
+
   @override
   Future<AuthState> build() async {
     _authRepository = ref.read(authRepositoryProvider);
-    _service = ref.read(sharedPreferencesServiceProvider);
-    
-    _hiveStorage = await HiveStorage.getInstance();
-    final userJson = await _hiveStorage.get(BoxNames.user, StorageKeys.currentUser);
-    final user = userJson != null
-        ? User.fromJson(Map<String, dynamic>.from(userJson))
-        : null;
-    final res = await _service.fetchToken();
-    final token = res.data;
-    return AuthState(
-      currentUser: user,
-      token: token,
-      isLoggedIn: token != null,
-    );
+    // 获取单例实例
+    _cacheService = CacheService.instance;
+
+    return _loadInitialState();
   }
-  Future<bool> login(String username, String password) async {
-    state = const AsyncValue.loading();
+
+  /// 初始化逻辑：直接从 CacheService 获取完整的会话信息
+  Future<AuthState> _loadInitialState() async {
     try {
+      final authSession = await _cacheService.getAuthSession();
+
+      // 验证数据完整性
+      if (authSession != null && authSession.isSuccess) {
+        return AuthState(
+          currentUser: authSession.user,
+          token: authSession.token,
+        );
+      }
+    } catch (e) {
+      // 如果解析出错（比如数据结构变更），安全起见清除缓存
+      await _cacheService.clearAuthSession();
+    }
+
+    // 默认未登录
+    return const AuthState(currentUser: null, token: null);
+  }
+
+  /// 登录方法
+  Future<void> login(String username, String password) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
       final result = await _authRepository.login(
         LoginParams(username: username, password: password),
       );
+      return _handleAuthSuccess(result);
+    });
+  }
 
-      if (result.data != null) {
-        final data = result.data!;
-        final token = data['token'] as String?;
-        final userJson = data['user'] as Map<String, dynamic>?;
-        final user = userJson != null ? User.fromJson(userJson) : null;
+  /// 注册方法
+  Future<void> register(String username, String password) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final request = RegisterRequestModel(
+        name: username,
+        password: password,
+      );
+      final result = await _authRepository.register(request);
+      return _handleAuthSuccess(result);
+    });
+  }
 
-        // 保存 token
-        await _service.saveToken(token);
-        if (userJson != null) {
-          await _hiveStorage.put(BoxNames.user, StorageKeys.currentUser, userJson);
-        }
-        state = AsyncValue.data(
-          AuthState(
-            currentUser: user,
-            token: token,
-            isLoggedIn: token != null,
-          ),
-        );
+  /// 统一处理认证成功逻辑
+  Future<AuthState> _handleAuthSuccess(dynamic result) async {
+    if (result.data != null) {
+      final data = result.data!;
 
-        return true;
-      } else {
-        state = AsyncValue.data(
-          AuthState(error: result.message ?? '登录失败'),
-        );
-        return false;
+      final authResponse = AuthResponse(
+        user: data['user'] != null ? User.fromJson(data['user']) : null,
+        token: data['token'] as String?,
+      );
+
+      // 2. 校验关键数据
+      if (!authResponse.isSuccess) {
+        throw Exception("服务端返回数据不完整");
       }
+
+      // 3. 调用 CacheService 一次性存储 (User + Token)
+      await _cacheService.saveAuthSession(authResponse);
+
+      // 4. 更新内存状态
+      return AuthState(
+        currentUser: authResponse.user,
+        token: authResponse.token,
+      );
+    } else {
+      // 处理业务错误
+      throw Exception(result.message ?? '操作失败');
+    }
+  }
+
+  /// 登出方法
+  Future<void> logout() async {
+    state = const AsyncValue.loading();
+    try {
+      // 调用 CacheService 清除数据
+      await _cacheService.clearAuthSession();
+
+      // 重置状态
+      state = const AsyncValue.data(AuthState(currentUser: null, token: null));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      return false;
     }
   }
 }
+
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
       () => AuthNotifier(),
 );

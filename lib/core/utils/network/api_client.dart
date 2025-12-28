@@ -1,12 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
 import '../../common/result.dart';
 import '../../constants/app_constants.dart';
-import '../../widgets/common/login_dialog_manager.dart';
 import '../log/logger.dart';
 
 class ApiClient {
@@ -34,19 +36,56 @@ class ApiClient {
 
   /// 获取 token
   Future<String?> _tokenProvider() async {
-    if (_cachedToken != null) return _cachedToken;
-    final prefs = await SharedPreferences.getInstance();
-    _cachedToken = prefs.getString(AppConstants.tokenKey);
-    return _cachedToken;
-  }
+    if (_cachedToken != null && _cachedToken!.isNotEmpty) {
+      return _cachedToken;
+    }
+    final authSession = await CacheService.instance.getAuthSession();
 
+    if (authSession != null) {
+      _cachedToken = authSession.token;
+      return _cachedToken;
+    }
+
+    return null;
+  }
+  void updateBaseUrl(String newUrl) {
+    _dio.options.baseUrl = '$newUrl/api';
+    Log.i('ApiClient BaseUrl updated to: $newUrl', tag: 'API');
+  }
+  Future<bool> checkHealth(String domain) async {
+    try {
+      // 这里的 url 必须是完整的 (http开头)，Dio 会自动忽略 options.baseUrl
+      final url = '$domain/api/health?cache=false';
+
+      await _dio.get(
+        url,
+        options: Options(
+          // 覆盖超时时间，健康检查要快 (3秒)
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
+          },
+          // 关键：通过 extra 告诉拦截器不要重试，也不要处理 401
+          extra: {
+            'no_error_handling': true, // 自定义标记，需要在拦截器里处理(可选)
+            'retry_count': 3, // 技巧：直接设置重试次数为3，欺骗拦截器不进行重试
+          },
+        ),
+      );
+      return true;
+    } catch (e) {
+      // 健康检查失败是正常的，静默返回 false
+      return false;
+    }
+  }
   /// 泛型请求核心方法
   Future<Result<T>> _request<T>(Future<Response> Function() request) async {
     try {
       final response = await request();
 
       return Result.success(
-        // 注意：如果 options 设置为 bytes，这里的 T 应该是 List<int> 或 dynamic
         data: response.data as T,
         code: response.statusCode ?? -1,
         message: 'success',
@@ -126,7 +165,12 @@ void _setupInterceptors(
   final interceptor = InterceptorsWrapper(
     onRequest: (options, handler) async {
       Log.i('REQ ${options.method} ${options.uri}', tag: 'API');
-
+      options.headers['User-Agent'] =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
+      options.headers['Referer'] = 'https://www.asmr.one/';
+      options.headers['Origin'] = 'https://www.asmr.one';
+      // Dart HttpClient 默认支持 gzip，显式声明可确保服务器知晓
+      options.headers['Accept-Encoding'] = 'gzip';
       if (tokenProvider != null) {
         final token = await tokenProvider();
         if (token != null && token.isNotEmpty) {
@@ -156,14 +200,24 @@ void _setupInterceptors(
       final isUnauthorized = status == 401 ||
           (err.response?.data is Map &&
               err.response?.data['code'] == 401);
-
+      final context = AppConstants.rootNavigatorKey.currentContext;
       if (isUnauthorized) {
-        await LoginDialogManager().handleUnauthorized(
-          err.response!,
-          handler,
-          dio,
-          tokenProvider: tokenProvider,
-        );
+        if (context != null) {
+          // 2. 显示带有按钮的错误 Toast
+          AppToast.error(
+            context,
+            "登录已过期，请重新登录",
+            action: SnackBarAction(
+              label: '去登录',
+              textColor: Colors.white,
+              onPressed: () {
+                // 3. 这里执行跳转逻辑
+                // 方式 A: 如果你使用命名路由
+                context.goNamed(AppRoutes.login);
+              },
+            ),
+          );
+        }
         return;
       }
 
