@@ -12,7 +12,6 @@ final trackFileNodeProvider = FutureProvider.family<List<FileNode>, int>((ref, w
 
   if (data == null) return [];
 
-  // JSON 解析
   final nodes = data
       .map<FileNode>((json) => FileNode.fromJson(json as Map<String, dynamic>))
       .toList();

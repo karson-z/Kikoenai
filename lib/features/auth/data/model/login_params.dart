@@ -2,12 +2,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'login_params.g.dart';
 
-/// 登录参数模型
-/// 对应TypeScript接口：
-/// interface LoginParams { 
-///   account: string 
-///   pwd: string 
-/// }
 @JsonSerializable()
 class LoginParams {
   final String username;

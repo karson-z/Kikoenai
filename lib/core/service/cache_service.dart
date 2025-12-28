@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+import '../../features/auth/data/model/auth_response.dart';
 import '../model/app_media_item.dart';
 import '../model/history_entry.dart';
 import '../storage/hive_box.dart';
@@ -54,6 +58,67 @@ class CacheService {
     }
     return null;
   }
+  // ------------------------------- 当前host --------------------------
+  Future<void> saveCurrentHost(String host) async {
+    await _storage.put(BoxNames.cache, CacheKeys.currentHost, host);
+  }
+  Future<String?> getCurrentHost() async {
+    return await _storage.get(BoxNames.cache, CacheKeys.currentHost);
+  }
+
+  // ------------------------------- 账户信息 ---------------------------
+  Future<void> saveAuthSession(AuthResponse authResponse) async {
+    final jsonString = jsonEncode(authResponse.toJson());
+
+    await _storage.put(
+      BoxNames.cache,
+      StorageKeys.currentUser,
+      jsonString,
+    );
+  }
+
+  Future<AuthResponse?> getAuthSession() async {
+    try {
+      final jsonString = await _storage.get(BoxNames.cache, StorageKeys.currentUser);
+
+      if (jsonString != null && jsonString is String && jsonString.isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(jsonString);
+
+        return AuthResponse.fromJson(map);
+      }
+    } catch (e) {
+      print('Error parsing auth session: $e');
+      await _storage.delete(BoxNames.cache, StorageKeys.currentUser);
+    }
+    return null;
+  }
+  /// 清除会话信息 (用于退出登录)
+  Future<void> clearAuthSession() async {
+    await _storage.delete(BoxNames.cache, StorageKeys.currentUser);
+  }
+  // 用户第一次登录时生成的uuid（不管是否登录都会生成）,用于个性化推荐
+  Future<String?> getRecommendUuid() async {
+    // 显式转换为 String? 比较安全，取决于你的 _storage 库 (如 Hive) 返回的是 dynamic 还是什么
+    return await _storage.get(BoxNames.cache, CacheKeys.recommendUuid) as String?;
+  }
+
+  Future<String> getOrGenerateRecommendUuid() async {
+    // 获取可能为 null 的 uuid
+    String? uuid = await getRecommendUuid();
+
+    // 2. 严谨的判空逻辑：既要不为 null，也要不为空字符串
+    if (uuid != null && uuid.isNotEmpty) {
+      return uuid;
+    }
+
+    // 生成新的 UUID
+    final newUuid = const Uuid().v4();
+
+    // 保存并返回
+    await _storage.put(BoxNames.cache, CacheKeys.recommendUuid, newUuid);
+    return newUuid;
+  }
+
   //-------------------------------- 搜索关键字 -----------------------------
   /// 获取搜索历史列表
   Future<List<String>> getSearchHistory() async {
@@ -99,10 +164,10 @@ class CacheService {
   // ------------------------------- 播放状态 -------------------------------
 
   Future<void> savePlayerState(AppPlayerState state) async {
-    await _storage.put(BoxNames.cache, CacheKeys.playerState, state);
+    await _storage.put(BoxNames.history, CacheKeys.playerState, state);
   }
   Future<AppPlayerState?> getPlayerState() async {
-    final obj = await _storage.get(BoxNames.cache, CacheKeys.playerState);
+    final obj = await _storage.get(BoxNames.history, CacheKeys.playerState);
     if (obj is AppPlayerState) return obj;
     return null;
   }
@@ -292,49 +357,45 @@ class CacheService {
   // ------------------------------ 清理 ------------------------------
 
   Future<void> clearBoxFile(String boxName) async {
-    // 如果 Box 已打开，直接清空
+    // 1. 如果 Box 已打开，Hive 提供了标准清除方法
     if (Hive.isBoxOpen(boxName)) {
       await Hive.box(boxName).clear();
       return;
     }
 
-    // 如果 Box 没打开，先打开再清空
-    final box = await Hive.openBox(boxName);
-    await box.clear();
-    await box.close();
-  }
-  Future<int> getBoxFileSize(String boxName) async {
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // 2. 如果 Box 没打开，手动删除文件
+    try {
       final dir = await getApplicationDocumentsDirectory();
-      final boxDir = Directory('${dir.path}/hive_storage/$boxName');
-
-      if (!await boxDir.exists()) return 0;
-
-      return _getDirectorySize(boxDir);
-    } else {
-      // 移动端 — Hive 默认在 app doc dir 下，文件名 = boxName.hive
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$boxName.hive');
+      final boxPath = '${dir.path}/hive_storage/$boxName.hive';
+      final file = File(boxPath);
 
       if (await file.exists()) {
-        return file.length();
+        await file.delete();
       }
-      return 0;
+
+      // 同时清理可能存在的锁文件 (.lock)
+      final lockFile = File('$boxPath.lock');
+      if (await lockFile.exists()) {
+        await lockFile.delete();
+      }
+    } catch (e) {
+      print("Error clearing box file: $e");
     }
   }
-  /// 递归目录大小
-  Future<int> _getDirectorySize(Directory dir) async {
-    int size = 0;
+  Future<int> getBoxFileSize(String boxName) async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final filePath = '${dir.path}/hive_storage/$boxName.hive';
+      final file = File(filePath);
 
-    if (!await dir.exists()) return 0;
-
-    final entities = dir.list(recursive: true, followLinks: false);
-    await for (final entity in entities) {
-      if (entity is File) {
-        size += await entity.length();
+      if (await file.exists()) {
+        return await file.length();
       }
+      return 0;
+    } catch (e) {
+      print("Error calculating box size for $boxName: $e");
+      return 0;
     }
-    return size;
   }
 
 }

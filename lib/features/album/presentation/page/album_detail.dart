@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../category/presentation/viewmodel/provider/category_data_provider.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
 import '../widget/rating_section.dart';
@@ -59,11 +62,17 @@ class AlbumDetailPage extends ConsumerWidget {
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (work.name != null)
-                Text(work.name!,
-                    style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                GestureDetector(
+                  onTap: () {
+                    ref.read(categoryUiProvider.notifier).toggleTag(TagType.circle.stringValue,work.name!,refreshData: true);
+                    context.go(AppRoutes.category);
+                  },
+                  child: Text(work.name!,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                ),
               const SizedBox(height: 4),
               if (work.vas != null)
-                TagRow(tags: work.vas!, type: TagType.author),
+                TagRow(tags: work.vas!, type: TagType.va),
               const SizedBox(height: 4),
               Row(
                 children: [

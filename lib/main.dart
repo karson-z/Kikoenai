@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
@@ -7,7 +6,7 @@ import 'package:kikoenai/core/service/audio_service.dart';
 import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
-import 'core/common/shared_preferences_service.dart';
+import 'config/environment_config.dart';
 import 'core/storage/hive_storage.dart';
 
 void main() async {
@@ -24,7 +23,9 @@ void main() async {
   await AudioServiceSingleton.init();
   final storage = await HiveStorage.getInstance();
   CacheService.initialize(storage);
-  await SharedPreferencesService.init();
+  print('开始检测最优服务器...');
+  await EnvironmentConfig.selectBestServer();
+  print('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
   setupDesktopWindow();
   runApp(const ProviderScope(child: MyApp()));
 }

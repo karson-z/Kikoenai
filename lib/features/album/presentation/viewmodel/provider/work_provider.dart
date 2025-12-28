@@ -1,10 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/storage/hive_box.dart';
-import 'package:kikoenai/core/storage/hive_storage.dart';
-import 'package:kikoenai/core/utils/data/json_util.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
-import 'package:kikoenai/features/user/data/models/user.dart';
-import '../../../../../core/storage/hive_key.dart';
 import '../../../data/service/work_repository.dart';
 import '../state/work_state.dart';
 
@@ -50,21 +46,12 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
   }) async {
     try {
       state = const AsyncLoading();
-      // 1. 读取本地用户数据（独立）
-      final hive = await HiveStorage.getInstance();
-      final rawUserJson = await hive.get(
-          BoxNames.user, StorageKeys.currentUser);
-      Map<String,dynamic> userJson = JsonUtils.toMap(rawUserJson);
-      User? currentUser;
-      if (rawUserJson != null) {
-        currentUser = User.fromJson(userJson);
-      }
+      final recommendUuid = await CacheService.instance.getOrGenerateRecommendUuid();
+      final currentUser = await CacheService.instance.getAuthSession();
       final result = await _repository.getRecommendedWorks(
-        recommenderUuid: currentUser?.recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
+        recommenderUuid: currentUser?.user?.recommenderUuid ?? recommendUuid,
         page: page,
       );
-
-
       final worksJson = result.data?['works'];
       final recommendedWorks = OtherUtil.parseWorks(worksJson);
       final pagination = result.data?['pagination'] as Map<String, dynamic>?;

@@ -1,40 +1,28 @@
 import 'package:equatable/equatable.dart';
-import 'package:kikoenai/features/user/data/models/user.dart';
-
-
+import '../../../../user/data/models/user.dart';
 
 class AuthState extends Equatable {
   final User? currentUser;
   final String? token;
-  final bool isLoading;
-  final String? error;
-  final bool isLoggedIn;
 
   const AuthState({
     this.currentUser,
     this.token,
-    this.isLoading = false,
-    this.error,
-    this.isLoggedIn = false,
   });
+
+  // 👇 使用 getter 自动计算登录状态，确保单一真实数据源
+  bool get isLoggedIn => token != null && token!.isNotEmpty;
+
   AuthState copyWith({
     User? currentUser,
     String? token,
-    String? host,
-    bool? isLoading,
-    String? error,
-    bool? isLoggedIn,
   }) {
     return AuthState(
       currentUser: currentUser ?? this.currentUser,
       token: token ?? this.token,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      isLoggedIn: isLoggedIn ?? this.isLoggedIn,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [currentUser, token, isLoading, error, isLoggedIn];
+  List<Object?> get props => [currentUser, token];
 }

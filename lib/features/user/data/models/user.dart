@@ -4,7 +4,6 @@ class User extends Equatable {
   final int? id;
   final String name;
   final String? password;
-  final String? host;
   final String? token;
   final DateTime? lastUpdateTime;
   final bool loggedIn;
@@ -16,7 +15,6 @@ class User extends Equatable {
     this.id,
     required this.name,
     this.password,
-    this.host,
     this.token,
     this.lastUpdateTime,
     this.loggedIn = false,
@@ -35,7 +33,6 @@ class User extends Equatable {
       email: userJson['email'] as String?,
       recommenderUuid: userJson['recommenderUuid'] as String?,
       password: json['password'] as String?,
-      host: json['host'] as String?,
       token: json['token'] as String?,
       id: json['id'] as int?,
       lastUpdateTime: json['lastUpdateTime'] != null
@@ -49,7 +46,6 @@ class User extends Equatable {
       'id': id,
       'name': name,
       'password': password,
-      'host': host,
       'token': token,
       'lastUpdateTime': lastUpdateTime?.toIso8601String(),
       'loggedIn': loggedIn,
@@ -63,7 +59,6 @@ class User extends Equatable {
     int? id,
     String? name,
     String? password,
-    String? host,
     String? token,
     DateTime? lastUpdateTime,
     bool? loggedIn,
@@ -75,7 +70,6 @@ class User extends Equatable {
       id: id ?? this.id,
       name: name ?? this.name,
       password: password ?? this.password,
-      host: host ?? this.host,
       token: token ?? this.token,
       lastUpdateTime: lastUpdateTime ?? this.lastUpdateTime,
       loggedIn: loggedIn ?? this.loggedIn,
@@ -85,21 +79,11 @@ class User extends Equatable {
     );
   }
 
-  String get formattedHost {
-    final hostValue = host ?? '';
-    if (hostValue.startsWith('http')) {
-      return hostValue;
-    } else {
-      return 'http://$hostValue';
-    }
-  }
-
   @override
   List<Object?> get props => [
     id,
     name,
     password,
-    host,
     token,
     lastUpdateTime,
     loggedIn,
