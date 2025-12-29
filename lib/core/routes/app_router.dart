@@ -64,12 +64,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               child: const UserPage(),
             ),
           ),
-          GoRoute(
-            path: AppRoutes.test,
-            pageBuilder: (context, state) => MaterialPage(
-              child: const SearchPage(),
-            ),
-          ),
+          // GoRoute(
+          //   path: AppRoutes.test,
+          //   pageBuilder: (context, state) => MaterialPage(
+          //     child: const SearchPage(),
+          //   ),
+          // ),
         ],
       ),
       GoRoute(

@@ -40,5 +40,5 @@ const List<NavigationItem> appNavigationItems = [
     icon: Icon(Icons.account_circle_outlined),
     routePath: AppRoutes.user,
   ),
-  NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)
+  // NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)
 ];
