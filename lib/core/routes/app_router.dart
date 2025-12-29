@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/presentation/page/auth_page.dart';
 import 'package:kikoenai/features/settings/presentation/pages/account_page.dart';
 import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
@@ -14,6 +15,7 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
 import '../../features/search/presentation/page/search_page.dart';
+import '../widgets/common/kikoenai_dialog.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
 
@@ -22,6 +24,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: AppConstants.rootNavigatorKey,
     initialLocation: AppRoutes.home,
+    observers: [
+      KikoenaiDialog.observer,
+    ],
     debugLogDiagnostics: true,
     routes: [
       ShellRoute(
@@ -101,6 +106,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settingsComment,
         pageBuilder: (context, state) => MaterialPage(
           child: const GeneralSettingsPage(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        pageBuilder: (context, state) => MaterialPage(
+          child: const AboutPage(),
         ),
       ),
       GoRoute(

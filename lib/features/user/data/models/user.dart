@@ -1,14 +1,37 @@
 import 'package:equatable/equatable.dart';
+import 'package:hive_ce/hive.dart';
 
+// 2. 指定生成的 Adapter 文件名
+part 'user.g.dart';
+
+@HiveType(typeId: 11) // 3. 设置唯一的 typeId
 class User extends Equatable {
+
+  @HiveField(0)
   final int? id;
+
+  @HiveField(1)
   final String name;
+
+  @HiveField(2)
   final String? password;
+
+  @HiveField(3)
   final String? token;
+
+  @HiveField(4)
   final DateTime? lastUpdateTime;
+
+  @HiveField(5)
   final bool loggedIn;
+
+  @HiveField(6)
   final String? group;
+
+  @HiveField(7)
   final String? email;
+
+  @HiveField(8)
   final String? recommenderUuid;
 
   const User({
@@ -24,6 +47,7 @@ class User extends Equatable {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // 你的原始逻辑保持不变
     final userJson = json['user'] ?? json;
 
     return User(

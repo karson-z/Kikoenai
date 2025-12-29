@@ -10,153 +10,188 @@ class AccountPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. 监听 AuthNotifier 获取当前状态
-    // 使用 .when 处理加载中、错误和数据三种状态，体验更细腻
     final authStateAsync = ref.watch(authNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('账号管理'),
         centerTitle: true,
+        scrolledUnderElevation: 0,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
-      // 2. 仅在“未登录”状态下显示悬浮按钮，引导去登录
-      // 如果已登录，通常不需要这个按钮，或者可以改成“联系客服”等其他功能
-      floatingActionButton: authStateAsync.value?.currentUser == null
-          ? FloatingActionButton.extended(
-        onPressed: () {
-          // 跳转到登录页 (需确保路由配置了 '/login')
-          context.push(AppRoutes.login);
-        },
-        icon: const Icon(Icons.login),
-        label: const Text('去登录'),
-      )
-          : null,
       body: authStateAsync.when(
         data: (state) {
           final user = state.currentUser;
           final isLogin = user != null;
 
-          return ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              // 头部卡片：显示用户信息或游客信息
-              _buildProfileHeader(context, user),
+          return LayoutBuilder(builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth > 600;
 
-              const SizedBox(height: 24),
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 24.0 : 16.0,
+                    vertical: 16.0,
+                  ),
+                  children: [
+                    // 头部信息（无背景）
+                    _buildProfileHeader(context, user, isDesktop),
 
-              // 菜单列表
-              _buildMenuItem(
-                icon: Icons.settings,
-                title: '通用设置',
-                onTap: () {
-                  context.push(AppRoutes.settingsComment);
-                },
-              ),
-              _buildMenuItem(
-                icon: Icons.info_outline,
-                title: '关于应用',
-                onTap: () {},
-              ),
+                    const SizedBox(height: 24),
 
-              // 如果已登录，显示退出按钮
-              if (isLogin) ...[
-                const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    // 显示确认弹窗
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('提示'),
-                        content: const Text('确定要退出登录吗？'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('取消'),
+                    // 分组标题
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, bottom: 8), // 稍微增加左边距对齐文字
+                      child: Text(
+                        '常规',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    // 菜单组（无背景，看起来就是直接排列的列表）
+                    Card(
+                      elevation: 0, // 去掉阴影
+                      color: Colors.transparent, // [修改] 背景透明
+                      margin: EdgeInsets.zero, // 去掉卡片默认外边距
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        children: [
+                          _buildMenuItem(
+                            context: context,
+                            icon: Icons.settings_rounded,
+                            title: '通用设置',
+                            onTap: () {
+                              context.push(AppRoutes.settingsComment);
+                            },
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('退出', style: TextStyle(color: Colors.red)),
+                          // [修改] 分割线颜色稍微调淡一点，因为背景没了
+                          Divider(
+                              height: 1,
+                              indent: 56,
+                              color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.2)
+                          ),
+                          _buildMenuItem(
+                            context: context,
+                            icon: Icons.info_outline_rounded,
+                            title: '关于应用',
+                            onTap: () {
+                              context.push(AppRoutes.about);
+                            },
                           ),
                         ],
                       ),
-                    );
+                    ),
 
-                    if (confirm == true) {
-                      // 执行登出逻辑
-                      await ref.read(authNotifierProvider.notifier).logout();
-                    }
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text('退出登录', style: TextStyle(color: Colors.red)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: const BorderSide(color: Colors.red),
-                  ),
+                    // 退出登录按钮
+                    if (isLogin) ...[
+                      const SizedBox(height: 32),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: FilledButton.tonalIcon(
+                          onPressed: () => _handleLogout(context, ref),
+                          icon: const Icon(Icons.logout_rounded),
+                          label: const Text('退出登录'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.errorContainer.withOpacity(0.5), //稍微淡一点
+                            foregroundColor: Theme.of(context).colorScheme.error,
+                            elevation: 0, // 按钮也去掉阴影，保持一致风格
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 80),
+                  ],
                 ),
-              ],
-            ],
-          );
+              ),
+            );
+          });
         },
-        // 加载中显示骨架屏或 Loading
         loading: () => const Center(child: CircularProgressIndicator()),
-        // 错误状态
         error: (err, stack) => Center(child: Text('加载失败: $err')),
       ),
+      floatingActionButton: _shouldShowFab(context, authStateAsync.value?.currentUser)
+          ? FloatingActionButton.extended(
+        onPressed: () => context.push(AppRoutes.login),
+        elevation: 2, // FAB 保留一点点阴影以便区分
+        icon: const Icon(Icons.login),
+        label: const Text('去登录'),
+      )
+          : null,
     );
   }
 
-  /// 构建顶部用户信息卡片
-  Widget _buildProfileHeader(BuildContext context, User? user) {
+  bool _shouldShowFab(BuildContext context, User? user) {
+    if (user != null) return false;
+    final width = MediaQuery.sizeOf(context).width;
+    return width <= 600;
+  }
+
+  /// 构建顶部用户信息（无背景风格）
+  Widget _buildProfileHeader(BuildContext context, User? user, bool isDesktop) {
     final isLogin = user != null;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0, // [修改] 去掉阴影
+      color: Colors.transparent, // [修改] 背景透明
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 8.0), // 减少一点内边距
         child: Row(
           children: [
-            // 头像区域
-            CircleAvatar(
-              radius: 36,
-              backgroundColor: isLogin
-                  ? Theme.of(context).primaryColor.withOpacity(0.1)
-                  : Colors.grey.shade200,
-              // 如果 User 有 avatarUrl 可以在这里加载网络图片
-              // backgroundImage: isLogin && user.avatar != null ? NetworkImage(user.avatar!) : null,
-              child: Icon(
-                isLogin ? Icons.account_circle : Icons.person_outline,
-                size: 40,
-                color: isLogin ? Theme.of(context).primaryColor : Colors.grey,
+            // 头像
+            Container(
+              child: CircleAvatar(
+                radius: 40,
+                // [修改] 默认背景色改淡
+                backgroundColor: Colors.transparent,
+                child: Icon(
+                  isLogin ? Icons.account_circle : Icons.person_outline,
+                  size: 64,
+                  color: isLogin ? colorScheme.onSurfaceVariant : colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-            const SizedBox(width: 16),
-
+            const SizedBox(width: 20),
             // 信息区域
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isLogin ? (user.name ?? '未命名用户') : '游客用户',
-                    style: const TextStyle(
-                      fontSize: 20,
+                    isLogin ? (user.name ?? '用户') : '游客访客',
+                    style: TextStyle(
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      // [修改] 统一使用 onSurface，因为背景是透明的
+                      color: colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    isLogin ? 'UID: ${user.recommenderUuid ?? "未知"}' : '当前未登录，功能受限',
+                    isLogin ? 'UUID: ${user.recommenderUuid ?? "未知"}' : '登录以同步数据',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                    textAlign: TextAlign.left,
                   ),
                 ],
               ),
             ),
+
+            if (!isLogin && isDesktop)
+              FilledButton.tonal(
+                onPressed: () => context.push(AppRoutes.login),
+                child: const Text('立即登录'),
+              )
           ],
         ),
       ),
@@ -165,16 +200,76 @@ class AccountPage extends ConsumerWidget {
 
   /// 封装列表项
   Widget _buildMenuItem({
+    required BuildContext context,
     required IconData icon,
     required String title,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+    return InkWell( // [修改] 使用 InkWell 代替 Material + ListTile，点击水波纹更自然
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), // 增加内边距
+        child: Row(
+          children: [
+            // 图标
+            Container(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                  icon,
+                  // 使用 secondary 颜色，通常比 primary 柔和一点
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 20
+              ),
+            ),
+            const SizedBox(width: 16),
+            // 标题
+            Expanded(
+              child: Text(
+                  title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16
+                  )
+              ),
+            ),
+            // 箭头
+            Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.5)
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('退出登录'),
+        content: const Text('确定要退出当前账号吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('退出'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(authNotifierProvider.notifier).logout();
+    }
   }
 }

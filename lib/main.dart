@@ -8,6 +8,7 @@ import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/storage/hive_storage.dart';
+import 'core/storage/hive_storage.dart';
 
 void main() async {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -21,8 +22,7 @@ void main() async {
   }
   WidgetsFlutterBinding.ensureInitialized();
   await AudioServiceSingleton.init();
-  final storage = await HiveStorage.getInstance();
-  CacheService.initialize(storage);
+  await AppStorage.init();
   print('开始检测最优服务器...');
   await EnvironmentConfig.selectBestServer();
   print('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');

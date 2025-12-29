@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/service/file_scanner_service.dart';
 import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
@@ -14,6 +13,7 @@ import 'package:kikoenai/features/local_media/data/service/tree_service.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../features/album/data/model/file_node.dart';
+import '../../../../../core/service/cache_service.dart';
 import '../../../service/audio_service.dart';
 import '../state/player_state.dart';
 import '../state/progress_state.dart';
@@ -24,7 +24,7 @@ final playerControllerProvider = NotifierProvider.autoDispose<PlayerController, 
 
 class PlayerController extends Notifier<AppPlayerState> {
   late final AudioHandler handler;
-
+  CacheService get _cacheService => CacheService.instance;
   @override
   AppPlayerState build() {
     handler = ref.read(audioHandlerFutureProvider);
@@ -34,36 +34,41 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   /// 从缓存恢复播放器状态
   void _loadPlayerState() async {
-    final cacheService = CacheService.instance;
-    final savedState = await cacheService.getPlayerState();
+    // 1. 同步获取播放状态 (因为是内存读取，极快)
+    final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
-    // 1. 恢复播放列表
+
+    // 2. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
       await handler.addQueueItems(playList);
     }
-    // 2. 恢复当前索引
+
+    // 3. 恢复当前索引
     final currentIndex = playList.indexWhere(
           (item) => item.id == savedState.currentTrack?.id,
     );
     (handler as MyAudioHandler).setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
 
-    // 3. 恢复播放进度
+    // 4. 恢复播放进度
     final progress = savedState.progressBarState.current;
     if (progress > Duration.zero) {
       await handler.seek(progress);
     }
-    // 恢复字幕
-    state = state.copyWith(subtitleList: savedState.subtitleList,currentSubtitle: savedState.currentSubtitle);
-    // 4. 恢复音量
+
+    // 5. 恢复字幕状态
+    state = state.copyWith(
+        subtitleList: savedState.subtitleList,
+        currentSubtitle: savedState.currentSubtitle
+    );
+
+    // 6. 恢复音量
     if (handler is MyAudioHandler) {
       await (handler as MyAudioHandler).setVolume(savedState.volume);
     }
 
-    // 5. 恢复循环模式
+    // 7. 恢复循环/随机模式
     await handler.setRepeatMode(savedState.repeatMode);
-
-    // 6. 恢复随机模式
     await handler.setShuffleMode(
       savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
@@ -140,29 +145,36 @@ class PlayerController extends Notifier<AppPlayerState> {
     );
   }
 
+  // 保存播放器状态 (同步调用)
   void _saveState() {
-    CacheService.instance.savePlayerState(state);
+    _cacheService.savePlayerState(state);
   }
+
+  // 保存播放历史
   void _saveHistory() {
     final currentItem = state.currentTrack;
     if (currentItem == null) return;
 
-    // 从 extras 中尝试获取 work 数据
     final workData = currentItem.extras?['workData'];
     if (workData == null) return;
 
     try {
-      final workJson = jsonDecode(workData);
+      final workJson = workData is String ? jsonDecode(workData) : workData;
       final currentWork = Work.fromJson(workJson);
-      if(currentWork.id == null) return;// 如果没有作品信息，则不保存历史记录，因为是本地的作品
+
+      if(currentWork.id == null) return;
+
       final history = HistoryEntry(
-        work: currentWork, // 使用解析出来的 work
+        work: currentWork,
         lastTrackId: currentItem.id,
         currentTrackTitle: currentItem.title,
         lastProgressMs: state.progressBarState.current.inMilliseconds,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      CacheService.instance.saveOrUpdateHistory(history);
+
+      // 直接保存对象，无需 await
+      _cacheService.addToHistory(history);
+
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }

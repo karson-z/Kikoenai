@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:kikoenai/config/environment_config.dart';
 
 class AppConstants {
-  static const String appName = 'Kikoenai';
   static const tokenKey = 'TOKEN';
   static final rootNavigatorKey = GlobalKey<NavigatorState>();
   // Layout

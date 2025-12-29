@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// 确保导入路径正确
-import 'package:kikoenai/core/service/cache_service.dart';
+import '../../../../../core/service/cache_service.dart';
 import '../../../../user/data/models/user.dart';
 import '../../../data/model/login_params.dart';
 import '../../../data/model/register_model.dart';

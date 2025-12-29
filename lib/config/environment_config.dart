@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/service/cache_service.dart';
-import '../core/utils/network/api_client.dart'; // 请确保路径正确
+import '../core/utils/network/api_client.dart';
 
 class EnvironmentConfig {
   static const String _defaultUrl = 'https://api.asmr-200.com';
@@ -31,7 +31,7 @@ class EnvironmentConfig {
     // 1. 优先检查缓存 (增加熔断机制)
     // ------------------------------------------------------
     try {
-      final cachedHost = await CacheService.instance.getCurrentHost();
+      final cachedHost = CacheService.instance.getCurrentHost();
 
       if (cachedHost != null && cachedHost.isNotEmpty) {
         // 【核心修改】：增加 .timeout()

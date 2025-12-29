@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import '../../../../../core/service/cache_service.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
 import '../../common/result.dart';
@@ -39,7 +39,7 @@ class ApiClient {
     if (_cachedToken != null && _cachedToken!.isNotEmpty) {
       return _cachedToken;
     }
-    final authSession = await CacheService.instance.getAuthSession();
+    final authSession = CacheService.instance.getAuthSession();
 
     if (authSession != null) {
       _cachedToken = authSession.token;
@@ -204,8 +204,8 @@ void _setupInterceptors(
       if (isUnauthorized) {
         if (context != null) {
           // 2. 显示带有按钮的错误 Toast
-          AppToast.error(
-            context,
+          KikoenaiToast.error(
+            context: context,
             "登录已过期，请重新登录",
             action: SnackBarAction(
               label: '去登录',
