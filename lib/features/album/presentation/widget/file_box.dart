@@ -45,13 +45,19 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     final playerState = ref.read(playerControllerProvider);
     final playerController = ref.read(playerControllerProvider.notifier);
     final history = await playerController.checkHistoryForWork(widget.work);
+
+    // 确保 mounted 检查在 await 之后，防止异步间隙组件卸载导致报错
     if (!_historyChecked && mounted && history != null && history.lastTrackId != playerState.currentTrack?.id) {
       _historyChecked = true;
-      AppToast.show(
-        context,
-        '检测到上次播放: ${history.currentTrackTitle}',
+
+      KikoenaiToast.show(
+        message: '检测到上次播放: ${history.currentTrackTitle}',
+        context: context,
+        backgroundColor: Colors.blueGrey,
+        icon: Icons.history,
         action: SnackBarAction(
           label: '恢复',
+          textColor: Colors.amberAccent,
           onPressed: () {
             playerController.restoreHistory(
               widget.rootNodes,
@@ -60,7 +66,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             );
           },
         ),
-        backgroundColor: Colors.blueGrey,
       );
     }
   }

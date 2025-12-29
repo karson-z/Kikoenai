@@ -1,8 +1,20 @@
+
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 
+// 这一行必须加，文件名必须和当前文件名一致
+part 'auth_response.g.dart';
+
+@HiveType(typeId: 9) // 设置唯一的 TypeId
 class AuthResponse {
+
+  @HiveField(0) // 字段索引，一旦定好不要轻易修改
   final User? user;
+
+  @HiveField(1)
   final String? token;
+
+  @HiveField(2)
   final String? error;
 
   const AuthResponse({
@@ -11,20 +23,14 @@ class AuthResponse {
     this.error,
   });
 
-  /// 核心逻辑：判断是否成功
-  /// 规则：没有 error 且 token 不为空即为成功
   bool get isSuccess => error == null && token != null;
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     return AuthResponse(
-      // 如果 json 中包含 'user' 且不为 null，则解析 User
       user: json['user'] != null
           ? User.fromJson(json['user'] as Map<String, dynamic>)
           : null,
-
       token: json['token'] as String?,
-
-      // 错误信息字段
       error: json['error'] as String?,
     );
   }

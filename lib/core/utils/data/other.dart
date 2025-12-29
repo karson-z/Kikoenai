@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:crypto/crypto.dart';
 import '../../../features/album/data/model/va.dart';
 import '../../../features/album/data/model/work.dart';
 import '../../model/search_tag.dart';
@@ -133,5 +135,39 @@ class OtherUtil {
     }
 
     return tagPath;
+  }
+
+  static bool needUpdate(localVersion, remoteVersion) {
+    List<String> localVersionList = localVersion.split('.');
+    List<String> remoteVersionList = remoteVersion.split('.');
+    for (int i = 0; i < localVersionList.length; i++) {
+      int localVersion = int.parse(localVersionList[i]);
+      int remoteVersion = int.parse(remoteVersionList[i]);
+      if (remoteVersion > localVersion) {
+        return true;
+      } else if (remoteVersion < localVersion) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  static Future<String> calculateFileHash(File file) async {
+    final bytes = await file.readAsBytes();
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  static String formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  static bool isDesktop() {
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
   }
 }

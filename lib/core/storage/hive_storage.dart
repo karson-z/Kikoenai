@@ -1,31 +1,41 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
-import 'package:kikoenai/core/adapter/work_adapter.dart';
+import 'package:kikoenai/core/storage/hive_box.dart';
+import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'package:kikoenai/features/auth/data/model/auth_response.dart';
+import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/core/widgets/player/state/player_state.dart';
+
 import '../adapter/file_node_adapter.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
 import '../adapter/player_state_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
+import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
+class AppStorage {
+  // 1. 定义强类型的 Box
+  static late Box<AuthResponse> authBox;       // 登录信息
+  static late Box<HistoryEntry> historyBox;    // 播放历史 (Key: WorkId)
+  static late Box<AppPlayerState> playerBox;   // 播放器状态
+  static late Box<dynamic> settingsBox;        // 通用设置/缓存 (String, Bool, List<String>)
+  static late Box<dynamic> scannerBox;         // 扫描结果 (由于结构复杂，可用 dynamic 或专门的 Model)
 
-class HiveStorage {
-  static HiveStorage? _instance;
-  final Map<String, Box> _boxes = {};
-  final List<String> _startupBoxes;
+  static late final String _hiveRootPath;
 
-  HiveStorage._internal({List<String> startupBoxes = const []})
-      : _startupBoxes = startupBoxes;
-
-  /// 获取单例，并初始化 Hive
-  static Future<HiveStorage> getInstance({List<String> startupBoxes = const []}) async {
-    if (_instance != null) return _instance!;
+  /// 初始化 Hive 和所有 Box
+  static Future<void> init() async {
     final appDocDir = await getApplicationSupportDirectory();
-    debugPrint("HiveStorage: appDocDir: ${appDocDir.path}/hive_storage");
-    // 统一指定根目录，之后 openBox 不需要再手动拼路径
-    await Hive.initFlutter('${appDocDir.path}/hive_storage');
-    // 2. 注册所有 Adapter
+    _hiveRootPath = '${appDocDir.path}/hive_storage';
+
+    // 初始化
+    await Hive.initFlutter(_hiveRootPath);
+    // ... 注册其他
+    Hive.registerAdapter(AuthResponseAdapter());
+    Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
@@ -33,73 +43,73 @@ class HiveStorage {
     Hive.registerAdapter(PlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
-
-    // 3. 创建实例
-    _instance = HiveStorage._internal();
-
-    // 4. 启动时打开常用 box
-    for (var boxName in startupBoxes) {
-      await _instance!._openBox(boxName);
-    }
-
-    return _instance!;
+    // 3. 并行打开 Box
+    await Future.wait([
+      _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
+      _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
+      _openBox<AppPlayerState>(BoxNames.playerState).then((val) => playerBox = val),
+      _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
+      _openBox<dynamic>(BoxNames.scanner).then((val) => scannerBox = val),
+    ]);
   }
 
-  /// 内部打开 box，每个 box 使用单独文件夹管理
-  Future<Box> _openBox(String boxName) async {
-    // 1. 如果内存缓存中有，直接返回
-    if (_boxes.containsKey(boxName)) return _boxes[boxName]!;
-
+  /// 辅助方法：安全打开 Box
+  static Future<Box<T>> _openBox<T>(String name) async {
     try {
-      // 2. 尝试正常打开
-      final box = await Hive.openBox(boxName);
-      _boxes[boxName] = box;
-      return box;
+      return await Hive.openBox<T>(name);
     } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk(boxName);
-      } catch (delError) {
-        debugPrint("删除 Box 失败 (可能文件被占用): $delError");
-      }
-      final box = await Hive.openBox(boxName);
-      _boxes[boxName] = box;
-      return box;
+      debugPrint("Box $name 损坏，正在重建...");
+      await Hive.deleteBoxFromDisk(name);
+      return await Hive.openBox<T>(name);
     }
   }
 
-  /// 公共接口：打开 box
-  Future<Box> openBox(String boxName) async {
-    return _openBox(boxName);
+  // ==================== 备份与恢复功能 ====================
+
+  static Future<void> backupBox(String boxName, String destPath) async {
+    final boxFile = File('$_hiveRootPath/$boxName.hive');
+    if (await boxFile.exists()) {
+      await boxFile.copy(destPath);
+    }
   }
 
-  /// 保存对象
-  Future<void> put(String boxName, String key, dynamic value) async {
-    final box = await _openBox(boxName);
-    await box.put(key, value);
+  /// 智能合并历史记录 (Patch Logic)
+  static Future<void> patchHistory(String backupPath) async {
+    final file = File(backupPath);
+    if (!await file.exists()) return;
+
+    final bytes = await file.readAsBytes();
+    // 打开临时 Box
+    final tempBox = await Hive.openBox<HistoryEntry>(
+        'temp_history_${DateTime.now().millisecondsSinceEpoch}',
+        bytes: bytes
+    );
+
+    // 遍历合并
+    for (var entry in tempBox.toMap().entries) {
+      final key = entry.key;
+      final backupItem = entry.value;
+      final localItem = historyBox.get(key);
+
+      // 如果本地没有，或者备份比本地新，则写入
+      if (localItem == null || backupItem.updatedAt > localItem.updatedAt) {
+        await historyBox.put(key, backupItem);
+      }
+    }
+    await tempBox.close();
   }
 
-  /// 获取对象
-  Future<dynamic> get(String boxName, String key) async {
-    final box = await _openBox(boxName);
-    return box.get(key);
+  /// 获取 Box 文件大小
+  static Future<int> getBoxSize(String boxName) async {
+    final file = File('$_hiveRootPath/$boxName.hive');
+    if (await file.exists()) return await file.length();
+    return 0;
   }
 
-  /// 删除对象
-  Future<void> delete(String boxName, String key) async {
-    final box = await _openBox(boxName);
-    await box.delete(key);
-  }
-
-  /// 清空某个 box
-  Future<void> clearBox(String boxName) async {
-    final box = await _openBox(boxName);
-    await box.clear();
-  }
-
-  /// 清空所有已打开 box
-  Future<void> clearAll() async {
-    for (var box in _boxes.values) {
-      await box.clear();
+  /// 清理 Box
+  static Future<void> clearBox(String boxName) async {
+    if (Hive.isBoxOpen(boxName)) {
+      await Hive.box(boxName).clear();
     }
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import '../../../../../core/service/cache_service.dart';
 import '../../../data/service/work_repository.dart';
 import '../state/work_state.dart';
 
@@ -47,7 +47,7 @@ class WorksNotifier extends AsyncNotifier<WorksState> {
     try {
       state = const AsyncLoading();
       final recommendUuid = await CacheService.instance.getOrGenerateRecommendUuid();
-      final currentUser = await CacheService.instance.getAuthSession();
+      final currentUser = CacheService.instance.getAuthSession();
       final result = await _repository.getRecommendedWorks(
         recommenderUuid: currentUser?.user?.recommenderUuid ?? recommendUuid,
         page: page,

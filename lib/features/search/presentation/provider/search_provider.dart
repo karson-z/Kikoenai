@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/service/cache_service.dart';
+
+import '../../../../../core/service/cache_service.dart';
 
 // 定义 Provider
 final searchHistoryProvider = AsyncNotifierProvider<SearchHistoryNotifier, List<String>>(
@@ -8,30 +9,29 @@ final searchHistoryProvider = AsyncNotifierProvider<SearchHistoryNotifier, List<
 );
 
 class SearchHistoryNotifier extends AsyncNotifier<List<String>> {
-  late final CacheService _cacheService;
+
+  CacheService get _service => CacheService.instance;
 
   @override
-  Future<List<String>> build() async {
-    _cacheService = CacheService.instance;
-    return await _cacheService.getSearchHistory();
+  FutureOr<List<String>> build() {
+    return _service.getSearchHistory();
   }
 
-  /// 添加历史记录并刷新状态
+  /// 添加历史记录
   Future<void> add(String keyword) async {
-    await _cacheService.addSearchHistory(keyword);
-    // 重新加载数据以更新 UI
-    state = AsyncData(await _cacheService.getSearchHistory());
+    await _service.addSearchHistory(keyword);
+    state = AsyncData(_service.getSearchHistory());
   }
 
   /// 删除单条
   Future<void> remove(String keyword) async {
-    await _cacheService.removeSearchHistory(keyword);
-    state = AsyncData(await _cacheService.getSearchHistory());
+    await _service.removeSearchHistory(keyword);
+    state = AsyncData(_service.getSearchHistory());
   }
 
   /// 清空
   Future<void> clear() async {
-    await _cacheService.clearSearchHistory();
+    await _service.clearSearchHistory();
     state = const AsyncData([]);
   }
 }
