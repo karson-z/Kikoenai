@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/images/138787745_p0_master1200.jpg" alt="Kikoenai" width="120" height="120">
+  <img src="assets/images/muzumi.jpg" alt="Kikoenai" width="120" height="120">
 
   # Kikoenai
 
