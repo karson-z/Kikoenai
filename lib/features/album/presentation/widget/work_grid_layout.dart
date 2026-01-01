@@ -79,8 +79,6 @@ class ResponsiveCardGrid extends StatelessWidget {
   }
 
   Widget _buildFooter(BuildContext context) {
-    // 情况 A: 还有数据，正在进行初始加载（此时 work 也是空）
-    // 或者滚动到底部触发加载更多时
     if (hasMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),

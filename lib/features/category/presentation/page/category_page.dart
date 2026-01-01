@@ -17,7 +17,6 @@ import '../viewmodel/provider/category_data_provider.dart';
 import '../viewmodel/provider/category_option_provider.dart';
 import '../viewmodel/state/category_ui_state.dart';
 
-
 class CategoryPage extends ConsumerStatefulWidget {
   const CategoryPage({Key? key}) : super(key: key);
 
@@ -27,7 +26,6 @@ class CategoryPage extends ConsumerStatefulWidget {
 
 class _CategoryPageState extends ConsumerState<CategoryPage>
     with SingleTickerProviderStateMixin {
-
   final List<SortOrder> sortOrders = SortOrder.values;
   late AutoScrollController _autoScrollController;
   late TabController _tabController;
@@ -45,7 +43,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         final order = sortOrders[_tabController.index];
-        ref.read(categoryUiProvider.notifier).setSort(sortOption: order, refreshData: true);
+        ref
+            .read(categoryUiProvider.notifier)
+            .setSort(sortOption: order, refreshData: true);
       }
     });
   }
@@ -74,12 +74,12 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final Color bgColor = isDark ? Colors.black : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black45;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final Color fillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
+    final Color fillColor =
+        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
     final Color dividerColor = isDark ? Colors.grey[800]! : Colors.grey[200]!;
     ref.listen<CategoryUiState>(categoryUiProvider, (previous, next) {
       // 如果列表变长了 (新增了 Tag)
       if (previous != null && next.selected.length > previous.selected.length) {
-
         // 滚动到最后一个索引
         final targetIndex = next.selected.length - 1;
 
@@ -92,128 +92,142 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       }
     });
     // 同步搜索框内容 (如果切换 Tab 清空了 State，这里也要清空输入框)
-    if (uiState.localSearchKeyword.isEmpty && _searchController.text.isNotEmpty) {
+    if (uiState.localSearchKeyword.isEmpty &&
+        _searchController.text.isNotEmpty) {
       //为了防止构建期间修改状态报错，用 addPostFrameCallback，或者在这里直接 clear 因为 build 不受影响
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if(mounted) _searchController.clear();
+        if (mounted) _searchController.clear();
       });
     }
 
-    return SafeArea(child: Scaffold(
+    return SafeArea(
+        child: Scaffold(
       backgroundColor: bgColor,
-      body: RefreshIndicator(
-          child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              // 1. 搜索栏 (Floating)
-              if(isMobile)
-                SliverAppBar(
-                  expandedHeight: 80,
-                  // 核心修复：面板打开时禁止悬浮，防止遮挡
-                  floating: !uiState.isFilterOpen,
-                  snap: !uiState.isFilterOpen,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          // 1. 搜索栏 (Floating)
+          if (isMobile)
+            SliverAppBar(
+              expandedHeight: 80,
+              // 核心修复：面板打开时禁止悬浮，防止遮挡
+              floating: !uiState.isFilterOpen,
+              snap: !uiState.isFilterOpen,
 
-                  backgroundColor: bgColor,
-                  elevation: 0,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: MobileSearchAppBar(
-                      onSearchTap: (){
-                        debugPrint("跳转到搜索页面");
-                        context.push(AppRoutes.search);
-                      },
-                    ),
-                  ),
-                ),
-
-              // 2. 排序与筛选栏 (Pinned)
-              SliverOverlapAbsorber(
-                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                sliver: SliverPersistentHeader(
-                  pinned: true,
-                  delegate: FilterHeaderDelegate(
-                    ref: ref,
-                    tabController: _tabController,
-                    pinnedHeight: pinnedHeaderHeight, // 使用更紧凑的高度
-                    sortOrders: sortOrders,
-                    uiState: uiState,
-                    uiNotifier: uiNotifier,
-                    totalCount: totalCount,
-                    scrollController: _autoScrollController,
-                    buildFilterRow: _buildFilterRowContent, // 将你的构建函数传进去
-                  ),
+              backgroundColor: bgColor,
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                background: MobileSearchAppBar(
+                  onSearchTap: () {
+                    debugPrint("跳转到搜索页面");
+                    context.push(AppRoutes.search);
+                  },
                 ),
               ),
-            ],
+            ),
 
-            // 3. Body
-            body: Stack(
-              children: [
-                TabBarView(
-                  controller: _tabController,
-                  children: sortOrders.map((sortOrder) {
-                    // 使用 Builder 获取正确的 context (用于 Injector)
-                    return Builder(builder: (context) {
-                      return CustomScrollView(
-                        // 必须加上 key，保证每个 Tab 滚动状态独立
-                        key: PageStorageKey<String>(sortOrder.label),
-                        // 面板打开时禁止底层滚动
-                        physics: uiState.isFilterOpen
-                            ? const NeverScrollableScrollPhysics()
-                            : const AlwaysScrollableScrollPhysics(),
-
-                        slivers: [
-                          // 1. 注入器：防止内容被吸顶 Header 遮挡
-                          SliverOverlapInjector(
-                            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                          ),
-
-                          // 2. 列表内容
-                          ..._buildCommonContent(worksAsync, categoryController),
-
-                          // 3. 底部留白
-                          const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
-                        ],
-                      );
-                    });
-                  }).toList(),
-                ),
-                if (uiState.isFilterOpen)
-                  Positioned.fill(
-                    top: pinnedHeaderHeight,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque, // 拦截点击
-                      onTap: () => uiNotifier.toggleFilterDrawer(),
-                      child: Container(color: Colors.transparent),
-                    ),
-                  ),
-
-                // 筛选面板 (动画)
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  top: pinnedHeaderHeight,
-                  left: 0,
-                  right: 0,
-                  child: _buildFilterDrawer(
-                      uiState, uiNotifier,
-                      bgColor, textColor, subTextColor, fillColor, dividerColor, primaryColor,
-                      _searchController // 传入控制器
-                  ),
-                ),
-              ],
+          // 2. 排序与筛选栏 (Pinned)
+          SliverOverlapAbsorber(
+            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+            sliver: SliverPersistentHeader(
+              pinned: true,
+              delegate: FilterHeaderDelegate(
+                ref: ref,
+                tabController: _tabController,
+                pinnedHeight: pinnedHeaderHeight,
+                // 使用更紧凑的高度
+                sortOrders: sortOrders,
+                uiState: uiState,
+                uiNotifier: uiNotifier,
+                totalCount: totalCount,
+                scrollController: _autoScrollController,
+                buildFilterRow: _buildFilterRowContent, // 将你的构建函数传进去
+              ),
             ),
           ),
-        onRefresh: () async {
-          await ref.refresh(categoryProvider.future);
-        },
-        notificationPredicate: (notification) {
-          return defaultScrollNotificationPredicate(notification);
-        })
+        ],
+
+        // 3. Body
+        body: Stack(
+          children: [
+            TabBarView(
+              controller: _tabController,
+              children: sortOrders.map((sortOrder) {
+                return Builder(builder: (context) {
+                  // 【关键修改】在此处包裹 RefreshIndicator
+                  return RefreshIndicator(
+                    edgeOffset: pinnedHeaderHeight,
+                    color: primaryColor,
+                    backgroundColor: bgColor,
+                    // 3. 刷新回调
+                    onRefresh: () async {
+                      // 触发 Provider 刷新
+                      return ref.refresh(categoryProvider.future);
+                    },
+                    notificationPredicate: (notification) {
+                      // 确保只响应深度为 0 的滚动（即直接子级 CustomScrollView）
+                      return notification.depth == 0;
+                    },
+
+                    child: CustomScrollView(
+                      key: PageStorageKey<String>(sortOrder.label),
+
+                      physics: uiState.isFilterOpen
+                          ? const NeverScrollableScrollPhysics()
+                          : const AlwaysScrollableScrollPhysics(),
+                      // 确保包含 AlwaysScrollable
+
+                      slivers: [
+                        SliverOverlapInjector(
+                          handle:
+                              NestedScrollView.sliverOverlapAbsorberHandleFor(
+                                  context),
+                        ),
+                        ..._buildCommonContent(worksAsync, categoryController),
+                        const SliverPadding(
+                            padding: EdgeInsets.only(bottom: 20)),
+                      ],
+                    ),
+                  );
+                });
+              }).toList(),
+            ),
+            if (uiState.isFilterOpen)
+              Positioned.fill(
+                top: pinnedHeaderHeight,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque, // 拦截点击
+                  onTap: () => uiNotifier.toggleFilterDrawer(),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              top: pinnedHeaderHeight,
+              left: 0,
+              right: 0,
+              child: _buildFilterDrawer(
+                  uiState,
+                  uiNotifier,
+                  bgColor,
+                  textColor,
+                  subTextColor,
+                  fillColor,
+                  dividerColor,
+                  primaryColor,
+                  _searchController // 传入控制器
+                  ),
+            ),
+          ],
+        ),
+      ),
     ));
   }
 
   // --- 内容构建逻辑 ---
 
-  List<Widget> _buildCommonContent(AsyncValue worksAsync, CategoryDataNotifier controller) {
+  List<Widget> _buildCommonContent(
+      AsyncValue worksAsync, CategoryDataNotifier controller) {
     return [
       worksAsync.when(
         data: (data) => ResponsiveCardGrid(
@@ -229,8 +243,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(
               height: 120,
-              child: Center(child: Text('加载失败: $e', style: const TextStyle(color: Colors.red)))
-          ),
+              child: Center(
+                  child: Text('加载失败: $e',
+                      style: const TextStyle(color: Colors.red)))),
         ),
       ),
     ];
@@ -238,16 +253,21 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
   // ----------- 筛选行 --------------
   Widget _buildFilterRowContent(
-      CategoryUiState uiState, CategoryUiNotifier notifier, int totalCount,
-      Color bgColor, Color textColor, Color subTextColor, Color fillColor, Color primaryColor,
-      AutoScrollController scrollController
-      ) {
-
+      CategoryUiState uiState,
+      CategoryUiNotifier notifier,
+      int totalCount,
+      Color bgColor,
+      Color textColor,
+      Color subTextColor,
+      Color fillColor,
+      Color primaryColor,
+      AutoScrollController scrollController) {
     const double rowHeight = 40.0;
     // 定义为了显示角标而需要的顶部偏移量
     const double badgeSpaceOffset = 6.0;
     // 1. 判断是否有关键字
-    final bool hasKeyword = uiState.keyword != null && uiState.keyword!.isNotEmpty;
+    final bool hasKeyword =
+        uiState.keyword != null && uiState.keyword!.isNotEmpty;
     // 2. 计算列表总长度 (标签数 + 关键字占位)
     final int itemCount = uiState.selected.length + (hasKeyword ? 1 : 0);
     return Container(
@@ -257,7 +277,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // --- 1. 筛选按钮 (保持不变) ---
           Padding(
             padding: const EdgeInsets.only(top: badgeSpaceOffset + 2),
@@ -268,23 +287,51 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   onTap: () => notifier.toggleFilterDrawer(),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
-                      color: uiState.isFilterOpen ? primaryColor.withOpacity(0.1) : fillColor,
+                      color: uiState.isFilterOpen
+                          ? primaryColor.withOpacity(0.1)
+                          : fillColor,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(uiState.isFilterOpen ? Icons.keyboard_arrow_up : Icons.tune, size: 16, color: uiState.isFilterOpen ? primaryColor : textColor),
+                        Icon(
+                            uiState.isFilterOpen
+                                ? Icons.keyboard_arrow_up
+                                : Icons.tune,
+                            size: 16,
+                            color: uiState.isFilterOpen
+                                ? primaryColor
+                                : textColor),
                         const SizedBox(width: 4),
-                        Text(uiState.isFilterOpen ? "收起" : "筛选", style: TextStyle(color: uiState.isFilterOpen ? primaryColor : textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(uiState.isFilterOpen ? "收起" : "筛选",
+                            style: TextStyle(
+                                color: uiState.isFilterOpen
+                                    ? primaryColor
+                                    : textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13)),
                       ],
                     ),
                   ),
                 ),
                 if (uiState.selected.isNotEmpty && !uiState.isFilterOpen)
-                  Positioned(top: -4, right: -4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(8), border: Border.all(color: bgColor, width: 1.5)), child: Text("${uiState.selected.length}", style: const TextStyle(color: Colors.white, fontSize: 9))))
+                  Positioned(
+                      top: -4,
+                      right: -4,
+                      child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: primaryColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: bgColor, width: 1.5)),
+                          child: Text("${uiState.selected.length}",
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 9))))
               ],
             ),
           ),
@@ -303,7 +350,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                 ).createShader(bounds);
               },
               blendMode: BlendMode.dstIn,
-
               child: SizedBox(
                 height: rowHeight,
                 child: ListView.builder(
@@ -312,7 +358,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   scrollDirection: Axis.horizontal,
                   itemCount: itemCount,
                   padding: const EdgeInsets.fromLTRB(0, 8, 4, 4),
-
                   itemBuilder: (context, index) {
                     final String displayText;
                     final Color itemColor;
@@ -321,17 +366,23 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                     if (isKeywordItem) {
                       displayText = "搜: ${uiState.keyword}";
                       itemColor = primaryColor;
-                      onDelete = () => notifier.updateKeyword("", refreshData: true);
+                      onDelete =
+                          () => notifier.updateKeyword("", refreshData: true);
                     } else {
                       final tagIndex = hasKeyword ? index - 1 : index;
                       final tag = uiState.selected[tagIndex];
                       displayText = tag.name;
-                      itemColor = tag.isExclude ? const Color(0xFFFF4D4F) : primaryColor;
-                      onDelete = () => notifier.removeTag(tag.type, tag.name, refreshData: true);
+                      itemColor = tag.isExclude
+                          ? const Color(0xFFFF4D4F)
+                          : primaryColor;
+                      onDelete = () => notifier.removeTag(tag.type, tag.name,
+                          refreshData: true);
                     }
 
                     return AutoScrollTag(
-                      key: ValueKey(isKeywordItem ? "keyword_special_key" : index), // 确保 Key 唯一
+                      key: ValueKey(
+                          isKeywordItem ? "keyword_special_key" : index),
+                      // 确保 Key 唯一
                       controller: scrollController,
                       index: index,
                       child: Padding(
@@ -341,7 +392,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                           children: [
                             Container(
                               alignment: Alignment.center,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 5),
                               decoration: BoxDecoration(
                                 color: itemColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
@@ -354,11 +406,16 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                                   if (isKeywordItem)
                                     Padding(
                                       padding: const EdgeInsets.only(right: 4),
-                                      child: Icon(Icons.search, size: 10, color: itemColor),
+                                      child: Icon(Icons.search,
+                                          size: 10, color: itemColor),
                                     ),
                                   Text(
                                     displayText,
-                                    style: TextStyle(fontSize: 12, color: itemColor, fontWeight: FontWeight.bold, height: 1.2),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: itemColor,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2),
                                   ),
                                 ],
                               ),
@@ -378,9 +435,11 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                                     decoration: BoxDecoration(
                                       color: Colors.grey[400],
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: bgColor, width: 1),
+                                      border:
+                                          Border.all(color: bgColor, width: 1),
                                     ),
-                                    child: const Icon(Icons.close, size: 10, color: Colors.white),
+                                    child: const Icon(Icons.close,
+                                        size: 10, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -397,8 +456,13 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
           // --- 3. 总数统计 (保持不变) ---
           Padding(
-            padding: const EdgeInsets.only(right: 16, left: 4, top: badgeSpaceOffset + 6),
-            child: Text("共 $totalCount 条", style: TextStyle(fontSize: 12, color: subTextColor, fontWeight: FontWeight.w500)),
+            padding: const EdgeInsets.only(
+                right: 16, left: 4, top: badgeSpaceOffset + 6),
+            child: Text("共 $totalCount 条",
+                style: TextStyle(
+                    fontSize: 12,
+                    color: subTextColor,
+                    fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -408,8 +472,14 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   // --- 筛选抽屉 UI ---
 
   Widget _buildFilterDrawer(
-      CategoryUiState uiState, CategoryUiNotifier notifier,
-      Color bgColor, Color textColor, Color subTextColor, Color fillColor, Color dividerColor, Color primaryColor,
+      CategoryUiState uiState,
+      CategoryUiNotifier notifier,
+      Color bgColor,
+      Color textColor,
+      Color subTextColor,
+      Color fillColor,
+      Color dividerColor,
+      Color primaryColor,
       TextEditingController searchController // 接收控制器
       ) {
     // 定义筛选分类
@@ -442,23 +512,31 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                         padding: EdgeInsets.zero,
                         itemCount: categories.length,
                         itemBuilder: (context, index) {
-                          final isSelected = uiState.selectedFilterIndex == index;
+                          final isSelected =
+                              uiState.selectedFilterIndex == index;
                           return GestureDetector(
-                            onTap: () => notifier.setFilterIndex(index), // 使用 Notifier
+                            onTap: () => notifier.setFilterIndex(index),
+                            // 使用 Notifier
                             child: Container(
                               height: 50,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: isSelected ? bgColor : Colors.transparent,
+                                color:
+                                    isSelected ? bgColor : Colors.transparent,
                                 border: isSelected
-                                    ? Border(left: BorderSide(color: primaryColor, width: 3))
+                                    ? Border(
+                                        left: BorderSide(
+                                            color: primaryColor, width: 3))
                                     : null,
                               ),
                               child: Text(
                                 categories[index],
                                 style: TextStyle(
-                                  color: isSelected ? primaryColor : subTextColor,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color:
+                                      isSelected ? primaryColor : subTextColor,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                   fontSize: 14,
                                 ),
                               ),
@@ -477,29 +555,41 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                             // 搜索框 (分级页不显示)
                             if (uiState.selectedFilterIndex != 3)
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 12, 12, 4),
                                 child: SizedBox(
                                   height: 42,
                                   child: TextField(
                                     controller: searchController,
-                                    onChanged: (val) => notifier.setLocalSearchKeyword(val),
-                                    style: TextStyle(fontSize: 13, color: textColor),
+                                    onChanged: (val) =>
+                                        notifier.setLocalSearchKeyword(val),
+                                    style: TextStyle(
+                                        fontSize: 13, color: textColor),
                                     decoration: InputDecoration(
                                       hintText: "搜索...",
-                                      hintStyle: TextStyle(color: subTextColor, fontSize: 13),
-                                      prefixIcon: Icon(Icons.search, size: 18, color: subTextColor),
+                                      hintStyle: TextStyle(
+                                          color: subTextColor, fontSize: 13),
+                                      prefixIcon: Icon(Icons.search,
+                                          size: 18, color: subTextColor),
                                       contentPadding: EdgeInsets.zero,
                                       filled: true,
                                       fillColor: fillColor,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-                                      suffixIcon: uiState.localSearchKeyword.isNotEmpty
+                                      border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(18),
+                                          borderSide: BorderSide.none),
+                                      suffixIcon: uiState
+                                              .localSearchKeyword.isNotEmpty
                                           ? GestureDetector(
-                                        onTap: () {
-                                          notifier.setLocalSearchKeyword("");
-                                          searchController.clear();
-                                        },
-                                        child: Icon(Icons.cancel, size: 16, color: subTextColor),
-                                      )
+                                              onTap: () {
+                                                notifier
+                                                    .setLocalSearchKeyword("");
+                                                searchController.clear();
+                                              },
+                                              child: Icon(Icons.cancel,
+                                                  size: 16,
+                                                  color: subTextColor),
+                                            )
                                           : null,
                                     ),
                                   ),
@@ -509,7 +599,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                             // 动态内容区 (Tag/Circle/VA/Age)
                             Expanded(
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 child: _buildRightContent(
                                   ref: ref,
                                   index: uiState.selectedFilterIndex,
@@ -531,7 +622,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
               // 底部按钮
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: bgColor,
                   border: Border(top: BorderSide(color: dividerColor)),
@@ -596,20 +688,26 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: tagsAsync,
           uiState: uiState,
-          type: TagType.tag.stringValue, // 根据你实际后端的 type 字符串调整
+          type: TagType.tag.stringValue,
+          // 根据你实际后端的 type 字符串调整
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
-          fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
+          fillColor: fillColor,
+          textColor: textColor,
+          primaryColor: primaryColor,
         );
       case 1: // 社团
         final circlesAsync = ref.watch(circlesProvider);
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: circlesAsync,
           uiState: uiState,
-          type: TagType.circle.stringValue, // 根据你实际后端的 type 字符串调整
+          type: TagType.circle.stringValue,
+          // 根据你实际后端的 type 字符串调整
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
-          fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
+          fillColor: fillColor,
+          textColor: textColor,
+          primaryColor: primaryColor,
         );
       case 2: // 声优
         final vasAsync = ref.watch(vasProvider);
@@ -619,7 +717,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
           type: TagType.va.stringValue,
           notifier: notifier,
           labelBuilder: (item) => item.name ?? "",
-          fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
+          fillColor: fillColor,
+          textColor: textColor,
+          primaryColor: primaryColor,
         );
       case 3: // 年龄分级
         return SingleChildScrollView(
@@ -646,22 +746,27 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     required Color textColor,
     required Color primaryColor,
   }) {
-
     return asyncValue.when(
       data: (originalList) {
         // 前端搜索过滤
         final list = originalList.where((item) {
           if (uiState.localSearchKeyword.isEmpty) return true; // 使用 State
           final name = labelBuilder(item);
-          return name.toLowerCase().contains(uiState.localSearchKeyword.toLowerCase());
+          return name
+              .toLowerCase()
+              .contains(uiState.localSearchKeyword.toLowerCase());
         }).toList();
 
         if (list.isEmpty) {
-          return Center(child: Text(uiState.localSearchKeyword.isNotEmpty ? "未找到相关结果" : "暂无选项", style: TextStyle(color: textColor.withOpacity(0.5))));
+          return Center(
+              child: Text(
+                  uiState.localSearchKeyword.isNotEmpty ? "未找到相关结果" : "暂无选项",
+                  style: TextStyle(color: textColor.withOpacity(0.5))));
         }
 
         return GridView.builder(
-          primary: false, // 禁止占用主 ScrollController
+          primary: false,
+          // 禁止占用主 ScrollController
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.symmetric(vertical: 12),
           itemCount: list.length,
@@ -676,22 +781,28 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
             final name = labelBuilder(item);
 
             // 检查选中状态和是否排除
-            final tagIndex = uiState.selected.indexWhere((t) => t.type == type && t.name == name);
+            final tagIndex = uiState.selected
+                .indexWhere((t) => t.type == type && t.name == name);
             final isSelected = tagIndex != -1;
-            final isExclude = isSelected ? uiState.selected[tagIndex].isExclude : false;
+            final isExclude =
+                isSelected ? uiState.selected[tagIndex].isExclude : false;
 
             return _buildGridChip(
               label: name,
               isSelected: isSelected,
               isExclude: isExclude,
               onTap: () => notifier.toggleTag(type, name, refreshData: false),
-              fillColor: fillColor, textColor: textColor, primaryColor: primaryColor,
+              fillColor: fillColor,
+              textColor: textColor,
+              primaryColor: primaryColor,
             );
           },
         );
       },
-      error: (err, stack) => const Center(child: Text("加载失败", style: TextStyle(color: Colors.red))),
-      loading: () => Center(child: LottieLoadingIndicator(
+      error: (err, stack) => const Center(
+          child: Text("加载失败", style: TextStyle(color: Colors.red))),
+      loading: () => Center(
+          child: LottieLoadingIndicator(
         assetPath: 'assets/animation/sakiko.json',
         message: notifier.getLoadingMessage(type), // <--- 调用上面定义的方法
       )),
@@ -750,66 +861,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
           ),
         ),
       ),
-    );
-  }
-  Widget _buildAgeRatingSection(
-      CategoryUiState uiState, CategoryUiNotifier notifier,
-      Color fillColor, Color textColor, Color primaryColor
-      ) {
-    const ratings = AgeRatingEnum.values;
-    const errorColor = Color(0xFFFF4D4F);
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: ratings.map((rating) {
-        final tagIndex = uiState.selected.indexWhere(
-              (t) => t.type == TagType.age.stringValue && t.name == rating.value,
-        );
-        final isSelected = tagIndex != -1;
-        final isExclude = isSelected ? uiState.selected[tagIndex].isExclude : false;
-
-        Color backgroundColor;
-        Color labelColor;
-        Border? border;
-        final ratingColor = AgeRatingEnum.ageRatingColor(rating);
-
-        if (!isSelected) {
-          backgroundColor = fillColor;
-          labelColor = textColor;
-          border = Border.all(color: Colors.transparent);
-        } else if (isExclude) {
-          backgroundColor = errorColor.withOpacity(0.1);
-          labelColor = errorColor;
-          border = Border.all(color: errorColor);
-        } else {
-          backgroundColor = ratingColor.withOpacity(0.1);
-          labelColor = ratingColor;
-          border = Border.all(color: ratingColor);
-        }
-
-        return InkWell(
-          onTap: () => notifier.toggleTag(TagType.age.stringValue, rating.value, refreshData: false),
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(8),
-              border: border,
-            ),
-            child: Text(
-              rating.label,
-              style: TextStyle(
-                color: labelColor,
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }

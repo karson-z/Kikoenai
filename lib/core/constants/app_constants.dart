@@ -13,4 +13,7 @@ class AppConstants {
   // Network - 使用平台特定的基础URL
   static String get apiBaseUrl => '${EnvironmentConfig.baseUrl}/api';
 }
+// 健康检查
 // https://api.asmr-200.com/api/health
+// 播放上报
+// https://api.asmr-100.com/api/recommender/feedback

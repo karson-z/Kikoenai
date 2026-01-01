@@ -25,11 +25,6 @@ class AudioServiceSingleton {
     );
   }
 }
-
-final audioHandlerFutureProvider = Provider<AudioHandler>((ref) {
-  return AudioServiceSingleton.instance;
-});
-
 class MyAudioHandler extends BaseAudioHandler {
   final AudioPlayer _player = AudioPlayer();
   bool _alreadyCompleted = false;
