@@ -140,12 +140,12 @@ final categoryUiProvider =
 NotifierProvider<CategoryUiNotifier, CategoryUiState>(
         () => CategoryUiNotifier());
 
+
 class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
-  late final CategoryRepository repo;
+  CategoryRepository get _repo => ref.read(categoryRepositoryProvider);
 
   @override
   Future<CategoryState> build() async {
-    repo = ref.read(categoryRepositoryProvider);
     return await _load(reset: true);
   }
 
@@ -154,14 +154,14 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final prev = state.value ?? const CategoryState();
     final page = reset ? 1 : prev.currentPage + 1;
 
-    // 构建查询参数
-    final queryParams = OtherUtil.buildTagQueryPath(ui.selected,keyword: ui.keyword);
+    final queryParams = OtherUtil.buildTagQueryPath(ui.selected, keyword: ui.keyword);
 
-    if (reset) {
+    // 注意：如果是在 build 初始化期间，不要在这里设置 state = AsyncLoading
+    // 只有在手动加载更多时才需要手动控制状态，否则 build 自身的返回就是 loading 态
+    if (reset && !state.isLoading) {
       state = const AsyncLoading();
     }
-
-    final result = await repo.searchWorks(
+    final result = await _repo.searchWorks(
       page: page,
       order: ui.sortOption.value,
       sort: ui.sortDirection.value,
@@ -186,14 +186,18 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     );
   }
 
+  // 手动刷新方法（对应 UI 中的 refresh 调用）
   Future<void> refresh() async {
+    state = const AsyncLoading(); // 先转圈
     state = await AsyncValue.guard(() async {
       return await _load(reset: true);
     });
   }
 
   Future<void> loadMore() async {
+
     if (state.isLoading) return;
+
     try {
       final nextState = await _load(reset: false);
       state = AsyncData(nextState);
@@ -202,7 +206,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     }
   }
 }
-
 final categoryProvider =
 AsyncNotifierProvider<CategoryDataNotifier, CategoryState>(
         () => CategoryDataNotifier());

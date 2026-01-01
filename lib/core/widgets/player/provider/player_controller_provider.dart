@@ -23,11 +23,10 @@ final playerControllerProvider = NotifierProvider.autoDispose<PlayerController, 
 });
 
 class PlayerController extends Notifier<AppPlayerState> {
-  late final AudioHandler handler;
+  AudioHandler get _handler => AudioServiceSingleton.instance;
   CacheService get _cacheService => CacheService.instance;
   @override
   AppPlayerState build() {
-    handler = ref.read(audioHandlerFutureProvider);
     _listen();
     _loadPlayerState();
     return AppPlayerState();
@@ -41,19 +40,19 @@ class PlayerController extends Notifier<AppPlayerState> {
     // 2. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
-      await handler.addQueueItems(playList);
+      await _handler.addQueueItems(playList);
     }
 
     // 3. 恢复当前索引
     final currentIndex = playList.indexWhere(
           (item) => item.id == savedState.currentTrack?.id,
     );
-    (handler as MyAudioHandler).setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
+    (_handler as MyAudioHandler).setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
 
     // 4. 恢复播放进度
     final progress = savedState.progressBarState.current;
     if (progress > Duration.zero) {
-      await handler.seek(progress);
+      await _handler.seek(progress);
     }
 
     // 5. 恢复字幕状态
@@ -63,13 +62,13 @@ class PlayerController extends Notifier<AppPlayerState> {
     );
 
     // 6. 恢复音量
-    if (handler is MyAudioHandler) {
-      await (handler as MyAudioHandler).setVolume(savedState.volume);
+    if (_handler is MyAudioHandler) {
+      await (_handler as MyAudioHandler).setVolume(savedState.volume);
     }
 
     // 7. 恢复循环/随机模式
-    await handler.setRepeatMode(savedState.repeatMode);
-    await handler.setShuffleMode(
+    await _handler.setRepeatMode(savedState.repeatMode);
+    await _handler.setShuffleMode(
       savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
   }
@@ -77,11 +76,11 @@ class PlayerController extends Notifier<AppPlayerState> {
   /// 监听播放状态变化
   void _listen() {
     // 播放状态 & 缓冲状态
-    handler.playbackState.listen((p) {
+    _handler.playbackState.listen((p) {
       final newProgress = ProgressBarState(
         current: p.position,
         buffered: p.bufferedPosition,
-        total: handler.mediaItem.value?.duration ?? Duration.zero,
+        total: _handler.mediaItem.value?.duration ?? Duration.zero,
       );
       state = state.copyWith(
         playing: p.playing,
@@ -95,7 +94,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       }
     });
     // 当前播放曲目
-    handler.mediaItem.listen((item) {
+    _handler.mediaItem.listen((item) {
       _updateSubtitleState(item);
       if (state.currentTrack?.id != item?.id) {
         state = state.copyWith(
@@ -110,7 +109,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     });
 
     // 播放列表变化
-    handler.queue.listen((queue) {
+    _handler.queue.listen((queue) {
       state = state.copyWith(playlist: queue);
       _updateSkipInfo();
       if(state.currentTrack != null){
@@ -119,8 +118,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     });
 
     // 音量变化
-    if (handler is MyAudioHandler) {
-      (handler as MyAudioHandler).volumeStream.listen((v) {
+    if (_handler is MyAudioHandler) {
+      (_handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
         if(state.currentTrack != null){
           _saveState();
@@ -131,7 +130,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   void _updateSkipInfo() {
     final playlist = state.playlist;
-    final current = handler.mediaItem.value;
+    final current = _handler.mediaItem.value;
 
     if (playlist.isEmpty || current == null) {
       state = state.copyWith(isFirst: true, isLast: true);
@@ -206,50 +205,50 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
   // --- 控制方法 ---
-  Future<void> play() async => handler.play();
-  Future<void> pause() async => handler.pause();
-  Future<void> stop() async => handler.stop();
-  Future<void> seek(Duration d) async => handler.seek(d);
-  Future<void> next() async => handler.skipToNext();
-  Future<void> previous() async => handler.skipToPrevious();
+  Future<void> play() async => _handler.play();
+  Future<void> pause() async => _handler.pause();
+  Future<void> stop() async => _handler.stop();
+  Future<void> seek(Duration d) async => _handler.seek(d);
+  Future<void> next() async => _handler.skipToNext();
+  Future<void> previous() async => _handler.skipToPrevious();
 
   Future<void> setVolume(double v) async {
-    if (handler is MyAudioHandler) {
-      await (handler as MyAudioHandler).setVolume(v);
+    if (_handler is MyAudioHandler) {
+      await (_handler as MyAudioHandler).setVolume(v);
     }
   }
 
   Future<void> toggleShuffle() async {
     final enabled = !state.shuffleEnabled;
     state = state.copyWith(shuffleEnabled: enabled);
-    await handler.setShuffleMode(enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+    await _handler.setShuffleMode(enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
     _saveState();
   }
 
   Future<void> setRepeat(AudioServiceRepeatMode mode) async {
     state = state.copyWith(repeatMode: mode);
-    await handler.setRepeatMode(mode);
+    await _handler.setRepeatMode(mode);
     _saveState();
   }
   void replacePlaylist(List<MediaItem> newList) {
-    handler.updateQueue(newList);
+    _handler.updateQueue(newList);
   }
   Future<void> add(MediaItem item) async {
-    await handler.addQueueItem(item);
+    await _handler.addQueueItem(item);
   }
 
   Future<void> addAll(List<MediaItem> items) async {
-    await handler.addQueueItems(items);
+    await _handler.addQueueItems(items);
   }
 
   Future<void> skipTo(int index) async {
-    await handler.skipToQueueItem(index);
+    await _handler.skipToQueueItem(index);
   }
 
   Future<void> clear() async {
     // 为什么只清除列表，不清除当前播放记录呢(清除的话播放器页面就会使用占位符进行替代，太丑了，不如不要)！
     state = state.copyWith(subtitleList: []); // 清空字幕列表
-    await (handler as MyAudioHandler).clearPlaylist();
+    await (_handler as MyAudioHandler).clearPlaylist();
   }
   // 私有方法，交给监听器触发
   void _updateSubtitleState(MediaItem? currentItem) async {
@@ -345,7 +344,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       await skipTo(audioTapIndex);
       if(history != null) {
         if (history.lastProgressMs != null) {
-          await handler.seek(Duration(milliseconds: history.lastProgressMs!));
+          await _handler.seek(Duration(milliseconds: history.lastProgressMs!));
         }
       }
     }
@@ -389,7 +388,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     handleFileTap(currentNode, parentList,history: history,work: work);
   }
   Future<void> removeMediaItemInQueue(int index) async {
-    await handler.removeQueueItemAt(index);
+    await _handler.removeQueueItemAt(index);
     _saveState();
   }
   Future<void> addMultiInQueue(List<FileNode> nodes,Work work) async {

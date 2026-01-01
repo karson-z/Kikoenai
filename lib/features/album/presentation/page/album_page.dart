@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
-import '../../../../core/enums/sort_options.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../viewmodel/provider/work_provider.dart';
@@ -22,104 +21,140 @@ class AlbumPage extends ConsumerStatefulWidget {
   ConsumerState<AlbumPage> createState() => _AlbumPageState();
 }
 
-class _AlbumPageState extends ConsumerState<AlbumPage> with TickerProviderStateMixin {
-  final List<SortOrder> sortOrders = SortOrder.values;
-  @override
-  void initState() {
-    super.initState();
-    // 仅保留数据加载逻辑
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final workNotifier = ref.read(worksNotifierProvider.notifier);
-        workNotifier.refresh();
-    });
-  }
-
+class _AlbumPageState extends ConsumerState<AlbumPage> {
   @override
   Widget build(BuildContext context) {
-    final deviceType = WorkListLayout(
-        layoutType: WorkListLayoutType.card)
+    final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card)
         .getDeviceType(context);
 
-    final worksState = ref.watch(worksNotifierProvider);
+    final hotState = ref.watch(hotWorksProvider);
+    final recState = ref.watch(recommendedWorksProvider);
+    final newState = ref.watch(newWorksProvider);
 
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
           ? PreferredSize(
-        preferredSize: const Size.fromHeight(80), // 高度可根据需求调整
-        child: MobileSearchAppBar(
-          onSearchTap: (){
-            debugPrint("跳转到搜索页面");
-            context.push(AppRoutes.search);
-          },
+              preferredSize: const Size.fromHeight(80),
+              child: MobileSearchAppBar(
+                onSearchTap: () {
+                  debugPrint("跳转到搜索页面");
+                  context.push(AppRoutes.search);
+                },
+              ),
+            )
+          : null,
+      // 添加下拉刷新，同时控制三个 Provider
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // 并行刷新，效率更高
+          await Future.wait([
+            ref.refresh(hotWorksProvider.future),
+            ref.refresh(recommendedWorksProvider.future),
+            ref.refresh(newWorksProvider.future),
+          ]);
+        },
+        child: CustomScrollView(
+          slivers: [
+            // 1. 热门作品区域
+            ..._buildHotSection(hotState),
+
+            // 2. 推荐作品区域
+            ..._buildRecommendSection(recState),
+
+            // 3. 最新作品区域 (带分页)
+            ..._buildNewSection(newState),
+
+            // 底部留白，防止内容贴底
+            const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+          ],
         ),
-      )
-          :null,
-      body: CustomScrollView(
-        slivers: [
-          ..._buildFirstTabExtra(worksState),
-        ],
       ),
     );
   }
 
-  List<Widget> _buildFirstTabExtra(AsyncValue worksState) {
-    // ... 保持不变 ...
+  // --- 热门作品构建逻辑 ---
+  List<Widget> _buildHotSection(AsyncValue hotState) {
     return [
-      SectionHeader(title: '热门作品',isShowMoreButton: true, onMore: () {}),
-
-      worksState.when(
-        data: (data) => SliverToBoxAdapter(
-            child: ResponsiveHorizontalCardList(items: data.hotWorks)),
+      SectionHeader(
+        title: '热门作品',
+      ),
+      hotState.when(
+        data: (state) => SliverToBoxAdapter(
+          child: ResponsiveHorizontalCardList(
+            items: state.works,
+            hasMore: state.hasMore,
+            onLoadMore: () {
+              ref.read(hotWorksProvider.notifier).loadMore();
+            },
+          ),
+        ),
         loading: () => const SliverToBoxAdapter(
-          child:
-          ResponsiveHorizontalCardListSkeleton(),
+          child: ResponsiveHorizontalCardListSkeleton(),
         ),
         error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
+          child: SizedBox(
+            height: 120,
+            child: Center(child: Text('加载失败: $e')),
+          ),
         ),
       ),
-      SectionHeader(
-        title: '推荐作品',
-        isShowMoreButton: true,
-        onMore: () {},
-      ),
-      worksState.when(
-        data: (data) {
-          // 1. 如果推荐列表为空，则不显示任何内容（包括标题）
-          if (data.recommendedWorks.isEmpty) {
+    ];
+  }
+
+  // --- 推荐作品构建逻辑 ---
+  List<Widget> _buildRecommendSection(AsyncValue recState) {
+    return [
+        SectionHeader(
+          title: '推荐作品',
+        ),
+      recState.when(
+        data: (state) {
+          if (state.works.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
-
-          // 2. 如果有数据，显示标题 + 列表
           return SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 将 Header 移入此处
-                WorkListHorizontal(items: data.recommendedWorks),
-              ],
+            child: WorkListHorizontal(
+              items: state.works,
+              hasMore: state.hasMore,
+              onLoadMore: () {
+                ref.read(recommendedWorksProvider.notifier).loadMore();
+              },
             ),
           );
         },
+        // 加载中显示骨架屏（这里我选择显示骨架屏，你也可以选择隐藏）
         loading: () => const SliverToBoxAdapter(
-          // 加载中通常不需要显示 Header，或者你可以根据设计决定是否把 Header 加进来
           child: WorkListHorizontalSkeleton(),
         ),
         error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
+          child: SizedBox(
+            height: 120,
+            child: Center(child: Text('加载失败: $e')),
+          ),
         ),
       ),
+    ];
+  }
+
+  // --- 最新作品构建逻辑 ---
+  List<Widget> _buildNewSection(AsyncValue newState) {
+    return [
       SectionHeader(title: '最新作品'),
-      worksState.when(
-        data: (data) =>
-            ResponsiveCardGrid(work: data.newWorks,hasMore: data.hasMore,onLoadMore: () {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                ref.read(worksNotifierProvider.notifier).loadMoreNewWorks();
-              });
-            }),
+      newState.when(
+        data: (state) => ResponsiveCardGrid(
+          work: state.works,
+          hasMore: state.hasMore,
+          onLoadMore: () {
+            // 直接调用 newWorksProvider 的 loadMore
+            ref.read(newWorksProvider.notifier).loadMore();
+          },
+        ),
         loading: () => const ResponsiveCardGridSkeleton(),
         error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(height: 120, child: Center(child: Text('加载失败: $e'))),
+          child: SizedBox(
+            height: 120,
+            child: Center(child: Text('加载失败: $e')),
+          ),
         ),
       ),
     ];

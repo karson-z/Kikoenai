@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/routes/app_routes.dart';
@@ -14,29 +15,28 @@ import '../widget/work_tag.dart';
 /// 专辑详情页
 class AlbumDetailPage extends ConsumerWidget {
   final Map<String, dynamic> extra;
+
   const AlbumDetailPage({super.key, required this.extra});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = extra['work'];
     final asyncData = ref.watch(trackFileNodeProvider(work.id));
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text("RJ${work.id}" ,style: TextStyle(fontSize: 18),),
+        title: Text(
+          "RJ${work.id}",
+          style: const TextStyle(fontSize: 18),
+        ),
         actions: [
           GestureDetector(
             child: Row(
               children: const [
-                Icon(
-                  Icons.table_chart,
-                  color: Colors.grey,                // 随便染成你要的颜色
-                ),
+                Icon(Icons.table_chart, color: Colors.grey),
                 SizedBox(width: 4),
-                Text(
-                  "标记",
-                  style: TextStyle(fontSize: 16,color: Colors.black),
-                ),
+                Text("标记", style: TextStyle(fontSize: 16, color: Colors.black)),
               ],
             ),
           ),
@@ -47,14 +47,14 @@ class AlbumDetailPage extends ConsumerWidget {
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 600;
 
-          // 封面
+          // 封面组件
           final cover = AlbumCover(
             heroTag: work.heroTag,
             thumbnailUrl: work.thumbnailCoverUrl,
             mainUrl: work.mainCoverUrl,
           );
 
-          // 基本信息
+          // 基本信息组件
           final info = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -64,15 +64,16 @@ class AlbumDetailPage extends ConsumerWidget {
               if (work.name != null)
                 GestureDetector(
                   onTap: () {
-                    ref.read(categoryUiProvider.notifier).toggleTag(TagType.circle.stringValue,work.name!,refreshData: true);
+                    ref.read(categoryUiProvider.notifier).toggleTag(
+                        TagType.circle.stringValue, work.name!,
+                        refreshData: true);
                     context.go(AppRoutes.category);
                   },
                   child: Text(work.name!,
                       style: const TextStyle(fontSize: 14, color: Colors.grey)),
                 ),
               const SizedBox(height: 4),
-              if (work.vas != null)
-                TagRow(tags: work.vas!, type: TagType.va),
+              if (work.vas != null) TagRow(tags: work.vas!, type: TagType.va),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -95,6 +96,7 @@ class AlbumDetailPage extends ConsumerWidget {
             ],
           );
 
+          // 组合头部区域
           final metadata = isWide
               ? Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,40 +111,47 @@ class AlbumDetailPage extends ConsumerWidget {
             children: [cover, const SizedBox(height: 16), info],
           );
 
-          return RefreshIndicator(onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
-              child: NestedScrollView(
-                headerSliverBuilder: (context, innerBoxIsScrolled) {
-                  return [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: metadata,
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: const SizedBox(height: 24),
-                    ),
-                  ];
-                },
-                body: asyncData.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) {
-                    if (err is GlobalException) {
-                      return Center(
-                        child: Text(
-                          "GlobalException: ${err.message}\ncode=${err.code}",
-                        ),
-                      );
-                    }
-                    return Center(child: Text("Other error: $err"));
-                  },
-                  data: (nodes) => FileNodeBrowser(
-                    work: work,
-                    rootNodes: nodes,
-                    // 注意 FileNodeBrowser 内部 ListView 要用 `physics: ClampingScrollPhysics()` 或默认
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
+            child: CustomScrollView(
+              // 关键：确保即使内容不足也能下拉刷新
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // 1. 头部区域 (元数据)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: metadata,
                   ),
                 ),
-              ));
+
+                // 间距
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                // 2. 异步内容区域
+                asyncData.when(
+                  loading: () => const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: LottieLoadingIndicator(message: 'loading...')),
+                  ),
+                  error: (err, stack) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: err is GlobalException
+                          ? Text("GlobalException: ${err.message}\ncode=${err.code}")
+                          : Text("Error: $err"),
+                    ),
+                  ),
+                  data: (nodes) {
+                    return FileNodeBrowser(
+                      work: work,
+                      rootNodes: nodes,
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
         },
       ),
     );
@@ -168,7 +177,8 @@ class AlbumCover extends StatelessWidget {
           fit: BoxFit.cover,
           // 缩略图本身不需要占位符，或者用灰色背景
           placeholder: (context, url) => Container(color: Colors.grey.shade300),
-          errorWidget: (context, url, error) => Container(color: Colors.grey.shade300),
+          errorWidget: (context, url, error) =>
+              Container(color: Colors.grey.shade300),
         );
       }
       return Container(color: Colors.grey.shade300);
@@ -182,18 +192,18 @@ class AlbumCover extends StatelessWidget {
           aspectRatio: 4 / 3,
           child: mainUrl != null
               ? CachedNetworkImage(
-            imageUrl: mainUrl!,
-            fit: BoxFit.cover,
-            // ✅ 关键修复：直接使用 placeholder 属性展示缩略图
-            // 当大图加载时，CachedNetworkImage 会自动处理从 placeholder 到大图的过渡
-            placeholder: (context, url) => buildThumbnail(),
-            // 如果大图加载失败，保留缩略图或显示错误
-            errorWidget: (context, url, error) => buildThumbnail(),
-            // 淡入动画时长
-            fadeInDuration: const Duration(milliseconds: 400),
-            // 确保淡入时占位符不会立即消失，而是平滑过渡
-            useOldImageOnUrlChange: true,
-          )
+                  imageUrl: mainUrl!,
+                  fit: BoxFit.cover,
+                  // ✅ 关键修复：直接使用 placeholder 属性展示缩略图
+                  // 当大图加载时，CachedNetworkImage 会自动处理从 placeholder 到大图的过渡
+                  placeholder: (context, url) => buildThumbnail(),
+                  // 如果大图加载失败，保留缩略图或显示错误
+                  errorWidget: (context, url, error) => buildThumbnail(),
+                  // 淡入动画时长
+                  fadeInDuration: const Duration(milliseconds: 400),
+                  // 确保淡入时占位符不会立即消失，而是平滑过渡
+                  useOldImageOnUrlChange: true,
+                )
               : buildThumbnail(),
         ),
       ),
