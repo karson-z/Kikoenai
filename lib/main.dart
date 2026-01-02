@@ -8,6 +8,7 @@ import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
+import 'core/service/auto_proxy_service.dart';
 import 'core/storage/hive_storage.dart';
 import 'core/storage/hive_storage.dart';
 
@@ -30,6 +31,7 @@ void main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await AudioServiceSingleton.init();
   await AppStorage.init();
+  await ProxyService.init();
   print('开始检测最优服务器...');
   await EnvironmentConfig.selectBestServer();
   print('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');

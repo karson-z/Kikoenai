@@ -7,7 +7,7 @@ import '../../../../../core/common/result.dart';
 import '../../../../../core/service/cache_service.dart';
 
 
-final circlesProvider = FutureProvider<List<Circle>>((ref) {
+final circlesProvider = FutureProvider.autoDispose<List<Circle>>((ref) {
   return _fetchAndCache<Circle>(
     ref: ref,
     // 缓存读取回调
@@ -25,7 +25,7 @@ final circlesProvider = FutureProvider<List<Circle>>((ref) {
   );
 });
 
-final vasProvider = FutureProvider<List<VA>>((ref) {
+final vasProvider = FutureProvider.autoDispose<List<VA>>((ref) {
   return _fetchAndCache<VA>(
     ref: ref,
     getFromCache: () => CacheService.instance.getVasOption(),
@@ -37,7 +37,7 @@ final vasProvider = FutureProvider<List<VA>>((ref) {
   );
 });
 
-final tagsProvider = FutureProvider<List<Tag>>((ref) {
+final tagsProvider = FutureProvider.autoDispose<List<Tag>>((ref) {
   return _fetchAndCache<Tag>(
     ref: ref,
     getFromCache: () => CacheService.instance.getTagsOption(),

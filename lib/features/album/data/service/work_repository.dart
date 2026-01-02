@@ -28,6 +28,7 @@ abstract class WorkRepository {
   });
   Future<Result<List<dynamic>>> getWorkTracks(int workId);
   Future<Result<Map<String, dynamic>>>  getWorkDetail(int workId);
+  // Future<Result<Map<String, dynamic>>> getReviews();
 }
 
 class WorkRepositoryImpl implements WorkRepository {
@@ -124,6 +125,13 @@ class WorkRepositoryImpl implements WorkRepository {
     );
     return response;
   }
+
+  // @override
+  // Future<Result<Map<String, dynamic>>> getReviews() async {
+  //   final response = await api.put<Map<String, dynamic>>(
+  //     '/review',
+  //   );
+  // }
 }
 final workRepositoryProvider = Provider<WorkRepository>((ref) {
   final apiClient = ref.read(apiClientProvider); // 从提供者拿 ApiClient
