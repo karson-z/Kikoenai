@@ -62,6 +62,7 @@ dependencies:
   crypto: ^3.0.7
   open_filex: ^4.7.0
   back_button_interceptor: ^8.0.4
+  native_flutter_proxy: ^0.3.1
 
 
 dev_dependencies:

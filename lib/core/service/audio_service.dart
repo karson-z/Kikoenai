@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -40,6 +41,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenForDurationChanges();
     _listenForPlaybackCompletion();
     _listenForPositionChanges();
+    _listenErrorPlayState();
   }
   int get currentIndex => _currentIndex;
 
@@ -153,6 +155,11 @@ class MyAudioHandler extends BaseAudioHandler {
         queueIndex: _currentIndex,
       ));
     });
+  }
+  void _listenErrorPlayState () {
+     _player.errorStream.listen((e) {
+       KikoenaiLogger().e("${e.message}");
+     });
   }
   void _listenForPositionChanges() {
     // just_audio 提供了一个专门用于播放进度监听的流，需要单独进行更新，而不是加入到播放事件流监听中进行更新
@@ -375,12 +382,6 @@ class MyAudioHandler extends BaseAudioHandler {
     _currentIndex = -1;
     _isPlaylistPrepared = false;
     return super.stop();
-  }
-  @override
-  Future<void> onTaskRemoved() async {
-    await _player.stop();
-    await _player.dispose();
-    await super.stop();
   }
   // 清空播放列表
   Future<void> clearPlaylist() async {

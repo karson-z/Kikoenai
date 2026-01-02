@@ -8,6 +8,7 @@ import 'package:kikoenai/core/service/file_scanner_service.dart';
 import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
+import 'package:kikoenai/core/widgets/player/provider/play_feedback_provider.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/local_media/data/service/tree_service.dart';
 import 'package:path/path.dart' as p;
@@ -72,7 +73,42 @@ class PlayerController extends Notifier<AppPlayerState> {
       savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
   }
+  void _updateTrackerStatus({
+    bool? isPlaying,
+    bool isCompleted = false,
+    MediaItem? mediaItem,
+  }) {
+    // 1. 确定使用的 MediaItem (优先参数传入，否则取 State)
+    final item = mediaItem ?? state.currentTrack;
 
+    // 2. 确定播放状态
+    // 如果播放完成了，强制视为暂停
+    final finalIsPlaying = isCompleted ? false : (isPlaying ?? state.playing);
+
+    if (item == null) {
+      return;
+    }
+    // 3. 解析 WorkID
+    String? workId;
+    try {
+      final workDataStr = item.extras?['workData'];
+      if (workDataStr != null) {
+        // 兼容 String 和 Map 两种格式
+        final workJson = workDataStr is String ? jsonDecode(workDataStr) : workDataStr;
+        workId = workJson['id']?.toString();
+      }
+    } catch (e) {
+      debugPrint("埋点解析 WorkID 失败: $e");
+    }
+
+    // 4. 通知 Provider
+    if (workId != null && workId.isNotEmpty) {
+      ref.read(playbackTrackerProvider.notifier).updatePlaybackStatus(
+        workId: workId,
+        isPlaying: finalIsPlaying,
+      );
+    }
+  }
   /// 监听播放状态变化
   void _listen() {
     // 播放状态 & 缓冲状态
@@ -87,6 +123,10 @@ class PlayerController extends Notifier<AppPlayerState> {
         loading: p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
+      );
+      _updateTrackerStatus(
+          isPlaying: p.playing,
+          isCompleted: p.processingState == AudioProcessingState.completed
       );
       if(state.currentTrack != null){
         _saveState();
@@ -106,6 +146,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         _saveState();
         _saveHistory();
       }
+      _updateTrackerStatus(mediaItem: item, isPlaying: state.playing);
     });
 
     // 播放列表变化

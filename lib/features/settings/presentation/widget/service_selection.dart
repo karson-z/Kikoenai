@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // 请确保路径正确
@@ -8,13 +10,13 @@ import '../../../../config/environment_config.dart';
 
 class ServerSelectionModal extends ConsumerStatefulWidget {
   const ServerSelectionModal({super.key});
-
   @override
   ConsumerState<ServerSelectionModal> createState() => _ServerSelectionModalState();
 }
 
 class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
   // 存储每个 URL 对应的延迟 (毫秒)，-1 表示失败，null 表示正在测速
+
   final Map<String, int?> _latencies = {};
   final Dio _dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 3), // 3秒超时
@@ -34,7 +36,6 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
       _checkLatency(url);
     }
   }
-
   /// 单个节点测速逻辑
   Future<void> _checkLatency(String url) async {
     // 标记为正在加载

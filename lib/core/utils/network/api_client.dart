@@ -1,19 +1,21 @@
 import 'package:dio/dio.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import '../../../../../core/service/cache_service.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
 import '../../common/result.dart';
 import '../../constants/app_constants.dart';
-import '../log/logger.dart';
 
 class ApiClient {
   final Dio _dio;
   String? _cachedToken;
+
   ApiClient._internal(this._dio) {
     _setupInterceptors(_dio, _tokenProvider);
   }
@@ -48,10 +50,13 @@ class ApiClient {
 
     return null;
   }
+
   void updateBaseUrl(String newUrl) {
     _dio.options.baseUrl = '$newUrl/api';
-    Log.i('ApiClient BaseUrl updated to: $newUrl', tag: 'API');
+    // 修改日志调用，手动添加 [API] 标签前缀
+    KikoenaiLogger().i('[API] ApiClient BaseUrl updated to: $newUrl');
   }
+
   Future<bool> checkHealth(String domain) async {
     try {
       // 这里的 url 必须是完整的 (http开头)，Dio 会自动忽略 options.baseUrl
@@ -80,6 +85,7 @@ class ApiClient {
       return false;
     }
   }
+
   /// 泛型请求核心方法
   Future<Result<T>> _request<T>(Future<Response> Function() request) async {
     try {
@@ -163,105 +169,113 @@ void _setupInterceptors(
     Future<String?> Function()? tokenProvider,
     ) {
   final interceptor = InterceptorsWrapper(
-    onRequest: (options, handler) async {
-      Log.i('REQ ${options.method} ${options.uri}', tag: 'API');
-      options.headers['User-Agent'] =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
-      options.headers['Referer'] = 'https://www.asmr.one/';
-      options.headers['Origin'] = 'https://www.asmr.one';
-      // Dart HttpClient 默认支持 gzip，显式声明可确保服务器知晓
-      options.headers['Accept-Encoding'] = 'gzip';
-      if (tokenProvider != null) {
-        final token = await tokenProvider();
-        if (token != null && token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
+      onRequest: (options, handler) async {
+        // 修改日志调用，手动添加 [API] 标签前缀
+        KikoenaiLogger().i('[API] REQ ${options.method} ${options.uri}');
+
+        options.headers['User-Agent'] =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
+        options.headers['Referer'] = 'https://www.asmr.one/';
+        options.headers['Origin'] = 'https://www.asmr.one';
+        // Dart HttpClient 默认支持 gzip，显式声明可确保服务器知晓
+        options.headers['Accept-Encoding'] = 'gzip';
+        if (tokenProvider != null) {
+          final token = await tokenProvider();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
         }
-      }
 
-      handler.next(options);
-    },
+        handler.next(options);
+      },
 
-    onResponse: (response, handler) async {
-      Log.i(
-        'RES [${response.statusCode}] ${response.requestOptions.uri}',
-        tag: 'API',
-      );
-      handler.next(response);
-    },
+      onResponse: (response, handler) async {
+        // 修改日志调用，手动添加 [API] 标签前缀
+        KikoenaiLogger().i(
+          '[API] RES [${response.statusCode}] ${response.requestOptions.uri}',
+        );
+        handler.next(response);
+      },
 
-    onError: (DioException err, handler) async {
-      final status = err.response?.statusCode;
-      Log.e('ERR [${status ?? ''}] ${err.message}', tag: 'API');
+      onError: (DioException err, handler) async {
+        final status = err.response?.statusCode;
+        // 修改日志调用，使用 .e 记录错误，并手动添加 [API] 标签前缀
+        KikoenaiLogger().e('[API] ERR [${status ?? ''}] ${err.message}');
 
-      final req = err.requestOptions;
-      int retryCount = (req.extra['retry_count'] as int?) ?? 0;
+        final req = err.requestOptions;
+        int retryCount = (req.extra['retry_count'] as int?) ?? 0;
 
-      // 401 登录处理
-      final isUnauthorized = status == 401 ||
-          (err.response?.data is Map &&
-              err.response?.data['code'] == 401);
-      final context = AppConstants.rootNavigatorKey.currentContext;
-      if (isUnauthorized) {
-        if (context != null) {
-          // 2. 显示带有按钮的错误 Toast
-          KikoenaiToast.error(
-            context: context,
-            "登录已过期，请重新登录",
-            action: SnackBarAction(
-              label: '去登录',
-              textColor: Colors.white,
-              onPressed: () {
-                // 3. 这里执行跳转逻辑
-                // 方式 A: 如果你使用命名路由
-                context.goNamed(AppRoutes.login);
-              },
-            ),
-          );
-        }
-        return;
-      }
-
-      // 自动重试机制（仅 GET）
-      final shouldRetry =
-          (
-              err.type == DioExceptionType.connectionError ||
-                  err.type == DioExceptionType.connectionTimeout ||
-                  err.type == DioExceptionType.receiveTimeout ||
-                  (status != null && status >= 500)
-          ) &&
-          retryCount < 3;
-
-      if (shouldRetry) {
-        retryCount++;
-        req.extra['retry_count'] = retryCount;
-
-        Log.i('Retrying request... Attempt $retryCount', tag: 'API');
-        await Future.delayed(Duration(milliseconds: 1000 * retryCount));
-
-        final newReq = Options(
-          method: req.method,
-          headers: req.headers,
-          extra: req.extra,
-        )
-            .compose(
-          dio.options,
-          req.path,
-          data: req.data,
-          queryParameters: req.queryParameters,
-        )
-            .copyWith(baseUrl: req.baseUrl);
-
-        try {
-          final response = await dio.fetch(newReq);
-          handler.resolve(response);
-          return;
-        } catch (e) {
-          // 重试失败 → 不再触发 onError → 结束
-          handler.reject(err);
+        // 401 登录处理
+        final isUnauthorized = status == 401 ||
+            (err.response?.data is Map &&
+                err.response?.data['code'] == 401);
+        final context = AppConstants.rootNavigatorKey.currentContext;
+        if (isUnauthorized) {
+          if (context != null) {
+            // 2. 显示带有按钮的错误 Toast
+            KikoenaiToast.error(
+              context: context,
+              "登录已过期，请重新登录",
+              action: SnackBarAction(
+                label: '去登录',
+                textColor: Colors.white,
+                onPressed: () {
+                  // 3. 这里执行跳转逻辑
+                  // 方式 A: 如果你使用命名路由
+                  context.goNamed(AppRoutes.login);
+                },
+              ),
+            );
+          }
           return;
         }
+
+        // 自动重试机制（仅 GET）
+        final shouldRetry =
+            (
+                err.type == DioExceptionType.connectionError ||
+                    err.type == DioExceptionType.connectionTimeout ||
+                    err.type == DioExceptionType.receiveTimeout ||
+                    (status != null && status >= 500)
+            ) &&
+                retryCount < 3;
+
+        if (shouldRetry) {
+          retryCount++;
+          req.extra['retry_count'] = retryCount;
+
+          // 修改日志调用，手动添加 [API] 标签前缀
+          KikoenaiLogger().i('[API] Retrying request... Attempt $retryCount');
+
+          await Future.delayed(Duration(milliseconds: 1000 * retryCount));
+
+          final newReq = Options(
+            method: req.method,
+            headers: req.headers,
+            extra: req.extra,
+          )
+              .compose(
+            dio.options,
+            req.path,
+            data: req.data,
+            queryParameters: req.queryParameters,
+          )
+              .copyWith(baseUrl: req.baseUrl);
+
+          try {
+            final response = await dio.fetch(newReq);
+            handler.resolve(response);
+            return;
+          } catch (e) {
+            // 重试失败 → 不再触发 onError → 结束
+            handler.reject(err);
+            return;
+          }
+        }
+
+        // 别忘了将错误继续传递，否则请求会挂起
+        handler.next(err);
       }
-    }
   );
 
   dio.interceptors.add(interceptor);
