@@ -18,7 +18,7 @@ class AdvancedFilterPanel extends StatelessWidget {
   // 样式配置
   final Color fillColor;
   final Color textColor;
-  final Color backgroundColor;
+
 
   const AdvancedFilterPanel({
     Key? key,
@@ -26,7 +26,6 @@ class AdvancedFilterPanel extends StatelessWidget {
     required this.notifier,
     required this.fillColor,
     required this.textColor,
-    this.backgroundColor = Colors.white,
   }) : super(key: key);
 
   @override
@@ -44,7 +43,6 @@ class AdvancedFilterPanel extends StatelessWidget {
     };
 
     return Container(
-      color: backgroundColor,
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -27,19 +27,16 @@ class ReviewHeader extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 顶部分段控制器 (保持不变)
+          // 1. 顶部分段控制器
           _buildSegmentedControl(context),
 
           const SizedBox(height: 12),
 
-          // 2. 核心修改区：使用 Wrap 实现自动流式布局
-          // "大屏同行，小屏换行"
           Wrap(
-            spacing: 12,      // 水平间距 (同行元素之间)
-            runSpacing: 12,   // 垂直间距 (换行后的行间距)
+            spacing: 12,
+            runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center, // 垂直居中对齐
             children: [
-              // 2.1 排序工具组 (把下拉和箭头捆绑在一起，不希望它俩分开)
               Row(
                 mainAxisSize: MainAxisSize.min, // 紧缩宽度
                 children: [

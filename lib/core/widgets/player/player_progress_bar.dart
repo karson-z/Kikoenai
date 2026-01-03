@@ -10,12 +10,7 @@ class PlayerProgressBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playerControllerProvider);
     final progressBarState = state.progressBarState;
-    final playing = state.playing;
 
-    // 1. 获取缓冲状态
-    // 注意：你需要确保你的 state 中包含判断是否正在缓冲的逻辑。
-    // 如果使用的是 just_audio，通常判断 processingState == ProcessingState.buffering
-    // 这里假设 state 中有一个 isBuffering 属性，或者你可以根据 buffered 和 current 的关系来推断
     final bool isBuffering = state.loading;
 
     // 提取高度常量，以便对齐

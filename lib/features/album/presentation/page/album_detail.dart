@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
-import 'package:kikoenai/features/album/data/service/work_repository.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
@@ -43,26 +41,12 @@ class AlbumDetailPage extends ConsumerWidget {
           InkWell(
             borderRadius: BorderRadius.circular(4),
             onTap: () {
-              // 1. 安全获取当前数据 (如果正在加载或出错，currentData 会是 null)
               final currentData = workStatus.value;
 
-              // 2. 构建初始状态
-              // 如果 currentData 存在，就用它的值；否则用默认值 (0, '', marked)
               final initialStatus = UserWorkStatus(
                 workId: work.id,
-                // --- 评分 ---
-                // 假设源数据里叫 userRating 或 rating
                 rating: currentData?.userRating ?? 0,
-
-                // --- 评论内容 (关键) ---
-                // 必须拿到之前的评论！不要写死 ''，否则每次打开都会清空用户的评论
                 reviewText: currentData?.reviewText ?? '',
-
-                // --- 进度状态 ---
-                // 情况A: 如果源数据里的 progress 已经是枚举
-                // progress: currentData?.progress ?? WorkProgress.marked,
-
-                // 情况B: 如果源数据里的 progress 是字符串 (如 "listening")
                 progress: currentData?.progress != null
                     ? WorkProgress.fromString(currentData!.progress)
                     : WorkProgress.marked,
@@ -88,16 +72,14 @@ class AlbumDetailPage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.table_chart, color: Colors.grey, size: 20),
+                  const Icon(Icons.bookmark_add_outlined, color: Colors.grey, size: 20),
                   const SizedBox(width: 4),
                   // 4. 渲染文字：处理 AsyncValue 的三种状态
                   workStatus.when(
                     data: (status) {
-                      // 成功获取数据，显示对应进度的中文名
-                      // 假设你有 _getProgressLabel 方法或者 extension
                       return Text(
                         WorkProgress.fromString(status.progress).label,
-                        style: const TextStyle(fontSize: 16, color: Colors.black),
+                        style: const TextStyle(fontSize: 16),
                       );
                     },
                     error: (_, __) => const Text(

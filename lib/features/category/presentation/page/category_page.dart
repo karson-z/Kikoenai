@@ -727,8 +727,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
           child: AdvancedFilterPanel(
             uiState: uiState,
             notifier: notifier,
-            fillColor: Colors.grey.shade200, // 示例颜色
-            textColor: Colors.black,
+            fillColor: fillColor, // 示例颜色
+            textColor: textColor,
           ),
         );
       default:

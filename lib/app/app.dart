@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/constants/app_version_config.dart';
+import 'package:kikoenai/config/app_version_config.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
