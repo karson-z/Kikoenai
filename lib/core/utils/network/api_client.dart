@@ -272,8 +272,6 @@ void _setupInterceptors(
             return;
           }
         }
-
-        // 别忘了将错误继续传递，否则请求会挂起
         handler.next(err);
       }
   );

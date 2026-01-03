@@ -8,7 +8,6 @@ import 'package:uuid/uuid.dart';
 
 import 'circle.dart';
 import 'other_language_edition.dart';
-
 part 'work.g.dart';
 
 /// Work 主类
@@ -26,6 +25,8 @@ class Work {
   final int? price;
   @JsonKey(name: 'review_count')
   final int? reviewCount;
+  @JsonKey(name: 'review_text')
+  final String? reviewText;
   @JsonKey(name: 'rate_count')
   final int? rateCount;
   @JsonKey(name: 'rate_average_2dp')
@@ -45,6 +46,7 @@ class Work {
   final String? originalWorkno;
   @JsonKey(name: 'other_language_editions_in_db')
   final List<OtherLanguageEdition>? otherLanguageEditionsInDb;
+
   @JsonKey(name: 'work_attributes')
   final String? workAttributes;
   @JsonKey(name: 'age_category_string')
@@ -56,11 +58,18 @@ class Work {
   final String? sourceId;
   @JsonKey(name: 'source_url')
   final String? sourceUrl;
+  @JsonKey(name: 'updated_at')
+  final String? updatedAt;
+
   final dynamic userRating;
+
+  final Map<String, bool>? playlistStatus;
+
   final Circle? circle;
   final String? samCoverUrl;
   final String? thumbnailCoverUrl;
   final String? mainCoverUrl;
+  final String? progress;
 
   /// Hero 动画唯一标识
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -76,6 +85,7 @@ class Work {
     this.dlCount,
     this.price,
     this.reviewCount,
+    this.reviewText,
     this.rateCount,
     this.rateAverage2dp,
     this.rateCountDetail,
@@ -93,14 +103,17 @@ class Work {
     this.sourceType,
     this.sourceId,
     this.sourceUrl,
+    this.updatedAt,
     this.userRating,
+    this.playlistStatus, // New
     this.circle,
     this.samCoverUrl,
     this.thumbnailCoverUrl,
     this.mainCoverUrl,
+    this.progress,
     this.heroTag,
   }) {
-    heroTag ??= const Uuid().v4(); // 只生成一次 UUID
+    heroTag ??= const Uuid().v4();
   }
 
   factory Work.fromJson(Map<String, dynamic> json) => _$WorkFromJson(json);
@@ -116,6 +129,7 @@ class Work {
     int? dlCount,
     int? price,
     int? reviewCount,
+    String? reviewText,
     int? rateCount,
     double? rateAverage2dp,
     List<RateCountDetail>? rateCountDetail,
@@ -133,11 +147,14 @@ class Work {
     String? sourceType,
     String? sourceId,
     String? sourceUrl,
+    String? updateAt,
     dynamic userRating,
+    Map<String, bool>? playlistStatus,
     Circle? circle,
     String? samCoverUrl,
     String? thumbnailCoverUrl,
     String? mainCoverUrl,
+    String? progress,
     String? heroTag,
   }) {
     return Work(
@@ -150,6 +167,7 @@ class Work {
       dlCount: dlCount ?? this.dlCount,
       price: price ?? this.price,
       reviewCount: reviewCount ?? this.reviewCount,
+      reviewText: reviewText ?? this.reviewText,
       rateCount: rateCount ?? this.rateCount,
       rateAverage2dp: rateAverage2dp ?? this.rateAverage2dp,
       rateCountDetail: rateCountDetail ?? this.rateCountDetail,
@@ -167,11 +185,14 @@ class Work {
       sourceType: sourceType ?? this.sourceType,
       sourceId: sourceId ?? this.sourceId,
       sourceUrl: sourceUrl ?? this.sourceUrl,
+      updatedAt: updateAt ?? this.updatedAt,
       userRating: userRating ?? this.userRating,
+      playlistStatus: playlistStatus ?? this.playlistStatus, // New
       circle: circle ?? this.circle,
       samCoverUrl: samCoverUrl ?? this.samCoverUrl,
       thumbnailCoverUrl: thumbnailCoverUrl ?? this.thumbnailCoverUrl,
       mainCoverUrl: mainCoverUrl ?? this.mainCoverUrl,
+      progress: progress ?? this.progress,
       heroTag: heroTag ?? this.heroTag,
     );
   }
@@ -188,9 +209,10 @@ class Work {
         other.id == id &&
         other.title == title &&
         other.circleId == circleId &&
-        other.name == name;
+        other.name == name &&
+        other.sourceId == sourceId; // 建议加入 sourceId 增强唯一性判断
   }
 
   @override
-  int get hashCode => Object.hash(id, title, circleId, name);
+  int get hashCode => Object.hash(id, title, circleId, name, sourceId);
 }

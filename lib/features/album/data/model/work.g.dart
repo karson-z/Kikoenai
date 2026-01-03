@@ -16,6 +16,7 @@ Work _$WorkFromJson(Map<String, dynamic> json) => Work(
       dlCount: (json['dl_count'] as num?)?.toInt(),
       price: (json['price'] as num?)?.toInt(),
       reviewCount: (json['review_count'] as num?)?.toInt(),
+      reviewText: json['review_text'] as String?,
       rateCount: (json['rate_count'] as num?)?.toInt(),
       rateAverage2dp: (json['rate_average_2dp'] as num?)?.toDouble(),
       rateCountDetail: (json['rate_count_detail'] as List<dynamic>?)
@@ -46,13 +47,18 @@ Work _$WorkFromJson(Map<String, dynamic> json) => Work(
       sourceType: json['source_type'] as String?,
       sourceId: json['source_id'] as String?,
       sourceUrl: json['source_url'] as String?,
+      updatedAt: json['updated_at'] as String?,
       userRating: json['userRating'],
+      playlistStatus: (json['playlistStatus'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, e as bool),
+      ),
       circle: json['circle'] == null
           ? null
           : Circle.fromJson(json['circle'] as Map<String, dynamic>),
       samCoverUrl: json['samCoverUrl'] as String?,
       thumbnailCoverUrl: json['thumbnailCoverUrl'] as String?,
       mainCoverUrl: json['mainCoverUrl'] as String?,
+      progress: json['progress'] as String?,
     );
 
 Map<String, dynamic> _$WorkToJson(Work instance) => <String, dynamic>{
@@ -65,6 +71,7 @@ Map<String, dynamic> _$WorkToJson(Work instance) => <String, dynamic>{
       'dl_count': instance.dlCount,
       'price': instance.price,
       'review_count': instance.reviewCount,
+      'review_text': instance.reviewText,
       'rate_count': instance.rateCount,
       'rate_average_2dp': instance.rateAverage2dp,
       'rate_count_detail':
@@ -85,9 +92,12 @@ Map<String, dynamic> _$WorkToJson(Work instance) => <String, dynamic>{
       'source_type': instance.sourceType,
       'source_id': instance.sourceId,
       'source_url': instance.sourceUrl,
+      'updated_at': instance.updatedAt,
       'userRating': instance.userRating,
+      'playlistStatus': instance.playlistStatus,
       'circle': instance.circle?.toJson(),
       'samCoverUrl': instance.samCoverUrl,
       'thumbnailCoverUrl': instance.thumbnailCoverUrl,
       'mainCoverUrl': instance.mainCoverUrl,
+      'progress': instance.progress,
     };

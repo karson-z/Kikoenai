@@ -34,11 +34,9 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   /// 从缓存恢复播放器状态
   void _loadPlayerState() async {
-    // 1. 同步获取播放状态 (因为是内存读取，极快)
     final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
 
-    // 2. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
       await _handler.addQueueItems(playList);
@@ -78,11 +76,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     bool isCompleted = false,
     MediaItem? mediaItem,
   }) {
-    // 1. 确定使用的 MediaItem (优先参数传入，否则取 State)
     final item = mediaItem ?? state.currentTrack;
 
-    // 2. 确定播放状态
-    // 如果播放完成了，强制视为暂停
     final finalIsPlaying = isCompleted ? false : (isPlaying ?? state.playing);
 
     if (item == null) {
