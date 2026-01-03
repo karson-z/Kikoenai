@@ -2,13 +2,22 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/utils/submit/handle_submit.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
+import 'package:kikoenai/features/album/data/service/work_repository.dart';
+import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
+import '../../../../core/enums/work_progress.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/utils/data/time_formatter.dart';
 import '../../../category/presentation/viewmodel/provider/category_data_provider.dart';
+import '../../data/model/user_work_status.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
+import '../widget/rating_menu.dart';
 import '../widget/rating_section.dart';
 import '../widget/work_tag.dart';
 
@@ -21,8 +30,8 @@ class AlbumDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = extra['work'];
+    final workStatus = ref.watch(workDetailProvider(work.id));
     final asyncData = ref.watch(trackFileNodeProvider(work.id));
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -31,16 +40,81 @@ class AlbumDetailPage extends ConsumerWidget {
           style: const TextStyle(fontSize: 18),
         ),
         actions: [
-          GestureDetector(
-            child: Row(
-              children: const [
-                Icon(Icons.table_chart, color: Colors.grey),
-                SizedBox(width: 4),
-                Text("标记", style: TextStyle(fontSize: 16, color: Colors.black)),
-              ],
+          InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () {
+              // 1. 安全获取当前数据 (如果正在加载或出错，currentData 会是 null)
+              final currentData = workStatus.value;
+
+              // 2. 构建初始状态
+              // 如果 currentData 存在，就用它的值；否则用默认值 (0, '', marked)
+              final initialStatus = UserWorkStatus(
+                workId: work.id,
+                // --- 评分 ---
+                // 假设源数据里叫 userRating 或 rating
+                rating: currentData?.userRating ?? 0,
+
+                // --- 评论内容 (关键) ---
+                // 必须拿到之前的评论！不要写死 ''，否则每次打开都会清空用户的评论
+                reviewText: currentData?.reviewText ?? '',
+
+                // --- 进度状态 ---
+                // 情况A: 如果源数据里的 progress 已经是枚举
+                // progress: currentData?.progress ?? WorkProgress.marked,
+
+                // 情况B: 如果源数据里的 progress 是字符串 (如 "listening")
+                progress: currentData?.progress != null
+                    ? WorkProgress.fromString(currentData!.progress)
+                    : WorkProgress.marked,
+              );
+
+              // 3. 弹出 BottomSheet
+              KikoenaiDialog.showBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (ctx) {
+                  return ReviewBottomSheet(
+                    initialStatus: initialStatus,
+                    onSubmit: (newStatus) async {
+                      await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+                      ref.refresh(workDetailProvider(work.id));
+                    },
+                  );
+                },
+              );
+            },
+            child: Padding( // 加点 padding 增加点击区域和美观度
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.table_chart, color: Colors.grey, size: 20),
+                  const SizedBox(width: 4),
+                  // 4. 渲染文字：处理 AsyncValue 的三种状态
+                  workStatus.when(
+                    data: (status) {
+                      // 成功获取数据，显示对应进度的中文名
+                      // 假设你有 _getProgressLabel 方法或者 extension
+                      return Text(
+                        WorkProgress.fromString(status.progress).label,
+                        style: const TextStyle(fontSize: 16, color: Colors.black),
+                      );
+                    },
+                    error: (_, __) => const Text(
+                      "标记", // 出错时回退到默认
+                      style: TextStyle(fontSize: 16, color: Colors.black),
+                    ),
+                    loading: () => const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
         ],
       ),
       body: LayoutBuilder(
@@ -59,7 +133,8 @@ class AlbumDetailPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(work.title ?? '',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (work.name != null)
                 GestureDetector(
@@ -86,10 +161,40 @@ class AlbumDetailPage extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               RatingSection(
+                // 1. 基础数据 (来自 extra work)
                 average: work.rateAverage2dp ?? 0,
-                totalCount: work.reviewCount ?? 0,
-                details: work.rateCountDetail ?? [],
-                duration: work.duration ?? 0,
+
+                // 2. 动态数据 (来自 Riverpod workStatus)
+                // 使用 value 获取当前值，如果加载中或为空，则默认为 0
+                userRating: workStatus.value?.userRating ?? 0,
+                extraWidgets: [
+                  // 1. 评论数
+                  RatingMetaItem(
+                      icon: Icons.comment,
+                      text: "(${work.reviewCount ?? 0})"
+                  ),
+
+                  // 2. 时长 (你可以决定是否显示，或者格式化方式)
+                  if ((work.duration ?? 0) > 0)
+                    RatingMetaItem(
+                        icon: Icons.timer,
+                        text: "(${TimeFormatter.formatSeconds(work.duration!)})"
+                    )
+                ],
+                // 3. 交互回调 (点击星星)
+                onRatingUpdate: (int newRating) {
+                  // A. 获取当前状态对象 (如果是空的则新建一个)
+                  final currentStatus = UserWorkStatus(workId: work.id);
+
+                  // B. 复制并更新 rating 字段
+                  final newStatus = currentStatus.copyWith(
+                    rating: newRating,
+                    // 确保 workId 存在
+                    workId: work.id,
+                  );
+                  // C. 调用提交逻辑
+                  HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+                },
               ),
               const SizedBox(height: 12),
               if (work.tags != null) TagRow(tags: work.tags!),
@@ -120,7 +225,8 @@ class AlbumDetailPage extends ConsumerWidget {
                 // 1. 头部区域 (元数据)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     child: metadata,
                   ),
                 ),
@@ -130,18 +236,22 @@ class AlbumDetailPage extends ConsumerWidget {
 
                 // 2. 异步内容区域
                 asyncData.when(
-                  loading: () => const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: LottieLoadingIndicator(message: 'loading...')),
-                  ),
-                  error: (err, stack) => SliverFillRemaining(
+                  loading: () =>
+                  const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
-                      child: err is GlobalException
-                          ? Text("GlobalException: ${err.message}\ncode=${err.code}")
-                          : Text("Error: $err"),
-                    ),
+                        child: LottieLoadingIndicator(message: 'loading...')),
                   ),
+                  error: (err, stack) =>
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: err is GlobalException
+                              ? Text("GlobalException: ${err
+                              .message}\ncode=${err.code}")
+                              : Text("Error: $err"),
+                        ),
+                      ),
                   data: (nodes) {
                     return FileNodeBrowser(
                       work: work,
@@ -192,18 +302,18 @@ class AlbumCover extends StatelessWidget {
           aspectRatio: 4 / 3,
           child: mainUrl != null
               ? CachedNetworkImage(
-                  imageUrl: mainUrl!,
-                  fit: BoxFit.cover,
-                  // ✅ 关键修复：直接使用 placeholder 属性展示缩略图
-                  // 当大图加载时，CachedNetworkImage 会自动处理从 placeholder 到大图的过渡
-                  placeholder: (context, url) => buildThumbnail(),
-                  // 如果大图加载失败，保留缩略图或显示错误
-                  errorWidget: (context, url, error) => buildThumbnail(),
-                  // 淡入动画时长
-                  fadeInDuration: const Duration(milliseconds: 400),
-                  // 确保淡入时占位符不会立即消失，而是平滑过渡
-                  useOldImageOnUrlChange: true,
-                )
+            imageUrl: mainUrl!,
+            fit: BoxFit.cover,
+            // ✅ 关键修复：直接使用 placeholder 属性展示缩略图
+            // 当大图加载时，CachedNetworkImage 会自动处理从 placeholder 到大图的过渡
+            placeholder: (context, url) => buildThumbnail(),
+            // 如果大图加载失败，保留缩略图或显示错误
+            errorWidget: (context, url, error) => buildThumbnail(),
+            // 淡入动画时长
+            fadeInDuration: const Duration(milliseconds: 400),
+            // 确保淡入时占位符不会立即消失，而是平滑过渡
+            useOldImageOnUrlChange: true,
+          )
               : buildThumbnail(),
         ),
       ),

@@ -81,14 +81,9 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
       final height = constraints.maxHeight;
-
-      // 2. 动态计算图片大小
-      // 逻辑：图片既不能超过宽度的 80%，也不能超过高度的 45%（给上下留空间）
-      // 同时限制在 150 到 340 之间。这样在矮屏幕上图片会自动变小。
       final double imageSize = (width * 0.8)
           .clamp(0.0, height * 0.45)
           .clamp(150.0, 340.0);
-
       // 3. 判断是否是小屏幕/矮屏幕，如果是，减少垂直间距
       final bool isSmallScreen = height < 600;
       final double gapSmall = isSmallScreen ? 10 : 20;

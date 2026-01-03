@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/enums/playback_enum.dart';
+import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/utils/network/api_client.dart';
 
 import '../state/playback_track_state.dart';
 
@@ -56,17 +59,44 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
 
   void _checkAndReportStart() {
     if (!state.hasReportedStart && state.currentWorkId != null) {
-      // TODO: 在这里调用你的埋点/上报接口
-      print("📊 [埋点] 开始播放作品: ${state.currentWorkId}");
-
+      final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
+      final authSession = CacheService.instance.getAuthSession();
+      final currentUser = authSession?.user;
+      final data = {
+        'itemId': state.currentWorkId,
+        'recommendUuid': currentUser?.recommenderUuid ?? recommendUuid,
+        'type': ListenEventType.start.type
+      };
+      final api = ref.read(apiClientProvider);
+      api.post(
+        '/recommender/feedback',
+        data: data
+      );
+      print("[埋点] 开始播放作品: ${state.currentWorkId}");
       state = state.copyWith(hasReportedStart: true);
     }
   }
 
   void _checkAndReport5Mins() {
     if (!state.hasReported5Mins && state.currentWorkId != null) {
-      // TODO: 在这里调用你的埋点/上报接口
-      print("📊 [埋点] 作品播放满5分钟: ${state.currentWorkId}");
+
+      final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
+      final authSession = CacheService.instance.getAuthSession();
+      final currentUser = authSession?.user;
+
+      final data = {
+        'itemId': state.currentWorkId,
+        'recommendUuid': currentUser?.recommenderUuid ?? recommendUuid,
+        'type': ListenEventType.fiveMinutes.type
+      };
+
+      final api = ref.read(apiClientProvider);
+      api.post(
+          '/recommender/feedback',
+          data: data
+      );
+
+      print("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
 
       state = state.copyWith(hasReported5Mins: true);
     }

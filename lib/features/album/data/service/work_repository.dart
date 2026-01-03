@@ -1,6 +1,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/features/album/data/model/user_work_status.dart';
 import '../../../../core/common/result.dart';
+import '../../../../core/enums/work_progress.dart';
 import '../../../../core/utils/network/api_client.dart';
 
 abstract class WorkRepository {
@@ -28,7 +30,7 @@ abstract class WorkRepository {
   });
   Future<Result<List<dynamic>>> getWorkTracks(int workId);
   Future<Result<Map<String, dynamic>>>  getWorkDetail(int workId);
-  // Future<Result<Map<String, dynamic>>> getReviews();
+  Future<Result<Map<String, dynamic>>> getReviews(UserWorkStatus workStatus);
 }
 
 class WorkRepositoryImpl implements WorkRepository {
@@ -121,17 +123,42 @@ class WorkRepositoryImpl implements WorkRepository {
   @override
   Future<Result<Map<String, dynamic>>> getWorkDetail(int workId) async {
     final response = await api.get<Map<String, dynamic>>(
-      '/workInfo/$workId',
+      '/work/$workId',
     );
     return response;
   }
 
-  // @override
-  // Future<Result<Map<String, dynamic>>> getReviews() async {
-  //   final response = await api.put<Map<String, dynamic>>(
-  //     '/review',
-  //   );
-  // }
+  @override
+  Future<Result<Map<String, dynamic>>> getReviews(UserWorkStatus workStatus) async {
+    // 1. 创建一个可变的 Map，仅包含必填项 (例如 work_id)
+    final Map<String, dynamic> requestData = {
+      'work_id': workStatus.workId,
+    };
+
+    // 2. 动态添加字段：只有当 rating > 0 时才传
+    if (workStatus.rating > 0) {
+      requestData['rating'] = workStatus.rating;
+    }
+
+    // 3. 动态添加字段：只有当评论不为空时才传
+    if (workStatus.reviewText.isNotEmpty) {
+      requestData['review_text'] = workStatus.reviewText;
+    }
+
+    // 4. 动态添加字段：只有进度不是 unknown 时才传 (根据你的业务需求调整)
+    if (workStatus.progress != WorkProgress.unknown) {
+      requestData['progress'] = workStatus.progress.toJson(); // 使用枚举的 value
+    }
+
+    // 5. 发送请求
+    // 注意：Dio 的 data 参数可以直接接收 Map，它会自动序列化为 JSON
+    final response = await api.put<Map<String, dynamic>>(
+      '/review',
+      data: requestData,
+    );
+
+    return response;
+  }
 }
 final workRepositoryProvider = Provider<WorkRepository>((ref) {
   final apiClient = ref.read(apiClientProvider); // 从提供者拿 ApiClient

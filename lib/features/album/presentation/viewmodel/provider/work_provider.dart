@@ -166,8 +166,3 @@ final recommendedWorksProvider =
 AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
       () => RecommendedWorksNotifier(),
 );
-
-// final reviewProvider = FutureProvider((ref) async {
-//   final repo = ref.read(workRepositoryProvider);
-//   final result = await repo.getReviews();
-//   return result)
