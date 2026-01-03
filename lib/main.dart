@@ -4,12 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:kikoenai/core/service/audio_service.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/service/auto_proxy_service.dart';
-import 'core/storage/hive_storage.dart';
 import 'core/storage/hive_storage.dart';
 
 void main() async {

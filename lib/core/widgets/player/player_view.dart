@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
+import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
@@ -151,12 +152,12 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
             children: [
               // 左侧：封面 + 控制区
               Expanded(
-                // 【修改点 1】包裹 Center，确保高度充足时内容垂直居中
+                // 包裹 Center，确保高度充足时内容垂直居中
                 child: Center(
-                  // 【修改点 2】包裹 SingleChildScrollView，确保高度不足时可滚动，消除溢出
+                  // 包裹 SingleChildScrollView，确保高度不足时可滚动，消除溢出
                   child: SingleChildScrollView(
                     child: Column(
-                      // 【修改点 3】设为 min，让 Column 高度随内容自适应，配合 Center 使用
+                      //设为 min，让 Column 高度随内容自适应，配合 Center 使用
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -304,7 +305,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
     final isFirst = ref.watch(playerControllerProvider.select((s) => s.isFirst));
     final isLast = ref.watch(playerControllerProvider.select((s) => s.isLast));
 
-    // 【修改点】添加 Padding 和 FittedBox
     return Padding(
       // 给左右留一点安全边距，防止贴边
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -315,10 +315,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: () => controller.setRepeat(AudioServiceRepeatMode.none),
-              icon: const Icon(Icons.repeat, color: Colors.white),
-            ),
+            PlayModeButton(),
             const SizedBox(width: 24),
             IconButton(
               onPressed: isFirst ? null : controller.previous,

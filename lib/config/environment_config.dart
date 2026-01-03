@@ -27,9 +27,6 @@ class EnvironmentConfig {
 
   /// 核心初始化逻辑
   static Future<void> selectBestServer() async {
-    // ------------------------------------------------------
-    // 1. 优先检查缓存 (增加熔断机制)
-    // ------------------------------------------------------
     try {
       final cachedHost = CacheService.instance.getCurrentHost();
 
@@ -49,7 +46,6 @@ class EnvironmentConfig {
         }
       }
     } catch (e) {
-      // 无论是超时(TimeoutException)还是其他错，都打印日志并继续向下执行
       print('️缓存节点检查跳过 (原因: $e)');
     }
 
@@ -75,14 +71,12 @@ class EnvironmentConfig {
       });
     }
 
-    // 【核心修改】：等待赛跑结果时，也加上强制超时
-    // 如果 5秒 内 4个服务器没一个能返回结果（比如断网了），强制使用默认值
     try {
       final bestHost = await completer.future.timeout(const Duration(seconds: 5));
-      print('✅ 全局优选完成，选中节点: $bestHost');
+      print(' 全局优选完成，选中节点: $bestHost');
       await _updateGlobalConfig(bestHost);
     } catch (e) {
-      print('⚠️ 全局优选超时或全失败，强制兜底: $_defaultUrl');
+      print(' 全局优选超时或全失败，强制兜底: $_defaultUrl');
       await _updateGlobalConfig(_defaultUrl);
     }
   }
@@ -105,7 +99,7 @@ class EnvironmentConfig {
     try {
       await CacheService.instance.saveCurrentHost(host);
     } catch (e) {
-      print('⚠️ 保存最优节点失败: $e');
+      print('️ 保存最优节点失败: $e');
     }
   }
 }

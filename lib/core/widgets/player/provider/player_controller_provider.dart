@@ -180,7 +180,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     );
   }
 
-  // 保存播放器状态 (同步调用)
+  // 保存播放器状态
   void _saveState() {
     _cacheService.savePlayerState(state);
   }
@@ -207,7 +207,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
 
-      // 直接保存对象，无需 await
       _cacheService.addToHistory(history);
 
     } catch (e) {
@@ -216,7 +215,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   // 添加字幕文件列表
   void addSubTitleFileList(List<FileNode> rootNode) {
-    // 1. 查找待添加的新文件
+    // 查找待添加的新文件
     final subFiles = SearchLyricsService.findSubTitlesInFiles(rootNode);
 
     final List<FileNode> resultList = List.from(state.subtitleList);
@@ -225,7 +224,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         .map((e) => p.basenameWithoutExtension(e.title))
         .toSet();
 
-    // 2. 遍历新文件进行去重和添加
+    //  遍历新文件进行去重和添加
     for (var node in subFiles) {
       final String cleanTitle = p.basenameWithoutExtension(node.title);
 
@@ -301,11 +300,10 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     // 2. 如果当前 state 没有字幕，则去本地库查找
     if (foundSubtitles.isEmpty) {
-      // 1. 获取缓存数据并构建树 (内存操作，很快)
-      final subTitleFiles = await CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
-      final paths = await CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
+      // 1. 获取缓存数据并构建树
+      final subTitleFiles = CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
+      final paths = CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
 
-      // 这里的 fileTree 包含了文件夹结构和压缩包结构(因为之前的MediaTreeBuilder改造过)
       final fileTree = MediaTreeBuilder.build(subTitleFiles, paths);
 
       final workString = currentItem.extras?['workData'];
@@ -333,7 +331,6 @@ class PlayerController extends Notifier<AppPlayerState> {
               }
             } else {
               debugPrint("缓存树中未找到匹配的文件夹或压缩包");
-              //TODO 如果缓存没找到，是否要触发一次磁盘扫描？
             }
           }
         } catch (e) {
@@ -386,7 +383,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
   Future<HistoryEntry?> checkHistoryForWork(Work work) async {
-    final historyList = await CacheService.instance.getHistoryList();
+    final historyList = CacheService.instance.getHistoryList();
     try {
       final history = historyList.firstWhere(
             (h) => h.work.id == work.id,
@@ -433,6 +430,35 @@ class PlayerController extends Notifier<AppPlayerState> {
     }).toList();
     await addAll(mediaList);
   }
+  /// 切换播放模式
+  /// 逻辑顺序：列表循环 (默认) -> 单曲循环 -> 随机播放 -> 列表循环...
+  Future<void> cyclePlayMode() async {
+    // 如果当前是随机模式，点击后：关闭随机 -> 切换到列表循环
+    if (state.shuffleEnabled) {
+      await toggleShuffle(); // 关闭随机
+      await setRepeat(AudioServiceRepeatMode.all); // 确保是列表循环
+      return;
+    }
+
+    // 如果当前不是随机模式，检查循环状态
+    switch (state.repeatMode) {
+      case AudioServiceRepeatMode.all:
+      // 当前是列表循环 -> 切换到单曲循环
+        await setRepeat(AudioServiceRepeatMode.one);
+        break;
+      case AudioServiceRepeatMode.one:
+      // 当前是单曲循环 -> 切换到随机播放
+      // 先把循环设为列表(通常随机模式下也是列表循环)，再开启随机
+        await setRepeat(AudioServiceRepeatMode.all);
+        await toggleShuffle();
+        break;
+      case AudioServiceRepeatMode.none:
+      case AudioServiceRepeatMode.group:
+      // 其他情况（如不循环） -> 切换到列表循环
+        await setRepeat(AudioServiceRepeatMode.all);
+        break;
+    }
+  }
   MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
     String? imagePath;
 
@@ -462,9 +488,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       extras: {
         'url': node.mediaStreamUrl,
-
         'mainCoverUrl': work.mainCoverUrl ?? imagePath,
-
         'samCorverUrl': work.samCoverUrl ?? imagePath,
         'workData': jsonEncode(work),
       },

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +16,6 @@ class SettingsOverviewPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 监听主题状态
     ref.watch(themeNotifierProvider);
-
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -54,15 +55,17 @@ class SettingsOverviewPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.security),
-              title: const Text('权限管理'),
-              subtitle: const Text('管理'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push(AppRoutes.settingsPermission), // 跳转到缓存管理页
+          if (Platform.isAndroid)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.security),
+                title: const Text('权限管理'),
+                subtitle: const Text('管理'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () =>
+                    context.push(AppRoutes.settingsPermission), // 跳转到缓存管理页
+              ),
             ),
-          ),
         ],
       ),
     );

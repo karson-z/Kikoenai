@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. 引入 Riverpod
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/constants/app_version_config.dart';
+import '../../../config/app_version_config.dart';
 import '../../../core/widgets/layout/app_toast.dart';
 // 假设这是你存放 provider 的路径，请根据实际情况修改引入
 import '../provider/about_provider.dart';
