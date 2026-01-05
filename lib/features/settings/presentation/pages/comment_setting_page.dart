@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // 引入之前的配置和 Provider
 import '../../../../config/environment_config.dart';
+import '../widget/default_playlist_setting_tile.dart';
 import '../widget/service_selection.dart';
 // 假设 serverSettingsProvider 定义在某个位置，请确保 import 它
 // import 'path/to/server_settings_provider.dart';
@@ -48,13 +49,7 @@ class GeneralSettingsPage extends StatelessWidget {
           const _Divider(),
 
           // 5. 默认播放列表 (UI 占位)
-          const _PlaceholderDropdownTile(
-            icon: Icons.playlist_add_check,
-            title: '默认播放列表',
-            subtitle: '点击作品卡片右上角按钮后，作品将被添加到这个播放列表',
-            value: '我标记的 (2)',
-            items: ['我标记的 (2)', '默认列表', '稍后播放'],
-          ),
+          const DefaultPlaylistSettingTile(),
           const _Divider(),
 
           // 6. 选择服务器 (★ 真实功能)

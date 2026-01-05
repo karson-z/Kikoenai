@@ -8,31 +8,31 @@ import '../../../core/enums/rate_enum.dart';
 import '../../../core/enums/sell_enum.dart';
 import '../../../core/enums/tag_enum.dart';
 import '../../../core/model/filter_option_item.dart';
-import '../presentation/viewmodel/provider/category_data_provider.dart';
-import '../presentation/viewmodel/state/category_ui_state.dart';
+import '../../../core/model/search_tag.dart'; // 确保引入 SearchTag
 
 class AdvancedFilterPanel extends StatelessWidget {
-  final CategoryUiState uiState;
-  final CategoryUiNotifier notifier;
+  // --- 改动 1: 接收具体的标签列表，而不是整个 UI State ---
+  final List<SearchTag> selectedTags;
+
+  // --- 改动 2: 接收回调函数，而不是 Notifier ---
+  final Function(String type, String name) onToggleTag;
 
   // 样式配置
   final Color fillColor;
   final Color textColor;
 
-
   const AdvancedFilterPanel({
     Key? key,
-    required this.uiState,
-    required this.notifier,
+    required this.selectedTags,
+    required this.onToggleTag,
     required this.fillColor,
     required this.textColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // ================= 配置区域 =================
-// 在 AdvancedFilterPanel 的 build 方法中：
-
+    // 定义配置映射
+    // 假设这些 Enum 都实现了 FilterOptionItem 接口
     final Map<TagType, List<FilterOptionItem>> filterConfig = {
       TagType.age: AgeRatingEnum.values,
       TagType.lang: LangEnum.values,
@@ -48,16 +48,16 @@ class AdvancedFilterPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: filterConfig.entries.map((entry) {
           return _buildSectionGroup(
-              context,
-              type: entry.key,
-              options: entry.value
+            context,
+            type: entry.key,
+            options: entry.value,
           );
         }).toList(),
       ),
     );
   }
 
-  /// 构建单个分组（例如：语言组、时长组）
+  /// 构建单个分组
   Widget _buildSectionGroup(
       BuildContext context, {
         required TagType type,
@@ -78,7 +78,7 @@ class AdvancedFilterPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: Colors.grey[800], // 标题颜色可以固定深色，或者传参
                 ),
               ),
             ],
@@ -94,23 +94,27 @@ class AdvancedFilterPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16), // 组间距
-        Divider(height: 1, color: Colors.grey.withOpacity(0.1), indent: 16, endIndent: 16),
+        Divider(
+            height: 1,
+            color: Colors.grey.withOpacity(0.1),
+            indent: 16,
+            endIndent: 16),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  /// 构建单个标签 UI (逻辑与之前的 AgeRatingSection 类似，但更通用)
+  /// 构建单个标签 UI
   Widget _buildSingleTag(TagType type, FilterOptionItem option) {
-    // 查找当前是否被选中
-    final tagIndex = uiState.selected.indexWhere(
+    // --- 改动 3: 使用 selectedTags 判断选中状态 ---
+    final tagIndex = selectedTags.indexWhere(
           (t) => t.type == type.stringValue && t.name == option.value,
     );
     final isSelected = tagIndex != -1;
-    final isExclude = isSelected ? uiState.selected[tagIndex].isExclude : false;
+    final isExclude = isSelected ? selectedTags[tagIndex].isExclude : false;
 
     const errorColor = Color(0xFFFF4D4F);
-    final activeColor = option.activeColor;
+    final activeColor = option.activeColor; // 假设 FilterOptionItem 有 activeColor
 
     Color bg;
     Color fg;
@@ -131,18 +135,19 @@ class AdvancedFilterPanel extends StatelessWidget {
     }
 
     return InkWell(
-      onTap: () => notifier.toggleTag(type.stringValue, option.value, refreshData: false),
+      // --- 改动 4: 调用回调函数 ---
+      onTap: () => onToggleTag(type.stringValue, option.value),
       borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(6), // 稍微圆一点
+          borderRadius: BorderRadius.circular(6),
           border: border,
         ),
         child: Text(
-          option.label,
+          option.label, // 假设 FilterOptionItem 有 label
           style: TextStyle(
             color: fg,
             fontSize: 12,
@@ -153,7 +158,6 @@ class AdvancedFilterPanel extends StatelessWidget {
     );
   }
 
-  // --- 辅助方法：获取图标 ---
   IconData _getIconForType(TagType type) {
     switch (type) {
       case TagType.age: return Icons.explicit;
@@ -166,7 +170,6 @@ class AdvancedFilterPanel extends StatelessWidget {
     }
   }
 
-  // --- 辅助方法：获取标题 ---
   String _getTitleForType(TagType type) {
     switch (type) {
       case TagType.age: return "分级";
@@ -178,36 +181,4 @@ class AdvancedFilterPanel extends StatelessWidget {
       default: return "其他";
     }
   }
-}
-// 模拟数据生成器 - 实际开发中请替换为你真实的 Enum 数据
-List<FilterOptionItem> _getAgeOptions() {
-  // 假设你原来的 AgeRatingEnum 转换过来
-  return [
-    SimpleFilterOption(label: "全年龄", value: "all", activeColor: Colors.green),
-    SimpleFilterOption(label: "R18", value: "r18", activeColor: Colors.red),
-  ];
-}
-
-List<FilterOptionItem> _getLangOptions() {
-  return [
-    SimpleFilterOption(label: "中文", value: "chinese", activeColor: Colors.blue),
-    SimpleFilterOption(label: "日语", value: "japanese", activeColor: Colors.pinkAccent),
-    SimpleFilterOption(label: "英语", value: "english", activeColor: Colors.indigo),
-  ];
-}
-
-List<FilterOptionItem> _getDurationOptions() {
-  // 这种一般是范围，value 可以传后端能识别的 key
-  return [
-    SimpleFilterOption(label: "短篇 (<10m)", value: "short", activeColor: Colors.teal),
-    SimpleFilterOption(label: "中篇 (10-30m)", value: "medium", activeColor: Colors.teal),
-    SimpleFilterOption(label: "长篇 (>30m)", value: "long", activeColor: Colors.teal),
-  ];
-}
-
-List<FilterOptionItem> _getRateOptions() {
-  return [
-    SimpleFilterOption(label: "好评 (4★+)", value: "high_rate", activeColor: Colors.amber[800]!),
-    SimpleFilterOption(label: "一般", value: "mid_rate", activeColor: Colors.amber),
-  ];
 }

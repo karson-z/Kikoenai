@@ -29,46 +29,45 @@ class PlayerController extends Notifier<AppPlayerState> {
   @override
   AppPlayerState build() {
     _listen();
-    _loadPlayerState();
+
+    Future.microtask(() => _loadPlayerState());
+
     return AppPlayerState();
   }
+
   /// 从缓存恢复播放器状态
-  void _loadPlayerState() async {
+  Future<void> _loadPlayerState() async {
     final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
-
+    // 1. 恢复播放列表
     final playList = savedState.playlist;
     if (playList.isNotEmpty) {
       await _handler.addQueueItems(playList);
     }
-
-    // 3. 恢复当前索引
-    final currentIndex = playList.indexWhere(
-          (item) => item.id == savedState.currentTrack?.id,
-    );
-    (_handler as MyAudioHandler).setCurrentIndex(currentIndex >= 0 ? currentIndex : 0);
-
-    // 4. 恢复播放进度
+    // 2. 恢复当前索引
+    // 加上空判断，防止 crash
     final progress = savedState.progressBarState.current;
-    if (progress > Duration.zero) {
-      await _handler.seek(progress);
+    if (savedState.currentTrack != null) {
+      final currentIndex = playList.indexWhere(
+            (item) => item.id == savedState.currentTrack!.id,
+      );
+     // await (_handler as MyAudioHandler).skipToQueueItem(currentIndex,position: progress,play: false);
+     //  // if (currentIndex >= 0 && _handler is MyAudioHandler) {
+     //  //   await (_handler as MyAudioHandler).setCurrentIndex(currentIndex);
+     //  // }
+      await (_handler as MyAudioHandler).initPlayback(
+        initialPlaylist: playList,
+        initialIndex: currentIndex,
+        initialPosition: progress,
+        volume: savedState.volume,
+        repeatMode: savedState.repeatMode,
+        shuffleEnabled: savedState.shuffleEnabled,
+      );
     }
 
-    // 5. 恢复字幕状态
     state = state.copyWith(
-        subtitleList: savedState.subtitleList,
-        currentSubtitle: savedState.currentSubtitle
-    );
-
-    // 6. 恢复音量
-    if (_handler is MyAudioHandler) {
-      await (_handler as MyAudioHandler).setVolume(savedState.volume);
-    }
-
-    // 7. 恢复循环/随机模式
-    await _handler.setRepeatMode(savedState.repeatMode);
-    await _handler.setShuffleMode(
-      savedState.shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+      subtitleList: savedState.subtitleList,
+      currentSubtitle: savedState.currentSubtitle,
     );
   }
   void _updateTrackerStatus({
@@ -265,8 +264,14 @@ class PlayerController extends Notifier<AppPlayerState> {
     await _handler.setRepeatMode(mode);
     _saveState();
   }
-  void replacePlaylist(List<MediaItem> newList) {
-    _handler.updateQueue(newList);
+  // void replacePlaylist(List<MediaItem> newList) {
+  //   _handler.updateQueue(newList);
+  // }
+  void replacePlaylist(int oldIndex, int newIndex) async {
+    await _handler.customAction('reorderQueue', {
+      'oldIndex': oldIndex,
+      'newIndex': newIndex,
+    });
   }
   Future<void> add(MediaItem item) async {
     await _handler.addQueueItem(item);
@@ -365,19 +370,43 @@ class PlayerController extends Notifier<AppPlayerState> {
     final mediaItem = _fileNodeToMediaItem(node,work);
     await add(mediaItem);
   }
-  Future<void> handleFileTap(FileNode node,List<FileNode> currentNodes,{HistoryEntry? history,Work? work}) async {
+  Future<void> handleFileTap(
+      FileNode node,
+      List<FileNode> currentNodes,
+      {
+        HistoryEntry? history,
+        Work? work
+      }
+      ) async {
     if (node.isAudio) {
+      // 1. 准备数据
       final audioFiles = currentNodes.where((n) => n.isAudio).toList();
-      final mediaList = audioFiles.map((node) {
-        return _fileNodeToMediaItem(node,work ?? Work()); //TODO 本地音频没有作品信息暂时不处理，且不做历史记录
+      final mediaList = audioFiles.map((n) {
+        // 这里的 work ?? Work() 可能需要优化，确保有封面图
+        return _fileNodeToMediaItem(n, work ?? Work());
       }).toList();
+
+      // 2. 计算目标索引
       final audioTapIndex = audioFiles.indexOf(node);
-      await clear();
-      await addAll(mediaList);
-      await skipTo(audioTapIndex);
-      if(history != null) {
-        if (history.lastProgressMs != null) {
-          await _handler.seek(Duration(milliseconds: history.lastProgressMs!));
+
+      // 3. 计算目标进度
+      Duration startPosition = Duration.zero;
+      if (history != null && history.lastProgressMs != null) {
+        startPosition = Duration(milliseconds: history.lastProgressMs!);
+      }
+      if (_handler is MyAudioHandler) {
+        await (_handler as MyAudioHandler).loadPlaylist(
+          mediaList,
+          initialIndex: audioTapIndex,
+          initialPosition: startPosition,
+          autoPlay: true, // 点击通常意味着想直接播放
+        );
+      } else {
+        await clear();
+        await addAll(mediaList);
+        await skipTo(audioTapIndex);
+        if (startPosition > Duration.zero) {
+          await seek(startPosition);
         }
       }
     }
@@ -408,7 +437,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
     return null; // 未找到
   }
-  /// 恢复播放指定历史记录
   Future<void> restoreHistory(List<FileNode> nodes, Work work, HistoryEntry history) async {
     if (history.lastTrackId == null) return;
 
@@ -418,10 +446,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     final parentList = found['parentList'] as List<FileNode>;
     final index = found['index'] as int;
     final currentNode = parentList[index];
-    handleFileTap(currentNode, parentList,history: history,work: work);
+    await handleFileTap(
+        currentNode,
+        parentList,
+        history: history,
+        work: work
+    );
   }
   Future<void> removeMediaItemInQueue(int index) async {
     await _handler.removeQueueItemAt(index);
+    if(state.playlist.isEmpty){
+      state = AppPlayerState();
+    }
     _saveState();
   }
   Future<void> addMultiInQueue(List<FileNode> nodes,Work work) async {
@@ -430,31 +466,36 @@ class PlayerController extends Notifier<AppPlayerState> {
     }).toList();
     await addAll(mediaList);
   }
-  /// 切换播放模式
-  /// 逻辑顺序：列表循环 (默认) -> 单曲循环 -> 随机播放 -> 列表循环...
   Future<void> cyclePlayMode() async {
-    // 如果当前是随机模式，点击后：关闭随机 -> 切换到列表循环
+    // 1. 如果当前是随机模式
     if (state.shuffleEnabled) {
+      // 点击后：关闭随机 -> 切换到列表循环 (回到最基础的状态)
       await toggleShuffle(); // 关闭随机
-      await setRepeat(AudioServiceRepeatMode.all); // 确保是列表循环
+      await setRepeat(AudioServiceRepeatMode.all);
       return;
     }
 
-    // 如果当前不是随机模式，检查循环状态
+    // 2. 如果当前不是随机模式，检查循环状态
     switch (state.repeatMode) {
       case AudioServiceRepeatMode.all:
       // 当前是列表循环 -> 切换到单曲循环
         await setRepeat(AudioServiceRepeatMode.one);
         break;
+
       case AudioServiceRepeatMode.one:
-      // 当前是单曲循环 -> 切换到随机播放
-      // 先把循环设为列表(通常随机模式下也是列表循环)，再开启随机
+      // 当前是单曲循环 -> 切换到不循环 (新增逻辑)
+        await setRepeat(AudioServiceRepeatMode.none);
+        break;
+
+      case AudioServiceRepeatMode.none:
+      // 当前是不循环 -> 切换到随机播放
+      // 开启随机时，通常将循环模式设为 all (意味着随机播放整个列表直到手动停止，或者你想随机播完一轮停止也可以设为 none)
         await setRepeat(AudioServiceRepeatMode.all);
         await toggleShuffle();
         break;
-      case AudioServiceRepeatMode.none:
+
       case AudioServiceRepeatMode.group:
-      // 其他情况（如不循环） -> 切换到列表循环
+      // 其他情况（不做处理或重置为列表循环）
         await setRepeat(AudioServiceRepeatMode.all);
         break;
     }

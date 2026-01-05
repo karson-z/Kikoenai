@@ -1,4 +1,3 @@
-// hot_works_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/state/work_state.dart';
@@ -15,8 +14,6 @@ class HotWorksNotifier extends AsyncNotifier<WorkState> {
   Future<WorkState> _load({required int page}) async {
     final repo = ref.read(workRepositoryProvider);
     final result = await repo.getPopularWorks(page: page);
-
-    // ... 解析逻辑 (OtherUtil.parseWorks 等) ...
     // 这里简化展示
     final works = OtherUtil.parseWorks(result.data?['works']);
     final pagination = result.data?['pagination'];

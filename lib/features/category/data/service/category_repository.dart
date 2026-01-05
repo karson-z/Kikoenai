@@ -46,7 +46,6 @@ class CategoryRepositoryImpl implements CategoryRepository {
         "includeTranslationWorks" : includeTranslationWorks,
       },
     );
-    // ApiClient 已经返回 Result<Map<String,dynamic>>
     return response;
   }
   @override

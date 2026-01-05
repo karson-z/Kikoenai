@@ -58,7 +58,7 @@ class ArchiveService {
     return results;
   }
 
-  /// 2. 读取文件 (修改：智能拆分路径)
+  /// 2. 读取文件
   /// 因为现在路径里全是 '/'，我们需要判断哪一部分是本地存在的实体 Zip 文件
   static Future<Uint8List?> extractFile(String virtualPath) async {
     // 算法：逐级拆解路径，检查文件系统中是否存在该文件

@@ -22,9 +22,12 @@ class StorageKeys {
   static const String vasOption = 'vas_option';
   static const String circleOption = 'circle_option';
   static const String autoUpdate = 'auto_update';
+  static const String quickMarkTargetPlaylist = 'quick_mark_target_playlist';
 
   // ==================== Internal Wrapper Keys ====================
   // 用于 _saveOption 包装数据和过期时间
   static const String wrapperValue = 'val';
   static const String wrapperExpiry = 'exp';
+
+
 }

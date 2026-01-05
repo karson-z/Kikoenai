@@ -154,13 +154,7 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final prev = state.value ?? const CategoryState();
     final page = reset ? 1 : prev.currentPage + 1;
 
-    final queryParams = OtherUtil.buildTagQueryPath(ui.selected, keyword: ui.keyword);
-
-    // 注意：如果是在 build 初始化期间，不要在这里设置 state = AsyncLoading
-    // 只有在手动加载更多时才需要手动控制状态，否则 build 自身的返回就是 loading 态
-    if (reset && !state.isLoading) {
-      state = const AsyncLoading();
-    }
+    final queryParams = SearchTag.buildTagQueryPath(ui.selected, keyword: ui.keyword);
     final result = await _repo.searchWorks(
       page: page,
       order: ui.sortOption.value,
@@ -168,7 +162,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
       subtitle: ui.subtitleFilter,
       query: queryParams,
     );
-
     final worksJson = result.data?['works'];
     final newWorks = OtherUtil.parseWorks(worksJson);
 
@@ -197,7 +190,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   Future<void> loadMore() async {
 
     if (state.isLoading) return;
-
     try {
       final nextState = await _load(reset: false);
       state = AsyncData(nextState);

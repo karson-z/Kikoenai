@@ -12,6 +12,7 @@ import 'package:kikoenai/core/model/app_media_item.dart';
 import '../../core/service/file_scanner_service.dart';
 // 引入新定义的 Key 常量类
 import '../../core/storage/hive_key.dart';
+import '../../features/playlist/data/model/playlist.dart';
 
 class CacheService {
   // 单例模式
@@ -19,7 +20,36 @@ class CacheService {
   static final CacheService instance = CacheService._();
 
   static const int _maxHistory = 200;
+  // ------------------------- 快速添加到播放列表 -------------------------
+  /// 保存目标列表
+  Future<void> saveQuickMarkTargetPlaylist(Playlist playlist) async {
+    // 假设 Playlist 使用 Freezed/JsonSerializable 生成了 toJson 方法
+    await AppStorage.settingsBox.put(
+        StorageKeys.quickMarkTargetPlaylist,
+        playlist.toJson()
+    );
+  }
 
+  /// 获取目标列表
+  Playlist? getQuickMarkTargetPlaylist() {
+    final data = AppStorage.settingsBox.get(StorageKeys.quickMarkTargetPlaylist);
+
+    if (data != null && data is Map) {
+      try {
+        final jsonMap = Map<String, dynamic>.from(data);
+        return Playlist.fromJson(jsonMap);
+      } catch (e) {
+        debugPrint('Error parsing QuickMarkTargetPlaylist: $e');
+        clearQuickMarkTargetPlaylist();
+      }
+    }
+    return null;
+  }
+
+  /// 清除目标歌单
+  Future<void> clearQuickMarkTargetPlaylist() async {
+    await AppStorage.settingsBox.delete(StorageKeys.quickMarkTargetPlaylist);
+  }
   // ==================== 1. 基础配置与 UUID ====================
 
   Future<void> saveCurrentHost(String host) async {

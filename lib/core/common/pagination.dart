@@ -3,10 +3,17 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'pagination.g.dart';
 
+Object? _readCurrentPage(Map json, String key) {
+  return json['currentPage'] ?? json['page'];
+}
+
 @JsonSerializable()
 class Pagination extends Equatable {
+  @JsonKey(readValue: _readCurrentPage)
   final int currentPage;
+
   final int pageSize;
+
   final int totalCount;
 
   const Pagination({

@@ -7,16 +7,20 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 
 import '../core/theme/theme_view_model.dart';
+import '../features/settings/presentation/provider/setting_provider.dart';
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // themeState 是一个 AsyncValue<ThemeState>
     final themeState = ref.watch(themeNotifierProvider);
-    // router 保持不变
     final router = ref.watch(goRouterProvider);
+    // 初始化快速添加列表
+    final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);
+    if (ref.read(defaultMarkTargetPlaylistProvider) == null) {
+       notifier.fetchAndCacheDefault();
+    }
     return MaterialApp.router(
       scrollBehavior: MyCustomScrollBehavior(),
       debugShowCheckedModeBanner: false,
