@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:dio_smart_retry/dio_smart_retry.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +21,6 @@ class ApiClient {
     _setupInterceptors(_dio, _tokenProvider);
   }
 
-  /// 单例实例（同步）
   static final ApiClient instance = ApiClient._internal(
     Dio(
       BaseOptions(
@@ -71,11 +71,6 @@ class ApiClient {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json; charset=utf-8',
-          },
-          // 关键：通过 extra 告诉拦截器不要重试，也不要处理 401
-          extra: {
-            'no_error_handling': true, // 自定义标记，需要在拦截器里处理(可选)
-            'retry_count': 3, // 技巧：直接设置重试次数为3，欺骗拦截器不进行重试
           },
         ),
       );
@@ -168,118 +163,76 @@ void _setupInterceptors(
     Dio dio,
     Future<String?> Function()? tokenProvider,
     ) {
-  final interceptor = InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        // 修改日志调用，手动添加 [API] 标签前缀
-        KikoenaiLogger().i('[API] REQ ${options.method} ${options.uri}');
+  final customInterceptor = InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      KikoenaiLogger().i('[API] REQ ${options.method} ${options.uri}');
+      options.headers['Referer'] = 'https://www.asmr.one/';
+      options.headers['Origin'] = 'https://www.asmr.one';
+      options.headers['Accept-Encoding'] = 'gzip';
 
-        options.headers['User-Agent'] =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
-        options.headers['Referer'] = 'https://www.asmr.one/';
-        options.headers['Origin'] = 'https://www.asmr.one';
-        // Dart HttpClient 默认支持 gzip，显式声明可确保服务器知晓
-        options.headers['Accept-Encoding'] = 'gzip';
-        if (tokenProvider != null) {
-          final token = await tokenProvider();
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
+      if (tokenProvider != null) {
+        final token = await tokenProvider();
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
         }
-
-        handler.next(options);
-      },
-
-      onResponse: (response, handler) async {
-        // 修改日志调用，手动添加 [API] 标签前缀
-        KikoenaiLogger().i(
-          '[API] RES [${response.statusCode}] ${response.requestOptions.uri}',
-        );
-        handler.next(response);
-      },
-
-      onError: (DioException err, handler) async {
-        final status = err.response?.statusCode;
-        // 修改日志调用，使用 .e 记录错误，并手动添加 [API] 标签前缀
-        KikoenaiLogger().e('[API] ERR [${status ?? ''}] ${err.message}');
-
-        final req = err.requestOptions;
-        int retryCount = (req.extra['retry_count'] as int?) ?? 0;
-
-        // 401 登录处理
-        final isUnauthorized = status == 401 ||
-            (err.response?.data is Map &&
-                err.response?.data['code'] == 401);
-        final context = AppConstants.rootNavigatorKey.currentContext;
-        if (isUnauthorized) {
-          if (context != null) {
-            // 2. 显示带有按钮的错误 Toast
-            KikoenaiToast.error(
-              context: context,
-              "登录已过期，请重新登录",
-              action: SnackBarAction(
-                label: '去登录',
-                textColor: Colors.white,
-                onPressed: () {
-                  // 3. 这里执行跳转逻辑
-                  // 方式 A: 如果你使用命名路由
-                  context.goNamed(AppRoutes.login);
-                },
-              ),
-            );
-          }
-          return;
-        }
-
-        // 自动重试机制（仅 GET）
-        final shouldRetry =
-            (
-                err.type == DioExceptionType.connectionError ||
-                    err.type == DioExceptionType.connectionTimeout ||
-                    err.type == DioExceptionType.receiveTimeout ||
-                    (status != null && status >= 500)
-            ) &&
-                retryCount < 3;
-
-        if (shouldRetry) {
-          retryCount++;
-          req.extra['retry_count'] = retryCount;
-
-          // 修改日志调用，手动添加 [API] 标签前缀
-          KikoenaiLogger().i('[API] Retrying request... Attempt $retryCount');
-
-          await Future.delayed(Duration(milliseconds: 1000 * retryCount));
-
-          final newReq = Options(
-            method: req.method,
-            headers: req.headers,
-            extra: req.extra,
-          )
-              .compose(
-            dio.options,
-            req.path,
-            data: req.data,
-            queryParameters: req.queryParameters,
-          )
-              .copyWith(baseUrl: req.baseUrl);
-
-          try {
-            final response = await dio.fetch(newReq);
-            handler.resolve(response);
-            return;
-          } catch (e) {
-            // 重试失败 → 不再触发 onError → 结束
-            handler.reject(err);
-            return;
-          }
-        }
-        handler.next(err);
       }
+      handler.next(options);
+    },
+    onResponse: (response, handler) async {
+      KikoenaiLogger().i(
+        '[API] RES [${response.statusCode}] ${response.requestOptions.uri}',
+      );
+      handler.next(response);
+    },
+    onError: (DioException err, handler) async {
+      final status = err.response?.statusCode;
+      KikoenaiLogger().e('[API] ERR [${status ?? ''}] ${err.message}');
+
+      // 401 登录处理
+      final isUnauthorized = status == 401 ||
+          (err.response?.data is Map && err.response?.data['code'] == 401);
+
+      if (isUnauthorized) {
+        final context = AppConstants.rootNavigatorKey.currentContext;
+        if (context != null) {
+          KikoenaiToast.error(
+            context: context,
+            "登录已过期，请重新登录",
+            action: SnackBarAction(
+              label: '去登录',
+              textColor: Colors.white,
+              onPressed: () {
+                context.goNamed(AppRoutes.login);
+              },
+            ),
+          );
+        }
+        return handler.next(err);
+      }
+      handler.next(err);
+    },
   );
 
-  dio.interceptors.add(interceptor);
+  // 添加自定义拦截器
+  dio.interceptors.add(customInterceptor);
+  // dio.interceptors.add(RetryInterceptor(
+  //   dio: dio,
+  //   logPrint: (message) => KikoenaiLogger().w('[API Retry] $message'),
+  //   retries: 3,
+  //   retryDelays: const [
+  //     Duration(seconds: 1),
+  //     Duration(seconds: 2),
+  //     Duration(seconds: 3),
+  //   ],
+  //   retryEvaluator: (error, attempt) {
+  //     // 401/403 不重试
+  //     if (error.response?.statusCode == 401 || error.response?.statusCode == 403) {
+  //       return false;
+  //     }
+  //     return DefaultRetryEvaluator(defaultRetryableStatuses).evaluate(error, attempt);
+  //   },
+  // ));
 }
-
-/// Riverpod Provider（直接返回单例）
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient.instance;
 });

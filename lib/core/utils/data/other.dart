@@ -10,6 +10,8 @@ import '../../model/search_tag.dart';
 /// 工具类，提供与 VA（声优）、页面路由和 MediaItem 相关的常用方法
 class OtherUtil {
 
+  static const String sysMarked = '__SYS_PLAYLIST_MARKED';
+  static const String sysLiked = '__SYS_PLAYLIST_LIKED';
   /// 将 [VA] 列表中的 name 字段拼接为一个字符串，用 '/' 分隔
   /// - 会过滤掉 name 为 null 或空字符串的项
   /// - 如果 [vas] 为 null 或空列表，则返回空字符串
@@ -122,20 +124,6 @@ class OtherUtil {
     return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 
-  static String buildTagQueryPath(List<SearchTag> tags, {String? keyword}) {
-    final tagPath = tags.map((tag) {
-      final prefix = tag.isExclude ? "-${tag.type}" : tag.type;
-      final raw = "\$$prefix:${tag.name}\$";
-      return Uri.encodeComponent(raw);
-    }).join(' ');
-
-    // 如果有 keyword，直接拼接到标签路径后，不加任何分隔符
-    if (keyword != null && keyword.isNotEmpty) {
-      return '$tagPath${Uri.encodeComponent(keyword)}';
-    }
-
-    return tagPath;
-  }
 
   static bool needUpdate(localVersion, remoteVersion) {
     List<String> localVersionList = localVersion.split('.');
@@ -169,5 +157,20 @@ class OtherUtil {
 
   static bool isDesktop() {
     return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
+
+
+  /// 核心转换逻辑
+  static String getDisplayName(String? rawName) {
+    if (rawName == null) return '';
+
+    switch (rawName) {
+      case sysMarked:
+        return '我的标记'; // 对应稍后观看/标记
+      case sysLiked:
+        return '我喜欢的';
+      default:
+        return rawName;
+    }
   }
 }

@@ -2,7 +2,6 @@ import '../../../../../core/enums/sort_options.dart';
 import '../../../../../core/model/search_tag.dart';
 
 class CategoryUiState {
-  final bool editing;
   final String? keyword; // 搜索的关键词
   final List<SearchTag> selected;
   final SortOrder sortOption;
@@ -14,7 +13,6 @@ class CategoryUiState {
   final String localSearchKeyword; // 筛选面板内的本地搜索词
 
   const CategoryUiState({
-    this.editing = false,
     this.keyword,
     this.selected = const [],
     this.sortOption = SortOrder.createDate,
@@ -37,7 +35,6 @@ class CategoryUiState {
     String? localSearchKeyword,
   }) {
     return CategoryUiState(
-      editing: editing ?? this.editing,
       selected: selected ?? this.selected,
       sortOption: sortOption ?? this.sortOption,
       sortDirection: sortDirection ?? this.sortDirection,

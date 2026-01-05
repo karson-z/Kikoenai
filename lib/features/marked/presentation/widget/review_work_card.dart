@@ -79,8 +79,8 @@ class WorkListCard extends ConsumerWidget {
               // 1. 左侧封面图
               SimpleExtendedImage(
                 work.mainCoverUrl ?? '',
-                width: 100, // 稍微调小一点，列表页通常不需要太大
-                height: 100,
+                width: 160, // 稍微调小一点，列表页通常不需要太大
+                height: 120,
                 borderRadius: const BorderRadius.all(Radius.circular(4)),
               ),
 

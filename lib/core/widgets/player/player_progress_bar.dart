@@ -20,12 +20,8 @@ class PlayerProgressBar extends ConsumerWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // --- 底部：带有加载动画的轨道 ---
-        // 只有在缓冲时才显示这个 LinearProgressIndicator
         if (isBuffering)
           Padding(
-            // audio_video_progress_bar 默认左右会有 thumb 的 padding，
-            // 为了让加载条和原来的轨道对齐，我们需要设置类似的 padding。
             padding: const EdgeInsets.symmetric(horizontal: thumbRadius),
             child: SizedBox(
               height: barHeight,
