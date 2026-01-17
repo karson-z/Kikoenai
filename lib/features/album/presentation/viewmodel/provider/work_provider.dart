@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/enums/sort_options.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/state/work_state.dart';
+import 'package:kikoenai/features/user/presentation/view_models/state/subtitle_view_state.dart';
 import '../../../../../core/service/cache_service.dart';
 import '../../../data/model/work.dart';
 import '../../../data/service/work_repository.dart';
@@ -48,7 +52,6 @@ class HotWorksNotifier extends AsyncNotifier<WorkState> {
 final hotWorksProvider =
 AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(HotWorksNotifier.new);
 
-// new_works_provider.dart
 class NewWorksNotifier extends AsyncNotifier<WorkState> {
   @override
   Future<WorkState> build() async {
@@ -58,7 +61,9 @@ class NewWorksNotifier extends AsyncNotifier<WorkState> {
 
   Future<WorkState> _fetch({required int page}) async {
     final repo = ref.read(workRepositoryProvider);
-    final result = await repo.getWorks(page: page, order: 'release');
+    const order = 'release';
+    final sort = SortDirection.desc.value;
+    final result = await repo.getWorks(page: page, order: order,sort: sort);
 
     final newWorks = OtherUtil.parseWorks(result.data?['works']);
     final pagination = result.data?['pagination'];

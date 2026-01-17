@@ -8,6 +8,7 @@ import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/service/auto_proxy_service.dart';
+import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 
 void main() async {

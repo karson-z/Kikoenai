@@ -20,7 +20,9 @@ class CacheService {
   static final CacheService instance = CacheService._();
 
   static const int _maxHistory = 200;
+
   // ------------------------- 快速添加到播放列表 -------------------------
+
   /// 保存目标列表
   Future<void> saveQuickMarkTargetPlaylist(Playlist playlist) async {
     // 假设 Playlist 使用 Freezed/JsonSerializable 生成了 toJson 方法

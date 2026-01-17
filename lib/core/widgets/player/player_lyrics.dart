@@ -3,15 +3,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart'; // 【必须】使用此库
 import 'package:kikoenai/core/widgets/player/provider/lyrics_provider.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../model/lyric_model.dart';
 
 class LyricsView extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
+  // 虽然接收了 controller，但在 ScrollablePositionedList 中我们不直接绑定它
+  // 因为该库与 SlidingUpPanel 的 controller 兼容性极差
+  final ScrollController? controller;
 
-  const LyricsView({Key? key, this.onTap}) : super(key: key);
+  const LyricsView({
+    Key? key,
+    this.onTap,
+    this.controller,
+  }) : super(key: key);
 
   @override
   ConsumerState<LyricsView> createState() => _LyricsViewState();
@@ -27,17 +34,11 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   @override
   void initState() {
     super.initState();
-    // 初始化加载歌词
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         ref.read(lyricsProvider.notifier).loadLyrics();
       }
     });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   // 滚动到指定索引的通用方法
@@ -52,7 +53,8 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
         index: index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
-        alignment: 0.5, // 0.5 表示垂直居中
+        // 【关键】：0.5 表示将该 Item 的中心点对齐到列表视窗的中心点
+        alignment: 0.5,
       );
     } catch (e) {
       debugPrint("Scroll Error: $e");
@@ -64,7 +66,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
     super.build(context);
     final activeIndex = ref.watch(currentLyricIndexProvider);
 
-    // 监听字幕源变化，重新加载歌词
     ref.listen(
         playerControllerProvider.select((s) => s.subtitleList),
             (previous, next) {
@@ -75,16 +76,13 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
 
     final lyricsAsync = ref.watch(lyricsProvider);
 
-    // 监听拖拽状态结束 -> 恢复位置
     ref.listen<bool>(lyricScrollStateProvider, (previous, isDragging) {
       if (previous == true && isDragging == false) {
-        // 拖拽结束，获取最新 index 立即回正
         final latestIndex = ref.read(currentLyricIndexProvider);
         _scrollToIndex(latestIndex);
       }
     });
 
-    // 监听索引变化 -> 自动滚动
     ref.listen<int>(currentLyricIndexProvider, (previous, next) {
       final isDragging = ref.read(lyricScrollStateProvider);
       if (previous != next && !isDragging) {
@@ -117,66 +115,84 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   }
 
   Widget _buildLyricsList(List<LyricsLineModel> lyrics, int activeIndex) {
-    // 1. 获取屏幕高度
-    final double screenHeight = MediaQuery.of(context).size.height;
-    final double topPadding = screenHeight * 0.15;
-    final double bottomPadding = screenHeight / 2;
+    // 使用 LayoutBuilder 获取真实高度
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // [修复逻辑错误]：原代码是 constraints.maxHeight * 0.04，这会导致 listHeight 非常小，
+        // 进而导致 verticalPadding 极小，无法实现中间居中。
+        // 这里应该直接使用 maxHeight 获取容器完整高度。
+        final double listHeight = constraints.maxHeight * 0.04;
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        final notifier = ref.read(lyricScrollStateProvider.notifier);
-        if (notification is ScrollStartNotification) {
-          if (notification.dragDetails != null) {
-            notifier.startDragging();
-          }
-        } else if (notification is ScrollEndNotification) {
-          if (ref.read(lyricScrollStateProvider)) {
-            notifier.stopDragging();
-          }
-        }
-        return false;
-      },
-      child: Listener(
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) {
+        // 垂直 Padding 设为高度的一半，确保 index 0 能居中
+        final double verticalPadding = listHeight / 2;
+
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
             final notifier = ref.read(lyricScrollStateProvider.notifier);
-            notifier.startDragging();
-            notifier.stopDragging();
-          }
-        },
-        child: ShaderMask(
-          shaderCallback: (Rect bounds) {
-            return const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              // 顶部 0.0~0.15 渐变透明，底部 0.85~1.0 渐变透明
-              colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
-              stops: [0.0, 0.15, 0.85, 1.0],
-            ).createShader(bounds);
+
+            // 1. 保持原有的拖拽状态检测逻辑
+            if (notification is ScrollStartNotification) {
+              if (notification.dragDetails != null) {
+                notifier.startDragging();
+              }
+            } else if (notification is ScrollEndNotification) {
+              if (ref.read(lyricScrollStateProvider)) {
+                notifier.stopDragging();
+              }
+            }
+
+            // 2. 【核心修改】：返回 true !!!
+            // 在 Flutter 中，返回 true 表示 "通知已被处理，不再向父组件冒泡"。
+            // 这样 SlidingUpPanel 就收不到 ScrollNotification，
+            // 它就不会尝试去接管手势，从而彻底解决了冲突。
+            return true;
           },
-          blendMode: BlendMode.dstIn,
-          child: ScrollablePositionedList.builder(
-            itemCount: lyrics.length,
-            itemScrollController: _itemScrollController,
-            itemPositionsListener: _itemPositionsListener,
-            padding: EdgeInsets.only(
-                top: topPadding,
-                bottom: bottomPadding,
-                left: 24,
-                right: 24
-            ),
-
-            initialScrollIndex: activeIndex,
-            initialAlignment: 0.5,
-
-            itemBuilder: (context, index) {
-              final line = lyrics[index];
-              final isActive = index == activeIndex;
-              return _buildLyricItem(line, isActive);
+          child: Listener(
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) {
+                final notifier = ref.read(lyricScrollStateProvider.notifier);
+                notifier.startDragging();
+                notifier.stopDragging();
+              }
             },
+            child: ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
+                  stops: [0.0, 0.08, 0.92, 1.0],
+                ).createShader(bounds);
+              },
+              blendMode: BlendMode.dstIn,
+              child: ScrollablePositionedList.builder(
+                itemCount: lyrics.length,
+                itemScrollController: _itemScrollController,
+                itemPositionsListener: _itemPositionsListener,
+
+                // 【核心修改】：使用 BouncingScrollPhysics
+                // 配合上面的 return true，Bouncing 效果能让列表在拉到边缘时
+                // 继续消耗手势动量，而不是把手势交还给父组件。
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+
+                padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    top: verticalPadding,
+                    bottom: verticalPadding
+                ),
+                initialScrollIndex: activeIndex,
+                initialAlignment: 0.5,
+                itemBuilder: (context, index) {
+                  final line = lyrics[index];
+                  final isActive = index == activeIndex;
+                  return _buildLyricItem(line, isActive);
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

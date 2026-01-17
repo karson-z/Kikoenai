@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
-
 import '../../../../core/widgets/loading/lottie_loading.dart';
 
 class ResponsiveCardGrid extends StatelessWidget {
@@ -44,7 +43,7 @@ class ResponsiveCardGrid extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             // 触发加载更多的逻辑保持不变
-            if (index == work.length - 1 && hasMore) {
+            if (index == work.length-1 && hasMore) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 onLoadMore();
               });
@@ -61,7 +60,6 @@ class ResponsiveCardGrid extends StatelessWidget {
     );
   }
 
-  /// 专门的空状态视图
   Widget _buildEmptyView() {
     return Center(
       child: Column(

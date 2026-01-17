@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/enums/age_rating.dart';
 import '../../../../../core/enums/sort_options.dart';
+import '../../../../../core/storage/hive_key.dart';
+import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/data/other.dart';
 import '../../../../../core/model/search_tag.dart';
 import '../../../data/service/category_repository.dart';
@@ -153,8 +156,7 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final ui = ref.read(categoryUiProvider);
     final prev = state.value ?? const CategoryState();
     final page = reset ? 1 : prev.currentPage + 1;
-
-    final queryParams = SearchTag.buildTagQueryPath(ui.selected, keyword: ui.keyword);
+    var queryParams = SearchTag.buildTagQueryPath(ui.selected, keyword: ui.keyword);
     final result = await _repo.searchWorks(
       page: page,
       order: ui.sortOption.value,
@@ -188,7 +190,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   }
 
   Future<void> loadMore() async {
-
     if (state.isLoading) return;
     try {
       final nextState = await _load(reset: false);

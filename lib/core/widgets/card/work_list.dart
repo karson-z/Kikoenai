@@ -34,6 +34,7 @@ class WorkListItem extends StatelessWidget {
                 workInfo.samCoverUrl!,
                 width: 55,
                 fit: BoxFit.cover,
+                loadingSize: 55.0,
               ),
             ),
 

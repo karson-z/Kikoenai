@@ -50,9 +50,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     // 1. 获取当前目标歌单
     final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
 
-    // 如果没有选中歌单，显示加载或空
     if (targetPlaylist == null) {
-      // 尝试初始化 (通常在 main 做过，这里兜底)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(defaultMarkTargetPlaylistProvider.notifier).fetchAndCacheDefault();
       });
@@ -62,8 +60,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       );
     }
 
-    // 2. 初始化 PlaylistNotifier 的 ID (确保请求的是当前歌单)
-    // 监听 playlistUiProvider 获取 UI 状态
     final uiState = ref.watch(playlistUiProvider);
     final uiNotifier = ref.read(playlistUiProvider.notifier);
 
@@ -73,11 +69,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       Future.microtask(() => uiNotifier.initId(targetPlaylist.id));
     }
 
-    // 3. 获取列表数据 (依赖 uiState.request 中的所有参数)
-    // 注意：playlistWorksProvider 需要是 .family 并接收 id，
-    // 但这里我们其实是根据 uiState.request 发请求。
-    // 如果你的 playlistWorksProvider 已经改造成读取 uiProvider，那这里直接 watch 即可。
-    // 假设 playlistWorksProvider 还是依赖 ID，但内部通过 ref.read(playlistUiProvider) 获取参数
     final worksAsync = ref.watch(playlistWorksProvider(targetPlaylist.id));
 
     // 同步 AppBar 搜索框文字 (当外部重置搜索时)
@@ -161,8 +152,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                   data: (response) {
                     final works = response.works;
 
-                    // 计算 hasMore (搜索模式下一般也支持翻页，除非是本地过滤)
-                    // 这里使用的是 API 搜索 (PlaylistWorksRequest)，所以可以支持翻页
                     final hasMore = works.length < response.pagination.totalCount;
 
                     if (works.isEmpty) {
@@ -324,8 +313,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
           onSubmitted: (value) {
             uiNotifier.updateKeyword(value, refreshData: true);
           },
-          // 4. 移除 onChanged 中的 setState
-          // onChanged: (value) { setState(() {}); }, // <-- 删掉这行，彻底解决中文输入法冲突
         ),
       )
           : Text(

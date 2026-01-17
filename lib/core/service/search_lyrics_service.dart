@@ -1,12 +1,12 @@
 import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
-import 'package:path/path.dart' as p;
-
-import '../enums/node_type.dart';
-import 'archive_service.dart';
+import '../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
+import '../../features/local_media/data/service/tree_service.dart';
+import 'cache_service.dart';
+import 'file_scanner_service.dart';
 class SearchLyricsService {
 
   // --- 你现有的代码 (保持不变) ---
@@ -203,5 +203,42 @@ class SearchLyricsService {
       bigrams.add(refined.substring(i, i + 2));
     }
     return bigrams;
+  }
+  /// 获取本地字幕
+  /// [workId] 作品Id
+  static List<FileNode> findSubtitleInLocalById(String workId){
+    // --- 开始树查找逻辑 ---
+    List<FileNode> targetSubtitleList = [];
+    try {
+      // A. 获取缓存树
+      final subTitleFiles = CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
+      final paths = CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
+      final fileTree = MediaTreeBuilder.build(subTitleFiles, paths);
+
+      // B. 在树中查找目标 Work 节点
+      final targetNode = SearchLyricsService.findNodeInTree(fileTree, workId);
+
+      if (targetNode != null) {
+        debugPrint("命中树节点: ${targetNode.title}");
+        // C. 提取该节点下的所有字幕
+        targetSubtitleList = SearchLyricsService.flattenSubtitles(targetNode);
+      } else {
+        debugPrint("未在缓存树中找到 ID: $workId 的对应文件");
+        targetSubtitleList = []; // 没找到则置空，防止残留上一个作品的字幕
+      }
+    } catch (e) {
+      debugPrint("字幕树查找失败: $e");
+      targetSubtitleList = [];
+    }
+    return targetSubtitleList;
+  }
+  /// 获取网络的文件列表
+  /// [workId] 作品Id
+  /// [ref] ProviderRef
+  static Future<List<FileNode>> findSubtitleInNetWorkById(String workId,Ref ref) async {
+    // A.拿到作品对应的文件列表
+    final workFiles = await ref.read(trackFileNodeProvider(int.parse(workId)).future);
+    final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
+    return subTitleFiles;
   }
 }

@@ -5,12 +5,12 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
-import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
 
 import '../player/player_mini_bar.dart';
+import '../slider/sllding_up_panel_modify.dart';
 import 'app_player_slider.dart';
 final panelController = Provider((ref) => PanelController());
 
@@ -73,11 +73,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: 80,
           maxHeight: MediaQuery.of(context).size.height,
           body: widget.child ?? const SizedBox.shrink(),
-          collapsed: MiniPlayer(
-            onTap: () {
-              playController.open();
-            },
-          ),
           controller: playController,
         ),
       );
@@ -114,11 +109,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: 80,
           maxHeight: MediaQuery.of(context).size.height,
           body: desktopLayoutRow,
-          collapsed: MiniPlayer(
-            onTap: () {
-              playController.open();
-            },
-          ),
           controller: playController,
         ),
       );
