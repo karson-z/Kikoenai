@@ -37,12 +37,24 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: sortOrders.length, vsync: this);
+
+    final currentSort = ref.read(categoryUiProvider).sortOption;
+
+    int initialIndex = sortOrders.indexOf(currentSort);
+    if (initialIndex == -1) initialIndex = 0;
+
+    _tabController = TabController(
+      length: sortOrders.length,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
+
     _autoScrollController = AutoScrollController(
       axis: Axis.horizontal,
     );
-    // 监听 Tab 切换，同步排序状态给 Provider
+
     _tabController.addListener(() {
+      if (!mounted) return;
       if (!_tabController.indexIsChanging) {
         final order = sortOrders[_tabController.index];
         ref
@@ -78,7 +90,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     ref.listen<CategoryUiState>(categoryUiProvider, (previous, next) {
       if (previous != null && next.selected.length > previous.selected.length) {
         final targetIndex = next.selected.length - 1;
-        // 使用 scroll_to_index 的方法
         _autoScrollController.scrollToIndex(
           targetIndex,
           preferPosition: AutoScrollPosition.end,
@@ -102,10 +113,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
           if (isMobile)
             SliverAppBar(
               expandedHeight: 80,
-              // 核心修复：面板打开时禁止悬浮，防止遮挡
               floating: !uiState.isFilterOpen,
               snap: !uiState.isFilterOpen,
-
               backgroundColor: bgColor,
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
@@ -155,7 +164,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                       return ref.refresh(categoryProvider.future);
                     },
                     notificationPredicate: (notification) {
-                      // 确保只响应深度为 0 的滚动（即直接子级 CustomScrollView）
                       return notification.depth == 0;
                     },
 
@@ -165,7 +173,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                       physics: uiState.isFilterOpen
                           ? const NeverScrollableScrollPhysics()
                           : const AlwaysScrollableScrollPhysics(),
-                      // 确保包含 AlwaysScrollable
 
                       slivers: [
                         SliverOverlapInjector(
@@ -232,8 +239,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
                 // --- 特殊筛选面板构建器 ---
                 specialFilterBuilder: (context) {
-                  // AdvancedFilterPanel 尚未重构，所以这里还是传 uiState 和 notifier
-                  // 如果你也重构了它，这里就传对应参数
                   return AdvancedFilterPanel(
                     // 直接传 uiState 中的 tags
                     selectedTags: uiState.selected,

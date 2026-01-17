@@ -25,7 +25,6 @@ class AppStorage {
   static late Box<dynamic> scannerBox;         // 扫描结果 (由于结构复杂，可用 dynamic 或专门的 Model)
 
   static late final String _hiveRootPath;
-
   /// 初始化 Hive 和所有 Box
   static Future<void> init() async {
     final appDocDir = await getApplicationSupportDirectory();

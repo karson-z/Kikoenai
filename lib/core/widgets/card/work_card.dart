@@ -1,23 +1,23 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
+import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
 import '../../enums/age_rating.dart';
 import '../../enums/tag_enum.dart';
 
-class WorkCard extends StatelessWidget {
+class WorkCard extends ConsumerWidget {
   final Work work;
+  final String? lastTrackTitle;
+  final DateTime? lastPlayedAt;
+  static const double kTitleFontSize = 13.0;
+  static const double kSubtitleFontSize = 11.0;
+  static const double kInfoFontSize = 10.0;
 
-  // 新增可选字段
-  final String? lastTrackTitle; // 上次播放到哪一集
-  final DateTime? lastPlayedAt; // 上次播放时间
-
-  WorkCard({
+  const WorkCard({
     super.key,
     required this.work,
     this.lastTrackTitle,
@@ -25,8 +25,9 @@ class WorkCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final showHistoryInfo = lastTrackTitle != null && lastPlayedAt != null;
+    final isSubTitle = work.hasSubtitle ?? false;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -34,186 +35,142 @@ class WorkCard extends StatelessWidget {
         context.push(AppRoutes.detail, extra: {'work': work});
       },
       child: Card(
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final cardWidth = constraints.maxWidth;
-            final computedTitleFontSize = cardWidth / 15;
-            final computedCircleFontSize = cardWidth / 20;
-            double computeFontSize() => cardWidth / 20;
-            double computePadding() => cardWidth / 30;
-            final infoFontSize = cardWidth / 22;
-            final isSubTitle = work.hasSubtitle;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 封面 + Hero
-                Flexible(
-                  child: Hero(
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(4))
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Hero(
                     tag: work.heroTag!,
-                    child: AspectRatio(
-                      aspectRatio: 4 / 3,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CachedNetworkImage(
-                            imageUrl: work.thumbnailCoverUrl ?? "",
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) =>
-                            const Center(child: LottieLoadingIndicator(assetPath:'assets/animation/StarLoader.json',size: 80)),
-                            errorWidget: (_, __, ___) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.broken_image),
-                            ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: _buildBadge(
-                              "RJ${work.id}",
-                              Colors.black.withAlpha(60),
-                            ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: _buildBadge(
-                              AgeRatingEnum.labelFromValue(work.ageCategoryString),
-                              AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 2,
-                            left: 8,
-                            child: AppBadge(
-                              color: Colors.black45,
-                              child: Icon(
-                                isSubTitle ?? false ? Icons.closed_caption :Icons.closed_caption_disabled ,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            )
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: _buildBadge(
-                              work.release.toString(),
-                              Colors.black.withAlpha(90),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: SimpleExtendedImage(
+                      work.thumbnailCoverUrl ?? '',
+                      width: 240,
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        work.title ?? "",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: computedTitleFontSize,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: Consumer(
-                          builder: (context,ref,child){
-                            return GestureDetector(
-                              onTap: (){
-                                ref.read(categoryUiProvider.notifier).toggleTag(TagType.circle.stringValue,work.name!,refreshData: true);
-                                context.go(AppRoutes.category);
-                              },
-                              child: Text(
-                                work.name ?? "",
-                                style: TextStyle(
-                                  fontSize: computedCircleFontSize,
-                                  color: Colors.grey[700],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          },
-                        )
-                      ),
-                      const SizedBox(height: 6),
-
-                      /// 根据是否有播放记录选择显示标签还是播放信息
-                      if (showHistoryInfo)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "当前集: $lastTrackTitle",
-                              style: TextStyle(
-                                fontSize: infoFontSize,
-                                color: Colors.blueAccent,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "上次播放: ${lastPlayedAt.toString()}",
-                              style: TextStyle(
-                                fontSize: infoFontSize,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            /// 作者标签
-                            TagRow(
-                              tags: work.vas ?? [],
-                              type: TagType.va,
-                              fontSize: computeFontSize(),
-                              borderRadius: 8,
-                              padding: EdgeInsets.all(computePadding()),
-                            ),
-                            const SizedBox(height: 4),
-
-                            /// 普通标签
-                            TagRow(
-                              tags: work.tags ?? [],
-                              type: TagType.tag,
-                              fontSize: computeFontSize(),
-                              borderRadius: 25,
-                              padding: EdgeInsets.all(computePadding()),
-                            ),
-                          ],
-                        ),
-                    ],
+                  _PositionedBadge(
+                    top: 8, left: 8,
+                    text: "RJ${work.id}",
+                    color: Colors.black.withAlpha(60),
                   ),
+                  _PositionedBadge(
+                    top: 8, right: 8,
+                    text: AgeRatingEnum.labelFromValue(work.ageCategoryString),
+                    color: AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
+                  ),
+                  Positioned(
+                    bottom: 2, left: 8,
+                    child: _AppIconBadge(isSubTitle: isSubTitle),
+                  ),
+                  _PositionedBadge(
+                    bottom: 0, right: 0,
+                    text: work.release.toString(),
+                    color: Colors.black.withAlpha(90),
+                  ),
+                ],
+              ),
+            ),
+
+            Flexible(
+              fit: FlexFit.tight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 标题
+                    Text(
+                      work.title ?? "",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: kTitleFontSize,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // 社团名称 (使用 MouseRegion 包裹 GestureDetector)
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        // 直接使用 build 方法传入的 ref
+                        onTap: () {
+                          if (work.name != null) {
+                            ref.read(categoryUiProvider.notifier).toggleTag(
+                                TagType.circle.stringValue,
+                                work.name!,
+                                refreshData: true
+                            );
+                            context.go(AppRoutes.category);
+                          }
+                        },
+                        child: Text(
+                          work.name ?? "",
+                          style: TextStyle(
+                            fontSize: kSubtitleFontSize,
+                            color: Colors.grey[700],
+                            height: 1.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (showHistoryInfo)
+                      _HistoryInfo(
+                        trackTitle: lastTrackTitle,
+                        playedAt: lastPlayedAt,
+                        fontSize: kInfoFontSize,
+                      )
+                    else
+                      _TagsInfo(work: work),
+                  ],
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildBadge(String text, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      child: Center(
+
+class _PositionedBadge extends StatelessWidget {
+  final double? top;
+  final double? bottom;
+  final double? left;
+  final double? right;
+  final String text;
+  final Color color;
+
+  const _PositionedBadge({
+    this.top, this.bottom, this.left, this.right,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top, bottom: bottom, left: left, right: right,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Text(
           text,
           style: const TextStyle(
@@ -227,29 +184,81 @@ class WorkCard extends StatelessWidget {
     );
   }
 }
-class AppBadge extends StatelessWidget {
-  final Widget child;
-  final Color color;
-  final EdgeInsets padding;
-  final double radius;
 
-  const AppBadge({
-    Key? key,
-    required this.child,
-    this.color = Colors.red,
-    this.padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-    this.radius = 4,
-  }) : super(key: key);
+class _AppIconBadge extends StatelessWidget {
+  final bool isSubTitle;
+
+  const _AppIconBadge({required this.isSubTitle});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(radius),
+        color: Colors.black45,
+        borderRadius: BorderRadius.circular(4),
       ),
-      padding: padding,
-      child: Center(child: child),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Center(
+        child: Icon(
+          isSubTitle ? Icons.closed_caption : Icons.closed_caption_disabled,
+          size: 12,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryInfo extends StatelessWidget {
+  final String? trackTitle;
+  final DateTime? playedAt;
+  final double fontSize;
+
+  const _HistoryInfo({
+    required this.trackTitle,
+    required this.playedAt,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          "当前: $trackTitle",
+          style: TextStyle(fontSize: fontSize, color: Colors.blueAccent),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          "上次: ${playedAt.toString().split('.')[0]}",
+          style: TextStyle(fontSize: fontSize, color: Colors.green),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+class _TagsInfo extends StatelessWidget {
+  final Work work;
+
+  const _TagsInfo({required this.work});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TagRow(tags: work.vas ?? [], type: TagType.va),
+        const SizedBox(height: 4),
+        TagRow(tags: work.tags ?? [], type: TagType.tag),
+      ],
     );
   }
 }

@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:hive_ce_flutter/adapters.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
 // 引入之前的配置和 Provider
 import '../../../../config/environment_config.dart';
+import '../../../../core/storage/hive_storage.dart';
 import '../widget/default_playlist_setting_tile.dart';
 import '../widget/service_selection.dart';
-// 假设 serverSettingsProvider 定义在某个位置，请确保 import 它
-// import 'path/to/server_settings_provider.dart';
 
 class GeneralSettingsPage extends StatelessWidget {
   const GeneralSettingsPage({super.key});
+
+  Box<dynamic> get settingsBox => AppStorage.settingsBox;
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +67,6 @@ class GeneralSettingsPage extends StatelessWidget {
             value: '不和谐 (默认)',
             items: ['不和谐 (默认)', '和谐', '双语显示'],
           ),
-
-          // 底部留白
-          const SizedBox(height: 40),
         ],
       ),
     );
@@ -138,7 +139,6 @@ class _BaseSettingTile extends StatelessWidget {
     );
   }
 }
-
 /// 3. 服务器选择 Tile (功能实现)
 class _ServerSelectionTile extends ConsumerWidget {
   const _ServerSelectionTile();
@@ -149,7 +149,6 @@ class _ServerSelectionTile extends ConsumerWidget {
     final currentServer = ref.watch(serverSettingsProvider);
     final theme = Theme.of(context);
 
-    // 计算显示的文本 (例如: "Mirror-200 (推荐)")
     final displayLabel = EnvironmentConfig.getDisplayName(currentServer);
 
     return _BaseSettingTile(

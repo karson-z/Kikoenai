@@ -5,6 +5,8 @@ import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_gr
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/storage/hive_key.dart';
+import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../viewmodel/provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
@@ -26,11 +28,9 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   Widget build(BuildContext context) {
     final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card)
         .getDeviceType(context);
-
     final hotState = ref.watch(hotWorksProvider);
     final recState = ref.watch(recommendedWorksProvider);
     final newState = ref.watch(newWorksProvider);
-
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
           ? PreferredSize(
@@ -58,9 +58,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
             // 1. 热门作品区域
             ..._buildHotSection(hotState),
 
-            // 2. 推荐作品区域
             ..._buildRecommendSection(recState),
-
             // 3. 最新作品区域 (带分页)
             ..._buildNewSection(newState),
 

@@ -175,7 +175,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                       switch (value) {
                         case 'add':
                           final playController = ref.read(playerControllerProvider.notifier);
-                          playController.addSubTitleFileList(widget.rootNodes);
+                          // playController.addSubTitleFileList(widget.rootNodes);
                           playController.addSingleInQueue(node, widget.work);
                       }
                     },
@@ -340,7 +340,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
                               if (state.multiSelectMode) {
                                 if (state.selected.isNotEmpty) {
                                   final playController = ref.read(playerControllerProvider.notifier);
-                                  playController.addSubTitleFileList(rootNodes);
+                                  // playController.addSubTitleFileList(rootNodes);
                                   playController.addMultiInQueue(state.selected.toList(), work);
                                   Navigator.of(context).pop();
                                 }

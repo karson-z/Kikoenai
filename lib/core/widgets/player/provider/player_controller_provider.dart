@@ -4,13 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/service/file_scanner_service.dart';
 import 'package:kikoenai/core/service/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/core/widgets/player/provider/play_feedback_provider.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
-import 'package:kikoenai/features/local_media/data/service/tree_service.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../features/album/data/model/file_node.dart';
@@ -292,78 +290,56 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   // 私有方法，交给监听器触发
   void _updateSubtitleState(MediaItem? currentItem) async {
-    // 1. 状态拦截
-    if (currentItem?.id == state.currentTrack?.id) return;
-
+    // 1. 基础空值处理
     if (currentItem == null) {
       state = state.copyWith(subtitleList: [], currentSubtitle: null, currentTrack: null);
       return;
     }
-    // 临时存放候选字幕列表
-    List<FileNode> foundSubtitles = List.from(state.subtitleList);
-    final currentSongName = currentItem.title;
+    if (currentItem.id == state.currentTrack?.id) return;
+    // 2. 获取 ID 进行比对
+    final String? lastWorkId = _getWorkIdFromItem(state.currentTrack);
+    final String? newWorkId = _getWorkIdFromItem(currentItem);
+    final String currentSongName = currentItem.title;
 
-    // 2. 如果当前 state 没有字幕，则去本地库查找
-    if (foundSubtitles.isEmpty) {
-      // 1. 获取缓存数据并构建树
-      final subTitleFiles = CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
-      final paths = CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
+    List<FileNode> targetSubtitleList = [];
 
-      final fileTree = MediaTreeBuilder.build(subTitleFiles, paths);
+    // 3. 判断是否需要重新加载字幕列表 (核心逻辑变更)
+    // 只有当 WorkId 发生变化，或者当前列表为空但有 WorkId 时，才去执行耗时的树查找
+    bool isWorkChanged = newWorkId != lastWorkId;
 
-      final workString = currentItem.extras?['workData'];
-
-      if (workString != null) {
-        try {
-          final workJson = jsonDecode(workString);
-          final workId = workJson['id']?.toString() ?? "";
-
-          if (workId.isNotEmpty) {
-            debugPrint("开始在内存树中查找 ID: $workId");
-
-            // 2. 在树中查找目标节点
-            final targetNode = SearchLyricsService.findNodeInTree(fileTree, workId);
-
-            if (targetNode != null) {
-              debugPrint("命中树节点: ${targetNode.title} (Hash: ${targetNode.hash})");
-
-              // 3. 提取该节点下的所有字幕
-              final subNodes = SearchLyricsService.flattenSubtitles(targetNode);
-
-              if (subNodes.isNotEmpty) {
-                foundSubtitles = subNodes;
-                debugPrint("从缓存树中提取到 ${subNodes.length} 个字幕");
-              }
-            } else {
-              debugPrint("缓存树中未找到匹配的文件夹或压缩包");
-            }
-          }
-        } catch (e) {
-          debugPrint("处理树查找失败: $e");
-        }
+    if ((isWorkChanged) && newWorkId != null && newWorkId.isNotEmpty) {
+      debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
+      // 当前作品发生变化，需要重新拉取字幕列表
+      targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
+      // 如果当前状态中没有字幕列表先匹配本地后匹配ASMR服务器上的字幕列表
+      if(targetSubtitleList.isEmpty){
+        targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);
       }
+    } else {
+      // 作品未变化，直接复用当前 State 中的列表
+      targetSubtitleList = List.from(state.subtitleList);
     }
-
-    // 3. 执行匹配算法
+    // 4. 在(新)列表中匹配当前播放的歌曲
     FileNode? bestMatchNode;
-    if (foundSubtitles.isNotEmpty) {
-      final subtitleNames = foundSubtitles.map((e) => e.title).toList();
+    if (targetSubtitleList.isNotEmpty) {
+      final subtitleNames = targetSubtitleList.map((e) => e.title).toList();
       final bestMatchName = SearchLyricsService.findBestMatch(
         currentSongName,
         subtitleNames,
       );
-
       if (bestMatchName != null) {
-        bestMatchNode = foundSubtitles.firstWhere((e) => e.title == bestMatchName);
+        bestMatchNode = targetSubtitleList.firstWhere((e) => e.title == bestMatchName);
       }
     }
 
-    // 4. 最终状态更新
+    // 5. 更新状态
+    // 如果没有找到匹配的字幕文件，生成一个占位符，或者根据你的 UI 需求设为 null
+    final newCurrentSubtitle = bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName);
+
     state = state.copyWith(
       currentTrack: currentItem,
-      subtitleList: foundSubtitles,
-      // 如果匹配到了就用匹配的，否则给一个占位符或保持为 null
-      currentSubtitle: bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName),
+      subtitleList: targetSubtitleList,
+      currentSubtitle: newCurrentSubtitle,
     );
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
@@ -534,5 +510,18 @@ class PlayerController extends Notifier<AppPlayerState> {
         'workData': jsonEncode(work),
       },
     );
+  }
+  String? _getWorkIdFromItem(MediaItem? item) {
+    if (item == null) return null;
+    final workData = item.extras?['workData'];
+    if (workData == null) return null;
+    try {
+      // 兼容 JSON String 和 Map
+      final workJson = workData is String ? jsonDecode(workData) : workData;
+      return workJson['id']?.toString();
+    } catch (e) {
+      debugPrint("解析 WorkID 异常: $e");
+      return null;
+    }
   }
 }

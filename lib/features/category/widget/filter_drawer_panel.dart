@@ -23,8 +23,6 @@ class FilterDrawerPanel extends StatefulWidget {
   final VoidCallback onApply; // 完成
   final Function(String type, String name) onToggleTag; // 切换 Tag
 
-  // --- 辅助 ---
-  // 用于获取加载文案，也可以直接在组件内写死，或者传个 Map
   final String Function(String type) getLoadingMessage;
 
   // --- 为 AdvancedFilterPanel 预留 ---

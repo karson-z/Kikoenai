@@ -11,10 +11,7 @@ import '../../../core/model/filter_option_item.dart';
 import '../../../core/model/search_tag.dart'; // 确保引入 SearchTag
 
 class AdvancedFilterPanel extends StatelessWidget {
-  // --- 改动 1: 接收具体的标签列表，而不是整个 UI State ---
   final List<SearchTag> selectedTags;
-
-  // --- 改动 2: 接收回调函数，而不是 Notifier ---
   final Function(String type, String name) onToggleTag;
 
   // 样式配置
