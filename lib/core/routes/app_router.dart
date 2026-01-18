@@ -19,7 +19,6 @@ import '../widgets/common/kikoenai_dialog.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
 
-
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: AppConstants.rootNavigatorKey,
@@ -29,47 +28,65 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
     debugLogDiagnostics: true,
     routes: [
-      ShellRoute(
-        builder: (context, state, child) => MainScaffold(child: child),
-        routes: [
-          GoRoute(
-              path: AppRoutes.home,
-              pageBuilder: (context, state) => MaterialPage(
-                child: const AlbumPage(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          // 这里传入我们在 MainScaffold 中修改后的 navigationShell
+          return MainScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                pageBuilder: (context, state) => MaterialPage(
+                  child: const AlbumPage(),
+                ),
               ),
+              GoRoute(
+                path: AppRoutes.detail,
+                pageBuilder: (context, state) {
+                  final extra = state.extra as Map<String, dynamic>? ?? {};
+                  return MaterialPage(
+                    child: AlbumDetailPage(extra: extra),
+                  );
+                },
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.detail,
-            pageBuilder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>? ?? {};
-              return MaterialPage(
-                child: AlbumDetailPage(extra:extra),
-              );
-            },
+
+          // ------------------------------------------------------------------
+          // 分支 2: 分类 (Category)
+          // ------------------------------------------------------------------
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.category,
+                pageBuilder: (context, state) => MaterialPage(
+                  child: const CategoryPage(),
+                ),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.settings,
-            pageBuilder: (context, state) => MaterialPage(
-              child: const SettingsOverviewPage(),
-            ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.user,
+                pageBuilder: (context, state) => MaterialPage(
+                  child: const UserPage(),
+                ),
+              ),
+            ],
           ),
-          GoRoute(path: AppRoutes.category,
-              pageBuilder: (context, state) => MaterialPage(
-                child: const CategoryPage(),
-              )
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings,
+                pageBuilder: (context, state) => MaterialPage(
+                  child: const SettingsOverviewPage(),
+                ),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.user,
-            pageBuilder: (context, state) => MaterialPage(
-              child: const UserPage(),
-            ),
-          ),
-          // GoRoute(
-          //   path: AppRoutes.test,
-          //   pageBuilder: (context, state) => MaterialPage(
-          //     child: const SearchPage(),
-          //   ),
-          // ),
         ],
       ),
       GoRoute(
@@ -136,4 +153,3 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-

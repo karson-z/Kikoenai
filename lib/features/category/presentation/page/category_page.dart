@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
-import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
-import '../../../../../../../core/enums/age_rating.dart';
 import '../../../../../../../core/enums/sort_options.dart';
 import '../../../../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../../../album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../album/presentation/widget/work_grid_layout.dart';
+import '../../widget/category_tab_list.dart';
 import '../../widget/filter_drawer_panel.dart';
 import '../../widget/filter_header_delegate.dart';
 import '../../widget/filter_row_panel.dart';
@@ -39,7 +37,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     super.initState();
 
     final currentSort = ref.read(categoryUiProvider).sortOption;
-
     int initialIndex = sortOrders.indexOf(currentSort);
     if (initialIndex == -1) initialIndex = 0;
 
@@ -49,17 +46,19 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       initialIndex: initialIndex,
     );
 
-    _autoScrollController = AutoScrollController(
-      axis: Axis.horizontal,
-    );
+    _autoScrollController = AutoScrollController(axis: Axis.horizontal);
 
+    // --- 修改点 1：Tab 切换监听 ---
     _tabController.addListener(() {
       if (!mounted) return;
-      if (!_tabController.indexIsChanging) {
+      if (!_tabController.indexIsChanging) { // 只有在滑动结束稳定时才触发
         final order = sortOrders[_tabController.index];
-        ref
-            .read(categoryUiProvider.notifier)
-            .setSort(sortOption: order, refreshData: true);
+
+        // 关键修改：refreshData 设为 false！
+        // 我们只更新 UI 状态（比如哪个 Tab 高亮），但不强制刷新数据。
+        // 数据加载交由 TabView 内部的 KeepAlive 和 Provider 自动处理。
+        ref.read(categoryUiProvider.notifier)
+            .setSort(sortOption: order, refreshData: false);
       }
     });
   }
@@ -76,17 +75,22 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   Widget build(BuildContext context) {
     final uiState = ref.watch(categoryUiProvider);
     final uiNotifier = ref.read(categoryUiProvider.notifier);
-    final worksAsync = ref.watch(categoryProvider);
-    final categoryController = ref.read(categoryProvider.notifier);
-    final totalCount = worksAsync.value?.totalCount ?? 0;
+
+    // --- 修改点 2：父页面获取数据 ---
+    // 这里依然需要 watch，但目的仅仅是为了获取 totalCount 传给 FilterHeaderDelegate
+    // 以及显示当前 Tab 的总数。这不会影响子 Tab 的独立性。
+    final currentTabAsync = ref.watch(categoryProvider(uiState.sortOption));
+    final totalCount = currentTabAsync.value?.totalCount ?? 0;
+
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final primaryColor = theme.colorScheme.primary;
     final Color bgColor = isDark ? Colors.black : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black45;
-    final Color fillColor =
-    isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
+    final Color fillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
+
+    // 监听筛选变化以自动滚动 Header
     ref.listen<CategoryUiState>(categoryUiProvider, (previous, next) {
       if (previous != null && next.selected.length > previous.selected.length) {
         final targetIndex = next.selected.length - 1;
@@ -97,163 +101,123 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         );
       }
     });
-    if (uiState.localSearchKeyword.isEmpty &&
-        _searchController.text.isNotEmpty) {
+
+    // 搜索框回填逻辑
+    if (uiState.localSearchKeyword.isEmpty && _searchController.text.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _searchController.clear();
       });
     }
 
     return SafeArea(
-        child: Scaffold(
-      backgroundColor: bgColor,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // 1. 搜索栏 (Floating)
-          if (isMobile)
-            SliverAppBar(
-              expandedHeight: 80,
-              floating: !uiState.isFilterOpen,
-              snap: !uiState.isFilterOpen,
-              backgroundColor: bgColor,
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                background: MobileSearchAppBar(
-                  onSearchTap: () {
-                    debugPrint("跳转到搜索页面");
-                    context.push(AppRoutes.search);
-                  },
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            if (isMobile)
+              SliverAppBar(
+                expandedHeight: 80,
+                floating: !uiState.isFilterOpen,
+                snap: !uiState.isFilterOpen,
+                backgroundColor: bgColor,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: MobileSearchAppBar(
+                    onSearchTap: () {
+                      context.push(AppRoutes.search);
+                    },
+                  ),
                 ),
               ),
-            ),
 
-          // 2. 排序与筛选栏 (Pinned)
-          SliverOverlapAbsorber(
-            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            sliver: SliverPersistentHeader(
-              pinned: true,
-              delegate: FilterHeaderDelegate(
-                ref: ref,
-                tabController: _tabController,
-                pinnedHeight: pinnedHeaderHeight,
-                // 使用更紧凑的高度
-                sortOrders: sortOrders,
-                uiState: uiState,
-                uiNotifier: uiNotifier,
-                totalCount: totalCount,
-                scrollController: _autoScrollController,
-                buildFilterRow: _buildFilterRowContent, // 将你的构建函数传进去
-              ),
-            ),
-          ),
-        ],
-
-        // 3. Body
-        body: Stack(
-          children: [
-            TabBarView(
-              controller: _tabController,
-              children: sortOrders.map((sortOrder) {
-                return Builder(builder: (context) {
-                  return RefreshIndicator(
-                    edgeOffset: pinnedHeaderHeight,
-                    color: primaryColor,
-                    backgroundColor: bgColor,
-                    onRefresh: () async {
-                      // 触发 Provider 刷新
-                      return ref.refresh(categoryProvider.future);
-                    },
-                    notificationPredicate: (notification) {
-                      return notification.depth == 0;
-                    },
-
-                    child: CustomScrollView(
-                      key: PageStorageKey<String>(sortOrder.label),
-
-                      physics: uiState.isFilterOpen
-                          ? const NeverScrollableScrollPhysics()
-                          : const AlwaysScrollableScrollPhysics(),
-
-                      slivers: [
-                        SliverOverlapInjector(
-                          handle:
-                              NestedScrollView.sliverOverlapAbsorberHandleFor(
-                                  context),
-                        ),
-                        ..._buildCommonContent(worksAsync, categoryController),
-                        const SliverPadding(
-                            padding: EdgeInsets.only(bottom: 20)),
-                      ],
-                    ),
-                  );
-                });
-              }).toList(),
-            ),
-            if (uiState.isFilterOpen)
-              Positioned.fill(
-                top: pinnedHeaderHeight,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque, // 拦截点击
-                  onTap: () => uiNotifier.toggleFilterDrawer(),
-                  child: Container(color: Colors.transparent),
+            SliverOverlapAbsorber(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+              sliver: SliverPersistentHeader(
+                pinned: true,
+                delegate: FilterHeaderDelegate(
+                  ref: ref,
+                  tabController: _tabController,
+                  pinnedHeight: pinnedHeaderHeight,
+                  sortOrders: sortOrders,
+                  uiState: uiState,
+                  uiNotifier: uiNotifier,
+                  totalCount: totalCount, // 这里的 Count 依然是动态变化的
+                  scrollController: _autoScrollController,
+                  buildFilterRow: _buildFilterRowContent,
                 ),
-              ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              top: pinnedHeaderHeight,
-              left: 0,
-              right: 0,
-              child: FilterDrawerPanel(
-                // --- 状态传递 ---
-                isOpen: uiState.isFilterOpen,
-                selectedFilterIndex: uiState.selectedFilterIndex,
-                localSearchKeyword: uiState.localSearchKeyword,
-                selectedTags: uiState.selected,
-
-                // --- 数据传递 (直接传递 Provider 的 watch 结果) ---
-                tagsAsync: ref.watch(tagsProvider),
-                circlesAsync: ref.watch(circlesProvider),
-                vasAsync: ref.watch(vasProvider),
-
-                // --- 业务回调 ---
-                onFilterIndexChanged: (index) {
-                  uiNotifier.setFilterIndex(index);
-                },
-                onLocalSearchChanged: (val) {
-                  uiNotifier.setLocalSearchKeyword(val);
-                },
-                onReset: () {
-                  uiNotifier.resetSelected();
-                },
-                onApply: () {
-                  uiNotifier.toggleFilterDrawer();
-                  ref.read(categoryProvider.notifier).refresh();
-                },
-                onToggleTag: (type, name) {
-                  uiNotifier.toggleTag(type, name, refreshData: false);
-                },
-
-                // --- 辅助回调 ---
-                getLoadingMessage: (type) => uiNotifier.getLoadingMessage(type),
-
-                // --- 特殊筛选面板构建器 ---
-                specialFilterBuilder: (context) {
-                  return AdvancedFilterPanel(
-                    // 直接传 uiState 中的 tags
-                    selectedTags: uiState.selected,
-                    // 直接传 uiNotifier 的方法
-                    onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
-                    fillColor: fillColor,
-                    textColor: textColor,
-                  );
-                },
               ),
             ),
           ],
+
+          // --- 修改点 3：Body 结构 ---
+          body: Stack(
+            children: [
+              TabBarView(
+                controller: _tabController,
+                // 这里不再使用 Builder 也不在 map 里写大段逻辑
+                // 而是直接返回封装好的、带 KeepAlive 的组件
+                children: sortOrders.map((sortOrder) {
+                  return CategoryListTab(
+                    key: PageStorageKey<String>(sortOrder.label), // 确保 Key 唯一
+                    sortOrder: sortOrder,
+                    pinnedHeaderHeight: pinnedHeaderHeight,
+                    isFilterOpen: uiState.isFilterOpen,
+                  );
+                }).toList(),
+              ),
+
+              // 筛选遮罩层
+              if (uiState.isFilterOpen)
+                Positioned.fill(
+                  top: pinnedHeaderHeight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => uiNotifier.toggleFilterDrawer(),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+
+              // 筛选面板
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                top: pinnedHeaderHeight,
+                left: 0,
+                right: 0,
+                child: FilterDrawerPanel(
+                  isOpen: uiState.isFilterOpen,
+                  selectedFilterIndex: uiState.selectedFilterIndex,
+                  localSearchKeyword: uiState.localSearchKeyword,
+                  selectedTags: uiState.selected,
+                  tagsAsync: ref.watch(tagsProvider),
+                  circlesAsync: ref.watch(circlesProvider),
+                  vasAsync: ref.watch(vasProvider),
+                  onFilterIndexChanged: (index) => uiNotifier.setFilterIndex(index),
+                  onLocalSearchChanged: (val) => uiNotifier.setLocalSearchKeyword(val),
+                  onReset: () => uiNotifier.resetSelected(),
+                  onApply: () {
+                    uiNotifier.toggleFilterDrawer();
+                    // 全局刷新：这里使用 invalidate 会重置所有 Tab 的数据
+                    // 因为所有 categoryProvider(family) 都会被标记为失效
+                    ref.invalidate(categoryProvider);
+                  },
+                  onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
+                  getLoadingMessage: (type) => uiNotifier.getLoadingMessage(type),
+                  specialFilterBuilder: (context) {
+                    return AdvancedFilterPanel(
+                      selectedTags: uiState.selected,
+                      onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
+                      fillColor: fillColor,
+                      textColor: textColor,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
   Widget _buildFilterRowContent(
       CategoryUiState uiState,
