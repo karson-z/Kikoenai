@@ -420,10 +420,11 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
-
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
+
   static late final AudioHandler _instance;
 
   static AudioHandler get instance {
@@ -450,7 +451,6 @@ class MyAudioHandler extends BaseAudioHandler {
 
   final List<MediaItem> _playlist = [];
 
-
   MyAudioHandler() {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
@@ -458,6 +458,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenForCurrentItemChanges(); // 新增：监听当前歌曲索引变化
     _listenErrorPlayState();
   }
+
   // 初始化播放状态
   Future<void> initPlayback({
     required List<MediaItem> initialPlaylist,
@@ -471,8 +472,9 @@ class MyAudioHandler extends BaseAudioHandler {
     await _player.setVolume(volume);
 
     await setRepeatMode(repeatMode);
-    await setShuffleMode(
-        shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+    await setShuffleMode(shuffleEnabled
+        ? AudioServiceShuffleMode.all
+        : AudioServiceShuffleMode.none);
 
     // 3. 更新本地数据源和通知 UI
     _playlist.clear();
@@ -491,12 +493,13 @@ class MyAudioHandler extends BaseAudioHandler {
       shuffleOrder: DefaultShuffleOrder(),
     );
   }
+
   Future<void> loadPlaylist(
-      List<MediaItem> items, {
-        int initialIndex = 0,
-        Duration? initialPosition,
-        bool autoPlay = true,
-      }) async {
+    List<MediaItem> items, {
+    int initialIndex = 0,
+    Duration? initialPosition,
+    bool autoPlay = true,
+  }) async {
     // 1. 更新内部列表和 UI
     _playlist.clear();
     _playlist.addAll(items);
@@ -525,7 +528,8 @@ class MyAudioHandler extends BaseAudioHandler {
   /// 将 MediaItem 转换为 AudioSource
   AudioSource _buildAudioSource(MediaItem item) {
     final url = item.extras!['url'] as String;
-    final bool isNetwork = url.startsWith('http://') || url.startsWith('https://');
+    final bool isNetwork =
+        url.startsWith('http://') || url.startsWith('https://');
     final uri = isNetwork ? Uri.parse(url) : Uri.file(url);
 
     return AudioSource.uri(
@@ -579,7 +583,8 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> addQueueItems(List<MediaItem> mediaItems, {int startIndex = 0}) async {
+  Future<void> addQueueItems(List<MediaItem> mediaItems,
+      {int startIndex = 0}) async {
     final existingIds = _playlist.map((e) => e.id).toSet();
     final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
 
@@ -678,6 +683,7 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
   }
+
   void _listenForDurationChanges() {
     _player.durationStream.listen((duration) {
       int currentIndex = _player.currentIndex ?? -1;
@@ -729,26 +735,42 @@ class MyAudioHandler extends BaseAudioHandler {
       playbackState.add(playbackState.value.copyWith(updatePosition: position));
     });
     _player.bufferedPositionStream.listen((bufferedPosition) {
-      playbackState.add(playbackState.value.copyWith(bufferedPosition: bufferedPosition));
+      playbackState.add(
+          playbackState.value.copyWith(bufferedPosition: bufferedPosition));
     });
   }
 
   void _listenErrorPlayState() {
     _player.errorStream.listen((e) {
-      KikoenaiLogger().e("${e.message}");
-      playbackState.add(playbackState.value.copyWith(
-        processingState: AudioProcessingState.error,
-        errorMessage: "无法加载音频: ${e.message}",
-      ));
+      KikoenaiLogger().e("播放异常: ${e.message}");
+
+      // 错误恢复逻辑
+      final currentPosition = _player.position;
+      final currentSource = _player.audioSource;
+
+      if (currentSource != null) {
+        KikoenaiToast.error('连接超时，重试中...');
+
+        _player
+            .setAudioSource(currentSource, initialPosition: currentPosition)
+            .then((_) {
+          _player.play();
+        }).catchError((retryError) {
+          KikoenaiToast.error('重连失败');
+        });
+      }
     });
   }
 
   Stream<double> get volumeStream => _player.volumeStream;
+
   double get volume => _player.volume;
+
   Future<void> setVolume(double v) => _player.setVolume(v);
 
   @override
-  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(String name,
+      [Map<String, dynamic>? extras]) async {
     if (name == 'reorderQueue') {
       final int oldIndex = extras!['oldIndex'];
       final int newIndex = extras['newIndex'];

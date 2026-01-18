@@ -8,8 +8,6 @@ import '../../theme/theme_view_model.dart';
 import '../player/player_view.dart';
 import '../player/player_list_sheet.dart';
 import 'package:back_button_interceptor/back_button_interceptor.dart';
-
-// 引入修改后的源码文件
 import '../slider/sllding_up_panel_modify.dart';
 
 class SlidingPlayerPanel extends ConsumerStatefulWidget {
@@ -17,9 +15,6 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
   final double maxHeight;
   final bool isDraggable;
   final Widget body;
-
-  // 注意：由于 MusicPlayerView 内部接管了收起状态的 UI 渲染，
-  // 外部传入的 collapsed 参数在此模式下可能不再被使用，或者需要你手动传给 MusicPlayerView
   final Widget? collapsed;
 
   final VoidCallback? onQueuePressed;
@@ -84,16 +79,8 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
       minHeight: widget.minHeight,
       maxHeight: widget.maxHeight,
       isDraggable: widget.isDraggable,
-
-      // 【修改点 1】: 禁用默认淡出，完全交由 MusicPlayerView 内部控制
+      // 禁用淡入淡出, 基于源码修改
       fadeCollapsed: false,
-
-      // 【修改点 2】: 这里传 null。
-      // 因为 MusicPlayerView 的 Stack 布局里已经包含了“收起状态”的 UI (Layer 2)。
-      // 如果这里再传 widget.collapsed，会导致界面上出现两个迷你播放器重叠。
-      collapsed: null,
-
-      // 【修改点 3】: 使用 panelBuilder 获取 AnimationController
       panelBuilder: (ScrollController sc, AnimationController controller) {
         return MusicPlayerView(
           // 将 controller 作为进度通知器传下去
