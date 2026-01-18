@@ -95,7 +95,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
               final currentRect =
               Rect.lerp(rects.collapsed, rects.expanded, progress)!;
 
-              final double collapsedRadius = rects.collapsed.width / 2.0;
+              final double collapsedRadius = rects.collapsed.width / 6.0;
               // 展开时期望的圆角半径 (圆角正方形)
               const double expandedRadius = 8.0;
 
@@ -222,8 +222,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
         ignoring: !isInteractive,
         child: Opacity(
           opacity: params.collapsedOpacity,
-
-          // 【核心修改】：添加 GestureDetector 来响应点击
           child: GestureDetector(
             behavior: HitTestBehavior.opaque, // 确保空白区域也能响应点击
             onTap: () {
@@ -294,13 +292,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView> {
           ),
           // 使用 ClipRRect 裁剪图片
           child: SimpleExtendedImage(
-            // ========= 修复开始 =========
-            // 原代码这里是 params.currentRadius - 10，这会导致半径不匹配甚至出现负数。
-            // 因为外层已经包裹了 ClipRRect，如果 SimpleExtendedImage 内部支持裁切，
-            // 这里的半径应该与外层保持一致，或者直接去掉让 ClipRRect 生效。
-            // 为了保险起见，这里设置为与 params.currentRadius 一致。
             borderRadius: BorderRadius.circular(params.currentRadius),
-            // ========= 修复结束 =========
             params.coverUrl,
             width: params.currentRect.width,
             height: params.currentRect.height,
