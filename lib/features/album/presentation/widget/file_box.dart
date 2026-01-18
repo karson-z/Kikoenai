@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/widgets/layout/app_dropdown_sheet.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import '../../../../core/theme/theme_view_model.dart';
+import '../../../../core/widgets/image_box/image_view.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/player/provider/player_controller_provider.dart';
 import '../../../../core/widgets/text_preview/text_preview_page.dart';
@@ -98,8 +101,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         if (didPop) return;
         _handleBack();
       },
-      // 修改点：使用 SliverMainAxisGroup 替换 CustomScrollView
-      // 并移除了 ClipRRect，因为 RenderSliver 不能被裁剪
       child: SliverMainAxisGroup(
         slivers: [
           // 1. 吸顶 Header
@@ -138,6 +139,28 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                   onTap: () {
                     if (node.isFolder) {
                       _enterFolder(node);
+                    } else if (node.isImage) {
+                      // --- 新增图片预览逻辑 ---
+
+                      // 1. 筛选出当前层级下所有的图片节点
+                      final imageNodes = _currentNodes.where((n) => n.isImage).toList();
+
+                      // 2. 提取 URL 列表 (假设 URL 存在 mediaStreamUrl 字段中)
+                      final imageUrls = imageNodes
+                          .map((n) => n.mediaStreamUrl ?? "")
+                          .where((url) => url.isNotEmpty) // 安全过滤空链接
+                          .toList();
+                      final initialIndex = imageNodes.indexOf(node);
+                      if (imageUrls.isNotEmpty && initialIndex != -1) {
+                        context.push(
+                          AppRoutes.imageView, // 对应上面定义的 path
+                          extra: {
+                            'urls': imageUrls,
+                            'index': initialIndex,
+                          },
+                        );
+                      }
+
                     } else if (node.isText) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -148,6 +171,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                         ),
                       );
                     } else {
+                      // 处理音频或其他媒体
                       final playerController = ref.read(playerControllerProvider.notifier);
                       playerController.handleFileTap(node, _currentNodes, work: widget.work);
                       playerController.addSubTitleFileList(widget.rootNodes);
@@ -200,11 +224,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     return Icons.folder;
   }
 }
-
-// -----------------------------------------------------------
-// 以下代码完全保留你的原始实现，未做任何修改 (除了 _BreadcrumbHeader 的构造函数 key 修复)
-// -----------------------------------------------------------
-
 class _BreadcrumbHeader extends ConsumerWidget {
   final List<FileNode> breadcrumb;
   final List<FileNode> rootNodes;
@@ -311,7 +330,6 @@ class _BreadcrumbHeader extends ConsumerWidget {
                       final state = ref.watch(audioManageProvider);
                       final notifier = ref.read(audioManageProvider.notifier);
                       final isAllSelected = state.selected.length == audioFiles.length && audioFiles.isNotEmpty;
-
                       return Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -340,7 +358,6 @@ class _BreadcrumbHeader extends ConsumerWidget {
                               if (state.multiSelectMode) {
                                 if (state.selected.isNotEmpty) {
                                   final playController = ref.read(playerControllerProvider.notifier);
-                                  // playController.addSubTitleFileList(rootNodes);
                                   playController.addMultiInQueue(state.selected.toList(), work);
                                   Navigator.of(context).pop();
                                 }

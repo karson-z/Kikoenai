@@ -14,7 +14,6 @@ import 'app_player_slider.dart';
 final panelController = Provider((ref) => PanelController());
 
 class MainScaffold extends ConsumerStatefulWidget {
-  // 修改 1: 接收 StatefulNavigationShell 而不是 child
   const MainScaffold({
     super.key,
     required this.navigationShell,
@@ -27,7 +26,6 @@ class MainScaffold extends ConsumerStatefulWidget {
 }
 
 class _MainScaffoldState extends ConsumerState<MainScaffold> {
-  // double slidePercent = 0.0; // 如果没用到可以移除
 
   @override
   void initState() {
@@ -35,7 +33,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     debugPrint("init");
   }
 
-  // 修改 2: 使用 navigationShell.goBranch 进行切换
+  // 使用 navigationShell.goBranch 进行切换
   void _navigateTo(int index) {
     widget.navigationShell.goBranch(
       index,
@@ -49,16 +47,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final scaffoldState = ref.watch(mainScaffoldProvider);
     final playController = ref.watch(panelController);
 
-    // 修改 3: 直接从 shell 获取当前索引，不再需要根据 path 解析
+    //  直接从 shell 获取当前索引，不再需要根据 path 解析
     final int selectedIndex = widget.navigationShell.currentIndex;
 
-    // 获取当前 Title (逻辑保持不变)
+    // 获取当前 Title
     final String title = appNavigationItems.length > selectedIndex
         ? appNavigationItems[selectedIndex].label
         : '';
 
-    // 获取当前路由路径用于全屏判断 (逻辑保持不变)
-    // 注意: 使用 shell.shellRouteContext.routerState.uri.path 可能更准确，但原有方式也行
     final String location = GoRouterState.of(context).uri.path;
 
     final bool isMobile = MediaQuery.of(context).size.width < 600;

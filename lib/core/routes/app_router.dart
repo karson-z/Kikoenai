@@ -16,6 +16,7 @@ import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
 import '../../features/search/presentation/page/search_page.dart';
 import '../widgets/common/kikoenai_dialog.dart';
+import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
 
@@ -130,6 +131,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MaterialPage(
           child: const AboutPage(),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.imageView,
+        pageBuilder: (context, state) {
+          final Map<String, dynamic> args = state.extra as Map<String, dynamic>;
+          return CustomTransitionPage(
+            key: state.pageKey,
+            opaque: false, // 必须 false
+            barrierColor: Colors.transparent, // 必须透明
+            // 缩短路由本身的过渡时间，避免和内部滑动冲突
+            transitionDuration: const Duration(milliseconds: 200),
+            reverseTransitionDuration: const Duration(milliseconds: 200),
+            child: ExtendedImagePreviewPage(
+              imageUrls: args['urls'] as List<String>,
+              initialIndex: args['index'] as int,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.search,

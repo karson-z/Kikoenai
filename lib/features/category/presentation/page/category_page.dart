@@ -53,10 +53,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       if (!mounted) return;
       if (!_tabController.indexIsChanging) { // 只有在滑动结束稳定时才触发
         final order = sortOrders[_tabController.index];
-
-        // 关键修改：refreshData 设为 false！
-        // 我们只更新 UI 状态（比如哪个 Tab 高亮），但不强制刷新数据。
-        // 数据加载交由 TabView 内部的 KeepAlive 和 Provider 自动处理。
         ref.read(categoryUiProvider.notifier)
             .setSort(sortOption: order, refreshData: false);
       }
@@ -75,17 +71,12 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   Widget build(BuildContext context) {
     final uiState = ref.watch(categoryUiProvider);
     final uiNotifier = ref.read(categoryUiProvider.notifier);
-
-    // --- 修改点 2：父页面获取数据 ---
-    // 这里依然需要 watch，但目的仅仅是为了获取 totalCount 传给 FilterHeaderDelegate
-    // 以及显示当前 Tab 的总数。这不会影响子 Tab 的独立性。
     final currentTabAsync = ref.watch(categoryProvider(uiState.sortOption));
     final totalCount = currentTabAsync.value?.totalCount ?? 0;
 
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryColor = theme.colorScheme.primary;
     final Color bgColor = isDark ? Colors.black : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black45;
     final Color fillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);

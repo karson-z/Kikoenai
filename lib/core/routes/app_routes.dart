@@ -3,6 +3,7 @@ class AppRoutes {
   static const String user = '/user';
   static const String album = '/album';
   static const String detail = '/detail';
+  static const String imageView ='/image_preview';
   static const String category = '/category';
   static const String settings = '/settings';
   static const String search = '/search';

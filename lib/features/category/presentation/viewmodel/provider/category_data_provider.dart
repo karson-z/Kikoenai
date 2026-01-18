@@ -8,8 +8,6 @@ import '../../../data/service/category_repository.dart';
 import '../state/category_data_state.dart';
 import '../state/category_ui_state.dart';
 
-// --- CategoryUiNotifier (保持不变，只修改刷新逻辑) ---
-
 class CategoryUiNotifier extends Notifier<CategoryUiState> {
   Timer? _debounceTimer;
 
@@ -51,8 +49,6 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
 
   void searchImmediately() {
     _debounceTimer?.cancel();
-    // 修改点 1: 使用 invalidate 使得所有 family provider 失效(重置)
-    // 这样当前显示的 Tab 会立即刷新，后台的 Tab 下次划过去时也会刷新
     ref.invalidate(categoryProvider);
   }
 
@@ -60,18 +56,14 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
     state = state.copyWith(selected: []);
   }
 
-  // 修改点 2: 这里的 setSort 不再负责触发刷新数据
-  // 因为排序现在由 TabBarView 的 index 决定，而不是这个全局状态
-  // 这个状态保留仅用于 UI 显示（如高亮当前排序图标）
   void setSort({SortOrder? sortOption, SortDirection? sortDec, bool refreshData = false}) {
     state = state.copyWith(sortOption: sortOption, sortDirection: sortDec);
-    // 注意：不再调用 refreshData，因为切换 Tab 时会自动读取对应 provider
   }
 
   void setSubtitleFilter(int filter, {bool refreshData = false}) {
     state = state.copyWith(subtitleFilter: filter);
     if (refreshData) {
-      _debounceRefresh(); // 筛选条件变了，刷新所有
+      _debounceRefresh();
     }
   }
 
@@ -129,8 +121,6 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
   void _debounceRefresh({Duration duration = const Duration(milliseconds: 800)}) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(duration, () {
-      // 修改点 3: 这里的刷新逻辑改为 invalidate
-      // 这告诉 Riverpod：“所有分类（Latest, Popular...）的数据都脏了，需要重新获取”
       ref.invalidate(categoryProvider);
     });
   }
@@ -141,19 +131,14 @@ NotifierProvider<CategoryUiNotifier, CategoryUiState>(
         () => CategoryUiNotifier());
 
 
-// --- CategoryDataNotifier (核心修改：改为 FamilyAsyncNotifier) ---
-
 // 修改点 4: 继承 FamilyAsyncNotifier，并指定参数类型为 SortOrder
 class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   CategoryRepository get _repo => ref.read(categoryRepositoryProvider);
   CategoryDataNotifier(this._currentSortOrder);
-  // 保存传入的 sortOrder，以便在 loadMore 中使用
   final SortOrder _currentSortOrder;
 
   @override
   Future<CategoryState> build() async {
-    // 可以在这里 watch uiProvider 的部分状态，实现自动刷新
-    // 但为了配合你的手动 debounce 逻辑，这里暂时只做初始化
     return await _load(reset: true);
   }
 
@@ -166,7 +151,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
 
     final result = await _repo.searchWorks(
       page: page,
-      // 修改点 5: 使用 family 传入的参数 _currentSortOrder，而不是 ui.sortOption
       order: _currentSortOrder.value,
       sort: ui.sortDirection.value,
       subtitle: ui.subtitleFilter,
@@ -209,6 +193,5 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   }
 }
 
-// 修改点 6: 定义 Family Provider
 final categoryProvider =
-AsyncNotifierProvider.family<CategoryDataNotifier, CategoryState, SortOrder>(CategoryDataNotifier.new);
+AsyncNotifierProvider.family.autoDispose<CategoryDataNotifier, CategoryState, SortOrder>(CategoryDataNotifier.new);
