@@ -3,6 +3,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
 import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
@@ -134,7 +135,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                   themeBackgroundColor, bg.dominantColor, colorProgress)!;
               final Color endColor = Color.lerp(themeBackgroundColor,
                   bg.vibrantColor.withOpacity(0.6), colorProgress)!;
-
               // 计算圆角插值
               final double collapsedRadius = rects.collapsed.width / 6.0;
               const double albumRadius = 8.0;
@@ -142,7 +142,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               // 展开态的目标圆角
               final double targetExpandedRadius = ui.lerpDouble(albumRadius, lyricsRadius, lyricsValue)!;
               final currentRadius = ui.lerpDouble(collapsedRadius, targetExpandedRadius, progress)!;
-
               final collapsedOpacity = (1.0 - progress * 5).clamp(0.0, 1.0);
               final expandedOpacity = ((progress - 0.7) / 0.3).clamp(0.0, 1.0);
 
@@ -385,7 +384,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
       child: GestureDetector(
         // 点击图片切换歌词/封面模式
         onTap: () {
-          if (params.progress > 0.5) {
+          if (params.progress > 0.5 && context.isMobile) {
             _toggleLyrics();
           } else {
             widget.panelController?.open();

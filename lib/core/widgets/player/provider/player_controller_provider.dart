@@ -39,9 +39,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (savedState == null) return;
     // 1. 恢复播放列表
     final playList = savedState.playlist;
-    if (playList.isNotEmpty) {
-      await _handler.addQueueItems(playList);
-    }
     // 2. 恢复当前索引
     // 加上空判断，防止 crash
     final progress = savedState.progressBarState.current;
