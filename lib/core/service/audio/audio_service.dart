@@ -583,8 +583,7 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<void> addQueueItems(List<MediaItem> mediaItems,
-      {int startIndex = 0}) async {
+  Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     final existingIds = _playlist.map((e) => e.id).toSet();
     final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
 

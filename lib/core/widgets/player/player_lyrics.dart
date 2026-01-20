@@ -44,8 +44,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
   // 滚动到指定索引的通用方法
   Future<void> _scrollToIndex(int index) async {
     final isDragging = ref.read(lyricScrollStateProvider);
-
-    // 如果正在拖拽，或者控制器还没绑定好，就不自动滚动
     if (isDragging || !_itemScrollController.isAttached) return;
 
     try {
@@ -53,8 +51,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
         index: index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
-        // 【关键】：0.5 表示将该 Item 的中心点对齐到列表视窗的中心点
-        alignment: 0.5,
+        alignment: 0.1
       );
     } catch (e) {
       debugPrint("Scroll Error: $e");
@@ -118,19 +115,13 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
     // 使用 LayoutBuilder 获取真实高度
     return LayoutBuilder(
       builder: (context, constraints) {
-        // [修复逻辑错误]：原代码是 constraints.maxHeight * 0.04，这会导致 listHeight 非常小，
-        // 进而导致 verticalPadding 极小，无法实现中间居中。
-        // 这里应该直接使用 maxHeight 获取容器完整高度。
-        final double listHeight = constraints.maxHeight * 0.04;
 
-        // 垂直 Padding 设为高度的一半，确保 index 0 能居中
-        final double verticalPadding = listHeight / 2;
+        const double verticalPadding = 24.0;
 
         return NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             final notifier = ref.read(lyricScrollStateProvider.notifier);
 
-            // 1. 保持原有的拖拽状态检测逻辑
             if (notification is ScrollStartNotification) {
               if (notification.dragDetails != null) {
                 notifier.startDragging();
@@ -140,12 +131,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
                 notifier.stopDragging();
               }
             }
-
-            // 2. 【核心修改】：返回 true !!!
-            // 在 Flutter 中，返回 true 表示 "通知已被处理，不再向父组件冒泡"。
-            // 这样 SlidingUpPanel 就收不到 ScrollNotification，
-            // 它就不会尝试去接管手势，从而彻底解决了冲突。
-            return true;
+            return true; // 拦截通知，防止 SlidingUpPanel 冲突
           },
           child: Listener(
             onPointerSignal: (event) {
@@ -161,7 +147,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
-                  stops: [0.0, 0.08, 0.92, 1.0],
+                  stops: [0.0, 0.15, 0.85, 1.0], // 稍微调整渐变范围，让中间显示更多
                 ).createShader(bounds);
               },
               blendMode: BlendMode.dstIn,
@@ -169,12 +155,9 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
                 itemCount: lyrics.length,
                 itemScrollController: _itemScrollController,
                 itemPositionsListener: _itemPositionsListener,
-
-                // 【核心修改】：使用 BouncingScrollPhysics
-                // 配合上面的 return true，Bouncing 效果能让列表在拉到边缘时
-                // 继续消耗手势动量，而不是把手势交还给父组件。
                 physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
 
+                // 这里使用了修正后的 verticalPadding
                 padding: EdgeInsets.only(
                     left: 24,
                     right: 24,
@@ -182,7 +165,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
                     bottom: verticalPadding
                 ),
                 initialScrollIndex: activeIndex,
-                initialAlignment: 0.5,
+                initialAlignment: 0.0,
                 itemBuilder: (context, index) {
                   final line = lyrics[index];
                   final isActive = index == activeIndex;
