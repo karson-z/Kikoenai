@@ -71,9 +71,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.user,
+                path: AppRoutes.settings,
                 pageBuilder: (context, state) => MaterialPage(
-                  child: const UserPage(),
+                  child: const SettingsOverviewPage(),
                 ),
               ),
             ],
@@ -81,9 +81,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.settings,
+                path: AppRoutes.user,
                 pageBuilder: (context, state) => MaterialPage(
-                  child: const SettingsOverviewPage(),
+                  child: const UserPage(),
                 ),
               ),
             ],

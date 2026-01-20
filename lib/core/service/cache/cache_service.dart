@@ -9,10 +9,10 @@ import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/widgets/player/state/player_state.dart';
 import 'package:kikoenai/core/model/app_media_item.dart';
-import '../../core/service/file_scanner_service.dart';
+import '../file/file_scanner_service.dart';
 // 引入新定义的 Key 常量类
-import '../../core/storage/hive_key.dart';
-import '../../features/playlist/data/model/playlist.dart';
+import '../../storage/hive_key.dart';
+import '../../../features/playlist/data/model/playlist.dart';
 
 class CacheService {
   // 单例模式

@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
-import '../model/archive_entry.dart';
-import '../utils/data/charset_cover.dart';
+import '../../model/archive_entry.dart';
+import '../../utils/data/charset_cover.dart';
 
 class ArchiveService {
   // 支持的后缀

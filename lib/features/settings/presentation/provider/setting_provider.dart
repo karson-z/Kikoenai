@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/enums/playlist_filter.dart';
-import '../../../../core/service/cache_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 import '../../../playlist/data/model/playlist.dart';
 import '../../../playlist/data/service/playlist_repository.dart';
 

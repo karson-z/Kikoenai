@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});

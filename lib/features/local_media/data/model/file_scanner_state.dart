@@ -1,7 +1,7 @@
 // data/model/file_scanner_state.dart
 import 'package:kikoenai/core/model/app_media_item.dart';
 import '../../../album/data/model/file_node.dart';
-import '../../../../core/service/file_scanner_service.dart'; // 确保导入了 ScanMode
+import '../../../../core/service/file/file_scanner_service.dart'; // 确保导入了 ScanMode
 
 class FileScannerState {
   final List<String> rootPaths;

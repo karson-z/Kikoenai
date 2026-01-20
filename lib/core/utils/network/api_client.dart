@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../service/cache/cache_service.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
 import '../../common/result.dart';

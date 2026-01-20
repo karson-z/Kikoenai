@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // 确保导入了 ScanMode 枚举定义的文件
-import '../../../../core/service/file_scanner_service.dart';
+import '../../../../core/service/file/file_scanner_service.dart';
 import '../provider/file_scanner_provider.dart';
 import '../widget/file_scanner_panel.dart';
 import '../widget/path_sheet.dart';

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../../../../../../../core/enums/sort_options.dart';
 import '../../../../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
@@ -48,10 +49,9 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
     _autoScrollController = AutoScrollController(axis: Axis.horizontal);
 
-    // --- 修改点 1：Tab 切换监听 ---
     _tabController.addListener(() {
       if (!mounted) return;
-      if (!_tabController.indexIsChanging) { // 只有在滑动结束稳定时才触发
+      if (!_tabController.indexIsChanging) {
         final order = sortOrders[_tabController.index];
         ref.read(categoryUiProvider.notifier)
             .setSort(sortOption: order, refreshData: false);
@@ -73,7 +73,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final uiNotifier = ref.read(categoryUiProvider.notifier);
     final currentTabAsync = ref.watch(categoryProvider(uiState.sortOption));
     final totalCount = currentTabAsync.value?.totalCount ?? 0;
-
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -81,7 +80,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final Color textColor = isDark ? Colors.white : Colors.black45;
     final Color fillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
 
-    // 监听筛选变化以自动滚动 Header
     ref.listen<CategoryUiState>(categoryUiProvider, (previous, next) {
       if (previous != null && next.selected.length > previous.selected.length) {
         final targetIndex = next.selected.length - 1;
@@ -93,7 +91,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       }
     });
 
-    // 搜索框回填逻辑
     if (uiState.localSearchKeyword.isEmpty && _searchController.text.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _searchController.clear();
@@ -132,7 +129,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   sortOrders: sortOrders,
                   uiState: uiState,
                   uiNotifier: uiNotifier,
-                  totalCount: totalCount, // 这里的 Count 依然是动态变化的
+                  totalCount: totalCount,
                   scrollController: _autoScrollController,
                   buildFilterRow: _buildFilterRowContent,
                 ),
@@ -140,24 +137,31 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
             ),
           ],
 
-          // --- 修改点 3：Body 结构 ---
           body: Stack(
             children: [
               TabBarView(
                 controller: _tabController,
-                // 这里不再使用 Builder 也不在 map 里写大段逻辑
-                // 而是直接返回封装好的、带 KeepAlive 的组件
                 children: sortOrders.map((sortOrder) {
                   return CategoryListTab(
-                    key: PageStorageKey<String>(sortOrder.label), // 确保 Key 唯一
+                    key: PageStorageKey<String>(sortOrder.label),
                     sortOrder: sortOrder,
                     pinnedHeaderHeight: pinnedHeaderHeight,
                     isFilterOpen: uiState.isFilterOpen,
                   );
                 }).toList(),
               ),
+              if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
+                Positioned(
+                  top: pinnedHeaderHeight, // 避开固定的 Header 区域
+                  left: 0,
+                  right: 0,
+                  child: const LinearProgressIndicator(
+                    minHeight: 3.0, // 设置高度：3.0 看起来比较精致，默认是 4.0
+                    backgroundColor: Colors.transparent, // 轨道背景透明，只显示移动的进度条
+                  ),
+                ),
 
-              // 筛选遮罩层
+              // 3. 筛选遮罩层
               if (uiState.isFilterOpen)
                 Positioned.fill(
                   top: pinnedHeaderHeight,
@@ -168,7 +172,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   ),
                 ),
 
-              // 筛选面板
+              // 4. 筛选面板层 (最顶层)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
@@ -188,8 +192,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   onReset: () => uiNotifier.resetSelected(),
                   onApply: () {
                     uiNotifier.toggleFilterDrawer();
-                    // 全局刷新：这里使用 invalidate 会重置所有 Tab 的数据
-                    // 因为所有 categoryProvider(family) 都会被标记为失效
                     ref.invalidate(categoryProvider);
                   },
                   onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
@@ -242,29 +244,5 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       fillColor: fillColor,
       primaryColor: primaryColor,
     );
-  }
-  List<Widget> _buildCommonContent(
-      AsyncValue worksAsync, CategoryDataNotifier controller) {
-    return [
-      worksAsync.when(
-        data: (data) => ResponsiveCardGrid(
-          work: data.works,
-          hasMore: data.hasMore,
-          onLoadMore: () {
-            controller.loadMore();
-          },
-        ),
-        // 加载中
-        loading: () => const ResponsiveCardGridSkeleton(),
-        // 错误
-        error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(
-              height: 120,
-              child: Center(
-                  child: Text('加载失败: $e',
-                      style: const TextStyle(color: Colors.red)))),
-        ),
-      ),
-    ];
   }
 }

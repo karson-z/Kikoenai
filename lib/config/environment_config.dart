@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/service/cache_service.dart';
+import '../core/service/cache/cache_service.dart';
 import '../core/utils/network/api_client.dart';
 
 class EnvironmentConfig {

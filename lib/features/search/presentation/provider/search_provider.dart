@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/service/cache_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 
 // 定义 Provider
 final searchHistoryProvider = AsyncNotifierProvider<SearchHistoryNotifier, List<String>>(

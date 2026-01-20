@@ -5,7 +5,7 @@ import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/state/work_state.dart';
 import 'package:kikoenai/features/user/presentation/view_models/state/subtitle_view_state.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../../core/service/cache/cache_service.dart';
 import '../../../data/model/work.dart';
 import '../../../data/service/work_repository.dart';
 
