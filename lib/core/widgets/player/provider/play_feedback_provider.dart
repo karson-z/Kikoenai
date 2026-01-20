@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playback_enum.dart';
-import 'package:kikoenai/core/service/cache_service.dart';
+import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
 
 import '../state/playback_track_state.dart';

@@ -4,7 +4,7 @@ import 'package:kikoenai/features/album/data/model/tag.dart';
 import 'package:kikoenai/features/album/data/model/va.dart';
 import 'package:kikoenai/features/category/data/service/category_repository.dart';
 import '../../../../../core/common/result.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../../core/service/cache/cache_service.dart';
 
 
 final circlesProvider = FutureProvider.autoDispose<List<Circle>>((ref) {

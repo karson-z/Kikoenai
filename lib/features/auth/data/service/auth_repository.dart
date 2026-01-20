@@ -3,7 +3,7 @@ import 'package:kikoenai/core/common/global_exception.dart';
 import 'package:kikoenai/core/common/result.dart';
 import 'package:kikoenai/features/auth/data/model/login_params.dart';
 import '../../../../core/utils/network/api_client.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 import '../model/auth_response.dart';
 import '../model/register_model.dart';
 

@@ -7,8 +7,8 @@ import 'package:kikoenai/core/utils/network/api_client.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 
 import '../../../model/lyric_model.dart';
-import '../../../service/archive_service.dart';
-import '../../../service/lyrics_parse_service.dart';
+import '../../../service/file/archive_service.dart';
+import '../../../service/lyrics/lyrics_parse_service.dart';
 
 // 定义 Provider
 final lyricsProvider = AsyncNotifierProvider<LyricsNotifier, List<LyricsLineModel>>(

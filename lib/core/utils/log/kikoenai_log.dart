@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -47,7 +46,6 @@ class KikoenaiLogPrinter extends PrettyPrinter {
       ];
     }
 
-    // For warning, error, fatal - use default behavior which shows stack if provided
     return super.log(event);
   }
 

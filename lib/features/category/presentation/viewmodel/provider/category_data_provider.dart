@@ -58,6 +58,9 @@ class CategoryUiNotifier extends Notifier<CategoryUiState> {
 
   void setSort({SortOrder? sortOption, SortDirection? sortDec, bool refreshData = false}) {
     state = state.copyWith(sortOption: sortOption, sortDirection: sortDec);
+    if (refreshData) {
+      _debounceRefresh();
+    }
   }
 
   void setSubtitleFilter(int filter, {bool refreshData = false}) {
@@ -131,7 +134,6 @@ NotifierProvider<CategoryUiNotifier, CategoryUiState>(
         () => CategoryUiNotifier());
 
 
-// 修改点 4: 继承 FamilyAsyncNotifier，并指定参数类型为 SortOrder
 class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   CategoryRepository get _repo => ref.read(categoryRepositoryProvider);
   CategoryDataNotifier(this._currentSortOrder);
@@ -173,15 +175,6 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
       hasMore: list.length < totalCount,
     );
   }
-
-  // 手动刷新方法
-  Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      return await _load(reset: true);
-    });
-  }
-
   Future<void> loadMore() async {
     if (state.isLoading) return;
     try {

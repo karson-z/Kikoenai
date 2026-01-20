@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../model/lyric_model.dart';
+import '../../model/lyric_model.dart';
 enum LyricFormat { lrc, vtt, unknown }
 /// 解析格式工厂
 class LyricsParserFactory {

@@ -4,11 +4,11 @@ import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/permission_service.dart';
+import 'package:kikoenai/core/service/permission/permission_service.dart';
 import '../../../../core/constants/app_file_extensions.dart';
 import '../../../../core/model/app_media_item.dart';
-import '../../../../core/service/file_scanner_service.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../core/service/file/file_scanner_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 import '../../data/model/file_scanner_state.dart';
 import '../../data/service/tree_service.dart';
 
@@ -28,8 +28,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       }
     });
 
-    // 虽然读取是同步的，但为了不阻塞 build 过程中的其他初始化，
-    // 同时也为了确保 UI 已经构建完成再进行 state 更新，保留 microtask 是好习惯
     Future.microtask(() => _initData());
 
     return const FileScannerState();
@@ -75,7 +73,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
   Future<void> switchMode(ScanMode newMode) async {
     if (state.scanMode == newMode) return;
 
-    // [重构点 3] 同步读取新模式的配置
+    //同步读取新模式的配置
     final targetPaths = _cacheService.getScanRootPaths(mode: newMode);
     final targetItems = _cacheService.getCachedScanResults(mode: newMode);
 
@@ -111,14 +109,12 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       if (!state.rootPaths.contains(selectedDirectory)) {
         final newPaths = [...state.rootPaths, selectedDirectory];
 
-        // [保持异步] 写入依然是异步 IO
         await _cacheService.saveScanRootPaths(newPaths, mode: state.scanMode);
 
         state = state.copyWith(
           rootPaths: newPaths,
           statusMsg: "正在扫描新目录...",
         );
-
         _addFileWatcher(selectedDirectory);
         _scanSinglePath(selectedDirectory);
       }

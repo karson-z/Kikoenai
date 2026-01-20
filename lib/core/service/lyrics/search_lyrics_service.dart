@@ -3,10 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
-import '../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
-import '../../features/local_media/data/service/tree_service.dart';
-import 'cache_service.dart';
-import 'file_scanner_service.dart';
+import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
+import '../../../features/local_media/data/service/tree_service.dart';
+import '../cache/cache_service.dart';
+import '../file/file_scanner_service.dart';
 class SearchLyricsService {
 
   // --- 你现有的代码 (保持不变) ---

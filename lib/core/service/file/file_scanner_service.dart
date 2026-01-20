@@ -4,8 +4,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
-import '../constants/app_file_extensions.dart';
-import '../model/app_media_item.dart';
+import '../../constants/app_file_extensions.dart';
+import '../../model/app_media_item.dart';
 import 'archive_service.dart';
 
 enum ScanMode { audio, video, subtitles }

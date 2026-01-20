@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/service/search_lyrics_service.dart';
+import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/core/widgets/player/provider/play_feedback_provider.dart';
@@ -12,8 +12,8 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../features/album/data/model/file_node.dart';
-import '../../../../../core/service/cache_service.dart';
-import '../../../service/audio_service.dart';
+import '../../../service/cache/cache_service.dart';
+import '../../../service/audio/audio_service.dart';
 import '../state/player_state.dart';
 import '../state/progress_state.dart';
 

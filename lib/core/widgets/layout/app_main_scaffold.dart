@@ -50,7 +50,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     //  直接从 shell 获取当前索引，不再需要根据 path 解析
     final int selectedIndex = widget.navigationShell.currentIndex;
 
-    // 获取当前 Title
     final String title = appNavigationItems.length > selectedIndex
         ? appNavigationItems[selectedIndex].label
         : '';

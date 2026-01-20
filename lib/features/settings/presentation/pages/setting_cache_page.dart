@@ -4,7 +4,7 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 
 import '../../../../core/widgets/layout/app_toast.dart';
-import '../../../../../core/service/cache_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 
 class CacheManagementPage extends StatefulWidget {
   const CacheManagementPage({super.key});
