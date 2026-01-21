@@ -8,7 +8,6 @@ final downloadServiceProvider = Provider<DownloadService>((ref) {
   return DownloadService.instance;
 });
 
-// AllTasksNotifier 修正版
 final allTasksProvider = AsyncNotifierProvider<AllTasksNotifier, List<TaskRecord>>(
       () => AllTasksNotifier(),
 );
@@ -59,10 +58,7 @@ class AllTasksNotifier extends AsyncNotifier<List<TaskRecord>> {
       newList[index] = newRecord;
       state = AsyncData(newList);
     } else {
-      // --- 情况 B: 新任务入队 ---
-      // 构造新 Record：
-      // 3. progress: 默认为 0.0
-      // 4. expectedFileSize: 默认为 -1 (未知大小)
+
       final newRecord = TaskRecord(
           update.task,
           update.status,
