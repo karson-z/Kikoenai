@@ -7,12 +7,14 @@ import 'package:kikoenai/core/widgets/layout/app_dropdown_sheet.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import '../../../../core/theme/theme_view_model.dart';
+import '../../../../core/widgets/common/kikoenai_dialog.dart';
 import '../../../../core/widgets/image_box/image_view.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/player/provider/player_controller_provider.dart';
 import '../../../../core/widgets/text_preview/text_preview_page.dart';
 import '../../data/model/file_node.dart';
 import '../viewmodel/provider/audio_manage_provider.dart';
+import 'file_download_dialog.dart';
 
 class FileNodeBrowser extends ConsumerStatefulWidget {
   final Work work;
@@ -314,29 +316,23 @@ class _BreadcrumbHeader extends ConsumerWidget {
               color: isDark ? Colors.white70 : Colors.grey,
             ),
             onPressed: () {
-              final audioFiles = _collectAllAudioFiles(rootNodes);
-
               FileTreeDialogExtension.showFileTree(
                 context: context,
-                roots: myFiles,
+                roots: rootNodes,
                 // 顶部“加入队列”按钮回调
                 onAddToQueue: (List<FileNode> selectedFiles) {
                   // 过滤出音频文件加入播放器
                   final audioFiles = selectedFiles.where((f) => f.isAudio).toList();
-                  ref.read(playerProvider).addQueue(audioFiles);
-
+                  ref.read(playerControllerProvider.notifier).addMultiInQueue(audioFiles,work);
                   // 提示用户
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("已添加 ${audioFiles.length} 首歌曲到队列"))
-                  );
-
+                  KikoenaiToast.success("成功添加该列表");
                   // 如果需要自动关闭弹窗：
                   KikoenaiDialog.dismiss();
                 },
                 // 底部“下载”按钮回调
                 onDownload: (List<FileNode> selectedFiles) {
                   print("开始下载文件数: ${selectedFiles.length}");
-                  // 执行下载逻辑...
+                  // TODO 执行下载文件列表
                 },
               );
             },

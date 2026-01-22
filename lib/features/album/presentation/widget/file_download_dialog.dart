@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-// 替换为你项目中 KikoenaiDialog 和 FileNode 的实际路径
-import 'package:kikoenai/common/widgets/kikoenai_dialog.dart';
-import 'package:kikoenai/features/file/data/model/file_node.dart';
+
+import '../../../../core/widgets/common/kikoenai_dialog.dart';
+import '../../data/model/file_node.dart';
 
 // --- 弹窗内容组件 ---
 class FileTreeDialogContent extends StatefulWidget {
