@@ -18,10 +18,22 @@ class RiverpodDownloadPage extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('下载管理'),
+          title: const Text('Riverpod 下载管理'),
           bottom: const TabBar(
             tabs: [Tab(text: '进行中'), Tab(text: '已完成')],
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () async {
+                // 测试添加任务
+                await downloadService.enqueue(
+                  url: 'https://storage.googleapis.com/approachcharts/test/5MB-test.ZIP',
+                  filename: 'test_file_${DateTime.now().second}.zip',
+                );
+              },
+            )
+          ],
         ),
         body: TabBarView(
           children: [

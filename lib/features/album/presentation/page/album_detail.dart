@@ -96,28 +96,6 @@ class AlbumDetailPage extends ConsumerWidget {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: "下载",
-            onPressed: asyncData.isLoading || asyncData.hasError
-                ? null
-                : () {
-                    final nodes = asyncData.value;
-                    if (nodes != null && nodes.isNotEmpty) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => FileDownloadDialog(
-                          work: work,
-                          rootNodes: nodes,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("暂无文件可下载")),
-                      );
-                    }
-                  },
-          ),
           const SizedBox(width: 8),
         ],
       ),

@@ -316,98 +316,27 @@ class _BreadcrumbHeader extends ConsumerWidget {
             onPressed: () {
               final audioFiles = _collectAllAudioFiles(rootNodes);
 
-              CustomDropdownSheet.show(
-                isDark: isDark,
+              FileTreeDialogExtension.showFileTree(
                 context: context,
-                title: '管理音频文件',
-                maxHeight: 500,
-                onClosed: () {
-                  ref.read(audioManageProvider.notifier).reset();
-                },
-                actionButtons: [
-                  Consumer(
-                    builder: (_, ref, __) {
-                      final state = ref.watch(audioManageProvider);
-                      final notifier = ref.read(audioManageProvider.notifier);
-                      final isAllSelected = state.selected.length == audioFiles.length && audioFiles.isNotEmpty;
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (state.multiSelectMode)
-                            IconButton(
-                              tooltip: isAllSelected ? "取消全选" : "全选",
-                              icon: Icon(
-                                isAllSelected ? Icons.deselect : Icons.select_all,
-                                color: Colors.blue,
-                              ),
-                              onPressed: () {
-                                if (isAllSelected) {
-                                  notifier.clearSelection();
-                                } else {
-                                  notifier.selectAll(audioFiles);
-                                }
-                              },
-                            ),
-                          IconButton(
-                            tooltip: state.multiSelectMode ? "加入队列" : "批量管理",
-                            icon: Icon(
-                              state.multiSelectMode ? Icons.play_arrow : Icons.edit,
-                              color: state.multiSelectMode ? Colors.green : Colors.grey,
-                            ),
-                            onPressed: () {
-                              if (state.multiSelectMode) {
-                                if (state.selected.isNotEmpty) {
-                                  final playController = ref.read(playerControllerProvider.notifier);
-                                  playController.addMultiInQueue(state.selected.toList(), work);
-                                  Navigator.of(context).pop();
-                                }
-                              } else {
-                                notifier.toggleMultiSelect();
-                              }
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-                contentBuilder: (modalContext) {
-                  return Consumer(
-                    builder: (_, ref, __) {
-                      final state = ref.watch(audioManageProvider);
-                      if (audioFiles.isEmpty) {
-                        return const Center(child: Text("没有音频文件"));
-                      }
-                      return ListView.builder(
-                        itemCount: audioFiles.length,
-                        itemBuilder: (context, index) {
-                          final file = audioFiles[index];
-                          final isSelected = state.selected.contains(file);
-                          if (state.multiSelectMode) {
-                            return CheckboxListTile(
-                              title: Text(file.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              subtitle: Text("音频类型: ${file.title.substring(file.title.length - 4)}"),
-                              value: isSelected,
-                              onChanged: (checked) {
-                                if (checked == true) {
-                                  ref.read(audioManageProvider.notifier).select(file);
-                                } else {
-                                  ref.read(audioManageProvider.notifier).unselect(file);
-                                }
-                              },
-                            );
-                          }
-                          return ListTile(
-                            title: Text(file.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text("时长: ${TimeFormatter.formatSeconds(file.duration?.toInt() ?? 0)}"),
-                            onTap: () {
-                              ref.read(playerControllerProvider.notifier).addSingleInQueue(file, work);
-                            },
-                          );
-                        },
-                      );
-                    },
+                roots: myFiles,
+                // 顶部“加入队列”按钮回调
+                onAddToQueue: (List<FileNode> selectedFiles) {
+                  // 过滤出音频文件加入播放器
+                  final audioFiles = selectedFiles.where((f) => f.isAudio).toList();
+                  ref.read(playerProvider).addQueue(audioFiles);
+
+                  // 提示用户
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("已添加 ${audioFiles.length} 首歌曲到队列"))
                   );
+
+                  // 如果需要自动关闭弹窗：
+                  KikoenaiDialog.dismiss();
+                },
+                // 底部“下载”按钮回调
+                onDownload: (List<FileNode> selectedFiles) {
+                  print("开始下载文件数: ${selectedFiles.length}");
+                  // 执行下载逻辑...
                 },
               );
             },
