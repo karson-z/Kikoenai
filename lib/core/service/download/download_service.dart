@@ -1,31 +1,71 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../../../features/album/data/model/file_node.dart';
+import '../../storage/hive_storage.dart';
+import 'package:path/path.dart' as p;
 /// 统一管理的下载服务单例
 class DownloadService {
   // 1. 单例模式
   static final DownloadService _instance = DownloadService._internal();
+
   factory DownloadService() => _instance;
+
   static DownloadService get instance => _instance;
 
   DownloadService._internal();
 
   // 2. 公开的流（供 UI 监听）
-  final StreamController<TaskProgressUpdate> _progressController = StreamController.broadcast();
-  final StreamController<TaskStatusUpdate> _statusController = StreamController.broadcast();
+  static final StreamController<TaskProgressUpdate> _progressController =
+      StreamController.broadcast();
+  static final StreamController<TaskStatusUpdate> _statusController =
+      StreamController.broadcast();
+
+  late String _savePath;
 
   Stream<TaskProgressUpdate> get progressStream => _progressController.stream;
+
   Stream<TaskStatusUpdate> get statusStream => _statusController.stream;
 
+  String get savePath => _savePath;
+
+  Box get setting => AppStorage.settingsBox;
   // 初始化标志
-  bool _isInitialized = false;
+  static bool _isInitialized = false;
 
   /// 初始化服务 (在 main 或首页调用)
-  Future<void> init() async {
+  static Future<void> init() async {
     if (_isInitialized) return;
+
+    // --- 修改重点 2: 在异步方法中获取路径并赋值给单例 ---
+    try {
+      // 1. 获取系统路径 (await 异步等待)
+      final systemDir = await getApplicationSupportDirectory();
+      final defaultPath = '${systemDir.path}/kikoenaiDownload';
+
+      // 2. 从 Hive 获取自定义路径，如果没有则使用上面的默认路径
+      // 注意：这里需要通过 _instance 来赋值，因为 init 是 static 方法
+      _instance._savePath = _instance.setting.get(
+          StorageKeys.fileDownloadKey,
+          defaultValue: defaultPath
+      );
+
+      debugPrint("下载保存路径已设置为: ${_instance._savePath}");
+
+    } catch (e) {
+      debugPrint("获取下载路径失败: $e");
+      // 设置一个兜底路径，防止崩溃
+      _instance._savePath = "";
+    }
 
     // A. 基础配置
     await FileDownloader().configure(globalConfig: [
@@ -36,120 +76,128 @@ class DownloadService {
       (Config.localize, {'Cancel': '停止'}),
     ]);
 
-    // B. 通知配置 (默认组)
-    FileDownloader()
-        .configureNotificationForGroup(FileDownloader.defaultGroup,
-        running: const TaskNotification(
-            '下载中 {filename}', '进度: {progress} - 速度: {networkSpeed}'),
-        complete: const TaskNotification('下载完成', '{displayName} 已保存'),
-        error: const TaskNotification('下载失败', '{filename}'),
-        paused: const TaskNotification('下载暂停', '等待恢复'),
-        progressBar: true);
-
-    // C. 注册回调与监听器
-    FileDownloader().registerCallbacks(
-      taskNotificationTapCallback: (task, notificationType) {
-        debugPrint('用户点击了通知: ${task.filename}, 类型: $notificationType');
-      },
-    );
-
-    // D. 核心监听循环：分发状态和进度
-    FileDownloader().updates.listen((update) {
-      switch (update) {
-        case TaskStatusUpdate():
-          _statusController.add(update);
-          break;
-        case TaskProgressUpdate():
-          _progressController.add(update);
-          break;
-      }
-    });
-
+    FileDownloader().start();
     _isInitialized = true;
     debugPrint('DownloadService 初始化完成');
   }
 
-  /// 核心方法：开始/加入队列下载
-  Future<String?> enqueue({
-    required String url,
-    required String filename,
-    String? directory, // 默认为 ApplicationDocuments
-    String? group,
-    String? displayName,
-    Map<String, String>? metaData,
-  }) async {
-    // 1. 自动检查通知权限
-    final hasPerm = await _checkNotificationPermission();
-    if (!hasPerm) {
-      debugPrint('缺少通知权限');
-      // 这里可以决定是抛出异常还是继续静默下载
-    }
-
-    // 2. 构建任务
-    final task = DownloadTask(
-      url: url,
-      filename: filename,
-      directory: directory ?? 'downloads', // 建议统一子目录
-      baseDirectory: BaseDirectory.applicationDocuments,
-      group: group ?? FileDownloader.defaultGroup,
-      updates: Updates.statusAndProgress, // 确保能收到进度
-      displayName: displayName ?? filename,
-      metaData: metaData?.toString() ?? '',
-      allowPause: true,
-      retries: 3,
-    );
-
-    // 3. 入队
-    final success = await FileDownloader().enqueue(task);
-    return success ? task.taskId : null;
-  }
-
   /// 场景方法：下载并打开 (等待模式)
   Future<void> downloadAndOpen(String url, String filename) async {
-    await _checkNotificationPermission();
-
+    final hasPrem = await _checkNotificationPermission();
+    if (!hasPrem) {
+      debugPrint("没有权限,不做通知");
+    }
     final task = DownloadTask(
         url: url,
         filename: filename,
         baseDirectory: BaseDirectory.applicationSupport, // 临时文件通常放这里
         updates: Updates.statusAndProgress);
-
-    // 使用 download 而不是 enqueue，会等待直到完成
     await FileDownloader().download(task);
     await FileDownloader().openFile(task: task);
   }
 
-  /// 批量下载示例
-  Future<void> enqueueBatch(List<String> urls) async {
-    await _checkNotificationPermission();
+  /// 批量下载
+  /// [selectedFiles]: 用户选中的文件列表
+  /// [rootNodes]: 原始的文件树根节点（用于计算相对路径）
+  /// [title]: 任务组名
+  Future<void> enqueueBatch({
+    required List<FileNode> selectedFiles,
+    required List<FileNode> rootNodes,
+    required String title,
+    dynamic metaData
+  }) async {
+    final hasPrem = await _checkNotificationPermission();
+    if (!hasPrem) {
+      debugPrint("没有权限,不做通知");
+    }
 
-    // 配置批量通知组（如果尚未配置）
-    await FileDownloader().configureNotificationForGroup('batch_group',
-        running: const TaskNotification('{numFinished}/{numTotal}', '正在批量下载...'),
-        complete: const TaskNotification('全部完成', '共下载 {numTotal} 个文件'),
-        progressBar: false);
+    final String dynamicGroupName = title;
 
-    for (int i = 0; i < urls.length; i++) {
-      await FileDownloader().enqueue(DownloadTask(
-        url: urls[i],
-        filename: 'file_$i',
-        group: 'batch_group',
-        updates: Updates.status,
-      ));
-      // 稍微延迟避免瞬间拥堵
-      await Future.delayed(const Duration(milliseconds: 100));
+    FileDownloader().registerCallbacks(
+        group: dynamicGroupName,
+        taskStatusCallback: (update) {
+          _statusController.add(update);
+        },
+        taskProgressCallback: (update) {
+          _progressController.add(update);
+        }
+    );
+    // 配置通知
+    FileDownloader().configureNotificationForGroup(dynamicGroupName,
+        running: TaskNotification(
+            '$dynamicGroupName 下载中', '进度: {numFinished}/{numTotal}'),
+        complete:
+        TaskNotification('$dynamicGroupName 下载完成', '共 {numTotal} 个文件'),
+        progressBar: true);
+
+    // 将选中的文件转为 Set，提高查找效率 (O(1))
+    final Set<FileNode> selectedSet = selectedFiles.toSet();
+    // 将根目录设置为rjCode
+    final workFileDirectory = p.join(_savePath,metaData['id'].toString());
+
+    List<DownloadTask> tasksToEnqueue = [];
+
+    // --- 核心逻辑：递归遍历树，构建带路径的任务 ---
+    void traverseAndBuildTasks(List<FileNode> nodes, String currentRelativePath) {
+      for (var node in nodes) {
+        if (node.isFolder) {
+          // 如果是文件夹，递归进入，并将当前文件夹名加入路径
+          // 使用 path 包的 join 或者是手动 "$currentRelativePath/${node.title}"
+          final nextPath = p.join(currentRelativePath, node.title);
+          if (node.children != null) {
+            traverseAndBuildTasks(node.children!, nextPath);
+          }
+        } else {
+          // 如果是文件，检查是否在选中列表中
+          if (selectedSet.contains(node)) {
+            final String? downloadUrl = node.mediaDownloadUrl ?? node.mediaStreamUrl;
+
+            if (downloadUrl != null && downloadUrl.isNotEmpty) {
+
+              final finalDirectory = p.join(workFileDirectory, currentRelativePath);
+
+              tasksToEnqueue.add(DownloadTask(
+                taskId: node.hash,
+                url: downloadUrl,
+                filename: node.title,
+                directory: finalDirectory,
+                group: dynamicGroupName,
+                metaData: metaData == null ? '' : jsonEncode(metaData),
+                updates: Updates.statusAndProgress,
+                allowPause: true,
+                displayName: node.title,
+                retries: 3,
+              ));
+            }
+          }
+        }
+      }
+    }
+
+    // 从根节点开始遍历，初始相对路径为空
+    traverseAndBuildTasks(rootNodes, "");
+
+    if (tasksToEnqueue.isNotEmpty) {
+      debugPrint("准备入队 ${tasksToEnqueue.length} 个任务");
+      // 批量入队
+      await FileDownloader().enqueueAll(tasksToEnqueue);
+    } else {
+      debugPrint("没有有效的任务可下载");
     }
   }
 
   // --- 控制方法 ---
-
-  Future<void> pause(String taskId) async {
-    // 需要通过 id 获取 Task 对象，通常这是复杂的，这里简化为只操作当前任务
-    // 实际项目中，建议自己维护一个 Map<String, Task> runningTasks
-    // 插件支持直接通过 ID 取消，但暂停通常需要 Task 对象
-    // 这里演示取消，暂停需要传入 Task 对象
-    await FileDownloader().cancelTasksWithIds([taskId]);
+  Future<void> pauseAll(List<Task> taskList) async {
+    await FileDownloader().pauseAll(tasks: taskList as List<DownloadTask>);
   }
+  Future<void> resumeAll(List<Task> taskList) async {
+    await FileDownloader().resumeAll(tasks: taskList as List<DownloadTask>);
+  }
+  Future<void> resume(Task task) async {
+    await FileDownloader().resume(task as DownloadTask);
+  }
+
+
 
   /// 暂停任务
   /// 接收 String ID，内部自动查找 Task 对象
@@ -184,7 +232,63 @@ class DownloadService {
   Future<void> cancel(String taskId) async {
     await FileDownloader().cancelTasksWithIds([taskId]);
   }
+  Future<void> delFileAndRecord(Task task) async {
+    try {
+      // 1. 删除数据库中的记录
+      await FileDownloader().database.deleteRecordWithId(task.taskId);
+      debugPrint("下载记录已删除: ${task.taskId}");
 
+      // 2. 获取文件的完整物理路径
+      final String path = await task.filePath();
+
+      // 3. 执行物理删除
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+        KikoenaiToast.success("物理文件已删除: $path");
+      } else {
+        KikoenaiToast.success("文件不存在，跳过删除: $path");
+      }
+    } catch (e) {
+      KikoenaiToast.error("删除文件或记录时出错: $e");
+    }
+  }
+  /// [新增] 根据组名批量删除
+  /// 适用于点击 Group Card 上的删除按钮
+  Future<void> deleteTasksByGroup(String groupName) async {
+    final downloader = FileDownloader();
+
+    try {
+      // 1. 【关键】先查询出该组下的所有记录
+      // 必须在删除数据库记录之前查，否则就找不到路径了
+      final records = await downloader.database.allRecords(group: groupName);
+
+      if (records.isEmpty) {
+        debugPrint("该组没有记录: $groupName");
+        return;
+      }
+      // 2. 遍历删除物理文件
+      for (var record in records) {
+        try {
+          final path = await record.task.filePath();
+          final file = File(path);
+
+          if (await file.exists()) {
+            await file.delete(recursive: true); // recursive: true 对文件夹更安全
+            debugPrint("物理文件已删除: $path");
+          }
+        } catch (e) {
+          debugPrint("删除单个文件失败: ${record.task.filename}, 错误: $e");
+        }
+      }
+      // 3. 删除数据库中的记录
+      await downloader.database.deleteAllRecords(group: groupName);
+      debugPrint("数据库记录已清理: $groupName");
+      KikoenaiToast.success("批量删除成功");
+    } catch (e) {
+      KikoenaiToast.error("批量删除失败: $e");
+    }
+  }
   Future<List<TaskRecord>> getDownloadingTasks() async {
     // 获取数据库中所有记录
     final allRecords = await FileDownloader().database.allRecords();
@@ -210,16 +314,21 @@ class DownloadService {
     }).toList();
   }
 
-  /// 获取所有任务记录（用于调试或全部展示）
+  /// 获取所有任务记录
   Future<List<TaskRecord>> getAllTasks() async {
     return await FileDownloader().database.allRecords();
   }
+
+
   // --- 内部辅助 ---
 
   Future<bool> _checkNotificationPermission() async {
-    var status = await FileDownloader().permissions.status(PermissionType.notifications);
+    var status =
+        await FileDownloader().permissions.status(PermissionType.notifications);
     if (status != PermissionStatus.granted) {
-      status = await FileDownloader().permissions.request(PermissionType.notifications);
+      status = await FileDownloader()
+          .permissions
+          .request(PermissionType.notifications);
     }
     return status == PermissionStatus.granted;
   }

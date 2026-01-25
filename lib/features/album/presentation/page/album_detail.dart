@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
@@ -27,7 +28,10 @@ class AlbumDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final work = extra['work'];
+    var work = extra['work'];
+    if(work is Map){
+      work = Work.fromJson(work as Map<String, dynamic>);
+    }
     final workStatus = ref.watch(workDetailProvider(work.id));
     final asyncData = ref.watch(trackFileNodeProvider(work.id));
     return Scaffold(
@@ -36,6 +40,15 @@ class AlbumDetailPage extends ConsumerWidget {
         title: Text(
           "RJ${work.id}",
           style: const TextStyle(fontSize: 18),
+        ),
+        leading: IconButton(
+          // Icons.arrow_back 是安卓风格，Icons.arrow_back_ios_new 是 iOS 风格
+          icon: const Icon(Icons.arrow_back_outlined),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            }
+          },
         ),
         actions: [
           InkWell(

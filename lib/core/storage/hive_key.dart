@@ -24,6 +24,7 @@ class StorageKeys {
   static const String autoUpdate = 'auto_update';
   static const String quickMarkTargetPlaylist = 'quick_mark_target_playlist';
   static const String nsfwKey = 'nsfw_enabled'; // 定义 Key
+  static const String fileDownloadKey = 'file_download_path';
 
   // ==================== Internal Wrapper Keys ====================
   // 用于 _saveOption 包装数据和过期时间

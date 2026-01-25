@@ -331,7 +331,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     // 5. 更新状态
     // 如果没有找到匹配的字幕文件，生成一个占位符，或者根据你的 UI 需求设为 null
-    final newCurrentSubtitle = bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName);
+    final newCurrentSubtitle = bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName, hash: '');
 
     state = state.copyWith(
       currentTrack: currentItem,

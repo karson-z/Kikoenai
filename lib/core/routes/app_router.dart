@@ -39,8 +39,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                pageBuilder: (context, state) => MaterialPage(
-                  child: const AlbumPage(),
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: AlbumPage(),
                 ),
               ),
               GoRoute(
@@ -62,8 +62,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.category,
-                pageBuilder: (context, state) => MaterialPage(
-                  child: const CategoryPage(),
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: CategoryPage(),
                 ),
               ),
             ],
@@ -72,8 +72,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.settings,
-                pageBuilder: (context, state) => MaterialPage(
-                  child: const SettingsOverviewPage(),
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: SettingsOverviewPage(),
                 ),
               ),
             ],
@@ -82,8 +82,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.user,
-                pageBuilder: (context, state) => MaterialPage(
-                  child: const UserPage(),
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: UserPage(),
                 ),
               ),
             ],
@@ -92,44 +92,44 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.login,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const AuthPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: AuthPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.settingsTheme,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const SettingsPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: SettingsPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.settingsPermission,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const PermissionSettingsPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: PermissionSettingsPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.settingsCache,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const CacheManagementPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: CacheManagementPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.settingsAccount,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const AccountPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: AccountPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.settingsComment,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const GeneralSettingsPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: GeneralSettingsPage(),
         ),
       ),
       GoRoute(
         path: AppRoutes.about,
-        pageBuilder: (context, state) => MaterialPage(
-          child: const AboutPage(),
+        pageBuilder: (context, state) => const MaterialPage(
+          child: AboutPage(),
         ),
       ),
       GoRoute(

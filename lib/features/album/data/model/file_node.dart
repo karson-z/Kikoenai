@@ -39,7 +39,33 @@ class FileNode {
     this.work,
     this.artist,
   });
-
+  FileNode copyWith({
+    NodeType? type,
+    String? title,
+    List<FileNode>? children,
+    String? hash,
+    String? mediaStreamUrl,
+    String? mediaDownloadUrl,
+    double? duration,
+    int? size,
+    String? workTitle,
+    WorkInfo? work,
+    String? artist,
+  }) {
+    return FileNode(
+      type: type ?? this.type,
+      title: title ?? this.title,
+      children: children ?? this.children,
+      hash: hash ?? this.hash,
+      mediaStreamUrl: mediaStreamUrl ?? this.mediaStreamUrl,
+      mediaDownloadUrl: mediaDownloadUrl ?? this.mediaDownloadUrl,
+      duration: duration ?? this.duration,
+      size: size ?? this.size,
+      workTitle: workTitle ?? this.workTitle,
+      work: work ?? this.work,
+      artist: artist ?? this.artist,
+    );
+  }
   // 自动生成
   factory FileNode.fromJson(Map<String, dynamic> json) =>
       _$FileNodeFromJson(json);
