@@ -13,7 +13,7 @@ final trackFileNodeProvider = FutureProvider.family<List<FileNode>, int>((ref, w
       .toList();
   return nodes;
 });
-final workDetailProvider = FutureProvider.family<Work,int>((ref,workId) async {
+final workDetailProvider = FutureProvider.family.autoDispose<Work,int>((ref,workId) async {
   final repo = ref.read(workRepositoryProvider);
   final response = await repo.getWorkDetail(workId);
   final workJson = response.data;

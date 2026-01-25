@@ -46,13 +46,13 @@ class _UserPageState extends ConsumerState<UserPage>
         ),
         body:TabBarView(
           controller: _tabController,
-          children: [
+          children: const [
             // 第一个 Tab 页面：观看历史
-            const HistoryPage(),
-            const ScannerPage(),
-            const ReviewPage(),
-            const PlaylistPage(),
-            const RiverpodDownloadPage(),
+            HistoryPage(),
+            ScannerPage(),
+            ReviewPage(),
+            PlaylistPage(),
+            DownloadPage(),
           ],
         ),
       ),
