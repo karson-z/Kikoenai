@@ -11,10 +11,9 @@ final reviewParamsProvider = NotifierProvider<ReviewParamsNotifier, ReviewQueryP
   return ReviewParamsNotifier();
 });
 
-final reviewListProvider = FutureProvider.autoDispose<PagedReviewData>((ref) async {
-  final params = ref.watch(reviewParamsProvider);
+final reviewListProvider = FutureProvider<PagedReviewData>((ref) async {
+  final params = ref.read(reviewParamsProvider);
   final service = ref.read(reviewServiceProvider);
-
   final jsonMap = await service.fetchReviews(params);
   final List<dynamic> listData = jsonMap.data?['works'] as List<dynamic>? ?? [];
   final works = listData

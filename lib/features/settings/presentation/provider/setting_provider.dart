@@ -14,6 +14,10 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
   @override
   Playlist? build() {
     // 1. 初始化时，直接从本地 Hive 缓存读取
+    final playList = CacheService.instance.getQuickMarkTargetPlaylist();
+    if (playList == null) {
+      fetchAndCacheDefault();
+    }
     return CacheService.instance.getQuickMarkTargetPlaylist();
   }
 
@@ -25,6 +29,9 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
   }
   Future<void> fetchAndCacheDefault() async {
     try {
+      if(CacheService.instance.getAuthSession() == null || !CacheService.instance.getAuthSession()!.isSuccess){
+        return;
+      }
       final repository = ref.read(playlistRepositoryProvider);
 
       // 调用我们在 Repository 中新加的方法
@@ -48,6 +55,9 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
 }
 
 final allMyPlaylistsProvider = FutureProvider.autoDispose<List<Playlist>>((ref) async {
+  if(CacheService.instance.getAuthSession() == null || !CacheService.instance.getAuthSession()!.isSuccess){
+    return List.empty();
+  }
   final repository = ref.watch(playlistRepositoryProvider);
 
   final response = await repository.fetchPlaylists(

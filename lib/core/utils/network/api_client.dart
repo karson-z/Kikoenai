@@ -202,7 +202,7 @@ void _setupInterceptors(
               label: '去登录',
               textColor: Colors.white,
               onPressed: () {
-                context.go(AppRoutes.login);
+                context.push(AppRoutes.login);
               },
             ),
           );
