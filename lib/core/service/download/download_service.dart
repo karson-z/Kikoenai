@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/v4.dart';
 
 import '../../../features/album/data/model/file_node.dart';
 import '../../storage/hive_storage.dart';
@@ -42,34 +42,46 @@ class DownloadService {
   // 初始化标志
   static bool _isInitialized = false;
 
-  /// 初始化服务 (在 main 或首页调用)
   static Future<void> init() async {
     if (_isInitialized) return;
 
-    // --- 修改重点 2: 在异步方法中获取路径并赋值给单例 ---
     try {
-      // 1. 获取系统路径 (await 异步等待)
-      final systemDir = await getApplicationSupportDirectory();
-      final defaultPath = '${systemDir.path}/kikoenaiDownload';
+      Directory? systemDir;
+
+      if (Platform.isIOS) {
+        systemDir = await getApplicationDocumentsDirectory();
+      } else {
+        // Android / Desktop: 尝试获取下载目录
+        systemDir = await getDownloadsDirectory();
+      }
+      // 如果 Android 获取下载目录失败 (极少数情况)，兜底使用文档目录
+      systemDir ??= await getApplicationDocumentsDirectory();
+
+      final defaultPath = p.join(systemDir.path, 'kikoenaiDownload');
 
       // 2. 从 Hive 获取自定义路径，如果没有则使用上面的默认路径
-      // 注意：这里需要通过 _instance 来赋值，因为 init 是 static 方法
       _instance._savePath = _instance.setting.get(
           StorageKeys.fileDownloadKey,
           defaultValue: defaultPath
       );
-
       debugPrint("下载保存路径已设置为: ${_instance._savePath}");
+
+      // 确保目录存在（如果是首次运行，不仅要获取路径，还要创建文件夹）
+      final savedDir = Directory(_instance._savePath);
+      if (!savedDir.existsSync()) {
+        savedDir.createSync(recursive: true);
+      }
 
     } catch (e) {
       debugPrint("获取下载路径失败: $e");
-      // 设置一个兜底路径，防止崩溃
-      _instance._savePath = "";
+      final supportDir = await getApplicationSupportDirectory();
+      _instance._savePath = p.join(supportDir.path, 'kikoenaiDownload');
     }
 
     // A. 基础配置
     await FileDownloader().configure(globalConfig: [
       (Config.requestTimeout, const Duration(seconds: 100)),
+      (Config.holdingQueue, (5, null, null)),
     ], androidConfig: [
       (Config.useCacheDir, Config.whenAble),
     ], iOSConfig: [
@@ -128,7 +140,8 @@ class DownloadService {
             '$dynamicGroupName 下载中', '进度: {numFinished}/{numTotal}'),
         complete:
         TaskNotification('$dynamicGroupName 下载完成', '共 {numTotal} 个文件'),
-        progressBar: true);
+        progressBar: true,
+        groupNotificationId: const UuidV4().generate());
 
     // 将选中的文件转为 Set，提高查找效率 (O(1))
     final Set<FileNode> selectedSet = selectedFiles.toSet();
@@ -141,8 +154,6 @@ class DownloadService {
     void traverseAndBuildTasks(List<FileNode> nodes, String currentRelativePath) {
       for (var node in nodes) {
         if (node.isFolder) {
-          // 如果是文件夹，递归进入，并将当前文件夹名加入路径
-          // 使用 path 包的 join 或者是手动 "$currentRelativePath/${node.title}"
           final nextPath = p.join(currentRelativePath, node.title);
           if (node.children != null) {
             traverseAndBuildTasks(node.children!, nextPath);
@@ -155,7 +166,7 @@ class DownloadService {
             if (downloadUrl != null && downloadUrl.isNotEmpty) {
 
               final finalDirectory = p.join(workFileDirectory, currentRelativePath);
-
+              KikoenaiLogger().i('文件下载路径为：$finalDirectory');
               tasksToEnqueue.add(DownloadTask(
                 taskId: node.hash,
                 url: downloadUrl,

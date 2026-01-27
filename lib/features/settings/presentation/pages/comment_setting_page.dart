@@ -23,44 +23,44 @@ class GeneralSettingsPage extends StatelessWidget {
         scrolledUnderElevation: 0,
       ),
       body: ListView(
-        children: [
+        children: const [
           // 1. 语言 (UI 占位)
-          const _PlaceholderDropdownTile(
+          _PlaceholderDropdownTile(
             icon: Icons.language,
             title: '语言',
             subtitle: '语言 / Language / 言語',
             value: '中文',
             items: ['中文', 'English', '日本語'],
           ),
-          const _Divider(),
+          _Divider(),
 
           // 3. 效果音偏好 (UI 占位 - Switch)
-          const _PlaceholderSwitchTile(
+          _PlaceholderSwitchTile(
             icon: Icons.waves, // 或者 Icons.air
             title: '效果音偏好',
             subtitle: '优先进入包含效果音的文件夹',
             value: true,
           ),
-          const _Divider(),
+          _Divider(),
 
           // 4. 音频类型偏好 (UI 占位 - 纯文本展示)
-          const _StaticTextTile(
+          _StaticTextTile(
             icon: Icons.format_list_numbered,
             title: '音频类型偏好',
             subtitle: '优先进入包含此类型音频的文件夹',
             trailingText: 'wav > mp3 > flac > opus > m4a > aac',
           ),
-          const _Divider(),
+          _Divider(),
 
           // 5. 默认播放列表 (UI 占位)
-          const DefaultPlaylistSettingTile(),
-          const _Divider(),
+          DefaultPlaylistSettingTile(),
+          _Divider(),
 
           // 6. 选择服务器 (★ 真实功能)
-          const _ServerSelectionTile(),
-          const _Divider(),
+          _ServerSelectionTile(),
+          _Divider(),
           // 8. 和谐标签 (UI 占位)
-          const _PlaceholderDropdownTile(
+          _PlaceholderDropdownTile(
             icon: Icons.label,
             title: '和谐标签',
             subtitle: 'DLsite 和谐了一些标签（如 催眠-> 暗示），你可选择显示和谐 前/后 的标签',

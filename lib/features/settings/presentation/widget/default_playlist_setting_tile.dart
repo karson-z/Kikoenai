@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/utils/data/other.dart';
 import '../../../playlist/data/model/playlist.dart';
 import '../provider/setting_provider.dart';
@@ -62,7 +63,7 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
             // 加载成功
             data: (playlists) {
               if (playlists.isEmpty) {
-                return Text("无播放列表", style: theme.textTheme.bodyMedium);
+                return Text("请登录", style: theme.textTheme.bodyMedium);
               }
 
               // 核心逻辑：校验当前选中的 ID 是否有效
@@ -75,7 +76,15 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
                 child: DropdownButton<String>(
                   value: isValid ? currentId : null,
                   hint: Text(
-                    isValid ? (selectedPlaylist?.name ?? "请选择...") : "请选择...",
+                    // 1. 如果没登录 -> 显示 "请登录"
+                    CacheService.instance.getAuthSession() != null
+                        ? "请登录"
+                        : (
+                        // 2. 如果已登录 -> 走你原来的逻辑
+                        isValid
+                            ? (selectedPlaylist?.name ?? "请选择...")
+                            : "请选择..."
+                    ),
                   ),
                   isDense: true,
                   icon: const Icon(Icons.arrow_drop_down),
