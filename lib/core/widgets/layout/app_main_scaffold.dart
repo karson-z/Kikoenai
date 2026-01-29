@@ -59,7 +59,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final bool showBottomNav = scaffoldState.showBottomNav && !OtherUtil.isFullScreenPage(location);
     const double minHeight = 70;
-    const double bottomNavHeight = AppConstants.kAppBarHeight;
+    final double bottomNavHeight = AppConstants.kAppBottomNavHeight;
 
     if (isMobile) {
       return Scaffold(
@@ -74,9 +74,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         )
             : null,
         body: SlidingPlayerPanel(
-          minHeight: 80,
+          minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
-          // 修改 4: body 传入 navigationShell，它就是那个 IndexedStack
           body: widget.navigationShell,
           controller: playController,
         ),
@@ -99,7 +98,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(bottom: minHeight),
+                    padding: const EdgeInsets.only(bottom: minHeight),
                     // 修改 5: 传入 navigationShell
                     child: widget.navigationShell,
                   ),
@@ -112,7 +111,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
       return Scaffold(
         body: SlidingPlayerPanel(
-          minHeight: 80,
+          minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
           body: desktopLayoutRow,
           controller: playController,
