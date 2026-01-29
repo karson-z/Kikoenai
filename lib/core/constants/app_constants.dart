@@ -10,6 +10,8 @@ class AppConstants {
   static const double kAppBarHeight = 64.0;
   // 定义一个简单的断点常量，解耦对外部业务逻辑的依赖
   static const double kMobileBreakpoint = 600.0;
+
+  static double kAppBottomNavHeight = 54.0;
   // Network - 使用平台特定的基础URL
   static String get apiBaseUrl => '${EnvironmentConfig.baseUrl}/api';
 }
