@@ -68,9 +68,9 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     final isDark = ref.watch(explicitDarkModeProvider);
     final mainState = ref.watch(mainScaffoldProvider);
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
-
+    // 优化边界，让floatingButton 在任何设备上都能显示完全
     final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location)
-        ? widget.minHeight + AppConstants.kAppBarHeight
+        ? widget.minHeight + AppConstants.kAppBarHeight + 15
         : widget.minHeight;
     final safePadding = isMobile ? paddingHeight : 0.0;
 
@@ -83,10 +83,8 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
       fadeCollapsed: false,
       panelBuilder: (ScrollController sc, AnimationController controller) {
         return MusicPlayerView(
-          // 将 controller 作为进度通知器传下去
           dragProgressNotifier: controller,
           panelController: _panelController,
-          // 传入最小高度，用于内部计算 collapsed 状态的位置
           minHeight: widget.minHeight,
           onQueuePressed: () => PlayerPlaylistSheet.show(context, isDark: isDark),
         );
