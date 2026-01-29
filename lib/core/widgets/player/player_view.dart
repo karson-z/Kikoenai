@@ -277,12 +277,10 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  // ... _buildDesktopBody, _buildDesktopExpandedContent 保持不变 ...
   Widget _buildDesktopBody(_PlayerViewParams params, Rect expandedRect) {
     return _buildDesktopExpandedContent(context, params.track, expandedRect);
   }
   Widget _buildDesktopExpandedContent(BuildContext context, MediaItem? track, Rect imageRect) {
-    // ... 原有代码 ...
     return Column(
       children: [
         Expanded(
@@ -333,7 +331,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     // 只有完全收起时才允许点击 Minibar 展开
     // 当完全展开时，Minibar 应该不可见且不可点击
     final bool isInteractive = params.collapsedOpacity > 0.1;
-
     return Positioned(
       top: 0,
       left: 0,
@@ -377,7 +374,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  // --- Layer 3: Floating Hero Image ---
   Widget _buildFloatingHeroImage(_PlayerViewParams params) {
     return Positioned.fromRect(
       rect: params.currentRect,
@@ -529,7 +525,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  // ... _topBar, _info, _controls, _volume, _buildMiniControlButtons, _buildMiniPlayButton 保持不变 ...
   Widget _topBar() {
     return Container(
       width: double.infinity,
@@ -585,7 +580,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            PlayModeButton(),
+            const PlayModeButton(),
             const SizedBox(width: 24),
             IconButton(
                 onPressed: isFirst ? null : controller.previous,
