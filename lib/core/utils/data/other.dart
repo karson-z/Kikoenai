@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
 import '../../../features/album/data/model/va.dart';
 import '../../../features/album/data/model/work.dart';
 import '../../model/search_tag.dart';
@@ -172,5 +173,12 @@ class OtherUtil {
       default:
         return rawName;
     }
+  }
+  // 拿到不同类型文件的图标
+  static IconData getFileIcon(String ext) {
+    if (['MP3', 'WAV', 'FLAC', 'M4A'].contains(ext)) return Icons.audiotrack;
+    if (['JPG', 'PNG', 'GIF'].contains(ext)) return Icons.image;
+    if (['TXT', 'LRC'].contains(ext)) return Icons.description;
+    return Icons.insert_drive_file;
   }
 }

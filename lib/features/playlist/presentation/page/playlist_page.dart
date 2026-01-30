@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
+import 'package:kikoenai/features/auth/presentation/view_models/provider/auth_provider.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
 // 引入你项目中的 Provider 和 Widget
+import '../../../../core/service/cache/cache_service.dart';
 import '../../../category/presentation/viewmodel/provider/category_option_provider.dart';
 import '../../../category/widget/filter_drawer_panel.dart';
 import '../../../category/widget/filter_row_panel.dart';
@@ -49,6 +54,15 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   Widget build(BuildContext context) {
     // 1. 获取当前目标歌单
     final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
+    final isLogin = CacheService.instance.getAuthSession() == null ? false : true;
+    if (!isLogin) {
+      return Scaffold(
+        body: GuestPlaceholderView(onLoginTap: (){
+          context.go(AppRoutes.login);
+        }),
+      );
+    }
+
 
     if (targetPlaylist == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -90,7 +104,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
 
     return Scaffold(
       backgroundColor: bgColor,
-      // --- AppBar (包含搜索逻辑) ---
       appBar: _buildSearchAppBar(
           context,
           targetPlaylist.name,
@@ -104,7 +117,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       ),
       body: Stack(
         children: [
-
           Column(
             children: [
               FilterRowPanel(
@@ -113,7 +125,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 keyword: uiState.request.textKeyword, // 显示当前搜索词
                 selectedTags: uiState.request.tags,
                 totalCount: worksAsync.value?.pagination.totalCount ?? 0,
-
                 // 回调
                 onToggleFilter: () => uiNotifier.toggleFilterDrawer(),
                 onClearKeyword: () {
@@ -244,8 +255,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       ),
     );
   }
-
-  // --- 独立的 AppBar 构建方法 ---
   PreferredSizeWidget _buildSearchAppBar(
       BuildContext context,
       String titleName,

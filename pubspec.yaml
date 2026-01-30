@@ -1,7 +1,7 @@
 name: kikoenai
 description: A new Flutter project.
 
-version: 0.10.3+1
+version: 0.10.4+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -61,6 +61,7 @@ dependencies:
   back_button_interceptor: ^8.0.4
   native_flutter_proxy: ^0.3.1
   background_downloader: ^9.5.2
+  hooks_riverpod: ^3.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

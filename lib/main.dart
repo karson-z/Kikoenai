@@ -9,7 +9,6 @@ import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
-import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 
 void main() async {
@@ -33,9 +32,9 @@ void main() async {
   await AppStorage.init();
   await ProxyService.init();
   await DownloadService.init();
-  print('开始检测最优服务器...');
+  debugPrint('开始检测最优服务器...');
   await EnvironmentConfig.selectBestServer();
-  print('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
+  debugPrint('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
   setupDesktopWindow();
   runApp(const ProviderScope(child: MyApp()));
 }

@@ -147,7 +147,7 @@ class DownloadService {
     final Set<FileNode> selectedSet = selectedFiles.toSet();
     // 将根目录设置为rjCode
     final workFileDirectory = p.join(_savePath,metaData['id'].toString());
-
+    KikoenaiLogger().i('文件下载路径为：$workFileDirectory');
     List<DownloadTask> tasksToEnqueue = [];
 
     // --- 核心逻辑：递归遍历树，构建带路径的任务 ---
@@ -166,12 +166,12 @@ class DownloadService {
             if (downloadUrl != null && downloadUrl.isNotEmpty) {
 
               final finalDirectory = p.join(workFileDirectory, currentRelativePath);
-              KikoenaiLogger().i('文件下载路径为：$finalDirectory');
               tasksToEnqueue.add(DownloadTask(
                 taskId: node.hash,
                 url: downloadUrl,
                 filename: node.title,
                 directory: finalDirectory,
+                baseDirectory: BaseDirectory.root,
                 group: dynamicGroupName,
                 metaData: metaData == null ? '' : jsonEncode(metaData),
                 updates: Updates.statusAndProgress,
@@ -199,10 +199,10 @@ class DownloadService {
 
   // --- 控制方法 ---
   Future<void> pauseAll(List<Task> taskList) async {
-    await FileDownloader().pauseAll(tasks: taskList as List<DownloadTask>);
+    await FileDownloader().pauseAll(tasks: List<DownloadTask>.from(taskList));
   }
   Future<void> resumeAll(List<Task> taskList) async {
-    await FileDownloader().resumeAll(tasks: taskList as List<DownloadTask>);
+    await FileDownloader().resumeAll(tasks: List<DownloadTask>.from(taskList));
   }
   Future<void> resume(Task task) async {
     await FileDownloader().resume(task as DownloadTask);
@@ -264,7 +264,7 @@ class DownloadService {
       KikoenaiToast.error("删除文件或记录时出错: $e");
     }
   }
-  /// [新增] 根据组名批量删除
+  ///  根据组名批量删除
   /// 适用于点击 Group Card 上的删除按钮
   Future<void> deleteTasksByGroup(String groupName) async {
     final downloader = FileDownloader();

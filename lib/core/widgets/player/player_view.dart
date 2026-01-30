@@ -399,6 +399,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             ],
           ),
           child: SimpleExtendedImage(
+            loadingSize: 30,
             borderRadius: BorderRadius.circular(params.currentRadius),
             params.coverUrl,
             width: params.currentRect.width,
