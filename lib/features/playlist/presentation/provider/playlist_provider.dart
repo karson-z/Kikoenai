@@ -1,11 +1,7 @@
 import 'dart:async';
-
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/playlist/presentation/provider/playlist_filter_provider.dart';
-
 import '../../../../core/enums/playlist_filter.dart';
-import '../../data/model/playlist_request.dart';
 import '../../data/model/playlist_response.dart';
 import '../../data/model/playlist_work_response.dart';
 import '../../data/service/playlist_repository.dart';
@@ -13,7 +9,7 @@ import '../../data/service/playlist_repository.dart';
 
 typedef PlaylistQueryParams = ({int page, String filterBy});
 
-final fetchPlaylistsProvider = FutureProvider.autoDispose.family<PlaylistListResponse, PlaylistQueryParams>(
+final fetchPlaylistsProvider = FutureProvider.family<PlaylistListResponse, PlaylistQueryParams>(
       (ref, params) async {
     final repository = ref.watch(playlistRepositoryProvider);
 

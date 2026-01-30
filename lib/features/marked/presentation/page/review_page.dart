@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/work_progress.dart';
+import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/widgets/pagination/pagination_bar.dart';
 import '../provider/review_provider.dart';
 import '../widget/review_header.dart';
@@ -14,81 +18,62 @@ class ReviewPage extends ConsumerStatefulWidget {
 }
 
 class _ReviewPageState extends ConsumerState<ReviewPage> {
-  int _selectedTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
+    final isLogin = CacheService.instance.getAuthSession() != null;
+    if (!isLogin) {
+      return Center(child: GuestPlaceholderView(onLoginTap: (){
+        context.push(AppRoutes.login);
+      }));
+    }
+    // 1. 监听数据状态 (Loading / Data / Error)
     final reviewAsync = ref.watch(reviewListProvider);
-    final params = ref.watch(reviewParamsProvider);
-    final notifier = ref.read(reviewParamsProvider.notifier);
+    // 2. 获取 Notifier 实例
+    final notifier = ref.read(reviewListProvider.notifier);
+    final params = notifier.params;
 
-    // --- 1. 之前修复分页 Bug 的逻辑 (保持不变) ---
+    // 计算 Tab Index
+    final int currentTabIndex = params.filter != null ? 1 : 0;
     final pagination = reviewAsync.value?.pagination;
     int totalPage = 1;
     bool shouldShowPagination = false;
-
     if (pagination != null && pagination.pageSize > 0) {
       shouldShowPagination = true;
       totalPage = (pagination.totalCount / pagination.pageSize).ceil();
-      if (totalPage < 1) totalPage = 1;
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            ReviewHeader(
-              selectedIndex: _selectedTabIndex,
-              onTabSelected: (index) {
-                setState(() {
-                  _selectedTabIndex = index;
-                  notifier.updateFilter(
-                    filter: index == 0 ? null : WorkProgress.marked.value,
-                  );
-                });
+      body: Column(
+        children: [
+          ReviewHeader(
+            selectedIndex: currentTabIndex,
+            onTabSelected: (index) {
+              notifier.updateFilter(
+                filter: index == 0 ? null : WorkProgress.marked.value,
+              );
+            },
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              // 调用 notifier 的 refresh 方法
+              onRefresh: () => notifier.refresh(),
+              child: switch (reviewAsync) {
+                AsyncValue(:final value?) when value.works.isEmpty => _buildEmptyView(),
+                AsyncValue(:final value?) => ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 16),
+                  itemCount: value.works.length,
+                  itemBuilder: (context, index) {
+                    return WorkListCard(work: value.works[index]);
+                  },
+                ),
+                AsyncValue(:final error?) => Text('Error: $error'),
+                _ => const Center(child: CircularProgressIndicator()),
               },
             ),
-
-            // --- 2. 使用 Dart 3 Switch 表达式处理列表状态 ---
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => ref.refresh(reviewListProvider.future),
-                // 这里使用了你要求的 switch 语法
-                child: switch (reviewAsync) {
-                  AsyncValue(:final value?) when value.works.isEmpty =>
-                      _buildEmptyView(),
-                  AsyncValue(:final value?) => ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 16),
-                    itemCount: value.works.length,
-                    itemBuilder: (context, index) {
-                      return WorkListCard(work: value.works[index]);
-                    },
-                  ),
-                // Case C: 发生错误 (提取 error 变量用于显示)
-                  AsyncValue(:final error?) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('加载失败: $error', style: const TextStyle(color: Colors.red)),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () => ref.refresh(reviewListProvider),
-                          child: const Text("重试"),
-                        )
-                      ],
-                    ),
-                  ),
-
-                // Case D: 正在加载 (且没有旧数据)
-                  _ => const Center(child: CircularProgressIndicator()),
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-
-      // --- 3. 底部导航栏逻辑 (保持不变) ---
       bottomNavigationBar: shouldShowPagination
           ? PaginationBar(
         currentPage: params.page,
@@ -99,7 +84,6 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     );
   }
 
-  /// 这里的 _buildEmptyView 必须支持滚动，否则 RefreshIndicator 可能无法触发
   Widget _buildEmptyView() {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(

@@ -51,7 +51,7 @@ class WorkCard extends ConsumerWidget {
                   Hero(
                     tag: work.heroTag!,
                     child: SimpleExtendedImage(
-                      work.thumbnailCoverUrl ?? '',
+                      work.mainCoverUrl ?? '',
                       width: 240,
                     ),
                   ),

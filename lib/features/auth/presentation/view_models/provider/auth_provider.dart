@@ -24,7 +24,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   /// 初始化逻辑：直接从 CacheService 获取完整的会话信息
   Future<AuthState> _loadInitialState() async {
     try {
-      final authSession = await _cacheService.getAuthSession();
+      final authSession = _cacheService.getAuthSession();
 
       // 验证数据完整性
       if (authSession != null && authSession.isSuccess) {

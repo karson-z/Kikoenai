@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'dart:math' as math;
+import '../../../../core/enums/playlist_filter.dart';
 import '../../../../core/widgets/common/custom_bottom_type.dart';
 import '../../../../core/widgets/common/custom_side_sheet_type.dart';
 import '../../../settings/presentation/provider/setting_provider.dart';
@@ -53,7 +54,7 @@ class PlaylistSheet {
               const SliverPadding(padding: EdgeInsets.only(top: 12)),
               Consumer(
                 builder: (_, ref, __) {
-                  final asyncPlaylists = ref.watch(fetchPlaylistsProvider((page: 1, filterBy: 'all')));
+                  final asyncPlaylists = ref.watch(fetchPlaylistsProvider((page: 1, filterBy: PlaylistFilter.all.value)));
 
                   return asyncPlaylists.when(
                     loading: () => SliverToBoxAdapter(
