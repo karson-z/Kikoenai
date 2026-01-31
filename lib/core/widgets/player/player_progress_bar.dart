@@ -1,6 +1,6 @@
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/player/player_progress_modify.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 
 class PlayerProgressBar extends ConsumerWidget {
@@ -15,30 +15,13 @@ class PlayerProgressBar extends ConsumerWidget {
 
     // 提取高度常量，以便对齐
     const double barHeight = 3.0;
-    const double thumbRadius = 10.0; // 默认 thumb 半径通常约为 10，用于调整 Padding
+    const double thumbRadius = 6.0;
 
     return Stack(
       alignment: Alignment.center,
       children: [
-        if (isBuffering)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: thumbRadius),
-            child: SizedBox(
-              height: barHeight,
-              child: LinearProgressIndicator(
-                // 背景透明，只显示流动的动画颜色
-                backgroundColor: Colors.transparent,
-                // 设置动画颜色，建议使用半透明白色，以免喧宾夺主
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Colors.white.withOpacity(0.5),
-                ),
-              ),
-            ),
-          ),
-
-        // --- 顶部：交互式进度条 ---
-        // 放在上面以确保 Thumb (滑块) 可以被点击和拖动
         ProgressBar(
+          isLoading: isBuffering,
           barHeight: barHeight,
           baseBarColor: const Color.fromARGB(197, 255, 255, 255),
           timeLabelLocation: TimeLabelLocation.below,
@@ -49,8 +32,7 @@ class PlayerProgressBar extends ConsumerWidget {
           thumbColor: Colors.white,
           progressBarColor: Colors.white,
           thumbGlowColor: Colors.white70,
-          thumbGlowRadius: 20,
-          // 如果正在缓冲，通常我们希望 thumb 不要遮挡住加载动画，或者可以稍微变小（可选）
+          thumbGlowRadius: 12,
           thumbRadius: thumbRadius,
           progress: progressBarState.current,
           buffered: progressBarState.buffered,

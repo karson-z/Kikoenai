@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
 import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
+import 'package:kikoenai/core/widgets/player/player_sleep_time_widget.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
+import 'package:kikoenai/core/widgets/player/provider/player_sleep_time_provider.dart';
 import 'package:kikoenai/core/widgets/slider/sllding_up_panel_modify.dart';
 
 import '../../constants/app_images.dart';
@@ -69,7 +72,12 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   Widget build(BuildContext context) {
     final currentTrack =
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
-
+    ref.listen<Duration?>(sleepTimerProvider, (previous, next) {
+      if (next == Duration.zero) {
+        ref.read(playerControllerProvider.notifier).pause();
+        KikoenaiToast.info("倒计时结束停止播放");
+      }
+    });
     ref.listen<String?>(
       playerControllerProvider
           .select((s) => s.currentTrack?.extras?['mainCoverUrl'] as String?),
@@ -194,7 +202,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                       right: 0,
                       child: Opacity(
                         opacity: progress,
-                        child: _topBar(),
+                        child: _topBar(context),
                       ),
                     ),
                   ],
@@ -224,15 +232,15 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     // 2. 展开状态 - 封面模式 (中间大图)
     late Rect expandedAlbum;
     if (isWideScreen) {
-      const double desktopImageSize = 350.0;
+      const double desktopImageSize = 380.0;
       final double leftPaneWidth = size.width / 2;
       final double targetLeft = (leftPaneWidth - desktopImageSize) / 2;
-      double targetTop = (size.height - desktopImageSize) / 2 - 160.0;
+      double targetTop = (size.height - desktopImageSize) / 2 - 130.0;
       expandedAlbum = Rect.fromLTWH(
           targetLeft, targetTop, desktopImageSize, desktopImageSize);
     } else {
       final double bigWidth = (size.width * 0.75).clamp(250.0, 350.0);
-      final double bigTop = padding.top + 60.0;
+      final double bigTop = padding.top + 80.0;
       final double bigLeft = (size.width - bigWidth) / 2;
       expandedAlbum = Rect.fromLTWH(bigLeft, bigTop, bigWidth, bigWidth);
     }
@@ -308,7 +316,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               ),
               Expanded(
                 child: Container(
-                  margin: const EdgeInsets.only(right: 32, top: 62, bottom: 32),
+                  margin: const EdgeInsets.only(right: 32, top: 78, bottom: 32),
                   padding: EdgeInsets.only(
                       top: MediaQuery.of(context).padding.top + 40),
                   decoration: BoxDecoration(
@@ -484,7 +492,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
             children: [
-              // 【关键点】这里放置一个透明占位符
+              // 这里放置一个透明占位符
               // Floating Image 会精确地飞到这个位置
               const SizedBox(width: 50, height: 50),
 
@@ -526,17 +534,47 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  Widget _topBar() {
+  Widget _topBar(BuildContext context) {
     return Container(
+      height: 60, //稍微增加高度以容纳按钮点击区域
       width: double.infinity,
-      height: 40,
-      alignment: Alignment.center,
-      child: Container(
-        width: 48,
-        height: 5,
-        decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(100)),
+      padding: const EdgeInsets.symmetric(horizontal: 16), // 两侧留白
+      child: Stack(
+        alignment: Alignment.center, // 确保 Stack 内的组件默认居中
+        children: [
+          Positioned(
+            left: 0,
+            child: IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white, size: 28),
+              onPressed: () {
+                widget.panelController?.close();
+              },
+            ),
+          ),
+
+          // 3. 右侧层：定时关闭 + 更多按钮
+          Positioned(
+            right: 0,
+            child: Row(
+              mainAxisSize: MainAxisSize.min, // Row 宽度仅包裹内容
+              children: [
+                // 定时关闭组件 (复用之前写的组件)
+                const SleepTimerButton(),
+
+                const SizedBox(width: 8), // 按钮之间的间距
+
+                // 更多按钮
+                IconButton(
+                  icon: const Icon(Icons.more_horiz, color: Colors.white),
+                  onPressed: () {
+                    // TODO: 显示更多菜单
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -620,13 +658,13 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Icon(Icons.volume_up_rounded, color: Colors.white, size: 20),
-        const SizedBox(width: 10),
         SizedBox(
           width: 150,
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
+                padding: const EdgeInsets.all(16),
                 trackHeight: 2,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6)),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5)),
             child: Slider(
                 value: volume,
                 min: 0,

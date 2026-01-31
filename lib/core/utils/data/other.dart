@@ -181,4 +181,15 @@ class OtherUtil {
     if (['TXT', 'LRC'].contains(ext)) return Icons.description;
     return Icons.insert_drive_file;
   }
+
+  static String formatSleepTimeDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+
+    // 直接使用 inMinutes 获取总分钟数 (包含小时换算的分钟)
+    final minutes = twoDigits(duration.inMinutes);
+    // 获取剩余秒数
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+
+    return "$minutes:$seconds";
+  }
 }
