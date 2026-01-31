@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/core/widgets/common/back_button_interceptor.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/player/player_sleep_time_picker.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_sleep_time_provider.dart';
@@ -84,7 +85,11 @@ class SleepTimerButton extends ConsumerWidget {
       context: context,
       isScrollControlled: true, // 允许弹窗根据内容自适应高度
       backgroundColor: Colors.transparent, // 背景透明，由组件内部控制圆角
-      builder: (context) => const SleepTimerBottomSheet(),
+      builder: (context) => const BackButtonPriorityWrapper(
+        zIndex: 100,
+        name: 'SleepBottomShell',
+        child: SleepTimerBottomSheet(),
+      ),
     );
   }
 
@@ -100,7 +105,7 @@ class SleepTimerButton extends ConsumerWidget {
     // 使用 KikoenaiDialog.show
     final confirm = await KikoenaiDialog.show<bool>(
       context: context,
-      clickMaskDismiss: true, // 点击蒙层可以关闭（相当于取消）
+      clickMaskDismiss: true,
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: bgColor,

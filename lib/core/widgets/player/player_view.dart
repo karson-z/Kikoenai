@@ -7,6 +7,7 @@ import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
 import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
+import 'package:kikoenai/core/widgets/player/player_more_widget.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
 import 'package:kikoenai/core/widgets/player/player_sleep_time_widget.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
@@ -202,7 +203,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                       right: 0,
                       child: Opacity(
                         opacity: progress,
-                        child: _topBar(context),
+                        child: _topBar(context,currentTrack),
                       ),
                     ),
                   ],
@@ -248,7 +249,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     // 3. 展开状态 - 歌词模式 (顶部 Header 小图)
     // 位置需要和 _buildMobileLyricsLayout 中的 Row > Placeholder 对应
     const double lyricsHeaderImageSize = 50.0;
-    final double lyricsHeaderTop = padding.top + 40 + (60 - lyricsHeaderImageSize) / 2;
+    final double lyricsHeaderTop = padding.top + 70 + (60 - lyricsHeaderImageSize) / 2;
     // left = 24 (padding)
     final expandedLyrics = Rect.fromLTWH(
         24.0, lyricsHeaderTop, lyricsHeaderImageSize, lyricsHeaderImageSize);
@@ -485,7 +486,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   Widget _buildMobileLyricsLayout(_PlayerViewParams params) {
     return Column(
       children: [
-        SizedBox(height: params.topPadding + 40),
+        SizedBox(height: params.topPadding + 70),
         // Header Area
         Container(
           height: 60,
@@ -508,12 +509,12 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                         style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18)),
+                            fontSize: 16)),
                     Text(params.track?.artist ?? "未知艺人",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 14)),
+                            color: Colors.white70, fontSize: 12)),
                   ],
                 ),
               ),
@@ -534,7 +535,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  Widget _topBar(BuildContext context) {
+  Widget _topBar(BuildContext context,MediaItem? currentTrack) {
     return Container(
       height: 60, //稍微增加高度以容纳按钮点击区域
       width: double.infinity,
@@ -568,7 +569,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    // TODO: 显示更多菜单
+                    showMoreOptionsModal(context,currentTrack);
                   },
                 ),
               ],
@@ -696,6 +697,18 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             icon: const Icon(Icons.skip_next_rounded),
             onPressed: controller.next),
       ],
+    );
+  }
+  void showMoreOptionsModal(BuildContext context, MediaItem? track) {
+    if (track == null) {
+      KikoenaiToast.warning('当前没有播放中的歌曲');
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true, // 允许弹窗更高
+      builder: (context) => MoreOptionsBottomSheet(track: track),
     );
   }
 
