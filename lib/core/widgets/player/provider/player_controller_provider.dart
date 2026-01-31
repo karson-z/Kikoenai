@@ -7,7 +7,7 @@ import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
-import 'package:kikoenai/core/widgets/player/provider/play_feedback_provider.dart';
+import 'package:kikoenai/core/widgets/player/provider/player_feedback_provider.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:path/path.dart' as p;
 

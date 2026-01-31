@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playback_enum.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
@@ -72,31 +73,29 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
         '/recommender/feedback',
         data: data
       );
-      print("[埋点] 开始播放作品: ${state.currentWorkId}");
+      debugPrint("[埋点] 开始播放作品: ${state.currentWorkId}");
       state = state.copyWith(hasReportedStart: true);
     }
   }
 
   void _checkAndReport5Mins() {
     if (!state.hasReported5Mins && state.currentWorkId != null) {
-
-      final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
-
+      if (currentUser == null) return;
+      final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
       final data = {
         'itemId': state.currentWorkId,
-        'recommendUuid': currentUser?.recommenderUuid ?? recommendUuid,
+        'recommendUuid': currentUser.recommenderUuid ?? recommendUuid,
         'type': ListenEventType.fiveMinutes.type
       };
-
       final api = ref.read(apiClientProvider);
       api.post(
           '/recommender/feedback',
           data: data
       );
 
-      print("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
+      debugPrint("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
 
       state = state.copyWith(hasReported5Mins: true);
     }

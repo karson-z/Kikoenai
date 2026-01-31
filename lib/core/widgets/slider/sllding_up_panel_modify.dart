@@ -57,7 +57,7 @@ class SlidingUpPanel extends StatefulWidget {
   // 修改点：fadeCollapsed 参数
   final bool fadeCollapsed;
 
-  SlidingUpPanel(
+  const SlidingUpPanel(
       {Key? key,
         this.panel,
         this.panelBuilder,

@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart'; // 【必须】使用此库
-import 'package:kikoenai/core/widgets/player/provider/lyrics_provider.dart';
+import 'package:kikoenai/core/widgets/player/provider/player_lyrics_provider.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import '../../model/lyric_model.dart';
 
@@ -156,9 +156,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> with AutomaticKeepAlive
                 itemScrollController: _itemScrollController,
                 itemPositionsListener: _itemPositionsListener,
                 physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-
-                // 这里使用了修正后的 verticalPadding
-                padding: EdgeInsets.only(
+                padding: const EdgeInsets.only(
                     left: 24,
                     right: 24,
                     top: verticalPadding,
