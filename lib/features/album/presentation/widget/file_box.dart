@@ -101,7 +101,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     final bool isRoot = breadcrumb.isEmpty;
 
     final isCompleteDownloadFileList = ref.watch(completedTasksProvider);
-    // 使用 valueOrNull 安全解包，如果还在加载中则为空列表
     final taskList = isCompleteDownloadFileList;
     final Map<String, TaskRecord> downloadedTaskMap = {
       for (var record in taskList) record.task.taskId: record

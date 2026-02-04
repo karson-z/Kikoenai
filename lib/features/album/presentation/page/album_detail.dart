@@ -38,15 +38,16 @@ class AlbumDetailPage extends ConsumerWidget {
       appBar: AppBar(
         centerTitle: true,
         title: Text(
-          "RJ${work.id}",
+          "RJ0${work.id}",
           style: const TextStyle(fontSize: 18),
         ),
         leading: IconButton(
-          // Icons.arrow_back 是安卓风格，Icons.arrow_back_ios_new 是 iOS 风格
           icon: const Icon(Icons.arrow_back_outlined),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
+            }else{
+              context.go(AppRoutes.home);
             }
           },
         ),
@@ -75,7 +76,7 @@ class AlbumDetailPage extends ConsumerWidget {
                     initialStatus: initialStatus,
                     onSubmit: (newStatus) async {
                       await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-                      ref.refresh(workDetailProvider(work.id));
+                      ref.invalidate(workDetailProvider(work.id));
                     },
                   );
                 },
@@ -189,6 +190,7 @@ class AlbumDetailPage extends ConsumerWidget {
                   );
                   // C. 调用提交逻辑
                   HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+                  ref.invalidate(workDetailProvider(work.id));
                 },
               ),
               const SizedBox(height: 12),

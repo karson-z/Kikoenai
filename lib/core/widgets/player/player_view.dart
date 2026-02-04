@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
 import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
@@ -38,7 +41,8 @@ class MusicPlayerView extends ConsumerStatefulWidget {
 }
 
 class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
-    with SingleTickerProviderStateMixin { // 1. 混入 TickerProvider
+    with SingleTickerProviderStateMixin {
+  // 1. 混入 TickerProvider
 
   // 用于控制歌词页切换动画 (0.0 = 封面模式, 1.0 = 歌词模式)
   late final AnimationController _lyricsCtrl;
@@ -48,10 +52,9 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   void initState() {
     super.initState();
     _lyricsCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-      animationBehavior: AnimationBehavior.normal
-    );
+        vsync: this,
+        duration: const Duration(milliseconds: 300),
+        animationBehavior: AnimationBehavior.normal);
   }
 
   @override
@@ -72,7 +75,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   @override
   Widget build(BuildContext context) {
     final currentTrack =
-    ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
     ref.listen<Duration?>(sleepTimerProvider, (previous, next) {
       if (next == Duration.zero) {
         ref.read(playerControllerProvider.notifier).pause();
@@ -82,7 +85,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     ref.listen<String?>(
       playerControllerProvider
           .select((s) => s.currentTrack?.extras?['mainCoverUrl'] as String?),
-          (prev, next) {
+      (prev, next) {
         if (next != null && next != prev) {
           ref.read(mainScaffoldProvider.notifier).fetchAlbumColors(next);
         }
@@ -115,31 +118,22 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               final lyricsValue = _lyricsCtrl.value;
 
               // 2. 计算所有关键 Rect
-              final rects = _calculateRects(
-                  constraints.biggest,
-                  padding,
-                  isWideScreen
-              );
+              final rects =
+                  _calculateRects(constraints.biggest, padding, isWideScreen);
 
               // 3. 计算目标 "展开态" Rect
               // 如果 lyricsValue 为 0，目标是中间大图；为 1，目标是顶部小图
               final Rect targetExpandedRect = Rect.lerp(
-                  rects.expandedAlbum,
-                  rects.expandedLyrics,
-                  lyricsValue
-              )!;
+                  rects.expandedAlbum, rects.expandedLyrics, lyricsValue)!;
 
               // 4. 计算最终当前 Rect (结合拖拽进度)
               // 无论目标是哪里，progress 为 0 时都会回到 collapsed (Minibar)
-              final currentRect = Rect.lerp(
-                  rects.collapsed,
-                  targetExpandedRect,
-                  progress
-              )!;
+              final currentRect =
+                  Rect.lerp(rects.collapsed, targetExpandedRect, progress)!;
 
               // 计算背景色插值
               final double colorProgress =
-              ((progress - 0.15) / 0.85).clamp(0.0, 1.0);
+                  ((progress - 0.15) / 0.85).clamp(0.0, 1.0);
               final Color startColor = Color.lerp(
                   themeBackgroundColor, bg.dominantColor, colorProgress)!;
               final Color endColor = Color.lerp(themeBackgroundColor,
@@ -149,20 +143,24 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               const double albumRadius = 8.0;
               const double lyricsRadius = 4.0;
               // 展开态的目标圆角
-              final double targetExpandedRadius = ui.lerpDouble(albumRadius, lyricsRadius, lyricsValue)!;
-              final currentRadius = ui.lerpDouble(collapsedRadius, targetExpandedRadius, progress)!;
+              final double targetExpandedRadius =
+                  ui.lerpDouble(albumRadius, lyricsRadius, lyricsValue)!;
+              final currentRadius = ui.lerpDouble(
+                  collapsedRadius, targetExpandedRadius, progress)!;
               final collapsedOpacity = (1.0 - progress * 5).clamp(0.0, 1.0);
               final expandedOpacity = ((progress - 0.7) / 0.3).clamp(0.0, 1.0);
 
               final viewParams = _PlayerViewParams(
                 track: currentTrack,
                 progress: progress,
-                lyricsValue: lyricsValue, // 传入歌词进度
+                lyricsValue: lyricsValue,
+                // 传入歌词进度
                 currentRect: currentRect,
                 currentRadius: currentRadius,
                 collapsedOpacity: collapsedOpacity,
                 expandedOpacity: expandedOpacity,
-                coverUrl: currentTrack?.extras?['mainCoverUrl'] ?? placeholderImage,
+                coverUrl:
+                    currentTrack?.extras?['mainCoverUrl'] ?? placeholderImage,
                 topPadding: padding.top,
               );
 
@@ -183,8 +181,10 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                         child: Visibility(
                           visible: progress > 0.01,
                           child: isWideScreen
-                              ? _buildDesktopBody(viewParams, targetExpandedRect)
-                              : _buildMobileBody(viewParams, targetExpandedRect),
+                              ? _buildDesktopBody(
+                                  viewParams, targetExpandedRect)
+                              : _buildMobileBody(
+                                  viewParams, targetExpandedRect),
                         ),
                       ),
                     ),
@@ -203,7 +203,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                       right: 0,
                       child: Opacity(
                         opacity: progress,
-                        child: _topBar(context,currentTrack),
+                        child: _topBar(context, currentTrack),
                       ),
                     ),
                   ],
@@ -220,7 +220,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   /// 返回: (collapsed, expandedAlbum, expandedLyrics)
   ({Rect collapsed, Rect expandedAlbum, Rect expandedLyrics}) _calculateRects(
       Size size, EdgeInsets padding, bool isWideScreen) {
-
     // 1. 收起状态 (MiniBar)
     final double smallSize = widget.minHeight - 20.0;
     final collapsed = Rect.fromLTWH(
@@ -249,15 +248,16 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     // 3. 展开状态 - 歌词模式 (顶部 Header 小图)
     // 位置需要和 _buildMobileLyricsLayout 中的 Row > Placeholder 对应
     const double lyricsHeaderImageSize = 50.0;
-    final double lyricsHeaderTop = padding.top + 70 + (60 - lyricsHeaderImageSize) / 2;
+    final double lyricsHeaderTop =
+        padding.top + 70 + (60 - lyricsHeaderImageSize) / 2;
     // left = 24 (padding)
     final expandedLyrics = Rect.fromLTWH(
         24.0, lyricsHeaderTop, lyricsHeaderImageSize, lyricsHeaderImageSize);
 
     return (
-    collapsed: collapsed,
-    expandedAlbum: expandedAlbum,
-    expandedLyrics: expandedLyrics
+      collapsed: collapsed,
+      expandedAlbum: expandedAlbum,
+      expandedLyrics: expandedLyrics
     );
   }
 
@@ -270,7 +270,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
           opacity: (1 - params.lyricsValue).clamp(0.0, 1.0),
           child: IgnorePointer(
             ignoring: params.lyricsValue > 0.5,
-            child: _buildMobileExpandedContent(context, params.track, targetExpandedRect),
+            child: _buildMobileExpandedContent(
+                context, params.track, targetExpandedRect),
           ),
         ),
 
@@ -289,7 +290,9 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   Widget _buildDesktopBody(_PlayerViewParams params, Rect expandedRect) {
     return _buildDesktopExpandedContent(context, params.track, expandedRect);
   }
-  Widget _buildDesktopExpandedContent(BuildContext context, MediaItem? track, Rect imageRect) {
+
+  Widget _buildDesktopExpandedContent(
+      BuildContext context, MediaItem? track, Rect imageRect) {
     return Column(
       children: [
         Expanded(
@@ -333,7 +336,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
       ],
     );
   }
-
 
   // --- Minibar ---
   Widget _buildCollapsedMinibar(_PlayerViewParams params, double smallSize) {
@@ -422,7 +424,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
 
   Widget _buildMobileExpandedContent(
       BuildContext context, MediaItem? track, Rect imageRect) {
-
     // 1. 获取屏幕尺寸和安全区域
     final size = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
@@ -430,14 +431,16 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     // 2. 计算顶部避让高度 (保持稳定，不随动画跳动)
     // 逻辑：封面图高度 (宽度 * 0.75) + 顶部状态栏 + 额外的头部间距
     // 你可以根据实际 _calculateRects 中的算法微调这里的数值
-    final double coverHeight = (size.width * 0.75).clamp(250.0, 350.0); // 与你计算 expandedAlbum 的逻辑保持一致
+    final double coverHeight =
+        (size.width * 0.75).clamp(250.0, 350.0); // 与你计算 expandedAlbum 的逻辑保持一致
     final double topContentStart = padding.top + 60.0 + coverHeight + 20.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // 3. 计算“剩余可用高度”
         // 屏幕总高度 - (顶部图片区域 + 底部留白)
-        final double availableHeight = constraints.maxHeight - topContentStart - 40.0;
+        final double availableHeight =
+            constraints.maxHeight - topContentStart - 40.0;
 
         return SingleChildScrollView(
           // 顶部使用 padding 把位置顶下来
@@ -535,7 +538,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     );
   }
 
-  Widget _topBar(BuildContext context,MediaItem? currentTrack) {
+  Widget _topBar(BuildContext context, MediaItem? currentTrack) {
     return Container(
       height: 60, //稍微增加高度以容纳按钮点击区域
       width: double.infinity,
@@ -569,7 +572,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    showMoreOptionsModal(context,currentTrack);
+                    showMoreOptions(context, currentTrack);
                   },
                 ),
               ],
@@ -607,9 +610,9 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   Widget _controls(WidgetRef ref) {
     final controller = ref.read(playerControllerProvider.notifier);
     final playing =
-    ref.watch(playerControllerProvider.select((s) => s.playing));
+        ref.watch(playerControllerProvider.select((s) => s.playing));
     final isFirst =
-    ref.watch(playerControllerProvider.select((s) => s.isFirst));
+        ref.watch(playerControllerProvider.select((s) => s.isFirst));
     final isLast = ref.watch(playerControllerProvider.select((s) => s.isLast));
 
     return Padding(
@@ -681,7 +684,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
 
   Widget _buildMiniControlButtons(WidgetRef ref) {
     final playing =
-    ref.watch(playerControllerProvider.select((s) => s.playing));
+        ref.watch(playerControllerProvider.select((s) => s.playing));
     final controller = ref.read(playerControllerProvider.notifier);
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -691,7 +694,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             onPressed: controller.previous),
         IconButton(
             icon:
-            Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
             onPressed: () => playing ? controller.pause() : controller.play()),
         IconButton(
             icon: const Icon(Icons.skip_next_rounded),
@@ -699,7 +702,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
       ],
     );
   }
-  void showMoreOptionsModal(BuildContext context, MediaItem? track) {
+
+  void showMoreOptions(BuildContext context, MediaItem? track) {
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
@@ -707,22 +711,80 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: true, // 允许弹窗更高
-      builder: (context) => MoreOptionsBottomSheet(track: track),
+      isScrollControlled: true,
+      builder: (context) {
+        return MoreOptionsBottomSheet(
+          track: track,
+          quickActions: [
+            QuickActionItem(
+              icon: Icons.add_box_outlined,
+              label: "收藏",
+              onTap: () {
+                // 调用你的收藏服务
+                // Service.collect(track);
+                Navigator.pop(context); // 可以在点击后关闭弹窗
+                print("执行收藏逻辑");
+              },
+            ),
+            QuickActionItem(
+              icon: Icons.download_for_offline_outlined,
+              label: "下载",
+              onTap: () {
+                // Service.download(track);
+                print("执行下载逻辑");
+              },
+            ),
+            QuickActionItem(
+              icon: Icons.picture_in_picture_alt,
+              label: "桌面字幕",
+              onTap: () {
+                // Service.enablePip();
+                print("执行桌面字幕逻辑");
+              },
+            ),
+          ],
+          listActions: [
+            ListActionItem(
+              icon: Icons.album_outlined,
+              title: "专辑",
+              subtitle: track.album,
+              onTap: () {
+                context.pop(context);
+                widget.panelController?.close();
+                context.go(AppRoutes.detail,extra: {'work': jsonDecode(track.extras?['workData'])});
+                print("跳转到专辑页: ${track.album}");
+              },
+            ),
+            ListActionItem(
+              icon: Icons.person_outline_rounded,
+              title: "歌手",
+              subtitle: track.artist,
+              onTap: () {
+                print("跳转到歌手页: ${track.artist}");
+              },
+            ),
+            ListActionItem(
+              icon: Icons.info_outline_rounded,
+              title: "查看歌曲百科",
+              onTap: () {
+                print("打开浏览器查看百科");
+              },
+            ),
+          ],
+        );
+      },
     );
   }
+}
 
-  Widget _buildMiniPlayButton(WidgetRef ref) {
-    final playing =
-    ref.watch(playerControllerProvider.select((s) => s.playing));
-    final controller = ref.read(playerControllerProvider.notifier);
-    return IconButton(
-        icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-        iconSize: 32,
-        color: Colors.white,
-        onPressed: () => playing ? controller.pause() : controller.play());
-  }
-
+Widget _buildMiniPlayButton(WidgetRef ref) {
+  final playing = ref.watch(playerControllerProvider.select((s) => s.playing));
+  final controller = ref.read(playerControllerProvider.notifier);
+  return IconButton(
+      icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+      iconSize: 32,
+      color: Colors.white,
+      onPressed: () => playing ? controller.pause() : controller.play());
 }
 
 class _PlayerViewParams {

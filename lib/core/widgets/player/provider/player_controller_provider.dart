@@ -486,7 +486,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         }
       }
     }
-
     return MediaItem(
       id: node.hash.toString(),
       album: node.workTitle,
@@ -496,8 +495,8 @@ class PlayerController extends Notifier<AppPlayerState> {
           : OtherUtil.joinVAs(work.vas),
 
       // artUri 只放“明确可用的封面 URL”
-      artUri: work.thumbnailCoverUrl != null
-          ? Uri.parse(work.thumbnailCoverUrl!)
+      artUri: work.mainCoverUrl != null
+          ? Uri.parse(work.mainCoverUrl!)
           : null,
 
       extras: {
