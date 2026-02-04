@@ -35,16 +35,32 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     return const Icon(Icons.insert_drive_file, color: Colors.blueGrey);
   }
 
+  /// 判断文件是否已下载
+  bool _isDownloaded(FileNode node) {
+    if (node.isFolder) return false;
+    return widget.disabledIds?.contains(node.hash) ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     ref.watch(fileSelectionProvider);
     final notifier = ref.read(fileSelectionProvider.notifier);
+
+    // 获取当前选中的所有节点（包含文件夹和文件）
+    final selectedList = notifier.selectedList;
     final selectedCount = notifier.count;
     final musicCount = notifier.musicCount;
     final totalSizeStr = notifier.totalSizeStr;
     final bool? rootCheckboxState = notifier.getRootState(widget.roots);
+
+    // 允许下载的条件：
+    // 1. 至少选中了一个文件 (selectedCount > 0)
+    // 2. 选中的文件中，至少有一个是"未下载"状态
+    final bool canDownload = selectedList.any((node) =>
+    !node.isFolder && !_isDownloaded(node)
+    );
 
     return Dialog(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -63,8 +79,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     tristate: true,
                     value: rootCheckboxState,
                     onChanged: (_) {
-                      // 注意：全选逻辑中，Notifier 最好也能内部处理 disabledIds 的过滤
-                      // 或者在这里仅作为 UI 层的全选，实际操作由 Notifier 处理
                       notifier.toggleSelectAll(widget.roots);
                     },
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -84,10 +98,11 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     ],
                   ),
                   const Spacer(),
+                  // 加入队列按钮：只要选中有音乐文件，无论是否下载，都允许加入队列
                   TextButton.icon(
                     onPressed: musicCount == 0
                         ? null
-                        : () => widget.onAddToQueue(notifier.selectedList),
+                        : () => widget.onAddToQueue(selectedList),
                     icon: const Icon(Icons.queue_music, size: 20),
                     label: const Text('加入队列'),
                     style: TextButton.styleFrom(
@@ -130,12 +145,20 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: selectedCount == 0
+                      // 下载按钮状态控制：
+                      // 如果选中的全部都是已下载文件 (canDownload == false)，则禁用按钮
+                      onPressed: !canDownload
                           ? null
                           : () {
-                        // 提交下载前，可以在这里做最后一道过滤，剔除掉 disabledIds 中的文件
-                        // 但通常 UI 上禁止选中就足够了
-                        widget.onDownload(notifier.selectedList);
+                        // 提交时，只传递"未下载"的文件给下载器，避免重复下载
+                        // 或者根据需求传递所有选中文件，由后端去重
+                        final filesToDownload = selectedList.where((node) =>
+                        !node.isFolder && !_isDownloaded(node)
+                        ).toList();
+
+                        if (filesToDownload.isNotEmpty) {
+                          widget.onDownload(filesToDownload);
+                        }
                         KikoenaiDialog.dismiss();
                       },
                       style: ElevatedButton.styleFrom(
@@ -164,23 +187,10 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
 
   Widget _buildNodeItem(FileNode node, int level, FileSelectionNotifier notifier) {
     final double indent = level * 20.0;
-
-    final bool isDisabled = !node.isFolder && (widget.disabledIds?.contains(node.hash) ?? false);
-
+    final bool isDownloaded = _isDownloaded(node);
     final bool? checkboxState = notifier.getNodeState(node);
 
     Widget buildCheckbox() {
-      if (isDisabled) {
-        return const Padding(
-          padding: EdgeInsets.all(12.0), // 保持和 Checkbox 占据空间一致，防止对齐错乱
-          child: Icon(
-              Icons.check_circle_outline, // 使用空心圆勾选，表示"已完成"
-              size: 20,
-              color: Colors.grey
-          ),
-        );
-      }
-
       return Checkbox(
         tristate: true,
         value: checkboxState,
@@ -218,8 +228,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
       );
     } else {
       return InkWell(
-        // --- 【修改点 3】 如果已下载，禁用点击事件 ---
-        onTap: isDisabled ? null : () => notifier.toggleNode(node),
+        // 恢复点击事件，允许 toggleNode
+        onTap: () => notifier.toggleNode(node),
         child: Padding(
           padding: EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
           child: Row(
@@ -232,17 +242,27 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      node.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        // 可选：如果是已下载，文字也变灰
-                        color: isDisabled ? Colors.grey : null,
-                        decoration: isDisabled ? TextDecoration.lineThrough : null, // 可选：添加删除线表示不可选
-                        decorationColor: Colors.grey.shade300,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            node.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDownloaded ? Colors.grey.shade600 : null,
+                            ),
+                          ),
+                        ),
+                        // 视觉提示：如果已下载，显示一个小勾选图标，提示用户状态
+                        if (isDownloaded) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.check_circle, size: 14, color: Theme.of(context).primaryColor.withOpacity(0.7)),
+                          const SizedBox(width: 2),
+                          Text("已下载", style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withOpacity(0.7))),
+                        ],
+                      ],
                     ),
                     if (node.size != null)
                       Text(

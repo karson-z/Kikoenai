@@ -4,8 +4,14 @@ import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 
 class MoreOptionsBottomSheet extends StatelessWidget {
   final MediaItem track;
+  final List<QuickActionItem> quickActions;
+  final List<ListActionItem> listActions;
 
-  const MoreOptionsBottomSheet({super.key, required this.track});
+  const MoreOptionsBottomSheet(
+      {super.key,
+      required this.track,
+      required this.quickActions,
+      required this.listActions});
 
   @override
   Widget build(BuildContext context) {
@@ -50,13 +56,11 @@ class MoreOptionsBottomSheet extends StatelessWidget {
               child: Row(
                 children: [
                   // 专辑封面
-                  ClipRRect(
+                  SimpleExtendedImage(
                     borderRadius: BorderRadius.circular(8),
-                    child: SimpleExtendedImage(
-                      track.extras!['mainCoverUrl'],
-                      width: 60,
-                      height: 60,
-                    )
+                    track.extras!['mainCoverUrl'],
+                    width: 60,
+                    height: 60,
                   ),
                   const SizedBox(width: 16),
                   // 标题和歌手
@@ -87,34 +91,33 @@ class MoreOptionsBottomSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // [移除] 原图右上角的 VIP 和心动按钮
                 ],
               ),
             ),
-
             Divider(height: 1, color: dividerColor),
-
-            // 2. 功能按钮栏 (移除 "一起听")
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildActionButton(Icons.add_box_outlined, "收藏", iconColor!, primaryTextColor),
-                  _buildActionButton(Icons.download_for_offline_outlined, "下载", iconColor, primaryTextColor),
-                  _buildActionButton(Icons.share_outlined, "分享", iconColor, primaryTextColor),
-                  _buildActionButton(Icons.screen_rotation_outlined, "横屏", iconColor, primaryTextColor),
-                ],
+                children: quickActions.map((action) {
+                  return _buildActionButton(
+                    action,
+                    iconColor!,
+                    primaryTextColor,
+                  );
+                }).toList(),
               ),
             ),
-
             Divider(height: 1, color: dividerColor),
-
             // 3. 信息列表
-            _buildListItem(Icons.album_outlined, "专辑", track.album, iconColor, primaryTextColor, secondaryTextColor!),
-            _buildListItem(Icons.person_outline_rounded, "歌手", track.artist, iconColor, primaryTextColor, secondaryTextColor),
-            _buildListItem(Icons.info_outline_rounded, "查看歌曲百科", null, iconColor, primaryTextColor, secondaryTextColor),
-
+            ...listActions.map((item) {
+              return _buildListItem(
+                item,
+                iconColor!,
+                primaryTextColor,
+                secondaryTextColor!,
+              );
+            }),
             const SizedBox(height: 20),
           ],
         ),
@@ -123,22 +126,19 @@ class MoreOptionsBottomSheet extends StatelessWidget {
   }
 
   // 构建功能按钮 (收藏、下载等)
-  Widget _buildActionButton(IconData icon, String label, Color iconColor, Color textColor) {
+  Widget _buildActionButton(QuickActionItem action, Color iconColor, Color textColor) {
     return InkWell(
-      onTap: () {
-        // TODO: 处理点击事件
-        print("点击了: $label");
-      },
+      onTap: action.onTap, // 直接绑定传入的回调
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 28, color: iconColor),
+            Icon(action.icon, size: 28, color: iconColor),
             const SizedBox(height: 8),
             Text(
-              label,
+              action.label,
               style: TextStyle(fontSize: 12, color: textColor),
             ),
           ],
@@ -147,28 +147,25 @@ class MoreOptionsBottomSheet extends StatelessWidget {
     );
   }
 
-  // 构建列表项 (专辑、歌手等)
-  Widget _buildListItem(IconData icon, String title, String? subtitle, Color iconColor, Color titleColor, Color subtitleColor) {
+  // 内部组件构建方法 - 接收 ListActionItem 对象
+  Widget _buildListItem(ListActionItem item, Color iconColor, Color titleColor, Color subtitleColor) {
     return InkWell(
-      onTap: () {
-        // TODO: 处理点击事件
-        print("点击了: $title");
-      },
+      onTap: item.onTap, // 直接绑定传入的回调
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Row(
           children: [
-            Icon(icon, size: 24, color: iconColor),
+            Icon(item.icon, size: 24, color: iconColor),
             const SizedBox(width: 16),
             Text(
-              title,
+              item.title,
               style: TextStyle(fontSize: 16, color: titleColor),
             ),
-            if (subtitle != null) ...[
+            if (item.subtitle != null) ...[
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  subtitle,
+                  item.subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 14, color: subtitleColor),
@@ -180,4 +177,32 @@ class MoreOptionsBottomSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+// 数据驱动模型
+class QuickActionItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  QuickActionItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+}
+
+// 用于底部列表项（专辑、歌手、百科）
+class ListActionItem {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  ListActionItem({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
 }

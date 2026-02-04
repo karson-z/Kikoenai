@@ -60,7 +60,7 @@ dependencies:
   back_button_interceptor: ^8.0.4
   native_flutter_proxy: ^0.3.1
   background_downloader: ^9.5.2
-  hooks_riverpod: ^3.0.3
+  flutter_lyric: ^3.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -68,6 +68,5 @@ dev_dependencies:
   flutter_lints: ^2.0.0
   json_serializable: ^6.7.1
   riverpod_lint: ^3.0.3
-  hive_test: ^1.0.0
   freezed: ^3.0.0
   hive_ce_generator: ^1.9.3

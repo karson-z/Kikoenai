@@ -7,8 +7,6 @@ class RatingSection extends StatelessWidget {
   final double average; // 平均分
   final int userRating; // 当前用户的评分 (0 表示未评分)
   final ValueChanged<int> onRatingUpdate; // 评分回调
-
-  // 🔥 新增：由父组件传递的动态组件列表
   final List<Widget>? extraWidgets;
 
   const RatingSection({
@@ -56,7 +54,6 @@ class RatingSection extends StatelessWidget {
           ),
         ),
 
-        // 🔥 动态插入父组件传递的组件
         if (extraWidgets != null) ...extraWidgets!,
       ],
     );

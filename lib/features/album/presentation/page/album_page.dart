@@ -5,8 +5,6 @@ import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_gr
 import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/routes/app_routes.dart';
-import '../../../../core/storage/hive_key.dart';
-import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../viewmodel/provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
@@ -26,7 +24,7 @@ class AlbumPage extends ConsumerStatefulWidget {
 class _AlbumPageState extends ConsumerState<AlbumPage> {
   @override
   Widget build(BuildContext context) {
-    final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card)
+    final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card)
         .getDeviceType(context);
     final hotState = ref.watch(hotWorksProvider);
     final recState = ref.watch(recommendedWorksProvider);
@@ -73,7 +71,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   // --- 热门作品构建逻辑 ---
   List<Widget> _buildHotSection(AsyncValue hotState) {
     return [
-      SectionHeader(
+      const SectionHeader(
         title: '热门作品',
       ),
       hotState.when(
@@ -102,7 +100,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   // --- 推荐作品构建逻辑 ---
   List<Widget> _buildRecommendSection(AsyncValue recState) {
     return [
-        SectionHeader(
+        const SectionHeader(
           title: '推荐作品',
         ),
       recState.when(
@@ -137,7 +135,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   // --- 最新作品构建逻辑 ---
   List<Widget> _buildNewSection(AsyncValue newState) {
     return [
-      SectionHeader(title: '最新作品'),
+      const SectionHeader(title: '最新作品'),
       newState.when(
         data: (state) => ResponsiveCardGrid(
           work: state.works,
