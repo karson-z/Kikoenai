@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-import 'package:kikoenai/core/widgets/player/player_lyrics.dart';
+import 'package:kikoenai/core/widgets/player/player_lyrics_panel.dart';
 import 'package:kikoenai/core/widgets/player/player_mode_button.dart';
 import 'package:kikoenai/core/widgets/player/player_more_widget.dart';
 import 'package:kikoenai/core/widgets/player/player_progress_bar.dart';
@@ -327,7 +327,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                     color: Colors.black12,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const LyricsView(),
+                  child: const LyricsPanel(),
                 ),
               ),
             ],
@@ -532,8 +532,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
           ),
         ),
         Expanded(
-            child: LyricsView(
-                key: const ValueKey('lyrics'), onTap: _toggleLyrics)),
+            child: LyricsPanel(
+                onTap: _toggleLyrics)),
       ],
     );
   }
