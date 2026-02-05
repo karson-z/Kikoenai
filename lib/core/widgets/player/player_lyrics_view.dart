@@ -61,28 +61,6 @@ class _ShowLyricState extends State<ShowLyric> {
       child: ValueListenableBuilder(
         valueListenable: _currentStyleNotifier,
         builder: (context, style, child) {
-          final isDark =
-              MediaQuery.of(context).platformBrightness == Brightness.dark;
-          // For performance, you should avoid creating a new style on every build. This is just a demo and not recommended.
-          if (isDark) {
-            style = style.copyWith(
-              textStyle: style.textStyle.copyWith(
-                color: Colors.black.withValues(alpha: 0.4),
-              ),
-              activeStyle: style.activeStyle.copyWith(
-                color: Colors.black.withValues(alpha: .8),
-              ),
-              translationStyle: style.translationStyle.copyWith(
-                color: Colors.black.withValues(alpha: 0.4),
-              ),
-              selectedColor: Colors.black.withValues(alpha: 0.9),
-              selectedTranslationColor: Colors.black.withValues(alpha: 0.9),
-              activeHighlightColor: style.activeHighlightColor?.withValues(
-                alpha: 0.6,
-              ),
-              translationActiveColor: Colors.black.withValues(alpha: 0.6),
-            );
-          }
           return Stack(
             children: [
               ...?widget.beforeLyricBuilder?.call(lyricController, style),

@@ -17,9 +17,6 @@ void main() async {
     JustAudioMediaKit.ensureInitialized(
       linux: true,            // default: true  - dependency: media_kit_libs_linux
       windows: true,          // default: true  - dependency: media_kit_libs_windows_audio
-      android: true,          // default: false - dependency: media_kit_libs_android_audio
-      iOS: true,              // default: false - dependency: media_kit_libs_ios_audio
-      macOS: true,            // default: false - dependency: media_kit_libs_macos_audio
     );
   }
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
