@@ -1,5 +1,7 @@
 import 'package:hive_ce/hive.dart';
 
+part 'lyric_model.g.dart';
+
 @HiveType(typeId: 6) // 确保 ID 不重复
 class LyricConfigModel {
   // === 字体大小细分 ===
