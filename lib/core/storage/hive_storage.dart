@@ -32,8 +32,6 @@ class AppStorage {
 
     // 初始化
     await Hive.initFlutter(_hiveRootPath);
-    Hive.registerAdapter(AuthResponseAdapter());
-    Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
