@@ -45,3 +45,537 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+/ios/.symlinks/plugins/audio_service/
+/ios/Pods/Target Support Files/audio_service/audio_service.debug.xcconfig
+/ios/Pods/Target Support Files/audio_service/audio_service.modulemap
+/ios/Pods/Local Podspecs/audio_service.podspec.json
+/ios/Pods/Target Support Files/audio_service/audio_service.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/audio_service.xcscheme
+/ios/Pods/Target Support Files/audio_service/audio_service-dummy.m
+/ios/Pods/Target Support Files/audio_service/audio_service-Info.plist
+/ios/Pods/Target Support Files/audio_service/audio_service-prefix.pch
+/ios/Pods/Target Support Files/audio_service/audio_service-umbrella.h
+/ios/.symlinks/plugins/audio_session/
+/ios/Pods/Target Support Files/audio_session/audio_session.debug.xcconfig
+/ios/Pods/Target Support Files/audio_session/audio_session.modulemap
+/ios/Pods/Local Podspecs/audio_session.podspec.json
+/ios/Pods/Target Support Files/audio_session/audio_session.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/audio_session.xcscheme
+/ios/Pods/Target Support Files/audio_session/audio_session-dummy.m
+/ios/Pods/Target Support Files/audio_session/audio_session-Info.plist
+/ios/Pods/Target Support Files/audio_session/audio_session-prefix.pch
+/ios/Pods/Target Support Files/audio_session/audio_session-umbrella.h
+/ios/.symlinks/plugins/background_downloader/
+/ios/Pods/Target Support Files/background_downloader/background_downloader.debug.xcconfig
+/ios/Pods/Target Support Files/background_downloader/background_downloader.modulemap
+/ios/Pods/Local Podspecs/background_downloader.podspec.json
+/ios/Pods/Target Support Files/background_downloader/background_downloader.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/background_downloader.xcscheme
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/background_downloader-background_downloader_privacy.xcscheme
+/ios/Pods/Target Support Files/background_downloader/background_downloader-dummy.m
+/ios/Pods/Target Support Files/background_downloader/background_downloader-Info.plist
+/ios/Pods/Target Support Files/background_downloader/background_downloader-prefix.pch
+/ios/Pods/Target Support Files/background_downloader/background_downloader-umbrella.h
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/camera.imageset/camera.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/camera.imageset/camera@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/camera.imageset/camera@3x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/checked_background.imageset/checked_background.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/checked_background.imageset/checked_background@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/checked_background.imageset/checked_background@3x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/camera.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/checked_background.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/empty_album.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_back_arrow.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_checked_image.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_unchecked_image.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/tick_blue.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/video_camera.imageset/Contents.json
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ImageFailed.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPause.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPlay.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoClose.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlay.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlayControlBackground.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoTimeSlider.imageset/Contents.json
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/Contents.json
+/ios/.symlinks/plugins/device_info_plus/
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus.debug.xcconfig
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus.modulemap
+/ios/Pods/Local Podspecs/device_info_plus.podspec.json
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/device_info_plus.xcscheme
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/device_info_plus-device_info_plus_privacy.xcscheme
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus-dummy.m
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus-Info.plist
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus-prefix.pch
+/ios/Pods/Target Support Files/device_info_plus/device_info_plus-umbrella.h
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/Model/DKAsset+Export.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/Model/DKAsset+Fetch.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/Model/DKAsset.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/Model/DKAssetGroup.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/Cell/DKAssetGroupCellItemProtocol.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/Cell/DKAssetGroupDetailBaseCell.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/Cell/DKAssetGroupDetailCameraCell.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/Cell/DKAssetGroupDetailImageCell.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/DKAssetGroupDetailVC.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/Cell/DKAssetGroupDetailVideoCell.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/DKAssetGroupGridLayout.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/DKAssetGroupListVC.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImageAssetExporter.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/DKImageBaseManager.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/DKImageDataManager.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImageExtensionController.swift
+/ios/Pods/DKImagePickerController/Sources/Extensions/DKImageExtensionGallery.swift
+/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/DKImageGroupDataManager.swift
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController.debug.xcconfig
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController.modulemap
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController.release.xcconfig
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/ar.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Base.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/da.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/de.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/en.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/es.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/fr.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/hu.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/it.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/ja.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/ko.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/nb-NO.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/nl.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/pt_BR.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/ru.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/tr.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/ur.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/vi.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/zh-Hans.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/zh-Hant.lproj/DKImagePickerController.strings
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImagePickerController.swift
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/DKImagePickerController.xcscheme
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/DKImagePickerController-DKImagePickerController.xcscheme
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController-dummy.m
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController-Info.plist
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController-prefix.pch
+/ios/Pods/Target Support Files/DKImagePickerController/DKImagePickerController-umbrella.h
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImagePickerControllerBaseUIDelegate.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/DKImagePickerControllerResource.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PDFPreview/DKPDFView.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/DKPermissionView.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoBaseImagePreviewVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/DKPhotoBasePreviewVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/DKPhotoContentAnimationView.swift
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery.debug.xcconfig
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery.modulemap
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery.release.xcconfig
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Base.lproj/DKPhotoGallery.strings
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/en.lproj/DKPhotoGallery.strings
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/zh-Hans.lproj/DKPhotoGallery.strings
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGallery.swift
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/DKPhotoGallery.xcscheme
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/DKPhotoGallery-DKPhotoGallery.xcscheme
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-dummy.m
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-Info.plist
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-prefix.pch
+/ios/Pods/Target Support Files/DKPhotoGallery/DKPhotoGallery-umbrella.h
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryContentVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Transition/DKPhotoGalleryInteractiveTransition.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryItem.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/DKPhotoGalleryResource.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryScrollView.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Transition/DKPhotoGalleryTransitionController.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Transition/DKPhotoGalleryTransitionDismiss.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Transition/DKPhotoGalleryTransitionPresent.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoImageDownloader.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoImagePreviewVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoImageUtility.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoImageView.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoIncrementalIndicator.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PDFPreview/DKPhotoPDFPreviewVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PlayerPreview/DKPhotoPlayerPreviewVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoPreviewFactory.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/DKPhotoProgressIndicator.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/DKPhotoProgressIndicatorProtocol.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/QRCode/DKPhotoQRCodeResultVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/QRCode/DKPhotoWebVC.swift
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PlayerPreview/DKPlayerView.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKPopoverViewController.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/empty_album.imageset/empty_album.png
+/ios/.symlinks/plugins/file_picker/
+/ios/Pods/Target Support Files/file_picker/file_picker.debug.xcconfig
+/ios/Pods/Target Support Files/file_picker/file_picker.modulemap
+/ios/Pods/Local Podspecs/file_picker.podspec.json
+/ios/Pods/Target Support Files/file_picker/file_picker.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/file_picker.xcscheme
+/ios/Pods/Target Support Files/file_picker/file_picker-dummy.m
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/file_picker-file_picker_ios_privacy.xcscheme
+/ios/Pods/Target Support Files/file_picker/file_picker-Info.plist
+/ios/Pods/Target Support Files/file_picker/file_picker-prefix.pch
+/ios/Pods/Target Support Files/Flutter/Flutter.debug.xcconfig
+/ios/Flutter/Flutter.podspec
+/ios/Pods/Local Podspecs/Flutter.podspec.json
+/ios/Pods/Target Support Files/Flutter/Flutter.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/Flutter.xcscheme
+/macos/Flutter/ephemeral/Flutter-Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/macos/Flutter/ephemeral/flutter_export_environment.sh
+/ios/Flutter/ephemeral/flutter_lldb_helper.py
+/ios/Flutter/ephemeral/flutter_lldbinit
+/ios/Flutter/Generated.xcconfig
+/ios/Runner/GeneratedPluginRegistrant.h
+/ios/Runner/GeneratedPluginRegistrant.m
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ImageFailed.imageset/ImageFailed.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ImageFailed.imageset/ImageFailed@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ImageFailed.imageset/ImageFailed@3x.png
+/ios/.symlinks/plugins/just_audio/
+/ios/Pods/Target Support Files/just_audio/just_audio.debug.xcconfig
+/ios/Pods/Target Support Files/just_audio/just_audio.modulemap
+/ios/Pods/Local Podspecs/just_audio.podspec.json
+/ios/Pods/Target Support Files/just_audio/just_audio.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/just_audio.xcscheme
+/ios/Pods/Target Support Files/just_audio/just_audio-dummy.m
+/ios/Pods/Target Support Files/just_audio/just_audio-Info.plist
+/ios/Pods/Target Support Files/just_audio/just_audio-prefix.pch
+/ios/Pods/Target Support Files/just_audio/just_audio-umbrella.h
+/ios/Pods/DKImagePickerController/LICENSE
+/ios/Pods/DKPhotoGallery/LICENSE
+/ios/Pods/SDWebImage/LICENSE
+/ios/Pods/SwiftyGif/LICENSE
+/ios/Pods/Manifest.lock
+/ios/.symlinks/plugins/native_flutter_proxy/
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy.debug.xcconfig
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy.modulemap
+/ios/Pods/Local Podspecs/native_flutter_proxy.podspec.json
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/native_flutter_proxy.xcscheme
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy-dummy.m
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy-Info.plist
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy-prefix.pch
+/ios/Pods/Target Support Files/native_flutter_proxy/native_flutter_proxy-umbrella.h
+/ios/Pods/SDWebImage/SDWebImage/Private/NSBezierPath+SDRoundedCorners.h
+/ios/Pods/SDWebImage/SDWebImage/Private/NSBezierPath+SDRoundedCorners.m
+/ios/Pods/SDWebImage/SDWebImage/Core/NSButton+WebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/NSButton+WebCache.m
+/ios/Pods/SDWebImage/SDWebImage/Core/NSData+ImageContentType.h
+/ios/Pods/SDWebImage/SDWebImage/Core/NSData+ImageContentType.m
+/ios/Pods/SDWebImage/SDWebImage/Core/NSImage+Compatibility.h
+/ios/Pods/SDWebImage/SDWebImage/Core/NSImage+Compatibility.m
+/ios/Pods/SwiftyGif/SwiftyGif/NSImage+SwiftyGif.swift
+/ios/Pods/SwiftyGif/SwiftyGif/NSImageView+SwiftyGif.swift
+/ios/Pods/SwiftyGif/SwiftyGif/ObjcAssociatedWeakObject.swift
+/ios/.symlinks/plugins/open_filex/
+/ios/Pods/Target Support Files/open_filex/open_filex.debug.xcconfig
+/ios/Pods/Target Support Files/open_filex/open_filex.modulemap
+/ios/Pods/Local Podspecs/open_filex.podspec.json
+/ios/Pods/Target Support Files/open_filex/open_filex.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/open_filex.xcscheme
+/ios/Pods/Target Support Files/open_filex/open_filex-dummy.m
+/ios/Pods/Target Support Files/open_filex/open_filex-Info.plist
+/ios/Pods/Target Support Files/open_filex/open_filex-prefix.pch
+/ios/Pods/Target Support Files/open_filex/open_filex-umbrella.h
+/ios/.symlinks/plugins/path_provider_foundation/
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation.debug.xcconfig
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation.modulemap
+/ios/Pods/Local Podspecs/path_provider_foundation.podspec.json
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/path_provider_foundation.xcscheme
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation-dummy.m
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation-Info.plist
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/path_provider_foundation-path_provider_foundation_privacy.xcscheme
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation-prefix.pch
+/ios/Pods/Target Support Files/path_provider_foundation/path_provider_foundation-umbrella.h
+/ios/.symlinks/plugins/permission_handler_apple/
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple.debug.xcconfig
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple.modulemap
+/ios/Pods/Local Podspecs/permission_handler_apple.podspec.json
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/permission_handler_apple.xcscheme
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple-dummy.m
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple-Info.plist
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/permission_handler_apple-permission_handler_apple_privacy.xcscheme
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple-prefix.pch
+/ios/Pods/Target Support Files/permission_handler_apple/permission_handler_apple-umbrella.h
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_back_arrow.imageset/photoGallery_back_arrow.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_back_arrow.imageset/photoGallery_back_arrow@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_back_arrow.imageset/photoGallery_back_arrow@3x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_checked_image.imageset/photoGallery_checked_image.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_checked_image.imageset/photoGallery_checked_image@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_checked_image.imageset/photoGallery_checked_image@3x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_unchecked_image.imageset/photoGallery_unchecked_image.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_unchecked_image.imageset/photoGallery_unchecked_image@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/photoGallery_unchecked_image.imageset/photoGallery_unchecked_image@3x.png
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner.modulemap
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/Pods-Runner.xcscheme
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-acknowledgements.markdown
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-acknowledgements.plist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-dummy.m
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Debug-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Debug-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Profile-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Profile-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Release-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks-Release-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-Info.plist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources.sh
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Debug-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Debug-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Profile-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Profile-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Release-input-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-resources-Release-output-files.xcfilelist
+/ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-umbrella.h
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests.modulemap
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/Pods-RunnerTests.xcscheme
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-acknowledgements.markdown
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-acknowledgements.plist
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-dummy.m
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-Info.plist
+/ios/Pods/Target Support Files/Pods-RunnerTests/Pods-RunnerTests-umbrella.h
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/PrivacyInfo.xcprivacy
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/PrivacyInfo.xcprivacy
+/ios/Pods/SDWebImage/WebImage/PrivacyInfo.xcprivacy
+/ios/Pods/SwiftyGif/SwiftyGif/PrivacyInfo.xcprivacy
+/ios/Pods/Pods.xcodeproj/project.pbxproj
+/ios/Pods/DKImagePickerController/README.md
+/ios/Pods/DKPhotoGallery/README.md
+/ios/Pods/SDWebImage/README.md
+/ios/Pods/SwiftyGif/README.md
+/ios/Pods/Target Support Files/background_downloader/ResourceBundle-background_downloader_privacy-background_downloader-Info.plist
+/ios/Pods/Target Support Files/device_info_plus/ResourceBundle-device_info_plus_privacy-device_info_plus-Info.plist
+/ios/Pods/Target Support Files/DKImagePickerController/ResourceBundle-DKImagePickerController-DKImagePickerController-Info.plist
+/ios/Pods/Target Support Files/DKPhotoGallery/ResourceBundle-DKPhotoGallery-DKPhotoGallery-Info.plist
+/ios/Pods/Target Support Files/file_picker/ResourceBundle-file_picker_ios_privacy-file_picker-Info.plist
+/ios/Pods/Target Support Files/path_provider_foundation/ResourceBundle-path_provider_foundation_privacy-path_provider_foundation-Info.plist
+/ios/Pods/Target Support Files/permission_handler_apple/ResourceBundle-permission_handler_apple_privacy-permission_handler_apple-Info.plist
+/ios/Pods/Target Support Files/SDWebImage/ResourceBundle-SDWebImage-SDWebImage-Info.plist
+/ios/Pods/Target Support Files/shared_preferences_foundation/ResourceBundle-shared_preferences_foundation_privacy-shared_preferences_foundation-Info.plist
+/ios/Pods/Target Support Files/sqflite_darwin/ResourceBundle-sqflite_darwin_privacy-sqflite_darwin-Info.plist
+/ios/Pods/Target Support Files/SwiftyGif/ResourceBundle-SwiftyGif-SwiftyGif-Info.plist
+/ios/Pods/Target Support Files/url_launcher_ios/ResourceBundle-url_launcher_ios_privacy-url_launcher_ios-Info.plist
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImage.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImage.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImagePlayer.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImagePlayer.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageRep.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageRep.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageView+WebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageView+WebCache.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageView.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDAnimatedImageView.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDAssociatedObject.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDAssociatedObject.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDAsyncBlockOperation.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDAsyncBlockOperation.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDCallbackQueue.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDCallbackQueue.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDDeviceHelper.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDDeviceHelper.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDDiskCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDDiskCache.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDDisplayLink.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDDisplayLink.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDFileAttributeHelper.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDFileAttributeHelper.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDGraphicsImageRenderer.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDGraphicsImageRenderer.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageAPNGCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageAPNGCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageAssetManager.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageAssetManager.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageAWebPCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageAWebPCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCache.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCacheConfig.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCacheConfig.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCacheDefine.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCacheDefine.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCachesManager.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCachesManager.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageCachesManagerOperation.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageCachesManagerOperation.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCoderHelper.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCoderHelper.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCodersManager.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageCodersManager.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageFrame.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageFrame.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageFramePool.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageFramePool.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageGIFCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageGIFCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageGraphics.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageGraphics.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageHEICCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageHEICCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageIOAnimatedCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageIOAnimatedCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDImageIOAnimatedCoderInternal.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageIOCoder.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageIOCoder.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageLoader.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageLoader.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageLoadersManager.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageLoadersManager.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageTransformer.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDImageTransformer.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDInternalMacros.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDInternalMacros.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDMemoryCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDMemoryCache.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDmetamacros.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDWeakProxy.h
+/ios/Pods/SDWebImage/SDWebImage/Private/SDWeakProxy.m
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage.debug.xcconfig
+/ios/Pods/SDWebImage/WebImage/SDWebImage.h
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage.modulemap
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/SDWebImage.xcscheme
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage-dummy.m
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage-Info.plist
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage-prefix.pch
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/SDWebImage-SDWebImage.xcscheme
+/ios/Pods/Target Support Files/SDWebImage/SDWebImage-umbrella.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCacheKeyFilter.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCacheKeyFilter.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCacheSerializer.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCacheSerializer.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCompat.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageCompat.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDefine.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDefine.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloader.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloader.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderConfig.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderConfig.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderDecryptor.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderDecryptor.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderOperation.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderOperation.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderRequestModifier.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderRequestModifier.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderResponseModifier.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageDownloaderResponseModifier.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageError.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageError.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageIndicator.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageIndicator.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageManager.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageManager.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageOperation.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageOperation.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageOptionsProcessor.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageOptionsProcessor.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImagePrefetcher.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImagePrefetcher.m
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageTransition.h
+/ios/Pods/SDWebImage/SDWebImage/Core/SDWebImageTransition.m
+/ios/Pods/SDWebImage/SDWebImage/Private/SDWebImageTransitionInternal.h
+/ios/.symlinks/plugins/shared_preferences_foundation/
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation.debug.xcconfig
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation.modulemap
+/ios/Pods/Local Podspecs/shared_preferences_foundation.podspec.json
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/shared_preferences_foundation.xcscheme
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation-dummy.m
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation-Info.plist
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation-prefix.pch
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/shared_preferences_foundation-shared_preferences_foundation_privacy.xcscheme
+/ios/Pods/Target Support Files/shared_preferences_foundation/shared_preferences_foundation-umbrella.h
+/ios/.symlinks/plugins/sqflite_darwin/
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin.debug.xcconfig
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin.modulemap
+/ios/Pods/Local Podspecs/sqflite_darwin.podspec.json
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/sqflite_darwin.xcscheme
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin-dummy.m
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin-Info.plist
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin-prefix.pch
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/sqflite_darwin-sqflite_darwin_privacy.xcscheme
+/ios/Pods/Target Support Files/sqflite_darwin/sqflite_darwin-umbrella.h
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif.debug.xcconfig
+/ios/Pods/SwiftyGif/SwiftyGif/SwiftyGif.h
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif.modulemap
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/SwiftyGif.xcscheme
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif-dummy.m
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif-Info.plist
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif-prefix.pch
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/SwiftyGif-SwiftyGif.xcscheme
+/ios/Pods/Target Support Files/SwiftyGif/SwiftyGif-umbrella.h
+/ios/Pods/SwiftyGif/SwiftyGif/SwiftyGifManager.swift
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/tick_blue.imageset/tick_blue.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/tick_blue.imageset/tick_blue@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/tick_blue.imageset/tick_blue@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPause.imageset/ToolbarPause.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPause.imageset/ToolbarPause@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPause.imageset/ToolbarPause@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPlay.imageset/ToolbarPlay.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPlay.imageset/ToolbarPlay@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/ToolbarPlay.imageset/ToolbarPlay@3x.png
+/ios/Pods/SDWebImage/SDWebImage/Core/UIButton+WebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIButton+WebCache.m
+/ios/Pods/SDWebImage/SDWebImage/Private/UIColor+SDHexString.h
+/ios/Pods/SDWebImage/SDWebImage/Private/UIColor+SDHexString.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+ExtendedCacheData.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+ExtendedCacheData.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+ForceDecode.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+ForceDecode.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+GIF.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+GIF.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+MemoryCacheCost.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+MemoryCacheCost.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Metadata.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Metadata.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+MultiFormat.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+MultiFormat.m
+/ios/Pods/SwiftyGif/SwiftyGif/UIImage+SwiftyGif.swift
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Transform.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Transform.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImageView+HighlightedWebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImageView+HighlightedWebCache.m
+/ios/Pods/SwiftyGif/SwiftyGif/UIImageView+SwiftyGif.swift
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImageView+WebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIImageView+WebCache.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCache.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCache.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCacheOperation.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCacheOperation.m
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCacheState.h
+/ios/Pods/SDWebImage/SDWebImage/Core/UIView+WebCacheState.m
+/ios/.symlinks/plugins/url_launcher_ios/
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios.debug.xcconfig
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios.modulemap
+/ios/Pods/Local Podspecs/url_launcher_ios.podspec.json
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios.release.xcconfig
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/url_launcher_ios.xcscheme
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios-dummy.m
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios-Info.plist
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios-prefix.pch
+/ios/Pods/Target Support Files/url_launcher_ios/url_launcher_ios-umbrella.h
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/url_launcher_ios-url_launcher_ios_privacy.xcscheme
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/video_camera.imageset/video_camera.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/video_camera.imageset/video_camera@2x.png
+/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/Resource/Resources/Images.xcassets/video_camera.imageset/video_camera@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoClose.imageset/VideoClose.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoClose.imageset/VideoClose@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoClose.imageset/VideoClose@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlay.imageset/VideoPlay.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlay.imageset/VideoPlay@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlay.imageset/VideoPlay@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlayControlBackground.imageset/VideoPlayControlBackground.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlayControlBackground.imageset/VideoPlayControlBackground@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoPlayControlBackground.imageset/VideoPlayControlBackground@3x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoTimeSlider.imageset/VideoTimeSlider.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoTimeSlider.imageset/VideoTimeSlider@2x.png
+/ios/Pods/DKPhotoGallery/DKPhotoGallery/Resource/Resources/Images.xcassets/VideoTimeSlider.imageset/VideoTimeSlider@3x.png
+/ios/Pods/Pods.xcodeproj/xcuserdata/rising02.xcuserdatad/xcschemes/xcschememanagement.plist
