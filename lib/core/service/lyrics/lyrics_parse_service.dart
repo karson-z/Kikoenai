@@ -106,21 +106,23 @@ class LyricStyleFactory {
   static LyricStyle createStyle(LyricConfigModel config) {
     return LyricStyle(
       textStyle: TextStyle(
-        fontSize: config.mainFontSize,
-        color: Colors.white70,
-        height: 1.2,
+        fontSize: config.mainFontSize, // 建议设置小一点，如 18-20
+        color: Colors.white.withOpacity(0.5), // 降低不透明度，模拟“失焦”感
+        height: 1.5, // 增加行高，增加呼吸感
+        fontWeight: FontWeight.w500,
       ),
 
       activeStyle: TextStyle(
-        fontSize: config.activeFontSize,
+        fontSize: config.activeFontSize, // 建议设置大一点，如 28-32，形成巨大反差
         color: Colors.white,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w800, // 极粗字体，强调视觉重心
         height: 1.2,
       ),
 
       translationStyle: TextStyle(
         fontSize: config.transFontSize,
-        color: Colors.white70,
+        color: Colors.white.withOpacity(0.4), // 翻译更淡
+        height: 1.5,
       ),
 
       lineGap: config.lineGap,
@@ -141,21 +143,22 @@ class LyricStyleFactory {
       activeAlignment: MainAxisAlignment.start,
 
       // --- 渐隐效果 ---
-      fadeRange: FadeRange(top: 40, bottom: 80),
+      fadeRange: FadeRange(top: 0.1, bottom: 0.3),
 
-      // --- 动画时间 ---
-      scrollDuration: const Duration(milliseconds: 240),
-      scrollDurations: {
-        500: const Duration(milliseconds: 500),
-        1000: const Duration(milliseconds: 1000),
-      },
+      // 滚动动画：要有“惯性”感
+      scrollDuration: const Duration(milliseconds: 650), // 稍慢一点，显得优雅
+      scrollCurve: Curves.easeInOutCubic, // 使用三次贝塞尔曲线，起步慢->加速->减速停止
 
-      // --- 切换动画 ---
+      // 切换动画（行变大变亮的过程）：要有“弹跳”感
       enableSwitchAnimation: true,
-      switchEnterDuration: const Duration(milliseconds: 500),
-      switchExitDuration: const Duration(milliseconds: 500),
-      switchEnterCurve: Curves.easeIn,
-      switchExitCurve: Curves.easeOut,
+      switchEnterDuration: const Duration(milliseconds: 400),
+      switchExitDuration: const Duration(milliseconds: 400),
+
+      // 核心技巧：使用 easeOutBack 或 easeOutQuart
+      // easeOutBack 会让文字变大时稍微“冲”过头一点点再缩回来，产生弹性（慎用，可能太夸张）
+      // easeOutQuart 则是非常平滑且快速的放大，非常接近 iOS 系统动画
+      switchEnterCurve: Curves.easeOutQuart,
+      switchExitCurve: Curves.easeInQuad,
 
       // --- 自动恢复逻辑 ---
       selectionAutoResumeMode: SelectionAutoResumeMode.neverResume,
@@ -163,11 +166,17 @@ class LyricStyleFactory {
       activeAutoResumeDuration: const Duration(milliseconds: 2000),
 
       // --- 高亮渐变特效 ---
-      activeHighlightGradient: const LinearGradient(
+      activeHighlightGradient: LinearGradient(
+        begin: Alignment.topCenter, // 从上到下
+        end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFFFFFFF),
-          Color(0xFFD7D7D7),
+          // 起始：稍微带点亮度的半透明白 (根据需要调整透明度 0.1 - 0.3)
+          Colors.white.withOpacity(0.25),
+          // 结束：几乎完全透明，但这能让渐变更柔和
+          Colors.white.withOpacity(0.05),
         ],
+        // 关键：加一个中间点，让白色主要集中在中间，两边快速淡出
+        stops: const [0.0, 1.0],
       ),
       activeHighlightExtraFadeWidth: 40,
     );

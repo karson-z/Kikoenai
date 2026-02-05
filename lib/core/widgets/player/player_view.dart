@@ -430,9 +430,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
 
     // 2. 计算顶部避让高度 (保持稳定，不随动画跳动)
     // 逻辑：封面图高度 (宽度 * 0.75) + 顶部状态栏 + 额外的头部间距
-    // 你可以根据实际 _calculateRects 中的算法微调这里的数值
     final double coverHeight =
-        (size.width * 0.75).clamp(250.0, 350.0); // 与你计算 expandedAlbum 的逻辑保持一致
+        (size.width * 0.75).clamp(250.0, 350.0); // 与expandedAlbum 的逻辑保持一致
     final double topContentStart = padding.top + 60.0 + coverHeight + 20.0;
 
     return LayoutBuilder(
@@ -491,49 +490,43 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
       children: [
         SizedBox(height: params.topPadding + 70),
         // Header Area
-        Container(
-          height: 60,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            children: [
-              // 这里放置一个透明占位符
-              // Floating Image 会精确地飞到这个位置
-              const SizedBox(width: 50, height: 50),
+        GestureDetector(
+          onTap: _toggleLyrics,
+          child:Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                // Floating Image 会精确地飞到这个位置
+                const SizedBox(width: 50, height: 50),
 
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(params.track?.title ?? "未播放",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16)),
-                    Text(params.track?.artist ?? "未知艺人",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 12)),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(params.track?.title ?? "未播放",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
+                      Text(params.track?.artist ?? "未知艺人",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
                 ),
-              ),
-              _buildMiniPlayButton(ref),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                color: Colors.white,
-                onPressed: _toggleLyrics,
-              ),
-            ],
+                _buildMiniPlayButton(ref),
+              ],
+            ),
           ),
         ),
-        Expanded(
-            child: LyricsPanel(
-                onTap: _toggleLyrics)),
+        const Expanded(child: LyricsPanel()),
       ],
     );
   }

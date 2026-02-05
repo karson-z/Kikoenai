@@ -21,10 +21,10 @@ class LyricConfigModel {
   final double translationGap;     // 主歌词与翻译歌词之间的间距 (默认 8)
 
   const LyricConfigModel({
-    this.mainFontSize = 20.0,
+    this.mainFontSize = 18.0,
     this.transFontSize = 12.0,
-    this.activeFontSize = 24.0,
-    this.lineGap = 20.0,
+    this.activeFontSize = 22.0,
+    this.lineGap = 35.0,
     this.translationGap = 5.0,
   });
 
