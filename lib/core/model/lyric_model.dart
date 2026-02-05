@@ -1,82 +1,45 @@
-import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce/hive.dart';
 
-///lyric model
-class LyricsReaderModel {
-  List<LyricsLineModel> lyrics = [];
-}
-extension LyricsListExtension on List<LyricsLineModel> {
-  /// 获取当前播放时间对应的歌词行索引
-  int getCurrentLine(int progress) {
-    if (isEmpty) return 0;
+@HiveType(typeId: 6) // 确保 ID 不重复
+class LyricConfigModel {
+  // === 字体大小细分 ===
+  @HiveField(0)
+  final double mainFontSize;       // 主歌词大小 (默认 18)
 
-    // 二分查找优化版 (假设你的列表已排序)
-    int left = 0;
-    int right = length - 1;
+  @HiveField(1)
+  final double transFontSize;      // 翻译歌词大小 (默认 14)
 
-    while (left <= right) {
-      int mid = left + ((right - left) >> 1);
-      int midTime = this[mid].startTime ?? 0;
+  @HiveField(2)
+  final double activeFontSize;     // 高亮行(正在播放)的大小 (默认 22)
 
-      if (midTime <= progress) {
-        left = mid + 1;
-      } else {
-        right = mid - 1;
-      }
-    }
-    // 此时 right 指向的是最后一个满足 startTime <= progress 的元素
+  @HiveField(3)
+  final double lineGap;            // 普通行之间的间距 (默认 15)
 
-    // 额外检查：VTT 格式可能有明确的 endTime，如果 progress 超过了 endTime，
-    // 在某些 UI 需求下可能需要返回 -1 (表示当前没有任何歌词显示)
-    // 但为了保持你的原始逻辑（保持显示上一句），这里直接返回 right。
+  @HiveField(4)
+  final double translationGap;     // 主歌词与翻译歌词之间的间距 (默认 8)
 
-    return right < 0 ? 0 : right;
+  const LyricConfigModel({
+    this.mainFontSize = 20.0,
+    this.transFontSize = 12.0,
+    this.activeFontSize = 24.0,
+    this.lineGap = 20.0,
+    this.translationGap = 5.0,
+  });
+
+  // 用于更新状态的 CopyWith
+  LyricConfigModel copyWith({
+    double? mainFontSize,
+    double? transFontSize,
+    double? activeFontSize,
+    double? lineGap,
+    double? translationGap,
+  }) {
+    return LyricConfigModel(
+      mainFontSize: mainFontSize ?? this.mainFontSize,
+      transFontSize: transFontSize ?? this.transFontSize,
+      activeFontSize: activeFontSize ?? this.activeFontSize,
+      lineGap: lineGap ?? this.lineGap,
+      translationGap: translationGap ?? this.translationGap,
+    );
   }
-}
-
-
-///lyric line model
-class LyricsLineModel {
-  String? mainText;
-  String? extText;
-  int? startTime;
-  int? endTime;
-
-  //绘制信息
-  LyricDrawInfo? drawInfo;
-
-  bool get hasExt => extText?.isNotEmpty == true;
-
-  bool get hasMain => mainText?.isNotEmpty == true;
-
-}
-
-///lyric draw model
-class LyricDrawInfo {
-  double get otherMainTextHeight => otherMainTextPainter?.height ?? 0;
-
-  double get otherExtTextHeight => otherExtTextPainter?.height ?? 0;
-
-  double get playingMainTextHeight => playingMainTextPainter?.height ?? 0;
-
-  double get playingExtTextHeight => playingExtTextPainter?.height ?? 0;
-  TextPainter? otherMainTextPainter;
-  TextPainter? otherExtTextPainter;
-  TextPainter? playingMainTextPainter;
-  TextPainter? playingExtTextPainter;
-  List<LyricInlineDrawInfo> inlineDrawList = [];
-}
-
-class LyricInlineDrawInfo {
-  int number = 0;
-  String raw = "";
-  double width = 0;
-  double height = 0;
-  Offset offset = Offset.zero;
-}
-
-
-extension LyricsReaderModelExt on LyricsReaderModel? {
-  get isNullOrEmpty => this?.lyrics == null || this!.lyrics.isEmpty;
 }

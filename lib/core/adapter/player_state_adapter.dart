@@ -65,9 +65,6 @@ class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
     writer.writeBool(obj.shuffleEnabled);
     writer.writeInt(obj.repeatMode.index);
     writer.writeDouble(obj.volume);
-
-    // --- 新增写入 ---
-    // 注意：写入顺序必须和读取顺序严格一致
     writer.writeList(obj.subtitleList);
     writer.write(obj.currentSubtitle);
   }
