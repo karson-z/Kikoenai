@@ -6,11 +6,8 @@ import 'package:kikoenai/core/widgets/player/provider/player_lyrics_provider.dar
 import 'package:flutter_lyric/flutter_lyric.dart';
 
 class LyricsPanel extends ConsumerStatefulWidget {
-  final VoidCallback? onTap;
-
   const LyricsPanel({
     Key? key,
-    this.onTap,
   }) : super(key: key);
 
   @override
@@ -31,25 +28,31 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
       data: (lyricContent) {
         if ((lyricContent != null && lyricContent.isEmpty) || lyricContent == null) return const Center(child: Text("暂无字幕"));
 
-        return GestureDetector(
-          onTap: widget.onTap,
-          child: ShowLyric(
-            initStyle: LyricStyles.default2,
-            progress: progressNotifier,
-            afterLyricBuilder: (lyricController, style) =>
-            [
-              LyricSelectionProgress2(
-                controller: lyricController,
-                onPlay: (SelectionState state) async {
-                  lyricController.stopSelection();
-                  await player.seek(state.duration);
-                  player.play();
-                },
-                style: style,
-              ),
-            ],
-            lyricText: lyricContent,
-          ),
+        return ShowLyric(
+          initStyle: LyricStyles.default2,
+          progress: progressNotifier,
+          initController: (controller) {
+            controller.setOnTapLineCallback(
+                  (duration) async => {
+                controller.stopSelection(),
+                await player.seek(duration),
+                player.play(),
+              },
+            );
+          },
+          afterLyricBuilder: (lyricController, style) =>
+          [
+            LyricSelectionProgress2(
+              controller: lyricController,
+              onPlay: (SelectionState state) async {
+                lyricController.stopSelection();
+                await player.seek(state.duration);
+                player.play();
+              },
+              style: style,
+            ),
+          ],
+          lyricText: lyricContent,
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
