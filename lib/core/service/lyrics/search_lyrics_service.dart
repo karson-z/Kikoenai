@@ -8,9 +8,6 @@ import '../../../features/local_media/data/service/tree_service.dart';
 import '../cache/cache_service.dart';
 import '../file/file_scanner_service.dart';
 class SearchLyricsService {
-
-  // --- 你现有的代码 (保持不变) ---
-
   /// 去除文件扩展名
   static String removeExtension(String fileName, Set<String> extensions) {
     final lowerName = fileName.toLowerCase();
