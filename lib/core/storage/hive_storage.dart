@@ -16,6 +16,7 @@ import '../adapter/player_state_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
+import '../model/lyric_model.dart';
 class AppStorage {
   // 1. 定义强类型的 Box
   static late Box<AuthResponse> authBox;       // 登录信息
@@ -32,7 +33,11 @@ class AppStorage {
 
     // 初始化
     await Hive.initFlutter(_hiveRootPath);
+
     Hive.registerAdapter(ProgressBarStateAdapter());
+    Hive.registerAdapter(UserAdapter());
+    Hive.registerAdapter(LyricConfigModelAdapter());
+    Hive.registerAdapter(AuthResponseAdapter());
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
     Hive.registerAdapter(FileNodeAdapter());

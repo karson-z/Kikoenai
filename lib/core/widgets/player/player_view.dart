@@ -201,9 +201,13 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                       top: padding.top + 10,
                       left: 0,
                       right: 0,
-                      child: Opacity(
-                        opacity: progress,
-                        child: _topBar(context, currentTrack),
+                      // 当 progress 接近 0 时，visible 设为 false，彻底隐藏并忽略点击
+                      child: Visibility(
+                        visible: progress > 0,
+                        child: Opacity(
+                          opacity: progress,
+                          child: _topBar(context, currentTrack),
+                        ),
                       ),
                     ),
                   ],
@@ -323,10 +327,6 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                   margin: const EdgeInsets.only(right: 32, top: 78, bottom: 32),
                   padding: EdgeInsets.only(
                       top: MediaQuery.of(context).padding.top + 40),
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
                   child: const LyricsPanel(),
                 ),
               ),
@@ -533,7 +533,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
 
   Widget _topBar(BuildContext context, MediaItem? currentTrack) {
     return Container(
-      height: 60, //稍微增加高度以容纳按钮点击区域
+      height: 60,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16), // 两侧留白
       child: Stack(
