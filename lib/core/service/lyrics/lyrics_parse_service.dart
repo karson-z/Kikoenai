@@ -146,19 +146,22 @@ class LyricStyleFactory {
       fadeRange: FadeRange(top: 0.1, bottom: 0.3),
 
       // 滚动动画：要有“惯性”感
-      scrollDuration: const Duration(milliseconds: 650), // 稍慢一点，显得优雅
-      scrollCurve: Curves.easeInOutCubic, // 使用三次贝塞尔曲线，起步慢->加速->减速停止
+      scrollDuration: const Duration(milliseconds: 240),
+      scrollDurations: {
+        500: const Duration(milliseconds: 500),
+        1000: const Duration(milliseconds: 1000),
+      },
 
-      // 切换动画（行变大变亮的过程）：要有“弹跳”感
-      enableSwitchAnimation: true,
+      enableScaleAnimation: false,
       switchEnterDuration: const Duration(milliseconds: 400),
       switchExitDuration: const Duration(milliseconds: 400),
 
-      // 核心技巧：使用 easeOutBack 或 easeOutQuart
+      // 使用 easeOutBack 或 easeOutQuart
       // easeOutBack 会让文字变大时稍微“冲”过头一点点再缩回来，产生弹性（慎用，可能太夸张）
       // easeOutQuart 则是非常平滑且快速的放大，非常接近 iOS 系统动画
-      switchEnterCurve: Curves.easeOutQuart,
-      switchExitCurve: Curves.easeInQuad,
+      // 只有开启缩放这两个动画曲线才会生效
+      // switchEnterCurve: Curves.easeOutQuart,
+      // switchExitCurve: Curves.easeInQuad,
 
       // --- 自动恢复逻辑 ---
       selectionAutoResumeMode: SelectionAutoResumeMode.neverResume,
@@ -166,18 +169,18 @@ class LyricStyleFactory {
       activeAutoResumeDuration: const Duration(milliseconds: 2000),
 
       // --- 高亮渐变特效 ---
-      activeHighlightGradient: LinearGradient(
-        begin: Alignment.topCenter, // 从上到下
-        end: Alignment.bottomCenter,
-        colors: [
-          // 起始：稍微带点亮度的半透明白 (根据需要调整透明度 0.1 - 0.3)
-          Colors.white.withOpacity(0.25),
-          // 结束：几乎完全透明，但这能让渐变更柔和
-          Colors.white.withOpacity(0.05),
-        ],
-        // 关键：加一个中间点，让白色主要集中在中间，两边快速淡出
-        stops: const [0.0, 1.0],
-      ),
+      // activeHighlightGradient: LinearGradient(
+      //   begin: Alignment.topCenter, // 从上到下
+      //   end: Alignment.bottomCenter,
+      //   colors: [
+      //     // 起始：稍微带点亮度的半透明白 (根据需要调整透明度 0.1 - 0.3)
+      //     Colors.white.withOpacity(0.25),
+      //     // 结束：几乎完全透明，但这能让渐变更柔和
+      //     Colors.white.withOpacity(0.05),
+      //   ],
+      //   // 关键：加一个中间点，让白色主要集中在中间，两边快速淡出
+      //   stops: const [0.0, 1.0],
+      // ),
       activeHighlightExtraFadeWidth: 40,
     );
   }

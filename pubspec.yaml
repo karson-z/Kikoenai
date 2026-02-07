@@ -60,7 +60,10 @@ dependencies:
   back_button_interceptor: ^8.0.4
   native_flutter_proxy: ^0.3.1
   background_downloader: ^9.5.2
-  flutter_lyric: ^3.0.2
+  flutter_lyric:
+    git:
+      url: https://github.com/karson-z/flutter_lyric.git
+      ref: 930fee2925dabf9961da33ca748ecd3e990633f6
 dev_dependencies:
   flutter_test:
     sdk: flutter
