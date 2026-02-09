@@ -16,7 +16,6 @@ class AppPlayerState {
   final List<FileNode> subtitleList; // 待匹配字幕列表
   // 匹配关系表: Key是音频ID (MediaItem.id), Value是字幕文件 (FileNode)
   final Map<String, FileNode?> subtitleMapping;
-  // 3. 当前使用的字幕 (计算属性，直接从 Map 取)
   FileNode? get currentSubtitle =>
       currentTrack != null ? subtitleMapping[currentTrack!.id] : null;
   // ----------------
@@ -32,10 +31,8 @@ class AppPlayerState {
     this.shuffleEnabled = false,
     this.repeatMode = AudioServiceRepeatMode.none,
     this.volume = 1.0,
-    // --- 初始化新增状态 ---
     this.subtitleList = const [],
     this.subtitleMapping = const {},
-    // --------------------
   }) : progressBarState = progressBarState ??
       const ProgressBarState(
         current: Duration.zero,
@@ -55,6 +52,7 @@ class AppPlayerState {
     AudioServiceRepeatMode? repeatMode,
     double? volume,
     List<FileNode>? subtitleList,
+    Map<String, FileNode?>? subtitleMapping,
     // --------------------
   }) {
     return AppPlayerState(
@@ -69,6 +67,7 @@ class AppPlayerState {
       repeatMode: repeatMode ?? this.repeatMode,
       volume: volume ?? this.volume,
       subtitleList: subtitleList ?? this.subtitleList,
+      subtitleMapping: subtitleMapping ?? this.subtitleMapping,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/player/provider/player_feedback_provider.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:path/path.dart' as p;
@@ -205,33 +206,6 @@ class PlayerController extends Notifier<AppPlayerState> {
       debugPrint('保存历史记录失败: $e');
     }
   }
-  // 添加字幕文件列表
-  void addSubTitleFileList(List<FileNode> rootNode) {
-    // 查找待添加的新文件
-    final subFiles = SearchLyricsService.findSubTitlesInFiles(rootNode);
-
-    final List<FileNode> resultList = List.from(state.subtitleList);
-
-    final Set<String> seenTitles = state.subtitleList
-        .map((e) => p.basenameWithoutExtension(e.title))
-        .toSet();
-
-    //  遍历新文件进行去重和添加
-    // TODO 更深层次去重， 数据归一化后文件名完全相同的不再存放至内存中，加速匹配
-    for (var node in subFiles) {
-      final String cleanTitle = p.basenameWithoutExtension(node.title);
-
-      // 检查是否已存在
-      if (!seenTitles.contains(cleanTitle)) {
-        seenTitles.add(cleanTitle); // 标记为已存在
-        resultList.add(node);       // 添加到结果列表
-      }
-    }
-
-    if (resultList.length != state.subtitleList.length) {
-      state = state.copyWith(subtitleList: resultList);
-    }
-  }
   // --- 控制方法 ---
   Future<void> play() async => _handler.play();
   Future<void> pause() async => _handler.pause();
@@ -295,10 +269,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     // 2. 获取 ID 进行比对
     final String? lastWorkId = _getWorkIdFromItem(state.currentTrack);
     final String? newWorkId = _getWorkIdFromItem(currentItem);
-    final String currentSongName = currentItem.title;
     List<FileNode> targetSubtitleList = [];
     bool isWorkChanged = newWorkId != lastWorkId;
-
     if (isWorkChanged && newWorkId != null && newWorkId.isNotEmpty) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
       // 当前作品发生变化，需要重新拉取字幕列表
@@ -307,22 +279,40 @@ class PlayerController extends Notifier<AppPlayerState> {
       if(targetSubtitleList.isEmpty){
         targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);
       }
-    }
-    // 4. 在(新)列表中匹配当前播放的歌曲
-    FileNode? bestMatchNode;
-    if (targetSubtitleList.isNotEmpty) {
-      final subtitleNames = targetSubtitleList.map((e) => e.title).toList();
-      final bestMatchName = SearchLyricsService.findBestMatch(
-        currentSongName,
-        subtitleNames,
+      // 处理完的播放列表数据
+      final playListProcessed = LyricsDataProcess.batchPlayListProcess(state.playlist);
+      // 处理完的字幕数据
+      final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
+      // 匹配字幕
+      final matches = MatchLyrics.match(playListProcessed, lyricListProcessed);
+
+      state = state.copyWith(
+          subtitleMapping: matches
       );
-      if (bestMatchName != null) {
-        bestMatchNode = targetSubtitleList.firstWhere((e) => e.title == bestMatchName);
+
+      if (matches.isEmpty) {
+        KikoenaiLogger().i('本次扫描未匹配到任何字幕。');
+      } else {
+        final buffer = StringBuffer();
+        buffer.writeln('匹配成功报告 (共 ${matches.length} 条):');
+
+        // 1. 创建一个临时 Map 用于通过 Hash 反查音频标题 (提升日志可读性)
+        // key: hash, value: title
+        final audioTitleMap = {
+          for (var node in playListProcessed)
+            node.id: node.title
+        };
+
+        // 2. 遍历结果构建日志
+        matches.forEach((audioHash, subtitleNode) {
+          final audioTitle = audioTitleMap[audioHash] ?? "Hash: $audioHash";
+          buffer.writeln('  🎵 $audioTitle');
+          buffer.writeln('   └── 📝 ${subtitleNode.title}');
+        });
+
+        KikoenaiLogger().i(buffer.toString());
       }
     }
-    state = state.copyWith(
-      subtitleList: targetSubtitleList,
-    );
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
     final mediaItem = _fileNodeToMediaItem(node,work);

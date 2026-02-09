@@ -41,8 +41,7 @@ GlobalException mapToGlobalException(dynamic error) {
         );
 
       case DioExceptionType.unknown:
-      default:
-        return GlobalException(
+      return GlobalException(
           '未知网络错误',
           originalError: error,
           code: 'UNKNOWN_NETWORK_ERROR',

@@ -527,7 +527,6 @@ class MyAudioHandler extends BaseAudioHandler {
       debugPrint("Error loading playlist: $e");
     }
   }
-
   /// 将 MediaItem 转换为 AudioSource
   AudioSource _buildAudioSource(MediaItem item) {
     final url = item.extras!['url'] as String;
@@ -540,35 +539,34 @@ class MyAudioHandler extends BaseAudioHandler {
       tag: item, // 关键：把 MediaItem 绑在 tag 上，方便取回
     );
   }
-
-  /// 核心：把当前的 _playlist 转换成 AudioSource 列表并同步给播放器
-  Future<void> _updatePlayerSources() async {
-    try {
-      // 1. 构建 AudioSource 列表
-      final sources = _playlist.map(_buildAudioSource).toList();
-
-      // 2. 如果列表为空
-      if (sources.isEmpty) {
-        await _player.setAudioSources([]);
-        return;
-      }
-
-      // 3. 记录当前状态，防止刷新列表时导致播放重置
-      final currentIndex = _player.currentIndex ?? 0;
-      final currentPos = _player.position;
-
-      // 4. 全量设置给播放器
-      // 使用 initialIndex 和 initialPosition 尽量保持当前播放状态
-      await _player.setAudioSources(
-        sources,
-        initialIndex: currentIndex < sources.length ? currentIndex : 0,
-        initialPosition: currentPos,
-        shuffleOrder: DefaultShuffleOrder(),
-      );
-    } catch (e) {
-      debugPrint("Error updating player sources: $e");
-    }
-  }
+  // /// 核心：把当前的 _playlist 转换成 AudioSource 列表并同步给播放器
+  // Future<void> _updatePlayerSources() async {
+  //   try {
+  //     // 1. 构建 AudioSource 列表
+  //     final sources = _playlist.map(_buildAudioSource).toList();
+  //
+  //     // 2. 如果列表为空
+  //     if (sources.isEmpty) {
+  //       await _player.setAudioSources([]);
+  //       return;
+  //     }
+  //
+  //     // 3. 记录当前状态，防止刷新列表时导致播放重置
+  //     final currentIndex = _player.currentIndex ?? 0;
+  //     final currentPos = _player.position;
+  //
+  //     // 4. 全量设置给播放器
+  //     // 使用 initialIndex 和 initialPosition 尽量保持当前播放状态
+  //     await _player.setAudioSources(
+  //       sources,
+  //       initialIndex: currentIndex < sources.length ? currentIndex : 0,
+  //       initialPosition: currentPos,
+  //       shuffleOrder: DefaultShuffleOrder(),
+  //     );
+  //   } catch (e) {
+  //     debugPrint("Error updating player sources: $e");
+  //   }
+  // }
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
@@ -582,19 +580,17 @@ class MyAudioHandler extends BaseAudioHandler {
     queue.add(List.from(_playlist));
 
     // 4. 同步给底层播放器
-    await _updatePlayerSources();
+    await _player.addAudioSource(_buildAudioSource(mediaItem));
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     final existingIds = _playlist.map((e) => e.id).toSet();
     final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
-
     if (toAdd.isEmpty) return;
-
     _playlist.addAll(toAdd);
     queue.add(List.from(_playlist));
-    await _updatePlayerSources();
+    await _player.addAudioSources(toAdd.map(_buildAudioSource).toList());
   }
 
   @override
@@ -760,15 +756,16 @@ class MyAudioHandler extends BaseAudioHandler {
 
       // 3. 获取当前状态
       final currentPosition = _player.position;
-      final currentSource = _player.audioSource;
+      final currentSource = _player.audioSources;
+      final currentIndex = _player.currentIndex;
 
-      if (currentSource != null) {
+      if (currentIndex != null) {
         // 4. 【优化】增加一个延迟，给网络一点恢复时间 (例如 1.5秒)
         await Future.delayed(const Duration(milliseconds: 1500));
 
         // 5. 尝试重载资源
         _player
-            .setAudioSource(currentSource, initialPosition: currentPosition)
+            .setAudioSources(currentSource, initialPosition: currentPosition)
             .then((_) {
           _player.play();
           // 注意：这里不要立即重置 _retryCount = 0

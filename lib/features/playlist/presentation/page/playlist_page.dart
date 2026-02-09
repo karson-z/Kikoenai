@@ -4,10 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
-import 'package:kikoenai/features/auth/presentation/view_models/provider/auth_provider.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
-
-// 引入你项目中的 Provider 和 Widget
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../category/presentation/viewmodel/provider/category_option_provider.dart';
 import '../../../category/widget/filter_drawer_panel.dart';

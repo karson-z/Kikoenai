@@ -25,12 +25,6 @@ class CollapsibleTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // 根据是否选中决定颜色：选中用主色，未选中用灰色
-    final subtitleColor = hasSubtitles
-        ? theme.colorScheme.primary
-        : theme.disabledColor; // 或者 Colors.grey
-
     return SizedBox(
       height: 46,
       child: Container(
