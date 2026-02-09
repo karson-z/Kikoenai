@@ -229,8 +229,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
           // 3. 传递给播放器
           playerController.handleFileTap(targetNode, processedList,
               work: widget.work);
-          // 字幕文件列表处理 (视情况而定，这里暂传原始列表)
-          playerController.addSubTitleFileList(widget.rootNodes);
         }
       },
     );

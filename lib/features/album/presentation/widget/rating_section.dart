@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/core/utils/data/time_formatter.dart';
-import 'package:kikoenai/features/album/data/model/rate_count_detail.dart';
 
 // RatingSection 保持不变...
 class RatingSection extends StatelessWidget {

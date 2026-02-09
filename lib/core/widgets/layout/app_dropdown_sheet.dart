@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
-
-import '../common/custom_bottom_type.dart';
 import '../common/custom_side_sheet_type.dart';
 
 /// 通用下拉弹窗

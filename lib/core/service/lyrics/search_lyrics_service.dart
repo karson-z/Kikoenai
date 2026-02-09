@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -10,16 +11,24 @@ import '../file/file_scanner_service.dart';
 import 'package:path/path.dart' as p;
 
 class LyricsDataProcess {
-  /// 文件名数据处理
-  /// 输入[nodes] 音频文件列表 或 字幕文件列表
-  static List<FileNode> batchProcess(List<FileNode> nodes) {
+  /// 字幕文件名数据处理
+  /// 输入[nodes] 字幕文件列表
+  static List<FileNode> batchLyricsProcess(List<FileNode> nodes) {
     return nodes.map((node) {
       final cleanTitle = _generateFingerprint(node.title);
       // 返回带有新标题的新对象
       return node.copyWith(title: cleanTitle);
     }).toList();
   }
-
+  /// 播放列表数据处理
+  /// 输入[playList] 播放列表
+  static List<MediaItem> batchPlayListProcess(List<MediaItem> playList) {
+    return playList.map((mediaItem) {
+      final cleanTitle = _generateFingerprint(mediaItem.title);
+      // 返回带有新标题的新对象
+      return mediaItem.copyWith(title: cleanTitle);
+    }).toList();
+  }
   /// [内部流水线] 生成文件指纹
   /// 将三个步骤串联：取文件名 -> 去扩展名 -> 去干扰字符 -> 归一化
   static String _generateFingerprint(String originalName) {
@@ -66,60 +75,223 @@ class LyricsDataProcess {
 }
 
 abstract class MatchLyrics {
+  /// 检查该策略是否适用 (前置守卫)
+  bool isMatch(List<MediaItem> playList, List<FileNode> lyricList);
 
-  bool isMatch(List<FileNode> playList, List<FileNode> lyricList);
-
-  // 匹配字幕列表
-  static Map<String, FileNode> match(
-      List<FileNode> playList, List<FileNode> lyricList,
-      {List<MatchLyrics>? match}) {
-    return (match ?? [])
-        .firstWhere((m) => m.isMatch(playList, lyricList))
-        .matchLyrics(playList, lyricList);
-  }
-
+  /// 执行匹配
+  /// [currentMatches] : 上一轮策略已匹配的结果 (Key: audio.hash, Value: lyricNode)
   Map<String, FileNode> matchLyrics(
-      List<FileNode> playList, List<FileNode> lyricList);
+      List<MediaItem> playList,
+      List<FileNode> lyricList, [
+        Map<String, FileNode>? currentMatches,
+      ]);
+
+  /// 统一入口：按顺序执行策略链
+  static Map<String, FileNode> match(
+      List<MediaItem> playList,
+      List<FileNode> lyricList, {
+        List<MatchLyrics>? strategies,
+      }) {
+    // 默认执行顺序：精确 -> 模糊 -> 索引(兜底)
+    final runStrategies = strategies ??
+        [
+          AccurateMatch(),
+          FuzzyMatch(),
+          IndexMatch(),
+        ];
+
+    final Map<String, FileNode> finalResults = {};
+
+    for (final strategy in runStrategies) {
+      if (strategy.isMatch(playList, lyricList)) {
+        // 执行当前策略，传入已有的结果以避免重复计算
+        var newMatches = strategy.matchLyrics(playList, lyricList, finalResults);
+
+        // 合并结果
+        newMatches.forEach((hashKey, lyricNode) {
+          if (!finalResults.containsKey(hashKey)) {
+            finalResults[hashKey] = lyricNode;
+          }
+        });
+      }
+    }
+    return finalResults;
+  }
 }
-class accurateMatch extends MatchLyrics {
+class AccurateMatch extends MatchLyrics {
   @override
-  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement isMatch
-    throw UnimplementedError();
+  bool isMatch(List<MediaItem> playList, List<FileNode> lyricList) {
+    return playList.isNotEmpty && lyricList.isNotEmpty;
   }
 
   @override
-  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement matchLyrics
-    throw UnimplementedError();
-  }
+  Map<String, FileNode> matchLyrics(
+      List<MediaItem> playList,
+      List<FileNode> lyricList, [
+        Map<String, FileNode>? currentMatches,
+      ]) {
+    final results = <String, FileNode>{};
 
+    final lyricMap = {
+      for (var node in lyricList) node.title: node
+    };
+
+    for (var audio in playList) {
+      // 守卫：如果 hash 为空或已匹配，跳过
+      if (currentMatches?.containsKey(audio.id) ?? false) continue;
+
+      // 2. 直接用 Title 查找
+      if (lyricMap.containsKey(audio.title)) {
+        results[audio.id] = lyricMap[audio.title]!;
+      }
+    }
+    return results;
+  }
 }
-class fuzzyMatch extends MatchLyrics {
+class FuzzyMatch extends MatchLyrics {
+  final double threshold; // 推荐 0.4 ~ 0.7 之间，Dice 的容错率较高
+  // 0.6 是一个比较安全的起始值
+
+  FuzzyMatch({this.threshold = 0.6});
+
   @override
-  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement isMatch
-    throw UnimplementedError();
+  bool isMatch(List<MediaItem> playList, List<FileNode> lyricList) {
+    return playList.isNotEmpty && lyricList.isNotEmpty;
   }
 
   @override
-  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement matchLyrics
-    throw UnimplementedError();
+  Map<String, FileNode> matchLyrics(
+      List<MediaItem> playList,
+      List<FileNode> lyricList, [
+        Map<String, FileNode>? currentMatches,
+      ]) {
+    final results = <String, FileNode>{};
+
+    // 1. 过滤出还没匹配的音频
+    final pendingAudio = playList.where((a) =>
+    !(currentMatches?.containsKey(a.id) ?? false)
+    );
+
+    // 2. 性能优化：预先计算所有字幕的 Bigrams Set
+    // 避免在双重循环中重复计算，将复杂度从 O(N*M*L) 降低
+    final lyricBigramsMap = <FileNode, Set<String>>{};
+    for (var lyric in lyricList) {
+      lyricBigramsMap[lyric] = _getBigrams(lyric.title);
+    }
+
+    for (var audio in pendingAudio) {
+      FileNode? bestMatch;
+      double highestScore = 0.0;
+
+      // 计算当前音频的 Bigrams (只算一次)
+      final audioBigrams = _getBigrams(audio.title);
+
+      // 遍历所有字幕寻找最佳匹配
+      for (var lyric in lyricList) {
+        final lyricBigrams = lyricBigramsMap[lyric]!;
+
+        final score = _calculateDiceCoefficient(
+            audio.title,
+            lyric.title,
+            s1Bigrams: audioBigrams,
+            s2Bigrams: lyricBigrams
+        );
+
+        if (score > highestScore && score >= threshold) {
+          highestScore = score;
+          bestMatch = lyric;
+        }
+      }
+
+      if (bestMatch != null) {
+        results[audio.id] = bestMatch;
+      }
+    }
+    return results;
   }
 
+  /// 核心算法：Sørensen–Dice Coefficient (Bigrams)
+  /// 为了性能优化，我稍微修改了参数，允许直接传入预计算好的 Set
+  double _calculateDiceCoefficient(
+      String s1,
+      String s2, {
+        Set<String>? s1Bigrams,
+        Set<String>? s2Bigrams
+      }) {
+    // 快速路径：完全相等
+    if (s1 == s2) return 1.0;
+    // 快速路径：去空格后相等
+    if (s1.replaceAll(' ', '') == s2.replaceAll(' ', '')) return 1.0;
+
+    // 如果没传 Set，就现场计算
+    final set1 = s1Bigrams ?? _getBigrams(s1);
+    final set2 = s2Bigrams ?? _getBigrams(s2);
+
+    if (set1.isEmpty || set2.isEmpty) return 0.0;
+
+    int intersection = 0;
+    // 优化：总是遍历较小的那个 Set 来计算交集，速度更快
+    final smallerSet = set1.length < set2.length ? set1 : set2;
+    final largerSet = set1.length < set2.length ? set2 : set1;
+
+    for (var item in smallerSet) {
+      if (largerSet.contains(item)) {
+        intersection++;
+      }
+    }
+
+    return (2.0 * intersection) / (set1.length + set2.length);
+  }
+
+  /// 生成字符双元组 (Bigrams)
+  Set<String> _getBigrams(String input) {
+    Set<String> bigrams = {};
+    // 为了更准确匹配，通常计算 Bigram 时去除所有空格
+    String refined = input.replaceAll(' ', '');
+
+    // 边界处理：如果字符串太短，直接把整个字符串作为一个特征
+    if (refined.length < 2) return {refined};
+
+    for (int i = 0; i < refined.length - 1; i++) {
+      bigrams.add(refined.substring(i, i + 2));
+    }
+    return bigrams;
+  }
 }
-class indexMatch extends MatchLyrics {
+
+class IndexMatch extends MatchLyrics {
   @override
-  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement isMatch
-    throw UnimplementedError();
+  bool isMatch(List<MediaItem> playList, List<FileNode> lyricList) {
+    // 只有当数量严格一致时才启用，防止错位太离谱
+    return playList.length == lyricList.length;
   }
 
   @override
-  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
-    // TODO: implement matchLyrics
-    throw UnimplementedError();
+  Map<String, FileNode> matchLyrics(
+      List<MediaItem> playList,
+      List<FileNode> lyricList, [
+        Map<String, FileNode>? currentMatches,
+      ]) {
+    final results = <String, FileNode>{};
+
+    // 必须先排序
+    final sortedAudio = List<FileNode>.from(playList)
+      ..sort((a, b) => a.title.compareTo(b.title));
+
+    final sortedLyric = List<FileNode>.from(lyricList)
+      ..sort((a, b) => a.title.compareTo(b.title));
+
+    for (int i = 0; i < sortedAudio.length; i++) {
+      final audio = sortedAudio[i];
+      final lyric = sortedLyric[i];
+
+      // 只有没匹配过的才强行配对
+      if (audio.hash != null &&
+          !(currentMatches?.containsKey(audio.hash) ?? false)) {
+        results[audio.hash!] = lyric;
+      }
+    }
+    return results;
   }
 }
 
@@ -204,53 +376,6 @@ class SearchLyricsService {
     traverse(targetNode);
     return results;
   }
-
-  // 匹配逻辑
-  static String _normalizeForComparison(String input) {
-    String text = input.toLowerCase();
-
-    // 将常见的分隔符 (下划线、横杠、点) 替换为空格
-    text = text.replaceAll(RegExp(r'[_\-.]'), ' ');
-
-    // 将多个连续空格合并为一个，并去头尾
-    return text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
-  /// 核心算法：Sørensen–Dice Coefficient (Bigrams)
-  /// 相比编辑距离，它对语序颠倒（歌手-歌名 vs 歌名-歌手）有更好的容错性
-  static double _calculateDiceCoefficient(String s1, String s2) {
-    if (s1 == s2) return 1.0;
-    // 如果去掉空格后完全一样，直接返回 1.0
-    if (s1.replaceAll(' ', '') == s2.replaceAll(' ', '')) return 1.0;
-
-    Set<String> s1Bigrams = _getBigrams(s1);
-    Set<String> s2Bigrams = _getBigrams(s2);
-
-    if (s1Bigrams.isEmpty || s2Bigrams.isEmpty) return 0.0;
-
-    int intersection = 0;
-    for (var item in s1Bigrams) {
-      if (s2Bigrams.contains(item)) {
-        intersection++;
-      }
-    }
-
-    return (2.0 * intersection) / (s1Bigrams.length + s2Bigrams.length);
-  }
-
-  /// 生成字符双元组 (Bigrams)
-  static Set<String> _getBigrams(String input) {
-    Set<String> bigrams = {};
-    // 为了更准确匹配，通常计算 Bigram 时去除所有空格
-    String refined = input.replaceAll(' ', '');
-    if (refined.length < 2) return {refined}; // 处理单字情况
-
-    for (int i = 0; i < refined.length - 1; i++) {
-      bigrams.add(refined.substring(i, i + 2));
-    }
-    return bigrams;
-  }
-
   /// 获取本地字幕
   /// [workId] 作品Id
   static List<FileNode> findSubtitleInLocalById(String workId) {

@@ -167,11 +167,10 @@ class AccountPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isLogin ? (user.name ?? '用户') : '游客访客',
+                    isLogin ? (user.name) : '游客访客',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      // [修改] 统一使用 onSurface，因为背景是透明的
                       color: colorScheme.onSurface,
                     ),
                   ),
