@@ -4,39 +4,126 @@ import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
 import '../../../features/local_media/data/service/tree_service.dart';
+import '../../enums/node_type.dart';
 import '../cache/cache_service.dart';
 import '../file/file_scanner_service.dart';
-class SearchLyricsService {
-  /// 去除文件扩展名
-  static String removeExtension(String fileName, Set<String> extensions) {
-    final lowerName = fileName.toLowerCase();
-    for (final ext in extensions) {
-      if (lowerName.endsWith(ext)) {
-        return fileName.substring(0, fileName.length - ext.length);
-      }
+import 'package:path/path.dart' as p;
+
+class LyricsDataProcess {
+  /// 文件名数据处理
+  /// 输入[nodes] 音频文件列表 或 字幕文件列表
+  static List<FileNode> batchProcess(List<FileNode> nodes) {
+    return nodes.map((node) {
+      final cleanTitle = _generateFingerprint(node.title);
+      // 返回带有新标题的新对象
+      return node.copyWith(title: cleanTitle);
+    }).toList();
+  }
+
+  /// [内部流水线] 生成文件指纹
+  /// 将三个步骤串联：取文件名 -> 去扩展名 -> 去干扰字符 -> 归一化
+  static String _generateFingerprint(String originalName) {
+    String step1 = _removeAllExtensions(originalName);
+    String step2 = _removeSuffixes(step1);
+    String step3 = _normalizeForComparison(step2);
+    return step3;
+  }
+
+  /// 1. 安全去除扩展名
+  static String _removeAllExtensions(String fileName) {
+    while (p.extension(fileName).isNotEmpty) {
+      fileName = p.basenameWithoutExtension(fileName);
     }
     return fileName;
   }
 
-  /// 去除字幕文件后缀特殊字幕等
-  static String removeSuffixes(String fileName) {
-    var result = fileName;
+  /// 2. 去除括号、特殊标签、特定后缀
+  static String _removeSuffixes(String input) {
+    var result = input;
 
-    // 1. 去除括号及其内容
-    result = result.replaceAll(RegExp(r'（.*?）'), '');
-    result = result.replaceAll(RegExp(r'\(.*?\)'), '');
-    result = result.replaceAll(RegExp(r'\[.*?\]'), '');
-    result = result.replaceAll(RegExp(r'【.*?】'), '');
-    result = result.replaceAll(RegExp(r'《.*?》'), '');
+    result =
+        result.replaceAll(RegExp(r'(\（.*?\）|\(.*?\)|\[.*?\]|【.*?】|《.*?》)'), '');
 
-    // 2. 去除特定的 SE 后缀
-    for (final suffix in FileExtensions.seSuffixes) {
-      if (result.toLowerCase().endsWith(suffix)) {
+    const suffixes = FileExtensions.seSuffixes; // 示例
+    for (final suffix in suffixes) {
+      if (result.toLowerCase().endsWith(suffix.toLowerCase())) {
         result = result.substring(0, result.length - suffix.length);
       }
     }
     return result.trim();
   }
+
+  /// 3. 最终归一化 (转小写、合并空格)
+  static String _normalizeForComparison(String input) {
+    String text = input.toLowerCase();
+
+    // 将常见的分隔符 (下划线、横杠、点) 替换为空格
+    text = text.replaceAll(RegExp(r'[_\-.]'), ' ');
+
+    // 将多个连续空格合并为一个，并去头尾
+    return text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+}
+
+abstract class MatchLyrics {
+
+  bool isMatch(List<FileNode> playList, List<FileNode> lyricList);
+
+  // 匹配字幕列表
+  static Map<String, FileNode> match(
+      List<FileNode> playList, List<FileNode> lyricList,
+      {List<MatchLyrics>? match}) {
+    return (match ?? [])
+        .firstWhere((m) => m.isMatch(playList, lyricList))
+        .matchLyrics(playList, lyricList);
+  }
+
+  Map<String, FileNode> matchLyrics(
+      List<FileNode> playList, List<FileNode> lyricList);
+}
+class accurateMatch extends MatchLyrics {
+  @override
+  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement isMatch
+    throw UnimplementedError();
+  }
+
+  @override
+  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement matchLyrics
+    throw UnimplementedError();
+  }
+
+}
+class fuzzyMatch extends MatchLyrics {
+  @override
+  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement isMatch
+    throw UnimplementedError();
+  }
+
+  @override
+  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement matchLyrics
+    throw UnimplementedError();
+  }
+
+}
+class indexMatch extends MatchLyrics {
+  @override
+  bool isMatch(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement isMatch
+    throw UnimplementedError();
+  }
+
+  @override
+  Map<String, FileNode> matchLyrics(List<FileNode> playList, List<FileNode> lyricList) {
+    // TODO: implement matchLyrics
+    throw UnimplementedError();
+  }
+}
+
+class SearchLyricsService {
   /// 找出当前作品下的所有字幕文件。
   static List<FileNode> findSubTitlesInFiles(List<FileNode> files) {
     final List<FileNode> result = [];
@@ -48,7 +135,8 @@ class SearchLyricsService {
       } else {
         final fileName = file.title.toLowerCase();
 
-        bool isSubtitle = allowedExtensions.any((ext) => fileName.endsWith('$ext'));
+        bool isSubtitle =
+            allowedExtensions.any((ext) => fileName.endsWith('$ext'));
 
         if (isSubtitle) {
           result.add(file);
@@ -57,49 +145,10 @@ class SearchLyricsService {
     }
     return result;
   }
-  // --- 新增的核心匹配逻辑 ---
 
-  /// 寻找最佳匹配字幕
-  /// [currentSongName]: 当前播放的歌曲文件名 (带后缀)
-  /// [subtitleFiles]: 字幕文件列表 (带后缀)
-  /// [threshold]: 匹配阈值 (0.0 - 1.0)
-  static String? findBestMatch(
-      String currentSongName,
-      List<String> subtitleFiles, {
-        double threshold = 0.4,
-      }) {
-    if (subtitleFiles.isEmpty) return null;
-
-    // 1. 处理源文件名：去后缀 -> 去噪音 -> 标准化
-    String cleanSong = removeExtension(currentSongName, FileExtensions.audio);
-    cleanSong = removeSuffixes(cleanSong);
-    final normalizedSong = _normalizeForComparison(cleanSong);
-
-    String? bestMatchFile;
-    double maxScore = -1.0;
-
-    for (var subFile in subtitleFiles) {
-      // 2. 处理候选文件名
-      String cleanSub = removeExtension(subFile, FileExtensions.subtitles);
-      String cleanExt = removeExtension(cleanSub, FileExtensions.audio);
-      cleanExt = removeSuffixes(cleanExt);
-      final normalizedSub = _normalizeForComparison(cleanExt);
-      // 3. 计算相似度
-      double score = _calculateDiceCoefficient(normalizedSong, normalizedSub);
-      // 4. 包含关系加分 (Heuristic)
-      // 如果去噪后的文件名存在包含关系 (例如 "Song" 和 "Artist - Song")，给予加分
-      if (normalizedSong.contains(normalizedSub) || normalizedSub.contains(normalizedSong)) {
-        score += 0.25;
-        if (score > 1.0) score = 1.0;
-      }
-      print('Song: $normalizedSong | Sub: $normalizedSub | Score: $score');
-      if (score > maxScore) {
-        maxScore = score;
-        bestMatchFile = subFile;
-      }
-    }
-    return maxScore >= threshold ? bestMatchFile : null;
-  }
+  /// 查找文件树中是否有该作品的字幕
+  /// [nodes] 本地文件树节点
+  /// [workId] 作品ID
   static FileNode? findNodeInTree(List<FileNode> nodes, String workId) {
     if (workId.isEmpty) return null;
     final inputRaw = workId.trim().toLowerCase();
@@ -115,7 +164,8 @@ class SearchLyricsService {
         // 匹配逻辑: 包含原始ID 或 包含纯数字ID
         if (folderName.contains(inputRaw)) {
           isMatch = true;
-        } else if (inputNumeric.isNotEmpty && folderName.contains(inputNumeric)) {
+        } else if (inputNumeric.isNotEmpty &&
+            folderName.contains(inputNumeric)) {
           // 短数字保护
           if (inputNumeric.length < 3) {
             if (folderName == inputNumeric) isMatch = true;
@@ -136,26 +186,26 @@ class SearchLyricsService {
     return null;
   }
 
-// --- 工具方法 B: 将目标节点下的所有字幕文件“拍扁” ---
- static List<FileNode> flattenSubtitles(FileNode targetNode) {
+  static List<FileNode> flattenSubtitles(FileNode targetNode) {
     List<FileNode> results = [];
-
     // 辅助递归函数
     void traverse(FileNode node) {
-      if (node.isFolder || (node.children != null && node.children!.isNotEmpty)) {
+      if (node.isFolder ||
+          (node.children != null && node.children!.isNotEmpty)) {
         // 如果是文件夹/压缩包，继续深入
         node.children?.forEach(traverse);
       } else {
-        // 如果是文件，直接加入结果
-        // 这里可以加个双重保险，判断一下是否是字幕类型
-        // if (node.type == NodeType.text || node.type == NodeType.subtitle)
-        results.add(node);
+        if (node.type == NodeType.text) {
+          results.add(node);
+        }
       }
     }
 
     traverse(targetNode);
     return results;
   }
+
+  // 匹配逻辑
   static String _normalizeForComparison(String input) {
     String text = input.toLowerCase();
 
@@ -200,15 +250,18 @@ class SearchLyricsService {
     }
     return bigrams;
   }
+
   /// 获取本地字幕
   /// [workId] 作品Id
-  static List<FileNode> findSubtitleInLocalById(String workId){
+  static List<FileNode> findSubtitleInLocalById(String workId) {
     // --- 开始树查找逻辑 ---
     List<FileNode> targetSubtitleList = [];
     try {
       // A. 获取缓存树
-      final subTitleFiles = CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
-      final paths = CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
+      final subTitleFiles =
+          CacheService.instance.getCachedScanResults(mode: ScanMode.subtitles);
+      final paths =
+          CacheService.instance.getScanRootPaths(mode: ScanMode.subtitles);
       final fileTree = MediaTreeBuilder.build(subTitleFiles, paths);
 
       // B. 在树中查找目标 Work 节点
@@ -228,12 +281,15 @@ class SearchLyricsService {
     }
     return targetSubtitleList;
   }
+
   /// 获取网络的文件列表
   /// [workId] 作品Id
   /// [ref] ProviderRef
-  static Future<List<FileNode>> findSubtitleInNetWorkById(String workId,Ref ref) async {
+  static Future<List<FileNode>> findSubtitleInNetWorkById(
+      String workId, Ref ref) async {
     // A.拿到作品对应的文件列表
-    final workFiles = await ref.read(trackFileNodeProvider(int.parse(workId)).future);
+    final workFiles =
+        await ref.read(trackFileNodeProvider(int.parse(workId)).future);
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }

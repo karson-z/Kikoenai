@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
@@ -62,7 +61,6 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     state = state.copyWith(
       subtitleList: savedState.subtitleList,
-      currentSubtitle: savedState.currentSubtitle,
     );
   }
   void _updateTrackerStatus({
@@ -219,6 +217,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         .toSet();
 
     //  遍历新文件进行去重和添加
+    // TODO 更深层次去重， 数据归一化后文件名完全相同的不再存放至内存中，加速匹配
     for (var node in subFiles) {
       final String cleanTitle = p.basenameWithoutExtension(node.title);
 
@@ -289,7 +288,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   void _updateSubtitleState(MediaItem? currentItem) async {
     // 1. 基础空值处理
     if (currentItem == null) {
-      state = state.copyWith(subtitleList: [], currentSubtitle: null, currentTrack: null);
+      state = state.copyWith(subtitleList: [],currentTrack: null);
       return;
     }
     if (currentItem.id == state.currentTrack?.id) return;
@@ -297,14 +296,10 @@ class PlayerController extends Notifier<AppPlayerState> {
     final String? lastWorkId = _getWorkIdFromItem(state.currentTrack);
     final String? newWorkId = _getWorkIdFromItem(currentItem);
     final String currentSongName = currentItem.title;
-
     List<FileNode> targetSubtitleList = [];
-
-    // 3. 判断是否需要重新加载字幕列表 (核心逻辑变更)
-    // 只有当 WorkId 发生变化，或者当前列表为空但有 WorkId 时，才去执行耗时的树查找
     bool isWorkChanged = newWorkId != lastWorkId;
 
-    if ((isWorkChanged) && newWorkId != null && newWorkId.isNotEmpty) {
+    if (isWorkChanged && newWorkId != null && newWorkId.isNotEmpty) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
       // 当前作品发生变化，需要重新拉取字幕列表
       targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
@@ -312,9 +307,6 @@ class PlayerController extends Notifier<AppPlayerState> {
       if(targetSubtitleList.isEmpty){
         targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);
       }
-    } else {
-      // 作品未变化，直接复用当前 State 中的列表
-      targetSubtitleList = List.from(state.subtitleList);
     }
     // 4. 在(新)列表中匹配当前播放的歌曲
     FileNode? bestMatchNode;
@@ -328,15 +320,8 @@ class PlayerController extends Notifier<AppPlayerState> {
         bestMatchNode = targetSubtitleList.firstWhere((e) => e.title == bestMatchName);
       }
     }
-
-    // 5. 更新状态
-    // 如果没有找到匹配的字幕文件，生成一个占位符，或者根据你的 UI 需求设为 null
-    final newCurrentSubtitle = bestMatchNode ?? FileNode(type: NodeType.text, title: currentSongName, hash: '');
-
     state = state.copyWith(
-      currentTrack: currentItem,
       subtitleList: targetSubtitleList,
-      currentSubtitle: newCurrentSubtitle,
     );
   }
   Future<void> addSingleInQueue(FileNode node,Work work)async {
