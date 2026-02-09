@@ -21,21 +21,13 @@ class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
     final shuffleEnabled = reader.readBool();
     final repeatMode = AudioServiceRepeatMode.values[reader.readInt()];
     final volume = reader.readDouble();
-
     // 2. 读取新增字段 (包含兼容性检查)
     // 如果是旧数据，availableBytes 将为 0，跳过读取以防止 EOF 错误
     List<FileNode> subtitleList = [];
-    FileNode? currentSubtitle;
-
     if (reader.availableBytes > 0) {
       // 必须确保 FileNode 也有注册 TypeAdapter
       subtitleList = (reader.readList().cast<FileNode>());
     }
-
-    if (reader.availableBytes > 0) {
-      currentSubtitle = reader.read() as FileNode?;
-    }
-
     // 3. 构建对象
     return AppPlayerState(
       playing: playing,
@@ -49,7 +41,6 @@ class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
       repeatMode: repeatMode,
       volume: volume,
       subtitleList: subtitleList,
-      currentSubtitle: currentSubtitle,
     );
   }
 
@@ -66,6 +57,5 @@ class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
     writer.writeInt(obj.repeatMode.index);
     writer.writeDouble(obj.volume);
     writer.writeList(obj.subtitleList);
-    writer.write(obj.currentSubtitle);
   }
 }
