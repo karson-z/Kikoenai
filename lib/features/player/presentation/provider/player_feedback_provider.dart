@@ -5,7 +5,7 @@ import 'package:kikoenai/core/enums/playback_enum.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
 
-import '../state/playback_track_state.dart';
+import '../../data/model/playback_track_state.dart';
 
 class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
   Timer? _timer;

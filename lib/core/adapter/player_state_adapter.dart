@@ -1,8 +1,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/core/widgets/player/state/player_state.dart';
-import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart'; // 确保导入 FileNode
+import 'package:kikoenai/features/album/data/model/file_node.dart';
+
+import '../../features/player/data/model/player_state.dart';
+import '../../features/player/data/model/progress_state.dart';
 
 class PlayerStateAdapter extends TypeAdapter<AppPlayerState> {
   @override

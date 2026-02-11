@@ -7,15 +7,17 @@ import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
-import 'package:kikoenai/core/widgets/player/provider/player_feedback_provider.dart';
+
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../../core/service/audio/audio_service.dart';
+import '../../../../core/service/cache/cache_service.dart';
 import '../../../../features/album/data/model/file_node.dart';
-import '../../../service/cache/cache_service.dart';
-import '../../../service/audio/audio_service.dart';
-import '../state/player_state.dart';
-import '../state/progress_state.dart';
+import '../../data/model/player_state.dart';
+import '../../data/model/progress_state.dart';
+
 
 final playerControllerProvider = NotifierProvider.autoDispose<PlayerController, AppPlayerState>(() {
   return PlayerController();

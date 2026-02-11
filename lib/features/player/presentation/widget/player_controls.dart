@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../../core/widgets/player/player_list_sheet.dart';
-import '../../../../core/widgets/player/player_mode_button.dart';
-import '../../../../core/widgets/player/provider/player_controller_provider.dart';
+import 'package:kikoenai/features/player/presentation/widget/player_list_sheet.dart';
+import 'package:kikoenai/features/player/presentation/widget/player_mode_button.dart';
+import '../provider/player_controller_provider.dart';
 
 class PlayerControls extends ConsumerWidget {
   const PlayerControls({super.key});
@@ -47,10 +46,7 @@ class PlayerControls extends ConsumerWidget {
                     color: Colors.white, size: 36)),
             const SizedBox(width: 24),
             IconButton(
-              // 注意：这里需要通过回调或者 Provider 获取打开队列的方法
-              // 暂时假设上一层传不进来，先留空或者通过 GlobalKey/Provider 解决
-              // 推荐：在 PlayerControllerProvider 里加一个 Event
-                onPressed: () => PlayerPlaylistSheet.show(context, isDark: true),
+                onPressed: () => PlayerPlaylistSheet.show(context, isDark: Theme.brightnessOf(context) == Brightness.dark),
                 icon: const Icon(Icons.queue_music_sharp, color: Colors.white)),
           ],
         ),

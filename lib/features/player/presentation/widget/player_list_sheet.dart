@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'dart:math' as math;
 import 'dart:ui';
-import '../common/back_button_interceptor.dart';
-import '../common/custom_bottom_type.dart';
-import '../common/custom_side_sheet_type.dart';
+import '../../../../core/widgets/common/back_button_interceptor.dart';
+import '../../../../core/widgets/common/custom_bottom_type.dart';
+import '../../../../core/widgets/common/custom_side_sheet_type.dart';
+import '../provider/player_controller_provider.dart';
 
 class PlayerPlaylistSheet {
   static Future<void> show(

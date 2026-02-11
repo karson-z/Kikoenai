@@ -4,9 +4,9 @@ import 'package:flutter_lyric/core/lyric_parse.dart';
 import 'package:flutter_lyric/core/lyric_style.dart';
 import 'package:flutter_lyric/widgets/lyric_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/widgets/player/provider/player_lyrics_provider.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_lyrics_provider.dart';
 
-import '../../service/lyrics/lyrics_parse_service.dart';
+import '../../../../core/service/lyrics/lyrics_parse_service.dart';
 
 class ShowLyric extends ConsumerStatefulWidget {
   const ShowLyric({
@@ -64,35 +64,6 @@ class _ShowLyricState extends ConsumerState<ShowLyric> {
           child: LyricView(controller: lyricController, style: style),
         ),
         ...?widget.afterLyricBuilder?.call(lyricController, style),
-        // Positioned(
-        //   right: 20,
-        //   top: 20,
-        //   child: Row(
-        //     children: [
-        //       GestureDetector(
-        //         child: Icon(Icons.settings, color: Colors.white),
-        //         onTap: () {
-        //           showDialog(
-        //             context: context,
-        //             builder: (context) => ValueListenableBuilder(
-        //               valueListenable: _currentStyleNotifier,
-        //               builder: (context, value, child) {
-        //                 return EditStyle(
-        //                   style: value,
-        //                   onStyleChanged: (style) {
-        //                     setState(() {
-        //                       _currentStyleNotifier.value = style;
-        //                     });
-        //                   },
-        //                 );
-        //               },
-        //             ),
-        //           );
-        //         },
-        //       ),
-        //     ],
-        //   ),
-        // ),
       ],
     );
   }

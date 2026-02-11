@@ -5,12 +5,12 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
+import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
-import '../../../../core/widgets/player/player_more_widget.dart';
-import '../../../../core/widgets/player/player_sleep_time_widget.dart';
-import '../../../../core/widgets/player/provider/player_controller_provider.dart';
+import '../provider/player_controller_provider.dart';
 
 class TopBar extends ConsumerWidget {
   final VoidCallback onClose;
@@ -47,8 +47,6 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    // 这里的 showMoreOptions 需要你是以前的方法，
-                    // 或者你可以把 showMoreOptions 逻辑也做成静态方法或 Mixin
                     _showMoreOptions(context, currentTrack);
                   },
                 ),
