@@ -22,9 +22,7 @@ class CollapsedMinibar extends ConsumerWidget {
       onTap: onTap,
       child: Row(
         children: [
-          // 占位符
           const SizedBox(width: leftPadding),
-
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
