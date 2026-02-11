@@ -44,7 +44,7 @@ class _SmartColorCardState extends State<SmartColorCard> {
   }
 
   Future<Color> _extractDominantColor() async {
-    final url = widget.work.thumbnailCoverUrl ?? "";
+    final url = widget.work.mainCoverUrl ?? "";
     final provider = url.startsWith("http")
         ? CachedNetworkImageProvider(url)
         : AssetImage(url) as ImageProvider;

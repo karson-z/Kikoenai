@@ -20,7 +20,8 @@ class FloatingCoverImage extends StatelessWidget {
       child: SimpleExtendedImage(
           url ?? '',
           borderRadius: BorderRadius.circular(radiusValue),
-          fit: BoxFit.cover
+          fit: BoxFit.cover,
+          loadingSize: 20,
       ),
     );
   }
