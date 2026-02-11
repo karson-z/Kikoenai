@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 必须引入，用于 SystemNavigator.pop
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// 请根据你的实际路径引入 BackButtonPriorityWrapper
-// import 'package:kikoenai/core/widgets/common/back_button_priority_wrapper.dart';
+import '../../../features/player/presentation/page/player_music_view.dart';
 import '../../theme/theme_view_model.dart';
 import '../common/back_button_interceptor.dart';
-import '../player/player_view.dart';
 import '../player/player_list_sheet.dart';
 import '../slider/sllding_up_panel_modify.dart';
 
