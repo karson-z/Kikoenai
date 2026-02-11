@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
-import 'package:kikoenai/core/widgets/player/provider/player_controller_provider.dart';
-import '../../../model/lyric_model.dart';
-import '../../../service/file/archive_service.dart';
-import '../../../service/lyrics/lyrics_parse_service.dart';
-import '../../../storage/hive_storage.dart';
-import '../../../utils/log/kikoenai_log.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
+import '../../../../core/model/lyric_model.dart';
+import '../../../../core/service/file/archive_service.dart';
+import '../../../../core/service/lyrics/lyrics_parse_service.dart';
+import '../../../../core/storage/hive_storage.dart';
+import '../../../../core/utils/log/kikoenai_log.dart';
 /// 字幕提供者
 final lyricsProvider = FutureProvider<String?>((ref) async {
   final currentSub = ref.watch(playerControllerProvider.select((s) => s.currentSubtitle));
@@ -80,8 +80,6 @@ class LyricConfigNotifier extends Notifier<LyricConfigModel> {
     setting.put(StorageKeys.lyricsStyleConfig, newConfig);
   }
 }
-
-// 2. 样式 Provider：只负责根据配置生成样式给 UI 使用
 final lyricStyleProvider = Provider<LyricStyle>((ref) {
   final config = ref.watch(lyricConfigProvider);
   return LyricStyleFactory.createStyle(config);

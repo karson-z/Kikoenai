@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/player/presentation/page/player_music_view.dart';
 import '../../theme/theme_view_model.dart';
 import '../common/back_button_interceptor.dart';
-import '../player/player_list_sheet.dart';
 import '../slider/sllding_up_panel_modify.dart';
 
 class SlidingPlayerPanel extends ConsumerStatefulWidget {
@@ -86,7 +85,6 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
             dragProgressNotifier: controller,
             panelController: _panelController,
             minHeight: widget.minHeight,
-            onQueuePressed: () => PlayerPlaylistSheet.show(context, isDark: isDark),
           );
         },
         body: Padding(

@@ -5,8 +5,8 @@ import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
 
 import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/widgets/player/provider/player_controller_provider.dart';
 import '../../../album/data/model/file_node.dart';
+import '../../../player/presentation/provider/player_controller_provider.dart';
 import '../../data/model/file_scanner_state.dart';
 import '../provider/file_scanner_provider.dart';
 

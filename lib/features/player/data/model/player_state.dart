@@ -1,6 +1,6 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:kikoenai/core/widgets/player/state/progress_state.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/features/player/data/model/progress_state.dart';
 
 class AppPlayerState {
   final bool playing;

@@ -7,8 +7,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/widgets/player/state/player_state.dart';
 
+import '../../features/player/data/model/player_state.dart';
 import '../adapter/file_node_adapter.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
