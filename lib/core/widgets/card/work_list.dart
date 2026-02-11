@@ -16,71 +16,69 @@ class WorkListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () {
-        // 卡片点击逻辑：跳转详情页，携带 work 对象
-        context.push(AppRoutes.detail,extra: {'work': workInfo});
-      },
-      child: Card(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                bottomLeft: Radius.circular(8),
-              ),
-              child: SimpleExtendedImage(
-                workInfo.samCoverUrl!,
-                width: 55,
-                fit: BoxFit.cover,
-                loadingSize: 55.0,
-              ),
-            ),
-
-            const SizedBox(width: 6),
-
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    workInfo.title ?? "暂无标题",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          context.push(AppRoutes.detail, extra: {'work': workInfo});
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Card(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(6),
+                    bottomLeft: Radius.circular(6),
                   ),
-                  Text(
-                    workInfo.name!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
+                  child: SimpleExtendedImage(
+                    workInfo.samCoverUrl!,
+                    width: 55,
+                    fit: BoxFit.cover,
+                    loadingSize: 55.0,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        workInfo.title ?? "暂无标题",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        workInfo.name!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Flexible(
+                  flex: 0,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 16,
                       color: Colors.grey,
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            Flexible(
-              flex: 0,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: Colors.grey,
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
