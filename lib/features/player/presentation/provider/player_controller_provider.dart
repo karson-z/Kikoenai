@@ -5,7 +5,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
-import 'package:kikoenai/core/utils/dlsite_image/rj_image_path.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 
 import 'package:kikoenai/features/album/data/model/work.dart';
@@ -450,17 +449,6 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
     String? imagePath;
-
-    // 当作品本身没有主封面时，尝试从路径推导
-    if (work.mainCoverUrl == null) {
-      final mediaUrl = node.mediaStreamUrl;
-      if (mediaUrl != null) {
-        final rjCode = RJPathUtils.getRjcode(mediaUrl);
-        if (rjCode != null) {
-          imagePath = RJPathUtils.buildPath(rjCode);
-        }
-      }
-    }
     return MediaItem(
       id: node.hash.toString(),
       album: node.workTitle,
