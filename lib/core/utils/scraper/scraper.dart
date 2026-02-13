@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:kikoenai/core/utils/scraper/scraper_dio.dart';
