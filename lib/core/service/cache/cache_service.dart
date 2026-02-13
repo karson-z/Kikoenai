@@ -172,9 +172,24 @@ class CacheService {
     await AppStorage.scannerBox.put(_getScanKey(mode, true), paths);
   }
 
-  List<String> getScanRootPaths({required ScanMode mode}) {
-    final list = AppStorage.scannerBox.get(_getScanKey(mode, true));
-    return (list as List?)?.cast<String>() ?? [];
+  List<String> getScanRootPaths({
+    List<ScanMode> allModes = ScanMode.values,
+    ScanMode? mode,
+  }) {
+    // 如果传了具体 mode，直接返回
+    if (mode != null) {
+      final list = AppStorage.scannerBox.get(_getScanKey(mode, true));
+      return (list as List?)?.cast<String>() ?? [];
+    }
+    // 否则，基于 allModes 范围进行合并
+    final allPaths = <String>{};
+    for (var m in allModes) {
+      final list = AppStorage.scannerBox.get(_getScanKey(m, true));
+      if (list != null) {
+        allPaths.addAll((list as List).cast<String>());
+      }
+    }
+    return allPaths.toList();
   }
 
   Future<void> saveScanResults(List<AppMediaItem> items, {required ScanMode mode}) async {

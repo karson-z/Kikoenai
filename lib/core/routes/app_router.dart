@@ -55,9 +55,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // ------------------------------------------------------------------
-          // 分支 2: 分类 (Category)
-          // ------------------------------------------------------------------
           StatefulShellBranch(
             routes: [
               GoRoute(

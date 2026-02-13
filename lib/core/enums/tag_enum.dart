@@ -11,8 +11,6 @@ enum TagType {
   // 对应图片中的 $age
   age("age"),
 
-  // --- 以下是根据图片补全的新类型 ---
-
   // 对应图片中的 $duration (时长)
   duration("duration"),
 

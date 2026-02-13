@@ -741,43 +741,21 @@ class MyAudioHandler extends BaseAudioHandler {
   void _listenErrorPlayState() {
     _player.errorStream.listen((e) async {
       KikoenaiLogger().e("播放异常: ${e.message}");
-
-      // 1. 检查是否达到最大重试次数
       if (_retryCount >= _maxRetries) {
         KikoenaiToast.error('播放失败，已停止重试');
         // 达到上限，停止操作，或者重置播放器状态
         _retryCount = 0; // 可选：重置以便用户手动点击播放时重新计数
         return;
       }
-
       // 2. 增加计数
       _retryCount++;
       KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
+      final currentSource = _player.audioSource;
 
-      // 3. 获取当前状态
-      final currentPosition = _player.position;
-      final currentSource = _player.audioSources;
-      final currentIndex = _player.currentIndex;
-
-      if (currentIndex != null) {
-        // 4. 【优化】增加一个延迟，给网络一点恢复时间 (例如 1.5秒)
+      if (currentSource != null) {
         await Future.delayed(const Duration(milliseconds: 1500));
-
         // 5. 尝试重载资源
-        _player
-            .setAudioSources(currentSource, initialPosition: currentPosition)
-            .then((_) {
-          _player.play();
-          // 注意：这里不要立即重置 _retryCount = 0
-          // 如果网络不稳定，立即重置会导致它又开始无限循环
-          // 建议在用户手动切换下一首歌曲时重置计数器
-        }).catchError((retryError) {
-          KikoenaiLogger().e("重连尝试失败: $retryError");
-          // 如果这次重试本身报错了，错误流可能会再次触发，或者在这里处理
-          if (_retryCount >= _maxRetries) {
-            KikoenaiToast.error('重连失败，请检查网络');
-          }
-        });
+        _player.play();
       }
     });
   }
