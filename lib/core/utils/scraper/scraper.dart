@@ -4,13 +4,19 @@ import 'package:kikoenai/core/utils/scraper/scraper_dio.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_hvdb.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_util.dart';
 
-
 class DlSiteScraper {
   /// 对应 scrapeStaticWorkMetadataFromDLsite
   static Future<Map<String, dynamic>> scrapeStatic(int id, String language) async {
     final String rjcode = ScraperUtils.toRjCode(id);
-    final String url = 'https://www.dlsite.com/maniax/work/=/product_id/RJ$rjcode.html';
-    debugPrint('当前请求路径为：$url');
+
+    // --- 图片 URL 生成逻辑 (扁平化) ---
+    // DLsite 图片存放在以每 1000 个 ID 为一组的文件夹中
+    int folderNum = (id % 1000 == 0) ? id : (id ~/ 1000) * 1000 + 1000;
+    // 假设 ScraperUtils.toRjCode(folderNum) 返回的是 RJ0XXXXXX 格式
+    final String foldercode = ScraperUtils.toRjCode(folderNum);
+
+    final String url = 'https://www.dlsite.com/maniax/work/=/product_id/$rjcode.html';
+    debugPrint('当前页面请求路径为：$url');
     String ageLabel, genreLabel, vaLabel, releaseLabel, seriesLabel, cookieLocale;
 
     switch (language) {
@@ -35,7 +41,15 @@ class DlSiteScraper {
         headers: {'cookie': cookieLocale}
     );
     final document = parse(response.data);
-    final Map<String, dynamic> work = {'id': id, 'tags': [], 'vas': []};
+
+    // 初始化 work 对象，直接注入展开后的图片链接
+    final Map<String, dynamic> work = {
+      'id': id,
+      'rjCode': rjcode,
+      'tags': [],
+      'vas': [],
+      'mainCoverUrl': 'https://img.dlsite.jp/modpub/images2/work/doujin/$foldercode/${rjcode}_img_main.jpg',
+    };
 
     // 标题解析与清洗
     var title = document.querySelector('meta[property="og:title"]')?.attributes['content'];
@@ -92,7 +106,7 @@ class DlSiteScraper {
       }
     }
 
-    // 声优兜底逻辑：如果 DLsite 没抓到，去 HVDB 抓
+    // 声优兜底逻辑
     if ((work['vas'] as List).isEmpty) {
       try {
         final hvdbData = await HvdbScraper.scrapeWorkMetadata(id);
@@ -114,10 +128,10 @@ class DlSiteScraper {
 
   static Future<Map<String, dynamic>> scrapeDynamic(int id) async {
     final String rjcode = ScraperUtils.toRjCode(id);
-    final String url = 'https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=RJ$rjcode';
-
+    final String url = 'https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=$rjcode';
+    debugPrint('当前JSON请求路径为：$url');
     final response = await DioClient.retryGet(url);
-    final data = response.data['RJ$rjcode'];
+    final data = response.data[rjcode];
 
     final Map<String, dynamic> work = {
       'dl_count': data['dl_count'] ?? "0",

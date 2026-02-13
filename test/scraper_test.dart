@@ -7,12 +7,12 @@ void main() {
   group('DLsite Scraper 逻辑测试', () {
 
     test('测试完整抓取流程 (Static + Dynamic)', () async {
-      DioClient.init(proxyHost: '127.0.0.1',proxyPort: 7897);
+      DioClient.init(proxyHost: '127.0.0.1',proxyPort: 7890);
       // 示例作品 ID (对应 RJ322055)
       const int testId = 01059771;
       const String lang = 'zh-cn';
 
-      print('开始测试抓取 RJ${testId.toString().padLeft(6, '0')}...');
+      print('开始测试抓取 RJ${testId.toString().padLeft(7, '0')}...');
 
       try {
         // 调用复刻的 scrapeAll 方法

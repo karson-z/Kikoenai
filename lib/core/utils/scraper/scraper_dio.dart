@@ -10,17 +10,24 @@ class DioClient {
   static int defaultRetryLimit = 5;
   static int defaultRetryDelay = 2000;
 
-  static void init({String? proxyHost, int? proxyPort}) {
-    if (proxyHost != null && proxyPort != null) {
+  static void setProxy(String? proxyHost, String? proxyPort) {
+    if (proxyHost != null && proxyPort != null && proxyHost.isNotEmpty && proxyPort.isNotEmpty) {
       _dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final client = HttpClient();
-          // 一比一复刻 JS 的 TUNNEL_OPTIONS 代理逻辑
           client.findProxy = (uri) => "PROXY $proxyHost:$proxyPort";
           client.badCertificateCallback = (cert, host, port) => true;
           return client;
         },
       );
+    } else {
+      _dio.httpClientAdapter = IOHttpClientAdapter();
+    }
+  }
+
+  static void init({String? proxyHost, int? proxyPort}) {
+    if (proxyHost != null && proxyPort != null) {
+      setProxy(proxyHost, proxyPort.toString());
     }
   }
 
