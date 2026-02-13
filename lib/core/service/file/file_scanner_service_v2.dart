@@ -7,6 +7,8 @@ import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 
+import 'archive_service.dart';
+
 abstract class FileScannerService {
   ScanMode get scanMode;
   Stream<List<FileNode>> get result;
@@ -52,26 +54,42 @@ abstract class _BaseFileScanner implements FileScannerService {
 
   /// 通用的递归扫描逻辑
   @protected
-  Future<void> performScan(String path, Set<String> extensions) async {
+  Future<void> performScan(String path, Set<String> extensions, {bool scanArchives = true}) async {
     _isReady = false;
     _scannedNodes.clear();
+
     final dir = Directory(path);
     if (!await dir.exists()) {
       _isReady = true;
       return;
     }
+
     try {
       await for (final entity in dir.list(recursive: true, followLinks: false)) {
         if (entity is File) {
-          final ext = entity.path.split('.').last.toLowerCase();
+          final filePath = entity.path;
+          if (!filePath.contains('.')) continue;
+          // 获取后缀名（包含 . 符号，方便与 ArchiveService 逻辑统一）
+          final extWithDot = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+          // 获取纯后缀名（用于 extensions 匹配）
+          final ext = extWithDot.replaceFirst('.', '');
+          // --- 逻辑 A: 处理普通媒体文件 ---
           if (extensions.contains(ext)) {
-            final node = FileNode(
-              mediaStreamUrl: entity.path,
-              mediaDownloadUrl: entity.path,
-              type: scanMode == ScanMode.video ? NodeType.video : (scanMode == ScanMode.audio ? NodeType.audio : NodeType.text),
-              title: entity.path.split(Platform.pathSeparator).last,
-            );
+            final node = _createFileNode(entity.path, scanMode);
             updateResult([node]);
+          }
+          // --- 逻辑 B: 处理压缩包文件 ---
+          // 仅当开启压缩包扫描且文件是合法的压缩格式时处理
+          else if (scanArchives && ArchiveService.isArchive(filePath)) {
+            try {
+              final entries = ArchiveService.scanZip(entity, allowedExts: extensions);
+              for (var entry in entries) {
+                final zipNode = _createFileNode(entry.virtualPath,scanMode);
+                updateResult([zipNode]);
+              }
+            } catch (e) {
+              debugPrint("ScannerService: 压缩包解析失败 $filePath - $e");
+            }
           }
         }
       }
@@ -85,7 +103,28 @@ abstract class _BaseFileScanner implements FileScannerService {
   void dispose() {
     _resultController.close();
   }
+  FileNode _createFileNode(String path, ScanMode mode) {
+    return FileNode(
+      mediaStreamUrl: path,
+      mediaDownloadUrl: path,
+      type: _mapScanModeToNodeType(mode),
+      title: path.split(Platform.pathSeparator).last,
+    );
+  }
+
+  /// 将扫描模式转换为节点类型
+  NodeType _mapScanModeToNodeType(ScanMode mode) {
+    switch (mode) {
+      case ScanMode.video:
+        return NodeType.video;
+      case ScanMode.audio:
+        return NodeType.audio;
+      case ScanMode.subtitles:
+        return NodeType.text;
+      }
+  }
 }
+//音视频不允许从压缩包中读取
 class _AudioFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.audio;
@@ -94,7 +133,7 @@ class _AudioFileScannerServiceImpl extends _BaseFileScanner {
   Future<void> startScan(String path) async {
     // 常见的音频格式
     const extensions = FileExtensions.audio;
-    await performScan(path, extensions);
+    await performScan(path, extensions,scanArchives: false);
   }
 }
 class _VideoFileScannerServiceImpl extends _BaseFileScanner {
@@ -106,10 +145,11 @@ class _VideoFileScannerServiceImpl extends _BaseFileScanner {
   Future<void> startScan(String path) async {
     // 常见的视频格式
     const extensions = FileExtensions.video;
-    await performScan(path, extensions);
+    await performScan(path, extensions,scanArchives: false);
   }
 
 }
+// 字幕允许从压缩包中提取
 class _LyricFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.subtitles;
