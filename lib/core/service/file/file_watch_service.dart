@@ -27,7 +27,7 @@ class FileWatcher {
   void addDirListener(String path) {
     if (_subscriptions.containsKey(path)) return;
     // DirectoryWatcher 会自动根据平台选择最优底层实现
-    final watcher = DirectoryWatcher(path);
+    final watcher = Watcher(path);
     final subscription = watcher.events.listen(
           (event) => _handleFileEvent(event),
       onError: (e) => KikoenaiLogger().e('Path $path watch error: $e'),
