@@ -8,7 +8,7 @@ import '../../../core/enums/rate_enum.dart';
 import '../../../core/enums/sell_enum.dart';
 import '../../../core/enums/tag_enum.dart';
 import '../../../core/model/filter_option_item.dart';
-import '../../../core/model/search_tag.dart'; // 确保引入 SearchTag
+import '../../../core/model/search_tag.dart';
 
 class AdvancedFilterPanel extends StatelessWidget {
   final List<SearchTag> selectedTags;
