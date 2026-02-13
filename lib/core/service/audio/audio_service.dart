@@ -533,40 +533,11 @@ class MyAudioHandler extends BaseAudioHandler {
     final bool isNetwork =
         url.startsWith('http://') || url.startsWith('https://');
     final uri = isNetwork ? Uri.parse(url) : Uri.file(url);
-
     return AudioSource.uri(
       uri,
       tag: item, // 关键：把 MediaItem 绑在 tag 上，方便取回
     );
   }
-  // /// 核心：把当前的 _playlist 转换成 AudioSource 列表并同步给播放器
-  // Future<void> _updatePlayerSources() async {
-  //   try {
-  //     // 1. 构建 AudioSource 列表
-  //     final sources = _playlist.map(_buildAudioSource).toList();
-  //
-  //     // 2. 如果列表为空
-  //     if (sources.isEmpty) {
-  //       await _player.setAudioSources([]);
-  //       return;
-  //     }
-  //
-  //     // 3. 记录当前状态，防止刷新列表时导致播放重置
-  //     final currentIndex = _player.currentIndex ?? 0;
-  //     final currentPos = _player.position;
-  //
-  //     // 4. 全量设置给播放器
-  //     // 使用 initialIndex 和 initialPosition 尽量保持当前播放状态
-  //     await _player.setAudioSources(
-  //       sources,
-  //       initialIndex: currentIndex < sources.length ? currentIndex : 0,
-  //       initialPosition: currentPos,
-  //       shuffleOrder: DefaultShuffleOrder(),
-  //     );
-  //   } catch (e) {
-  //     debugPrint("Error updating player sources: $e");
-  //   }
-  // }
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {

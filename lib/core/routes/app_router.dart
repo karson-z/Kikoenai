@@ -7,6 +7,7 @@ import 'package:kikoenai/features/auth/presentation/page/auth_page.dart';
 import 'package:kikoenai/features/settings/presentation/pages/account_page.dart';
 import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
+import '../../features/test/scraper_test_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/settings/presentation/pages/comment_setting_page.dart';
 import '../../features/settings/presentation/pages/permission_page.dart';
@@ -168,6 +169,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             },
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.test,
+        pageBuilder: (context, state) => const MaterialPage(
+          child: ScraperTestPage(),
+        ),
       ),
     ],
   );

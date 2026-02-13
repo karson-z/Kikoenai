@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. 引入 Riverpod
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_version_config.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/layout/app_toast.dart';
 // 假设这是你存放 provider 的路径，请根据实际情况修改引入
 import '../provider/about_provider.dart';
@@ -144,6 +146,16 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 : () {
               // 调用 Provider 进行手动检查
               ref.read(appUpdateProvider.notifier).checkUpdate(isManual: true);
+            },
+          ),
+          
+          _buildListTile(
+            context,
+            icon: Icons.bug_report_rounded,
+            title: 'Scraper 测试',
+            subtitle: '测试 Utils 下的 Scraper 实现',
+            onTap: () {
+              context.push(AppRoutes.test);
             },
           ),
 

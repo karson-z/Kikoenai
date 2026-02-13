@@ -151,8 +151,8 @@ class LyricStyleFactory {
         500: const Duration(milliseconds: 500),
         1000: const Duration(milliseconds: 1000),
       },
-
-      enableScaleAnimation: false,
+      enableSwitchAnimation: true,
+      // enableScaleAnimation: false,
       switchEnterDuration: const Duration(milliseconds: 400),
       switchExitDuration: const Duration(milliseconds: 400),
 
