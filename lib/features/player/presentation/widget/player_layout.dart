@@ -68,8 +68,7 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
 
     if (hasChild(PlayerLayoutId.bodyAlbum)) {
       layoutChild(PlayerLayoutId.bodyAlbum, bodyConstraints);
-      // 可以在这里做视差滚动效果
-      positionChild(PlayerLayoutId.bodyAlbum, Offset(0, (1 - expandProgress) * 200));
+      positionChild(PlayerLayoutId.bodyAlbum, Offset(0, (1 - expandProgress) * 100));
     }
 
     if (hasChild(PlayerLayoutId.bodyLyrics)) {

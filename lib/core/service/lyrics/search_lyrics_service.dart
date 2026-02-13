@@ -51,7 +51,7 @@ class LyricsDataProcess {
     var result = input;
 
     result =
-        result.replaceAll(RegExp(r'(\（.*?\）|\(.*?\)|\[.*?\]|【.*?】|《.*?》)'), '');
+        result.replaceAll(RegExp(r'(（.*?）|\(.*?\)|\[.*?\]|【.*?】|《.*?》)'), '');
 
     const suffixes = FileExtensions.seSuffixes; // 示例
     for (final suffix in suffixes) {

@@ -10,8 +10,6 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
-import 'package:path/path.dart' as p;
-
 import '../../../../core/service/audio/audio_service.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../features/album/data/model/file_node.dart';
