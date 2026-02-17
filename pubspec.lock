@@ -788,11 +788,12 @@ packages:
   just_audio_media_kit:
     dependency: "direct main"
     description:
-      name: just_audio_media_kit
-      sha256: f3cf04c3a50339709e87e90b4e841eef4364ab4be2bdbac0c54cc48679f84d23
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.1.0"
+      path: "."
+      ref: "97c05f2adb4f18af9168d86d222a0d917aa7deb4"
+      resolved-ref: "97c05f2adb4f18af9168d86d222a0d917aa7deb4"
+      url: "https://github.com/karson-z/just_audio_media_kit.git"
+    source: git
+    version: "2.0.6"
   just_audio_platform_interface:
     dependency: transitive
     description:
@@ -913,6 +914,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.0"
+  mockito:
+    dependency: transitive
+    description:
+      name: mockito
+      sha256: "2314cbe9165bcd16106513df9cf3c3224713087f09723b128928dc11a4379f99"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.5.0"
   native_flutter_proxy:
     dependency: "direct main"
     description:
@@ -1137,6 +1146,22 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.0-dev.7"
+  riverpod_annotation:
+    dependency: "direct main"
+    description:
+      name: riverpod_annotation
+      sha256: "7230014155777fc31ba3351bc2cb5a3b5717b11bfafe52b1553cb47d385f8897"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.0.3"
+  riverpod_generator:
+    dependency: "direct dev"
+    description:
+      name: riverpod_generator
+      sha256: "49894543a42cf7a9954fc4e7366b6d3cb2e6ec0fa07775f660afcdd92d097702"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.0.3"
   riverpod_lint:
     dependency: "direct dev"
     description:

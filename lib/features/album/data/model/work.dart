@@ -40,8 +40,8 @@ class Work {
   final String? createDate;
   final List<VA>? vas;
   final List<Tag>? tags;
-  @JsonKey(name: 'language_editions')
-  final List<LanguageEdition>? languageEditions;
+  // @JsonKey(name: 'language_editions')
+  // final List<LanguageEdition>? languageEditions;
   @JsonKey(name: 'original_workno')
   final String? originalWorkno;
   @JsonKey(name: 'other_language_editions_in_db')
@@ -94,7 +94,7 @@ class Work {
     this.createDate,
     this.vas,
     this.tags,
-    this.languageEditions,
+    // this.languageEditions,
     this.originalWorkno,
     this.otherLanguageEditionsInDb,
     this.workAttributes,
@@ -176,7 +176,7 @@ class Work {
       createDate: createDate ?? this.createDate,
       vas: vas ?? this.vas,
       tags: tags ?? this.tags,
-      languageEditions: languageEditions ?? this.languageEditions,
+      // languageEditions: languageEditions ?? this.languageEditions,
       originalWorkno: originalWorkno ?? this.originalWorkno,
       otherLanguageEditionsInDb: otherLanguageEditionsInDb ?? this.otherLanguageEditionsInDb,
       workAttributes: workAttributes ?? this.workAttributes,

@@ -3,64 +3,94 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
+import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
 import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../album/data/model/file_node.dart';
-import '../../../player/presentation/provider/player_controller_provider.dart';
-import '../../data/model/file_scanner_state.dart';
-import '../provider/file_scanner_provider.dart';
 
-class FileBrowserPanel extends ConsumerWidget {
-  const FileBrowserPanel({super.key});
+class FileBrowserPanel extends ConsumerStatefulWidget {
+  // 1. 数据完全由父组件传入
+  final List<FileNode> rootNodes;
+  final ScanMode scanMode;
+
+  const FileBrowserPanel({
+    super.key,
+    required this.rootNodes,
+    required this.scanMode,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 监听状态
-    final scannerState = ref.watch(fileScannerProvider);
-    final notifier = ref.read(fileScannerProvider.notifier);
+  ConsumerState<FileBrowserPanel> createState() => _FileBrowserPanelState();
+}
 
-    // 拦截返回键逻辑
+class _FileBrowserPanelState extends ConsumerState<FileBrowserPanel> {
+  // 2. 组件内部仅维护“浏览路径”这一 UI 状态
+  List<FileNode> _breadcrumbs = [];
+
+  @override
+  Widget build(BuildContext context) {
+    // 3. 根据传入的 rootNodes 和内部的 _breadcrumbs 计算当前显示内容
+    final List<FileNode> currentNodes = _breadcrumbs.isEmpty
+        ? widget.rootNodes
+        : (_breadcrumbs.last.children ?? []);
+
     return PopScope(
-      canPop: scannerState.pathStack.isEmpty,
+      canPop: _breadcrumbs.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        notifier.navigateBack();
+        _navigateBack();
       },
       child: Column(
         children: [
-          // 2. 面包屑导航
-          _BreadcrumbBar(
-            pathStack: scannerState.pathStack,
-            onItemTap: notifier.jumpToPathIndex,
-          ),
+          // 面包屑
+          _buildBreadcrumbBar(),
 
           const Divider(height: 1),
 
-          // 3. 文件列表区
+          // 文件列表
           Expanded(
-            child: _FileList(
-              state: scannerState,
-              notifier: notifier,
+            child: _buildFileList(
+              context,
+              currentNodes,
+              widget.scanMode, // 使用传入的模式
             ),
           ),
         ],
       ),
     );
   }
-}
 
-// --- 子组件：面包屑导航条 (保持不变) ---
-class _BreadcrumbBar extends StatelessWidget {
-  final List<String> pathStack;
-  final Function(int) onItemTap;
+  // --- 导航逻辑 (保持不变) ---
 
-  const _BreadcrumbBar({
-    required this.pathStack,
-    required this.onItemTap,
-  });
+  void _enterFolder(FileNode node) {
+    setState(() {
+      _breadcrumbs.add(node);
+    });
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  void _navigateBack() {
+    if (_breadcrumbs.isNotEmpty) {
+      setState(() {
+        _breadcrumbs.removeLast();
+      });
+    }
+  }
+
+  void _jumpToBreadcrumb(int index) {
+    if (index == -1) {
+      setState(() {
+        _breadcrumbs.clear();
+      });
+    } else {
+      setState(() {
+        _breadcrumbs = _breadcrumbs.sublist(0, index + 1);
+      });
+    }
+  }
+
+  // --- UI 构建方法 ---
+
+  Widget _buildBreadcrumbBar() {
     return Container(
       height: 38,
       width: double.infinity,
@@ -70,30 +100,32 @@ class _BreadcrumbBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           InkWell(
-            onTap: () => onItemTap(-1),
+            onTap: () => _jumpToBreadcrumb(-1),
             borderRadius: BorderRadius.circular(4),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.home_outlined,
-                    size: 20,
-                    color: pathStack.isEmpty ? Colors.grey : Colors.blue),
+                child: Icon(
+                  Icons.home_outlined,
+                  size: 20,
+                  color: _breadcrumbs.isEmpty ? Colors.grey : Colors.blue,
+                ),
               ),
             ),
           ),
-          for (int i = 0; i < pathStack.length; i++) ...[
+          for (int i = 0; i < _breadcrumbs.length; i++) ...[
             const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
             InkWell(
-              onTap: () => onItemTap(i),
+              onTap: () => _jumpToBreadcrumb(i),
               borderRadius: BorderRadius.circular(4),
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   child: Text(
-                    pathStack[i],
+                    _breadcrumbs[i].title,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: i == pathStack.length - 1
+                      color: i == _breadcrumbs.length - 1
                           ? Theme.of(context).colorScheme.onInverseSurface
                           : Theme.of(context).textTheme.bodyLarge?.color,
                     ),
@@ -106,26 +138,9 @@ class _BreadcrumbBar extends StatelessWidget {
       ),
     );
   }
-}
 
-// --- 子组件：文件列表 (重点修改) ---
-class _FileList extends ConsumerWidget {
-  final FileScannerState state;
-  final FileScannerNotifier notifier;
-
-  const _FileList({required this.state, required this.notifier});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (state.isScanning && state.treeRoot.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // 2. 获取当前视图数据
-    final currentNodes = state.currentViewNodes;
-
-    // 3. 空文件夹
-    if (currentNodes.isEmpty) {
+  Widget _buildFileList(BuildContext context, List<FileNode> nodes, ScanMode scanMode) {
+    if (nodes.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -138,23 +153,20 @@ class _FileList extends ConsumerWidget {
       );
     }
 
-    // 4. 列表渲染
     return ListView.builder(
-      itemCount: currentNodes.length,
+      itemCount: nodes.length,
       itemBuilder: (context, index) {
-        final node = currentNodes[index];
-
+        final node = nodes[index];
         if (node.isFolder) {
-          return _buildFolderItem(context, node);
+          return _buildFolderItem(node);
         } else {
-          return _buildFileItem(context, ref, node, currentNodes);
+          return _buildFileItem(node, nodes, scanMode);
         }
       },
     );
   }
 
-  // --- 抽取：构建文件夹/压缩包 Item ---
-  Widget _buildFolderItem(BuildContext context, FileNode node) {
+  Widget _buildFolderItem(FileNode node) {
     final isArchiveFolder = FileExtensions.isArchive(node.title);
 
     return ListTile(
@@ -168,28 +180,17 @@ class _FileList extends ConsumerWidget {
         style: TextStyle(color: Theme.of(context).colorScheme.outline),
       ),
       trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-
-      // [修复] 添加长按事件！
-      onLongPress: () {
-        RenameFileDialog.show(context, node);
-      },
-
-      onTap: () => notifier.enterFolder(node.title),
+      onLongPress: () => RenameFileDialog.show(context, node),
+      onTap: () => _enterFolder(node),
     );
   }
 
-  // --- 抽取：构建普通文件 Item ---
-  Widget _buildFileItem(
-      BuildContext context,
-      WidgetRef ref,
-      FileNode node,
-      List<FileNode> currentNodes
-      ) {
-    // 1. 准备图标和颜色
+  Widget _buildFileItem(FileNode node, List<FileNode> contextNodes, ScanMode scanMode) {
     IconData icon;
     Color iconColor;
 
-    switch (state.scanMode) {
+    // 根据 scanMode 决定图标
+    switch (scanMode) {
       case ScanMode.audio:
         icon = Icons.audiotrack;
         iconColor = Colors.blue;
@@ -204,15 +205,12 @@ class _FileList extends ConsumerWidget {
         break;
     }
 
-    // 2. 准备副标题 (时长 或 路径)
     Widget? subtitleWidget;
-    if (state.scanMode != ScanMode.subtitles) {
-      // 音视频显示时长
+    if (scanMode != ScanMode.subtitles) {
       if (node.duration != null && node.duration! > 0) {
         subtitleWidget = Text(_formatDuration(node.duration!));
       }
     } else {
-      // 字幕显示路径 (防止溢出)
       subtitleWidget = Text(
         node.mediaStreamUrl ?? "",
         style: const TextStyle(fontSize: 10, color: Colors.grey),
@@ -225,16 +223,10 @@ class _FileList extends ConsumerWidget {
       leading: Icon(icon, color: iconColor),
       title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: subtitleWidget,
-
-      // [新增] 长按重命名 (直接调用封装好的组件)
-      onLongPress: () {
-        RenameFileDialog.show(context, node);
-      },
-
+      onLongPress: () => RenameFileDialog.show(context, node),
       onTap: () {
-        if (state.scanMode == ScanMode.subtitles) {
-
-          Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash!));
+        if (scanMode == ScanMode.subtitles) {
+          Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ""));
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("已复制路径: ${node.title}"),
@@ -243,13 +235,14 @@ class _FileList extends ConsumerWidget {
               )
           );
         } else {
-          final playerController = ref.read(playerControllerProvider.notifier);
-          playerController.handleFileTap(node, currentNodes);
+          // 这里虽然调用了 ref.read (业务逻辑)，但数据源已经是父组件传入的了
+          // 如果想更加彻底的解耦，可以将 onFileTap 作为回调函数传入
+          ref.read(playerControllerProvider.notifier).handleFileTap(node, contextNodes);
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("开始播放: ${node.title}"),
                 duration: const Duration(milliseconds: 500),
-                behavior: SnackBarBehavior.floating, // 悬浮样式体验更好
+                behavior: SnackBarBehavior.floating,
               )
           );
         }

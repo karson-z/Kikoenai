@@ -1,4 +1,3 @@
-// music_player_view_refactored.dart
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -34,7 +33,6 @@ class MusicPlayerView extends ConsumerStatefulWidget {
 
 class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     with SingleTickerProviderStateMixin {
-
   late final PlayerViewController _controller;
 
   @override
@@ -55,18 +53,36 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
 
   @override
   Widget build(BuildContext context) {
-    final padding = MediaQuery.of(context).padding;
-    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final mediaQuery = MediaQuery.of(context);
+    final padding = mediaQuery.padding;
+    final isWide = mediaQuery.size.width > 800; // 【核心判断】是否为宽屏
+
+    final currentTrack =
+    ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final expandVal = _controller.expandValue;
-        final lyricsVal = _controller.lyricsValue;
-        // 计算透明度 (View Params)
+        final expandVal = _controller.expandValue; // 展开进度 0~1
+        final lyricsVal = _controller.lyricsValue; // 歌词切换进度 0~1
+
+        // 1. 计算基础透明度 (受展开进度控制)
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
-        final albumOpacity = (1 - lyricsVal).clamp(0.0, 1.0);
-        final lyricsOpacity = lyricsVal.clamp(0.0, 1.0);
+
+        // 2. 计算分栏透明度 (受宽屏/窄屏逻辑控制)
+        double currentAlbumAlpha;
+        double currentLyricsAlpha;
+
+        if (isWide) {
+          // 【宽屏模式】：两者共存，透明度只受 expandedOpacity 影响，不受 lyricsVal 影响
+          currentAlbumAlpha = 1.0;
+          currentLyricsAlpha = 1.0;
+        } else {
+          // 【窄屏模式】：互斥显示，受 lyricsVal 影响
+          currentAlbumAlpha = (1 - lyricsVal).clamp(0.0, 1.0);
+          currentLyricsAlpha = lyricsVal.clamp(0.0, 1.0);
+        }
 
         return CustomMultiChildLayout(
           delegate: PlayerLayoutDelegate(
@@ -74,7 +90,7 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             lyricsProgress: lyricsVal,
             minHeight: widget.minHeight,
             padding: padding,
-            isWideScreen: MediaQuery.of(context).size.width > 800,
+            isWideScreen: isWide, // 传入宽屏标志
           ),
           children: [
             // 1. 背景层
@@ -85,28 +101,34 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               ),
             ),
 
-            // 2. 专辑内容层 (Album Body)
+            // 2. 专辑内容层 (Album Body) - 左侧或全屏
             LayoutId(
               id: PlayerLayoutId.bodyAlbum,
               child: Opacity(
-                opacity: expandedOpacity * albumOpacity,
+                opacity: expandedOpacity * currentAlbumAlpha,
                 child: IgnorePointer(
-                  ignoring: lyricsVal > 0.5 || expandVal < 0.5,
+                  // 宽屏时：只要展开了(expandVal > 0.5) 就可以点击
+                  // 窄屏时：必须是专辑模式(lyricsVal < 0.5) 且展开了 才可以点击
+                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
                   child: PlayerAlbumContent(track: currentTrack),
                 ),
               ),
             ),
 
-            // 3. 歌词内容层 (Lyrics Body)
+            // 3. 歌词内容层 (Lyrics Body) - 右侧或全屏
             LayoutId(
               id: PlayerLayoutId.bodyLyrics,
               child: Opacity(
-                opacity: expandedOpacity * lyricsOpacity,
+                opacity: expandedOpacity * currentLyricsAlpha,
                 child: IgnorePointer(
-                  ignoring: lyricsVal <= 0.5 || expandVal < 0.5,
+                  // 宽屏时：只要展开了就可以点击
+                  // 窄屏时：必须是歌词模式(lyricsVal > 0.5) 且展开了 才可以点击
+                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
                   child: MobileLyricsContent(
+                    isWideScreen:isWide,
                     track: currentTrack,
-                    onTapHeader: _controller.toggleLyrics,
+                    // 宽屏下如果不需要点击标题切换，可以在这里传 null 或者内部做判断
+                    onTapHeader: isWide ? null : _controller.toggleLyrics,
                     padding: padding,
                   ),
                 ),
@@ -119,7 +141,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               child: Opacity(
                 opacity: collapsedOpacity,
                 child: IgnorePointer(
-                  ignoring: collapsedOpacity == 0,
+                  // 修复浮点数精度问题，防止微弱透明度下的误触
+                  ignoring: collapsedOpacity < 0.05,
                   child: CollapsedMinibar(
                     track: currentTrack,
                     onTap: () => widget.panelController?.open(),
@@ -132,27 +155,36 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             LayoutId(
               id: PlayerLayoutId.topBar,
               child: Opacity(
-                opacity: expandedOpacity, // 复用展开透明度
-                child: TopBar(
-                  onClose: () => widget.panelController?.close(),
+                opacity: expandedOpacity,
+                child: IgnorePointer(
+                  ignoring: expandedOpacity == 0,
+                  child: TopBar(
+                    onClose: () => widget.panelController?.close(),
+                  ),
                 ),
               ),
             ),
 
-            // 6. 浮动封面 (Hero Image) - 必须放在最后以覆盖其他层
+            // 6. 浮动封面 (Hero Image)
             LayoutId(
               id: PlayerLayoutId.coverHero,
               child: GestureDetector(
                 onTap: () {
-                  if (expandVal > 0.5) {
-                    _controller.toggleLyrics();
-                  } else {
+                  if (expandVal < 0.5) {
+                    // 收起状态：点击打开
                     widget.panelController?.open();
+                  } else {
+                    if (!isWide) {
+                      _controller.toggleLyrics();
+                    }
                   }
                 },
                 child: FloatingCoverImage(
                   url: currentTrack?.extras?['mainCoverUrl'],
-                  radiusValue: ui.lerpDouble(8.0, 4.0, lyricsVal)!, // 动态圆角
+                  // 宽屏时固定圆角，窄屏时随歌词进度变化
+                  radiusValue: isWide
+                      ? 8.0
+                      : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
                 ),
               ),
             ),

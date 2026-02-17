@@ -231,9 +231,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     await _handler.setRepeatMode(mode);
     _saveState();
   }
-  // void replacePlaylist(List<MediaItem> newList) {
-  //   _handler.updateQueue(newList);
-  // }
   void replacePlaylist(int oldIndex, int newIndex) async {
     await _handler.customAction('reorderQueue', {
       'oldIndex': oldIndex,
@@ -326,10 +323,8 @@ class PlayerController extends Notifier<AppPlayerState> {
       }
       ) async {
     if (node.isAudio) {
-      // 1. 准备数据
       final audioFiles = currentNodes.where((n) => n.isAudio).toList();
       final mediaList = audioFiles.map((n) {
-        // 这里的 work ?? Work() 可能需要优化，确保有封面图
         return _fileNodeToMediaItem(n, work ?? Work());
       }).toList();
 
@@ -442,7 +437,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         break;
 
       case AudioServiceRepeatMode.group:
-      // 其他情况（不做处理或重置为列表循环）
         await setRepeat(AudioServiceRepeatMode.all);
         break;
     }
@@ -457,7 +451,6 @@ class PlayerController extends Notifier<AppPlayerState> {
           ? node.artist
           : OtherUtil.joinVAs(work.vas),
 
-      // artUri 只放“明确可用的封面 URL”
       artUri: work.mainCoverUrl != null
           ? Uri.parse(work.mainCoverUrl!)
           : null,

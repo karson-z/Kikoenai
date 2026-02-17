@@ -7,12 +7,14 @@ import 'package:kikoenai/features/player/presentation/widget/player_lyrics_panel
 
 class MobileLyricsContent extends ConsumerWidget {
   final MediaItem? track;
-  final VoidCallback onTapHeader;
+  final VoidCallback? onTapHeader;
   final EdgeInsets padding;
+  final bool isWideScreen;
 
   const MobileLyricsContent({super.key,
     required this.track,
-    required this.onTapHeader,
+    this.onTapHeader,
+    required this.isWideScreen,
     required this.padding,
   });
 
@@ -29,7 +31,7 @@ class MobileLyricsContent extends ConsumerWidget {
       children: [
         SizedBox(height: headerTopMargin),
 
-        // Header Area
+        if(!isWideScreen)
         GestureDetector(
           onTap: onTapHeader,
           behavior: HitTestBehavior.opaque,
