@@ -8,16 +8,22 @@ import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 
 import 'archive_service.dart';
+import 'file_scanner_worker.dart';
+import 'file_tree_builder.dart';
 
 abstract class FileScannerService {
   ScanMode get scanMode;
+
+  /// 输出完整的文件列表流
   Stream<List<FileNode>> get result;
+
+  /// 当前是否就绪
   bool get isReady;
 
-  ///开始扫描的方法
-  Future<void> startScan(String path);
+  /// 暴露状态流给 UI
+  Stream<WorkerState> get stateStream;
 
-  ///停止扫描的方法
+  Future<void> startScan(String path);
   void dispose();
 
   factory FileScannerService(ScanMode scanMode) {
@@ -32,135 +38,90 @@ abstract class FileScannerService {
   }
 }
 
-/// 增加一个基类处理通用逻辑
 abstract class _BaseFileScanner implements FileScannerService {
-  final _resultController = StreamController<List<FileNode>>.broadcast();
-  bool _isReady = false;
+  // 组合 Worker
+  final _worker = FileScanWorker();
 
-  // 用于存储已扫描到的节点，实现增量更新
-  final List<FileNode> _scannedNodes = [];
+  final _resultController = StreamController<List<FileNode>>.broadcast();
+
+  final _treeBuilder = IncrementalTreeBuilder();
 
   @override
   Stream<List<FileNode>> get result => _resultController.stream;
 
   @override
-  bool get isReady => _isReady;
+  Stream<WorkerState> get stateStream => _worker.stateStream;
 
-  @protected
-  void updateResult(List<FileNode> nodes) {
-    _scannedNodes.addAll(nodes);
-    _resultController.add(List.from(_scannedNodes)); // 发送副本防止引用污染
-  }
-
-  /// 通用的递归扫描逻辑
-  @protected
-  Future<void> performScan(String path, Set<String> extensions, {bool scanArchives = true}) async {
-    _isReady = false;
-    _scannedNodes.clear();
-
-    final dir = Directory(path);
-    if (!await dir.exists()) {
-      _isReady = true;
-      return;
-    }
-
-    try {
-      await for (final entity in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          final filePath = entity.path;
-          if (!filePath.contains('.')) continue;
-          // 获取后缀名（包含 . 符号，方便与 ArchiveService 逻辑统一）
-          final extWithDot = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
-          // 获取纯后缀名（用于 extensions 匹配）
-          final ext = extWithDot.replaceFirst('.', '');
-          // --- 逻辑 A: 处理普通媒体文件 ---
-          if (extensions.contains(ext)) {
-            final node = _createFileNode(entity.path, scanMode);
-            updateResult([node]);
-          }
-          // --- 逻辑 B: 处理压缩包文件 ---
-          // 仅当开启压缩包扫描且文件是合法的压缩格式时处理
-          else if (scanArchives && ArchiveService.isArchive(filePath)) {
-            try {
-              final entries = ArchiveService.scanZip(entity, allowedExts: extensions);
-              for (var entry in entries) {
-                final zipNode = _createFileNode(entry.virtualPath,scanMode);
-                updateResult([zipNode]);
-              }
-            } catch (e) {
-              debugPrint("ScannerService: 压缩包解析失败 $filePath - $e");
-            }
-          }
-        }
-      }
-    } catch (e) {
-      _resultController.addError(e);
-    } finally {
-      _isReady = true;
-    }
-  }
   @override
+  bool get isReady => _worker.currentState != WorkerState.scanning;
+
+  @override
+  @mustCallSuper
   void dispose() {
+    _worker.dispose();
     _resultController.close();
   }
-  FileNode _createFileNode(String path, ScanMode mode) {
-    return FileNode(
-      mediaStreamUrl: path,
-      mediaDownloadUrl: path,
-      type: _mapScanModeToNodeType(mode),
-      title: path.split(Platform.pathSeparator).last,
-    );
-  }
 
-  /// 将扫描模式转换为节点类型
-  NodeType _mapScanModeToNodeType(ScanMode mode) {
-    switch (mode) {
-      case ScanMode.video:
-        return NodeType.video;
-      case ScanMode.audio:
-        return NodeType.audio;
-      case ScanMode.subtitles:
-        return NodeType.text;
-      }
+  /// 通用的扫描入口
+  @protected
+  Future<void> performScan(String path, Set<String> extensions, {bool scanArchives = true}) async {
+    // 1. 重置数据
+    _treeBuilder.clear();
+    _treeBuilder.setRootPath(path);
+    _resultController.add([]);
+
+    // 2. 启动 Worker
+    final chunkStream = _worker.start(
+      path: path,
+      extensions: extensions,
+      scanMode: scanMode,
+      scanArchives: scanArchives,
+    );
+
+    // Worker 发送的是一块块的数据 (Chunk)，我们需要把它们拼起来发给 UI
+    chunkStream.listen((flatChunk) {
+
+      // 将这一批扁平节点合并进树
+      _treeBuilder.mergeChunk(flatChunk);
+
+      // 发送树的根节点列表给 UI
+      // UI 拿到 roots 后，通过 ListView 渲染第一层，点击文件夹再展开 children
+      _resultController.add(List.of(_treeBuilder.roots));
+
+    });
   }
 }
-//音视频不允许从压缩包中读取
+
+
 class _AudioFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.audio;
 
   @override
   Future<void> startScan(String path) async {
-    // 常见的音频格式
-    const extensions = FileExtensions.audio;
-    await performScan(path, extensions,scanArchives: false);
+    await performScan(path, FileExtensions.audio, scanArchives: false);
   }
 }
-class _VideoFileScannerServiceImpl extends _BaseFileScanner {
 
+class _VideoFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.video;
 
   @override
   Future<void> startScan(String path) async {
-    // 常见的视频格式
-    const extensions = FileExtensions.video;
-    await performScan(path, extensions,scanArchives: false);
+    await performScan(path, FileExtensions.video, scanArchives: false);
   }
-
 }
-// 字幕允许从压缩包中提取
+
 class _LyricFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.subtitles;
 
   @override
   Future<void> startScan(String path) async {
-    // 常见的视频格式
-    const extensions = FileExtensions.subtitles;
-    await performScan(path, extensions);
+    // 字幕通常允许扫描压缩包
+    await performScan(path, FileExtensions.subtitles, scanArchives: true);
   }
 }
-
 
 

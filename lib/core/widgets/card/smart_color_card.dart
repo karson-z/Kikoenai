@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../../routes/app_routes.dart';
 import '../../../features/album/data/model/work.dart';
+import '../../utils/data/colors_util.dart';
 
 class SmartColorCard extends StatefulWidget {
   final Work work;
@@ -36,29 +38,18 @@ class _SmartColorCardState extends State<SmartColorCard> {
         if (mounted) {
           setState(() {
             _dominantColor = color;
-            _colorCache[key] = color; // 缓存
+            _colorCache[key] = color ?? Colors.grey.shade600; // 缓存
           });
         }
       });
     }
   }
 
-  Future<Color> _extractDominantColor() async {
+  Future<Color?> _extractDominantColor() async {
     final url = widget.work.mainCoverUrl ?? "";
-    final provider = url.startsWith("http")
-        ? CachedNetworkImageProvider(url)
-        : AssetImage(url) as ImageProvider;
-
-    final cardWidth = widget.width ?? 240;
-    const bottomHeight = 60.0;
-
-    final palette = await PaletteGenerator.fromImageProvider(
-      provider,
-      maximumColorCount: 18,
-      size: Size(cardWidth, cardWidth * 3 / 4 + bottomHeight),
-    );
-
-    return palette.dominantColor?.color ?? Colors.grey.shade300;
+    final colorData = ColorUtils.getMainColors(url);
+    final dominantColor = (await colorData)['dominant'];
+    return dominantColor;
   }
 
   @override
@@ -90,17 +81,9 @@ class _SmartColorCardState extends State<SmartColorCard> {
               Hero(tag: widget.work.heroTag!, child: SizedBox(
                 width: cardWidth,
                 height: imageHeight,
-                child: CachedNetworkImage(
-                  imageUrl: widget.work.thumbnailCoverUrl ?? "",
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    decoration: placeholderDecoration,
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    decoration: placeholderDecoration,
-                    child: const Icon(Icons.error, color: Colors.white),
-                  ),
-                ),
+                child: SimpleExtendedImage(
+                  widget.work.mainCoverUrl ?? "",
+                )
               )),
               Container(
                 width: cardWidth,

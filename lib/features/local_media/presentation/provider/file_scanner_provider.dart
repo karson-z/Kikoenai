@@ -80,12 +80,9 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     if (targetItems.isNotEmpty) {
       _loadFromCache(targetPaths, targetItems, newMode);
     } else {
-      // 如果没有缓存，或者缓存为空，且有路径，则开始扫描
-      // 注意：这里需要处理 targetPaths 为空的情况
       if (targetPaths.isNotEmpty) {
         _startScan(targetPaths, newMode);
       } else {
-        // 既没缓存也没路径，重置为空状态
         state = state.copyWith(
           scanMode: newMode,
           rootPaths: [],
@@ -101,7 +98,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     state = state.copyWith(pathStack: const []);
   }
 
-  // --- 动作：添加目录 ---
   Future<void> addDirectory() async {
     await PermissionService.requestExternalPermissions();
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
@@ -135,7 +131,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       statusMsg: "已清空所有路径",
     );
 
-    // [保持异步]
     await _cacheService.saveScanRootPaths([], mode: state.scanMode);
     await _cacheService.clearScanResults(mode: state.scanMode);
   }
@@ -461,7 +456,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     }
   }
 
-  // --- 导航逻辑 (保持不变) ---
   void enterFolder(String folderName) {
     state = state.copyWith(pathStack: [...state.pathStack, folderName]);
   }

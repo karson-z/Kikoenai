@@ -448,7 +448,9 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player = AudioPlayer(
+
+  );
 
   final List<MediaItem> _playlist = [];
   int _retryCount = 0; // 当前重试次数

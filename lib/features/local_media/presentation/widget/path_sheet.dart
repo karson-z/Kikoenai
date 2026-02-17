@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../provider/file_scanner_provider.dart';
+
+import '../provider/file_scanner_notifier.dart';
 
 class PathManagerSheet extends ConsumerWidget {
   final ScrollController scrollController;
@@ -36,7 +37,9 @@ class PathManagerSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(fileScannerProvider);
     final notifier = ref.read(fileScannerProvider.notifier);
-    final paths = state.rootPaths;
+    final paths = state.savedPaths;
+    // 获取当前正在浏览的路径（如果有）
+    final currentPath = state.currentPath;
 
     return Column(
       children: [
@@ -67,22 +70,20 @@ class PathManagerSheet extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Text(
-                    "已添加 ${paths.length} 个文件夹",
+                    "点击列表切换路径", // 提示用户可以点击
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
                 ],
               ),
-              // --- 修改点：改为清空按钮 ---
               TextButton(
                 onPressed: paths.isEmpty
-                    ? null // 列表为空时禁用
+                    ? null
                     : () => _showClearConfirmation(context, notifier),
                 child: Text(
                   "清空",
                   style: TextStyle(
-                    // 使用错误色（通常是红色）表示破坏性操作
                     color: paths.isEmpty
                         ? Theme.of(context).disabledColor
                         : Theme.of(context).colorScheme.error,
@@ -103,22 +104,46 @@ class PathManagerSheet extends ConsumerWidget {
             controller: scrollController,
             itemCount: paths.length,
             padding: const EdgeInsets.only(bottom: 80, top: 8),
-            separatorBuilder: (c, i) => const Divider(height: 1, indent: 72),
+            separatorBuilder: (c, i) =>
+            const Divider(height: 1, indent: 72),
             itemBuilder: (context, index) {
               final path = paths[index];
               final folderName = path.split(Platform.pathSeparator).last;
               final parentPath = File(path).parent.path;
 
+              // 判断是否是当前选中的路径
+              final isSelected = path == currentPath;
+
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 4),
+                // 选中状态样式
+                selected: isSelected,
+                selectedTileColor: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.1),
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                  foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
-                  child: const Icon(Icons.folder),
+                  backgroundColor: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context)
+                      .colorScheme
+                      .secondaryContainer,
+                  foregroundColor: isSelected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context)
+                      .colorScheme
+                      .onSecondaryContainer,
+                  child: Icon(
+                    isSelected ? Icons.check : Icons.folder,
+                  ),
                 ),
                 title: Text(
                   folderName.isEmpty ? path : folderName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -128,6 +153,13 @@ class PathManagerSheet extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // --- 核心修改：点击事件 ---
+                onTap: () {
+                  // 1. 触发扫描
+                  notifier.startScan(path);
+                  // 2. 关闭弹窗
+                  Navigator.pop(context);
+                },
                 trailing: IconButton(
                   icon: const Icon(Icons.remove_circle_outline),
                   color: Theme.of(context).colorScheme.error,
@@ -160,7 +192,8 @@ class PathManagerSheet extends ConsumerWidget {
   }
 
   /// 显示二次确认弹窗
-  void _showClearConfirmation(BuildContext context, FileScannerNotifier notifier) {
+  void _showClearConfirmation(
+      BuildContext context, FileScannerNotifier notifier) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,10 +206,8 @@ class PathManagerSheet extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              // 执行清空操作
               notifier.clearAllDirectories();
-              Navigator.pop(context); // 关弹窗
-              // Navigator.pop(context); // 可选：如果清空后想直接关闭底部面板，可以再调一次 pop
+              Navigator.pop(context);
             },
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
