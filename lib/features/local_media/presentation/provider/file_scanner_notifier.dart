@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
-import '../../../../core/service/file/file_scanner_service_v2.dart';
+import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
 import '../../../../core/service/permission/permission_service.dart';
-import '../../data/model/file_scanner_state_v2.dart';
+import '../../data/model/file_scanner_state.dart';
 
 final fileScannerProvider =
 NotifierProvider.autoDispose<FileScannerNotifier, FileScannerState>(

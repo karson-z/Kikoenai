@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart'; // 需引入 uuid 包
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';

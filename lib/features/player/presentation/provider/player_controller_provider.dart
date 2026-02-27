@@ -270,7 +270,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (isWorkChanged && newWorkId != null && newWorkId.isNotEmpty) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
       // 当前作品发生变化，需要重新拉取字幕列表
-      targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
+      // TODO 查找本地字幕
+      // targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
       // 如果当前状态中没有字幕列表先匹配本地后匹配ASMR服务器上的字幕列表
       if(targetSubtitleList.isEmpty){
         targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);

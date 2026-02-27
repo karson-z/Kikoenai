@@ -6,7 +6,6 @@ import 'dart:io';
 class DioClient {
   static final Dio _dio = Dio();
 
-  // 对应 JS 中的 Config.retry 等全局配置
   static int defaultRetryLimit = 5;
   static int defaultRetryDelay = 2000;
 
@@ -24,7 +23,6 @@ class DioClient {
       _dio.httpClientAdapter = IOHttpClientAdapter();
     }
   }
-
   static void init({String? proxyHost, int? proxyPort}) {
     if (proxyHost != null && proxyPort != null) {
       setProxy(proxyHost, proxyPort.toString());
@@ -34,20 +32,18 @@ class DioClient {
   static Future<Response> retryGet(String url, {
     Map<String, dynamic>? headers,
     int retryCount = 0,
-    Map<String, dynamic>? customRetryConfig, // 对应 JS 的 config.retry
+    Map<String, dynamic>? customRetryConfig,
   }) async {
-    // 1. 复刻 JS 的超时时长计算逻辑
     int timeout = 10000;
     if (url.contains('dlsite')) {
-      timeout = 10000; // 对应 Config.dlsiteTimeout
+      timeout = 10000;
     } else if (url.contains('hvdb')) {
-      timeout = 10000; // 对应 Config.hvdbTimeout
+      timeout = 10000;
     }
 
     final int limit = customRetryConfig?['limit'] ?? defaultRetryLimit;
     final int delay = customRetryConfig?['retryDelay'] ?? defaultRetryDelay;
 
-    // 2. 复刻 JS 的 CancelToken 强制超时逻辑
     final cancelToken = CancelToken();
     final timer = Timer(Duration(milliseconds: timeout), () {
       cancelToken.cancel("Timeout of ${timeout}ms.");
@@ -64,7 +60,6 @@ class DioClient {
     } catch (e) {
       timer.cancel();
 
-      // 3. 复刻 JS 的重试判断：if (config.retryCount < limit && !error.response)
       bool shouldRetry = false;
       if (e is DioException) {
         // 只有在没有响应（网络问题、超时等）时才重试，对应 !error.response

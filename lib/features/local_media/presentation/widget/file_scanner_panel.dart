@@ -5,7 +5,6 @@ import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
-
 import '../../../../core/service/file/file_scanner_service.dart';
 
 class FileBrowserPanel extends ConsumerStatefulWidget {

@@ -33,9 +33,6 @@ Work _$WorkFromJson(Map<String, dynamic> json) => Work(
       tags: (json['tags'] as List<dynamic>?)
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
-      // languageEditions: (json['language_editions'] as List<dynamic>?)
-      //     ?.map((e) => LanguageEdition.fromJson(e as Map<String, dynamic>))
-      //     .toList(),
       originalWorkno: json['original_workno'] as String?,
       otherLanguageEditionsInDb: (json['other_language_editions_in_db']
               as List<dynamic>?)
@@ -81,8 +78,6 @@ Map<String, dynamic> _$WorkToJson(Work instance) => <String, dynamic>{
       'create_date': instance.createDate,
       'vas': instance.vas?.map((e) => e.toJson()).toList(),
       'tags': instance.tags?.map((e) => e.toJson()).toList(),
-      // 'language_editions':
-      //     instance.languageEditions?.map((e) => e.toJson()).toList(),
       'original_workno': instance.originalWorkno,
       'other_language_editions_in_db':
           instance.otherLanguageEditionsInDb?.map((e) => e.toJson()).toList(),

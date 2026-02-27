@@ -1,8 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import 'package:palette_generator/palette_generator.dart';
 import '../../routes/app_routes.dart';
 import '../../../features/album/data/model/work.dart';
 import '../../utils/data/colors_util.dart';
