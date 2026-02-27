@@ -1,63 +1,70 @@
-// data/model/file_scanner_state.dart
-import 'package:kikoenai/core/model/app_media_item.dart';
-import '../../../album/data/model/file_node.dart';
-import '../../../../core/service/file/file_scanner_service.dart'; // 确保导入了 ScanMode
+import 'package:flutter/foundation.dart';
+import 'package:kikoenai/features/album/data/model/file_node.dart';
+import '../../../../core/service/file/file_scanner_service.dart';
+import '../../../../core/service/file/file_scanner_worker.dart';
 
+@immutable
 class FileScannerState {
-  final List<String> rootPaths;
-  final bool isScanning;
+  final List<FileNode> roots;
+  final List<String> savedPaths; // 已保存的路径列表（书签）
+  final String? currentPath;     // 【新增】当前正在扫描/展示的路径
+  final WorkerState status;
   final ScanMode scanMode;
-  final String statusMsg;
-  final int totalCount;
-  final List<AppMediaItem> rawItems;
-  final List<FileNode> treeRoot;
-  final List<String> pathStack;
+  final String? errorMessage;
+  final int scannedCount;
 
   const FileScannerState({
-    this.rootPaths = const [],
-    this.isScanning = false,
-    this.scanMode = ScanMode.audio, // 默认为音频
-    this.statusMsg = '请添加文件夹开始扫描',
-    this.totalCount = 0,
-    this.rawItems = const [],
-    this.treeRoot = const [],
-    this.pathStack = const [],
+    this.roots = const [],
+    this.savedPaths = const [],
+    this.currentPath,
+    this.status = WorkerState.idle,
+    this.scanMode = ScanMode.audio,
+    this.errorMessage,
+    this.scannedCount = 0,
   });
 
   FileScannerState copyWith({
-    List<String>? rootPaths,
-    bool? isScanning,
-    ScanMode? scanMode, // [修改]
-    String? statusMsg,
-    int? totalCount,
-    List<AppMediaItem>? rawItems,
-    List<FileNode>? treeRoot,
-    List<String>? pathStack,
+    List<FileNode>? roots,
+    List<String>? savedPaths,
+    String? currentPath,
+    WorkerState? status,
+    ScanMode? scanMode,
+    String? errorMessage,
+    int? scannedCount,
   }) {
     return FileScannerState(
-      rootPaths: rootPaths ?? this.rootPaths,
-      isScanning: isScanning ?? this.isScanning,
+      roots: roots ?? this.roots,
+      savedPaths: savedPaths ?? this.savedPaths,
+      currentPath: currentPath ?? this.currentPath,
+      status: status ?? this.status,
       scanMode: scanMode ?? this.scanMode,
-      statusMsg: statusMsg ?? this.statusMsg,
-      totalCount: totalCount ?? this.totalCount,
-      rawItems: rawItems ?? this.rawItems,
-      treeRoot: treeRoot ?? this.treeRoot,
-      pathStack: pathStack ?? this.pathStack,
+      errorMessage: errorMessage ?? this.errorMessage,
+      scannedCount: scannedCount ?? this.scannedCount,
     );
   }
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is FileScannerState &&
+        listEquals(other.roots, roots) &&
+        other.status == status &&
+        other.scanMode == scanMode &&
+        other.errorMessage == errorMessage &&
+        other.scannedCount == scannedCount &&
+        other.savedPaths == savedPaths &&
+        other.currentPath == currentPath;
+  }
 
-  List<FileNode> get currentViewNodes {
-    List<FileNode> currentLevel = treeRoot;
-    for (String folderName in pathStack) {
-      try {
-        final node = currentLevel.firstWhere(
-                (n) => n.isFolder && n.title == folderName
-        );
-        currentLevel = node.children ?? [];
-      } catch (e) {
-        return [];
-      }
-    }
-    return currentLevel;
+  @override
+  int get hashCode {
+    return Object.hash(
+      Object.hashAll(roots),
+      status,
+      scanMode,
+      errorMessage,
+      scannedCount,
+      savedPaths,
+      currentPath,
+    );
   }
 }

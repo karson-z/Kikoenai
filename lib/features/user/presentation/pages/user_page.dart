@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/local_media/presentation/page/scanner_page.dart';
 import 'package:kikoenai/features/marked/presentation/page/review_page.dart';
 import 'package:kikoenai/features/playlist/presentation/page/playlist_page.dart';
 import '../../../download/presentation/page/download_page.dart';
-import '../../../local_media/presentation/page/test.dart';
+import '../../../local_media/presentation/page/scanner_page.dart';
 import 'history_page.dart';
 
 class UserPage extends ConsumerStatefulWidget {
@@ -50,7 +49,7 @@ class _UserPageState extends ConsumerState<UserPage>
           children: const [
             // 第一个 Tab 页面：观看历史
             HistoryPage(),
-            ScannerTestPage(),
+            ScannerPage(),
             ReviewPage(),
             PlaylistPage(),
             DownloadPage(),

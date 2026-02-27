@@ -1,7 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/utils/data/colors_util.dart';
 
 /// 全局 UI/Scaffold 状态模型
 @immutable

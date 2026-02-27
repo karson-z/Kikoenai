@@ -9,10 +9,10 @@ import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/model/app_media_item.dart';
 import '../../../features/player/data/model/player_state.dart';
-import '../file/file_scanner_service.dart';
 // 引入新定义的 Key 常量类
 import '../../storage/hive_key.dart';
 import '../../../features/playlist/data/model/playlist.dart';
+import '../file/file_scanner_service.dart';
 
 class CacheService {
   // 单例模式
@@ -160,25 +160,23 @@ class CacheService {
     await AppStorage.historyBox.clear();
   }
 
-  // ==================== 6. 扫描与缓存 (Scan) ====================
+  // ==================== 获取用户选择的扫描路径 ====================
 
   /// [Refactored] 动态 Key 生成逻辑现在使用常量前缀
   String _getScanKey(ScanMode mode, bool isPath) {
     final prefix = isPath ? StorageKeys.scanPrefixPath : StorageKeys.scanPrefixItem;
     return '${prefix}_${mode.name}';
   }
-
   Future<void> saveScanRootPaths(List<String> paths, {required ScanMode mode}) async {
-    await AppStorage.scannerBox.put(_getScanKey(mode, true), paths);
+    await AppStorage.settingsBox.put(_getScanKey(mode, true), paths);
   }
-
   List<String> getScanRootPaths({
     List<ScanMode> allModes = ScanMode.values,
     ScanMode? mode,
   }) {
     // 如果传了具体 mode，直接返回
     if (mode != null) {
-      final list = AppStorage.scannerBox.get(_getScanKey(mode, true));
+      final list = AppStorage.settingsBox.get(_getScanKey(mode, true));
       return (list as List?)?.cast<String>() ?? [];
     }
     // 否则，基于 allModes 范围进行合并
@@ -190,26 +188,6 @@ class CacheService {
       }
     }
     return allPaths.toList();
-  }
-
-  Future<void> saveScanResults(List<AppMediaItem> items, {required ScanMode mode}) async {
-    final jsonList = items.map((e) => e.toJson()).toList();
-    await AppStorage.scannerBox.put(_getScanKey(mode, false), jsonList);
-  }
-
-  List<AppMediaItem> getCachedScanResults({required ScanMode mode}) {
-    final data = AppStorage.scannerBox.get(_getScanKey(mode, false));
-    if (data is List) {
-      return data.map((e) {
-        if (e is AppMediaItem) return e;
-        return AppMediaItem.fromJson(Map<String, dynamic>.from(e));
-      }).toList();
-    }
-    return [];
-  }
-
-  Future<void> clearScanResults({required ScanMode mode}) async {
-    await AppStorage.scannerBox.delete(_getScanKey(mode, false));
   }
 
   // ==================== 7. 配置选项 (带过期逻辑) ====================

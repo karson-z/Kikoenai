@@ -2,14 +2,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
+import 'package:kikoenai/features/album/data/model/file_node.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
-
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
-
 import '../../features/player/data/model/player_state.dart';
-import '../adapter/file_node_adapter.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
 import '../adapter/player_state_adapter.dart';
@@ -17,13 +15,15 @@ import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
 import '../model/lyric_model.dart';
+
+
 class AppStorage {
   // 1. 定义强类型的 Box
   static late Box<AuthResponse> authBox;       // 登录信息
   static late Box<HistoryEntry> historyBox;    // 播放历史 (Key: WorkId)
   static late Box<AppPlayerState> playerBox;   // 播放器状态
-  static late Box<dynamic> settingsBox;        // 通用设置/缓存 (String, Bool, List<String>)
-  static late Box<dynamic> scannerBox;         // 扫描结果 (由于结构复杂，可用 dynamic 或专门的 Model)
+  static late Box<dynamic> settingsBox;        // 通用设置/缓存
+  static late Box<FileNode> scannerBox;         // 扫描结果
 
   static late final String _hiveRootPath;
   /// 初始化 Hive 和所有 Box
@@ -50,7 +50,7 @@ class AppStorage {
       _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
       _openBox<AppPlayerState>(BoxNames.playerState).then((val) => playerBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
-      _openBox<dynamic>(BoxNames.scanner).then((val) => scannerBox = val),
+      _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
     ]);
   }
 

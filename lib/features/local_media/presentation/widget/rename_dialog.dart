@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../../../album/data/model/file_node.dart';
-import '../provider/file_scanner_provider.dart';
+import '../provider/file_scanner_notifier.dart';
 
 class RenameFileDialog extends ConsumerStatefulWidget {
   final FileNode node;
@@ -76,15 +76,16 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
     final notifier = ref.read(fileScannerProvider.notifier);
 
     try {
+      // TODO 重命名文件夹
       //  直接调用 renamePath，不再需要先去 rawItems 里查找对象
       // 这样就支持了 rawItems 里不存在的“压缩包本身”或“文件夹”
-      final success = await notifier.renamePath(path ?? "", newNamePart);
+      // final success = await notifier.renamePath(path ?? "", newNamePart);
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("重命名成功")),
-        );
-      }
+      // if (success && mounted) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text("重命名成功")),
+      //   );
+      // }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
