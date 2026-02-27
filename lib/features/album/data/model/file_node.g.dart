@@ -25,7 +25,7 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       duration: (fields[5] as num?)?.toDouble(),
       size: (fields[6] as num?)?.toInt(),
       workTitle: fields[7] as String?,
-      work: fields[8] as WorkInfo?,
+      work: fields[8] as Work?,
       artist: fields[9] as String?,
       lastModified: fields[10] == null ? 0 : (fields[10] as num).toInt(),
     );
@@ -88,7 +88,7 @@ FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
       workTitle: json['workTitle'] as String?,
       work: json['work'] == null
           ? null
-          : WorkInfo.fromJson(json['work'] as Map<String, dynamic>),
+          : Work.fromJson(json['work'] as Map<String, dynamic>),
       artist: json['artist'] as String?,
       lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
     );

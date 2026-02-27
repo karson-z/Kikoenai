@@ -24,7 +24,6 @@ class MyApp extends ConsumerWidget {
       scrollBehavior: MyCustomScrollBehavior(),
       debugShowCheckedModeBanner: false,
       title: VersionConfig.appName,
-      // 现在可以安全地访问 state.seedColor 和 state.mode
       theme: AppTheme.light(themeState.seedColor),
       darkTheme: AppTheme.dark(themeState.seedColor),
       themeMode: themeState.mode,

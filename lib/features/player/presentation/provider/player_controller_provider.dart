@@ -6,7 +6,6 @@ import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
-
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import '../../../../core/service/audio/audio_service.dart';
@@ -16,7 +15,7 @@ import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 
 
-final playerControllerProvider = NotifierProvider.autoDispose<PlayerController, AppPlayerState>(() {
+final playerControllerProvider = NotifierProvider<PlayerController, AppPlayerState>(() {
   return PlayerController();
 });
 
@@ -58,10 +57,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         shuffleEnabled: savedState.shuffleEnabled,
       );
     }
-
-    state = state.copyWith(
-      subtitleList: savedState.subtitleList,
-    );
+    state = state.copyWith(subtitleMapping: savedState.subtitleMapping);
   }
   void _updateTrackerStatus({
     bool? isPlaying,
@@ -250,15 +246,13 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> clear() async {
-    // 为什么只清除列表，不清除当前播放记录呢(清除的话播放器页面就会使用占位符进行替代，太丑了，不如不要)！
-    state = state.copyWith(subtitleList: []); // 清空字幕列表
     await (_handler as MyAudioHandler).clearPlaylist();
   }
   // 私有方法，交给监听器触发
   void _updateSubtitleState(MediaItem? currentItem) async {
     // 1. 基础空值处理
     if (currentItem == null) {
-      state = state.copyWith(subtitleList: [],currentTrack: null);
+      state = state.copyWith(currentTrack: null);
       return;
     }
     if (currentItem.id == state.currentTrack?.id) return;

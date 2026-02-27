@@ -1,4 +1,4 @@
-import 'package:uuid/uuid.dart'; // 需引入 uuid 包
+import 'package:uuid/uuid.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 
@@ -7,8 +7,10 @@ class IncrementalTreeBuilder {
 
   final _uuid = const Uuid();
 
+  // 缓存文件夹节点，避免重复创建，实现 O(1) 查找
   final Map<String, FileNode> _dirCache = {};
 
+  // 标记哪些节点变脏了
   final Set<Object> _dirtyNodes = {};
 
   String _lowerRootPath = "";
@@ -23,6 +25,13 @@ class IncrementalTreeBuilder {
     }
     _originalRootPath = normalized;
     _lowerRootPath = normalized.toLowerCase();
+  }
+
+  /// 用于处理文件删除或全量刷新场景
+  void rebuild(List<FileNode> allNodes) {
+    // 保留 RootPath，只清空数据
+    clear(keepRootPath: true);
+    mergeChunk(allNodes);
   }
 
   /// 批量合并节点
@@ -53,8 +62,9 @@ class IncrementalTreeBuilder {
     final fullPath = rawPath.replaceAll('\\', '/');
     final lowerFullPath = fullPath.toLowerCase();
 
-    // 安全检查：必须以根路径开头
+    // 安全检查：必须属于当前根路径之下
     if (!lowerFullPath.startsWith(_lowerRootPath)) return;
+
     final fileNode = originalNode.copyWith(
       hash: _uuid.v4(),
     );
@@ -62,19 +72,37 @@ class IncrementalTreeBuilder {
     final parentPath = _getParentPath(fullPath);
     final lowerParentPath = parentPath.toLowerCase();
 
-    // 判断是否直接位于根目录下
+    // 场景 A: 直接位于根目录下
     if (lowerParentPath == _lowerRootPath) {
-      roots.add(fileNode);
+      _addOrReplaceNode(roots, fileNode);
       _dirtyNodes.add('ROOT');
       return;
     }
 
+    // 场景 B: 位于子文件夹中
     // 获取或创建父文件夹节点
     final parentNode = _getOrCreateDirNode(parentPath);
 
-    // 挂载
-    parentNode.children?.add(fileNode);
+    // 挂载到父节点
+    parentNode.children ??= [];
+    _addOrReplaceNode(parentNode.children!, fileNode);
     _dirtyNodes.add(parentNode);
+  }
+
+  /// 插入或替换逻辑
+  /// 如果列表中已存在同路径的节点（更新场景），先移除旧的，再添加新的
+  void _addOrReplaceNode(List<FileNode> list, FileNode newNode) {
+    // 查找是否存在同名（同路径）节点
+    // 注意：这里用 mediaStreamUrl (路径) 作为唯一标识
+    final index = list.indexWhere((n) => n.mediaStreamUrl == newNode.mediaStreamUrl);
+
+    if (index != -1) {
+      // 替换旧节点 (Update)
+      list[index] = newNode;
+    } else {
+      // 追加新节点 (Insert)
+      list.add(newNode);
+    }
   }
 
   FileNode _getOrCreateDirNode(String dirPath) {
@@ -90,7 +118,7 @@ class IncrementalTreeBuilder {
       type: NodeType.folder,
       title: dirName,
       children: [], // 初始化可变列表
-      hash: null,   // 文件夹无 ID
+      hash: _uuid.v4(), // 文件夹也生成一个 UI ID
       mediaStreamUrl: dirPath, // 文件夹路径暂存在这里，用于逻辑判断
       mediaDownloadUrl: null,
     );
@@ -102,15 +130,16 @@ class IncrementalTreeBuilder {
     final lowerParentPath = parentPath.toLowerCase();
 
     if (lowerParentPath == _lowerRootPath) {
-      roots.add(newDirNode);
+      _addOrReplaceNode(roots, newDirNode);
       _dirtyNodes.add('ROOT');
     } else if (parentPath.length < _originalRootPath.length) {
-      // 路径异常保护
-      roots.add(newDirNode);
+      // 路径异常保护：防止死循环或越界
+      _addOrReplaceNode(roots, newDirNode);
       _dirtyNodes.add('ROOT');
     } else {
       final grandParent = _getOrCreateDirNode(parentPath);
-      grandParent.children?.add(newDirNode);
+      grandParent.children ??= [];
+      _addOrReplaceNode(grandParent.children!, newDirNode);
       _dirtyNodes.add(grandParent);
     }
 
@@ -131,12 +160,15 @@ class IncrementalTreeBuilder {
     });
   }
 
-  void clear() {
+  /// [修改] 清空方法，支持保留 RootPath
+  void clear({bool keepRootPath = false}) {
     roots.clear();
     _dirCache.clear();
     _dirtyNodes.clear();
-    _lowerRootPath = "";
-    _originalRootPath = "";
+    if (!keepRootPath) {
+      _lowerRootPath = "";
+      _originalRootPath = "";
+    }
   }
 
   String _getParentPath(String path) {

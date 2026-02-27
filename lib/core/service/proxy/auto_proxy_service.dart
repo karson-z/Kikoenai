@@ -55,8 +55,6 @@ class ProxyService {
     KikoenaiLogger().i(' [Proxy] 全局代理已开启: $proxyStr');
   }
 
-  // ================= 桌面端核心逻辑 =================
-
   static Future<String?> _getDesktopProxy() async {
     try {
       if (Platform.isWindows) {

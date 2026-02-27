@@ -1,5 +1,6 @@
 import 'package:hive_ce/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/data/model/work_info.dart';
 import '../../../../core/enums/node_type.dart';
 
@@ -14,7 +15,7 @@ class FileNode extends HiveObject {
   @HiveField(1)
   final String title;
 
-  final List<FileNode>? children;
+  late final List<FileNode>? children;
 
   @HiveField(2)
   final String? hash;
@@ -35,7 +36,7 @@ class FileNode extends HiveObject {
   final String? workTitle;
 
   @HiveField(8)
-  final WorkInfo? work;
+  final Work? work;
 
   @HiveField(9)
   final String? artist;
@@ -80,7 +81,7 @@ class FileNode extends HiveObject {
     double? duration,
     int? size,
     String? workTitle,
-    WorkInfo? work,
+    Work? work,
     String? artist,
     int? lastModified,
   }) {

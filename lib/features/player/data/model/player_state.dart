@@ -1,23 +1,50 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:hive_ce/hive.dart'; // 或者 package:hive/hive.dart
 import 'package:kikoenai/features/album/data/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 
+// 1. 添加 part 指令，文件名需与当前文件名一致 (例如 player_state.dart -> player_state.g.dart)
+part 'player_state.g.dart';
+
+// 2. 添加 HiveType 注解，typeId 保持为你之前的 3
+@HiveType(typeId: 3)
 class AppPlayerState {
+  @HiveField(0)
   final bool playing;
+
+  @HiveField(1)
   final bool loading;
-  final ProgressBarState progressBarState;
-  final MediaItem? currentTrack;
+
+  @HiveField(2)
+  final ProgressBarState progressBarState; // 需确保 ProgressBarStateAdapter 已注册
+
+  @HiveField(3)
+  final MediaItem? currentTrack; // 需确保 MediaItemAdapter 已注册
+
+  @HiveField(4)
   final List<MediaItem> playlist;
+
+  @HiveField(5)
   final bool isFirst;
+
+  @HiveField(6)
   final bool isLast;
+
+  @HiveField(7)
   final bool shuffleEnabled;
+
+  @HiveField(8)
   final AudioServiceRepeatMode repeatMode;
+
+  @HiveField(9)
   final double volume;
-  final List<FileNode> subtitleList; // 待匹配字幕列表
-  // 匹配关系表: Key是音频ID (MediaItem.id), Value是字幕文件 (FileNode)
+
+  @HiveField(10)
   final Map<String, FileNode?> subtitleMapping;
+
   FileNode? get currentSubtitle =>
       currentTrack != null ? subtitleMapping[currentTrack!.id] : null;
+
   // ----------------
 
   AppPlayerState({
@@ -31,7 +58,6 @@ class AppPlayerState {
     this.shuffleEnabled = false,
     this.repeatMode = AudioServiceRepeatMode.none,
     this.volume = 1.0,
-    this.subtitleList = const [],
     this.subtitleMapping = const {},
   }) : progressBarState = progressBarState ??
       const ProgressBarState(
@@ -51,9 +77,7 @@ class AppPlayerState {
     bool? shuffleEnabled,
     AudioServiceRepeatMode? repeatMode,
     double? volume,
-    List<FileNode>? subtitleList,
     Map<String, FileNode?>? subtitleMapping,
-    // --------------------
   }) {
     return AppPlayerState(
       playing: playing ?? this.playing,
@@ -66,7 +90,6 @@ class AppPlayerState {
       shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
       repeatMode: repeatMode ?? this.repeatMode,
       volume: volume ?? this.volume,
-      subtitleList: subtitleList ?? this.subtitleList,
       subtitleMapping: subtitleMapping ?? this.subtitleMapping,
     );
   }
