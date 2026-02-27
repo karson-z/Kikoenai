@@ -40,12 +40,9 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
 
   void _startTimer() {
     if (_timer != null && _timer!.isActive) return;
-
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final newSeconds = state.accumulatedSeconds + 1;
-
       state = state.copyWith(accumulatedSeconds: newSeconds);
-
       // 300秒 = 5分钟
       if (newSeconds >= 300) {
         _checkAndReport5Mins();

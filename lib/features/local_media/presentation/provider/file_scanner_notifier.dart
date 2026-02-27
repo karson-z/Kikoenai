@@ -85,7 +85,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       errorMessage: null,
       scannedCount: 0,
     );
-    await _service!.startScan(path);
+    await _service?.startScan(path);
   }
 
   void stopScan() {

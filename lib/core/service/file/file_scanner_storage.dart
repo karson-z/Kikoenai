@@ -19,9 +19,6 @@ class FileScannerStorage {
   List<FileNode> getNodesByRootPath(String rootPath) {
     if (_box.isEmpty) return [];
 
-    // Hive 的 values 是一个 Iterable，对于 10万级以下的数据量，
-    // 在内存中进行 where 过滤是非常快的。
-    // 注意：确保 rootPath 格式标准化 (例如统一用 / 分隔)
     return _box.values.where((node) {
       // 1. 必须有路径
       if (node.mediaStreamUrl == null) return false;

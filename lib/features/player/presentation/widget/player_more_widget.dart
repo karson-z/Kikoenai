@@ -109,7 +109,6 @@ class MoreOptionsBottomSheet extends StatelessWidget {
               ),
             ),
             Divider(height: 1, color: dividerColor),
-            // 3. 信息列表
             ...listActions.map((item) {
               return _buildListItem(
                 item,

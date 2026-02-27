@@ -7,7 +7,7 @@ import '../../../../core/service/file/file_scanner_worker.dart';
 class FileScannerState {
   final List<FileNode> roots;
   final List<String> savedPaths; // 已保存的路径列表（书签）
-  final String? currentPath;     // 【新增】当前正在扫描/展示的路径
+  final String? currentPath;     // 当前正在扫描/展示的路径
   final WorkerState status;
   final ScanMode scanMode;
   final String? errorMessage;

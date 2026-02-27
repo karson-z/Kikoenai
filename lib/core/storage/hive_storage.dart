@@ -10,7 +10,6 @@ import 'package:kikoenai/core/model/history_entry.dart';
 import '../../features/player/data/model/player_state.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
-import '../adapter/player_state_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
@@ -41,7 +40,7 @@ class AppStorage {
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
     Hive.registerAdapter(FileNodeAdapter());
-    Hive.registerAdapter(PlayerStateAdapter());
+    Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
     // 3. 并行打开 Box

@@ -26,7 +26,6 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
   ItemPositionsListener.create();
   bool _isTabClicking = false;
 
-  // --- 样式适配辅助变量 ---
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
 
   // 动态颜色定义 (Slate 风格)
@@ -151,7 +150,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
               controller: _tabController,
               isScrollable: false,
               indicatorSize: TabBarIndicatorSize.tab,
-              // [适配] TabBar 指示器颜色
+              //  TabBar 指示器颜色
               indicator: BoxDecoration(
                 color: isDark ? const Color(0xFF334155) : Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -164,7 +163,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
               ),
               dividerColor: Colors.transparent,
               labelPadding: EdgeInsets.zero,
-              // [适配] TabBar 文字颜色
+              //  TabBar 文字颜色
               labelColor: isDark ? Colors.white : Colors.black,
               unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
               onTap: (index) {},
@@ -178,7 +177,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
               tooltip: "全部开始",
               color: const Color(0xFF2563EB),
               onTap: () {
-                // [修复] 类型转换错误: 显式转换为 DownloadTask
+                //  类型转换错误: 显式转换为 DownloadTask
                 final tasks = downloadingList
                     .map((e) => e.task)
                     .whereType<DownloadTask>()
@@ -193,7 +192,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
               tooltip: "全部暂停",
               color: const Color(0xFF64748B),
               onTap: () {
-                // [修复] 类型转换错误
+                // 类型转换错误
                 final tasks = downloadingList
                     .map((e) => e.task)
                     .whereType<DownloadTask>()
@@ -256,7 +255,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
           style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              // [适配] 标题颜色
+              //  标题颜色
               color: _cTextSub)),
     );
   }
@@ -274,12 +273,12 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
                     ? Icons.cloud_download_outlined
                     : Icons.check_circle_outline,
                 size: 28,
-                // [适配] 空状态图标颜色
+                // 空状态图标颜色
                 color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
             const SizedBox(height: 4),
             Text(isDownloading ? "暂无下载任务" : "暂无历史记录",
                 style: TextStyle(
-                  // [适配] 空状态文字颜色
+                  // 空状态文字颜色
                     color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                     fontSize: 12)),
           ],
