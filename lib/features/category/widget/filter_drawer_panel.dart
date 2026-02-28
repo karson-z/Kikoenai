@@ -25,7 +25,6 @@ class FilterDrawerPanel extends StatefulWidget {
 
   final String Function(String type) getLoadingMessage;
 
-  // --- 为 AdvancedFilterPanel 预留 ---
   // 如果 AdvancedFilterPanel 也很复杂，建议后续也照此重构。
   // 暂时通过回调透传或者保留部分对象传递
   // 这里为了演示彻底解耦，我们假设 AdvancedFilterPanel 也能接收解耦后的参数

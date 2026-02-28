@@ -168,8 +168,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                     child: Container(color: Colors.transparent),
                   ),
                 ),
-
-              // 4. 筛选面板层 (最顶层)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
