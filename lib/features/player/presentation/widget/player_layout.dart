@@ -26,9 +26,6 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
 
   @override
   void performLayout(Size size) {
-    // -------------------------------------------------------------
-    // 1. 计算关键坐标 (Hero 飞行的起点和终点)
-    // -------------------------------------------------------------
 
     // A. 起点 (Collapsed)：位于 Minibar 内部 (Offset.zero 附近)
     final double smallSize = minHeight - 12.0;
@@ -82,11 +79,6 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
 
     // C. 计算当前帧 Hero 位置 (受面板展开进度控制)
     final Rect currentCoverRect = Rect.lerp(collapsedRect, expandedTargetRect, expandProgress)!;
-
-
-    // -------------------------------------------------------------
-    // 2. 布局子组件
-    // -------------------------------------------------------------
 
     // [Background] 背景铺满
     if (hasChild(PlayerLayoutId.background)) {
