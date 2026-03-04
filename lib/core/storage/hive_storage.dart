@@ -8,11 +8,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import '../../features/player/data/model/player_state.dart';
+import '../adapter/audio_service_repeat_mode_adapter.dart';
 import '../adapter/history_adapter.dart';
 import '../adapter/media_item_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
+import '../enums/node_type.dart';
 import '../model/lyric_model.dart';
 
 
@@ -39,7 +41,9 @@ class AppStorage {
     Hive.registerAdapter(AuthResponseAdapter());
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
+    Hive.registerAdapter(NodeTypeAdapter());
     Hive.registerAdapter(FileNodeAdapter());
+    Hive.registerAdapter(AudioServiceRepeatModeAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());

@@ -448,9 +448,7 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-  final AudioPlayer _player = AudioPlayer(
-
-  );
+  final AudioPlayer _player = AudioPlayer();
 
   final List<MediaItem> _playlist = [];
   int _retryCount = 0; // 当前重试次数
@@ -497,6 +495,8 @@ class MyAudioHandler extends BaseAudioHandler {
       initialPosition: initialPosition,
       shuffleOrder: DefaultShuffleOrder(),
     );
+    // TODO 勉强解决设置资源后播放的问题
+    await _player.stop();
   }
 
   Future<void> loadPlaylist(

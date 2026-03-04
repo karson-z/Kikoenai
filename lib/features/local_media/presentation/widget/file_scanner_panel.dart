@@ -58,9 +58,6 @@ class _FileBrowserPanelState extends ConsumerState<FileBrowserPanel> {
       ),
     );
   }
-
-  // --- 导航逻辑 (保持不变) ---
-
   void _enterFolder(FileNode node) {
     setState(() {
       _breadcrumbs.add(node);
@@ -86,9 +83,6 @@ class _FileBrowserPanelState extends ConsumerState<FileBrowserPanel> {
       });
     }
   }
-
-  // --- UI 构建方法 ---
-
   Widget _buildBreadcrumbBar() {
     return Container(
       height: 38,

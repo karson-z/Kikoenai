@@ -45,6 +45,9 @@ class FileNode extends HiveObject {
   @HiveField(10)
   final int lastModified;
 
+  /// 解析状态标志位
+
+
   // --- 便捷判断属性 ---
   bool get isFolder => type == NodeType.folder;
   bool get isAudio => type == NodeType.audio;
