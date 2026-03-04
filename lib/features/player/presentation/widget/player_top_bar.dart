@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
 
@@ -47,7 +48,7 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    _showMoreOptions(context, currentTrack);
+                    _showMoreOptions(context, currentTrack,ref);
                   },
                 ),
               ],
@@ -59,7 +60,7 @@ class TopBar extends ConsumerWidget {
   }
 
   // 简单的 Helper 方法，复用原有的逻辑
-  void _showMoreOptions(BuildContext context, MediaItem? track) {
+  void _showMoreOptions(BuildContext context, MediaItem? track,WidgetRef ref) {
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
@@ -97,7 +98,11 @@ class TopBar extends ConsumerWidget {
                 Navigator.pop(context);
                 // 路由跳转逻辑需要 context 和 ref，这里简化处理
                 if (track.extras?['workData'] != null) {
-                  context.go(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
+                  final panelCtrl = ref.read(panelController);
+                  if(panelCtrl.isPanelOpen){
+                    panelCtrl.close();
+                  }
+                  context.pushReplacement(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
                 }
               },
             ),

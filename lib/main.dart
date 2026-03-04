@@ -7,6 +7,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:kikoenai/core/service/audio/audio_service.dart';
 import 'package:kikoenai/core/service/download/download_service.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
+import 'package:media_kit/media_kit.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
@@ -19,6 +20,7 @@ void main() async {
       linux: true,            // default: true  - dependency: media_kit_libs_linux
       windows: true,          // default: true  - dependency: media_kit_libs_windows_audio
     );
+    JustAudioMediaKit.mpvLogLevel = MPVLogLevel.debug;
   }
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent, // 强制透明

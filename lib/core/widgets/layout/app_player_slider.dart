@@ -47,7 +47,6 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
-    final isDark = ref.watch(explicitDarkModeProvider);
     final mainState = ref.watch(mainScaffoldProvider);
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
 
