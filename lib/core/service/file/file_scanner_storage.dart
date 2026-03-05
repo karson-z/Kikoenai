@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 
 import '../../storage/hive_storage.dart';
 

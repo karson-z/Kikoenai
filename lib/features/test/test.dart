@@ -1,27 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-
-class MediaPanelApp extends StatelessWidget {
-  const MediaPanelApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-        brightness: Brightness.dark,
-      ),
-      home: const LocalMediaPanel(),
-    );
-  }
-}
+import 'package:flutter/rendering.dart';
+import 'package:kikoenai/core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 
 class LocalMediaPanel extends StatefulWidget {
   const LocalMediaPanel({super.key});
@@ -40,35 +19,60 @@ class _LocalMediaPanelState extends State<LocalMediaPanel> with SingleTickerProv
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header & TabBar
-              _buildHeader(isDark),
-
-              const SizedBox(height: 16),
-
-              // 2. Breadcrumbs
-              _buildBreadcrumbs(isDark),
-
-              const SizedBox(height: 16),
-
-              // 3. TabView Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildPendingView(isDark),
-                    _buildParsedView(isDark),
-                  ],
+    return SafeArea(
+      child: NestedScrollView(
+        // 1. 外层滚动视图：使用 SliverAppBar 重构头部
+        headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          return <Widget>[
+            SliverAppBar(
+              pinned: true,
+              floating: true,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 与背景色保持一致
+              titleSpacing: 0,   // 取消默认间距，由内部 Padding 控制以对齐下方列表
+              toolbarHeight: 64, // 给 _buildHeader 预留高度
+              // 标题区域放置 _buildHeader
+              title: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _buildHeader(isDark),
+              ),
+              // Bottom 区域放置面包屑，使用 PreferredSize 指定高度
+              bottom: const PreferredSize(
+                preferredSize: Size.fromHeight(60), // 面包屑高度 + 底部间距
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                  child: BreadcrumbBar(),
                 ),
+              ),
+            ),
+          ];
+        },
+
+        // 2. 内层视图（TabBarView 及其内部的滚动组件）
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              CustomScrollView(
+                slivers: [
+                  _buildPendingSliver(isDark),
+                ],
+              ),
+              CustomScrollView(
+                slivers: [
+                  _buildParsedSliver(isDark),
+                ],
               ),
             ],
           ),
@@ -79,38 +83,31 @@ class _LocalMediaPanelState extends State<LocalMediaPanel> with SingleTickerProv
 
   // 顶部标题和导航
   Widget _buildHeader(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(
+            "本地媒体",
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Text(
-              "本地媒体",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
+        SizedBox(
+          width: 150,
+          child: TabBar(
+            controller: _tabController,
+            dividerColor: Colors.transparent,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(text: "待解析"),
+              Tab(text: "已解析"),
+            ],
           ),
-          SizedBox(
-            width: 250,
-            child: TabBar(
-              controller: _tabController,
-              dividerColor: Colors.transparent,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-              unselectedLabelColor: Colors.grey,
-              tabs: const [
-                Tab(text: "待解析"),
-                Tab(text: "已解析"),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -136,12 +133,14 @@ class _LocalMediaPanelState extends State<LocalMediaPanel> with SingleTickerProv
   }
 
   // 待解析列表视图
-  Widget _buildPendingView(bool isDark) {
-    return ListView(
-      children: [
-        _buildListRow("2024_Q4_财务报告.pdf", "解析中", Colors.blue, isDark, isLoading: true),
-        _buildListRow("用户调研汇总_v2.xlsx", "等待中", Colors.grey, isDark),
-      ],
+  Widget _buildPendingSliver(bool isDark) {
+    return SliverList(
+      delegate: SliverChildListDelegate(
+        [
+          _buildListRow("2024_Q4_财务报告.pdf", "解析中", Colors.blue, isDark, isLoading: true),
+          _buildListRow("用户调研汇总_v2.xlsx", "等待中", Colors.grey, isDark),
+        ],
+      ),
     );
   }
 
@@ -177,24 +176,26 @@ class _LocalMediaPanelState extends State<LocalMediaPanel> with SingleTickerProv
   }
 
   // 已解析网格视图
-  Widget _buildParsedView(bool isDark) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // 根据宽度决定网格列数 (响应式)
-        int crossAxisCount = constraints.maxWidth > 900 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
-
-        return GridView.builder(
-          padding: const EdgeInsets.only(top: 16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            mainAxisExtent: 220,
-          ),
-          itemCount: 4,
-          itemBuilder: (context, index) => _buildParsedCard(isDark),
-        );
-      },
+  Widget _buildParsedSliver(bool isDark) {
+    return SliverPadding(
+      padding: const EdgeInsets.only(top: 16),
+      sliver: SliverLayoutBuilder(
+        builder: (BuildContext context, SliverConstraints constraints) {
+          int crossAxisCount = constraints.crossAxisExtent > 900 ? 3 : (constraints.crossAxisExtent > 600 ? 2 : 1);
+          return SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              mainAxisExtent: 220,
+            ),
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildParsedCard(isDark),
+              childCount: 4,
+            ),
+          );
+        },
+      ),
     );
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/data/service/work_repository.dart';
 

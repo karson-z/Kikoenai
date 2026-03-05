@@ -1,6 +1,6 @@
 import 'package:uuid/uuid.dart';
 import 'package:kikoenai/core/enums/node_type.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart'; // 确保这里包含了 NodeStatus 的定义
 
 class IncrementalTreeBuilder {
   final List<FileNode> roots = [];
@@ -10,11 +10,17 @@ class IncrementalTreeBuilder {
   // 缓存文件夹节点，避免重复创建，实现 O(1) 查找
   final Map<String, FileNode> _dirCache = {};
 
-  // 标记哪些节点变脏了
+  // 标记哪些父节点需要重新排序 (仅用于 UI 排序逻辑)
   final Set<Object> _dirtyNodes = {};
+
+  // 记录本次构建中所有产生变更/新增的节点（包含文件和文件夹），用于持久化到 Hive
+  final List<FileNode> _touchedNodes = [];
 
   String _lowerRootPath = "";
   String _originalRootPath = "";
+
+  // 预编译正则，提高扫描性能。匹配 RJ 或 RJ0 开头，后接 6-8 位数字
+  static final RegExp _rjRegex = RegExp(r'RJ0?\d{6,8}', caseSensitive: false);
 
   /// 设置根路径
   void setRootPath(String path) {
@@ -29,7 +35,6 @@ class IncrementalTreeBuilder {
 
   /// 用于处理文件删除或全量刷新场景
   void rebuild(List<FileNode> allNodes) {
-    // 保留 RootPath，只清空数据
     clear(keepRootPath: true);
     mergeChunk(allNodes);
   }
@@ -37,6 +42,7 @@ class IncrementalTreeBuilder {
   /// 批量合并节点
   void mergeChunk(List<FileNode> flatNodes) {
     _dirtyNodes.clear();
+    _touchedNodes.clear(); // 每次 chunk 处理前清空脏数据收集器
 
     for (final node in flatNodes) {
       _insertNode(node);
@@ -67,7 +73,11 @@ class IncrementalTreeBuilder {
 
     final fileNode = originalNode.copyWith(
       hash: _uuid.v4(),
+      // 如果需要，这里也可以为媒体文件本身做额外的初始状态处理
     );
+
+    // 将进入树结构的文件记录到待保存列表
+    _touchedNodes.add(fileNode);
 
     final parentPath = _getParentPath(fullPath);
     final lowerParentPath = parentPath.toLowerCase();
@@ -80,27 +90,18 @@ class IncrementalTreeBuilder {
     }
 
     // 场景 B: 位于子文件夹中
-    // 获取或创建父文件夹节点
     final parentNode = _getOrCreateDirNode(parentPath);
 
-    // 挂载到父节点
     parentNode.children ??= [];
     _addOrReplaceNode(parentNode.children!, fileNode);
     _dirtyNodes.add(parentNode);
   }
 
-  /// 插入或替换逻辑
-  /// 如果列表中已存在同路径的节点（更新场景），先移除旧的，再添加新的
   void _addOrReplaceNode(List<FileNode> list, FileNode newNode) {
-    // 查找是否存在同名（同路径）节点
-    // 注意：这里用 mediaStreamUrl (路径) 作为唯一标识
     final index = list.indexWhere((n) => n.mediaStreamUrl == newNode.mediaStreamUrl);
-
     if (index != -1) {
-      // 替换旧节点 (Update)
       list[index] = newNode;
     } else {
-      // 追加新节点 (Insert)
       list.add(newNode);
     }
   }
@@ -114,18 +115,25 @@ class IncrementalTreeBuilder {
 
     final dirName = dirPath.split('/').last;
 
+    // 动态分析该文件夹是否为 RJ 作品根目录
+    final analysisResult = _analyzeFolderStatus(dirPath, dirName);
+
     final newDirNode = FileNode(
       type: NodeType.folder,
       title: dirName,
-      children: [], // 初始化可变列表
-      hash: _uuid.v4(), // 文件夹也生成一个 UI ID
-      mediaStreamUrl: dirPath, // 文件夹路径暂存在这里，用于逻辑判断
+      children: [],
+      hash: _uuid.v4(),
+      mediaStreamUrl: dirPath,
       mediaDownloadUrl: null,
+      nodeStatus: analysisResult.status, // 注入解析状态
+      rjCode: analysisResult.rjCode,     // 注入 RJ 码
     );
 
     _dirCache[lowerDirPath] = newDirNode;
 
-    // 递归向上找
+    // 关键：将隐式创建的文件夹节点也加入脏数据集合，以便后续存入 Hive
+    _touchedNodes.add(newDirNode);
+
     final parentPath = _getParentPath(dirPath);
     final lowerParentPath = parentPath.toLowerCase();
 
@@ -133,7 +141,6 @@ class IncrementalTreeBuilder {
       _addOrReplaceNode(roots, newDirNode);
       _dirtyNodes.add('ROOT');
     } else if (parentPath.length < _originalRootPath.length) {
-      // 路径异常保护：防止死循环或越界
       _addOrReplaceNode(roots, newDirNode);
       _dirtyNodes.add('ROOT');
     } else {
@@ -146,25 +153,48 @@ class IncrementalTreeBuilder {
     return newDirNode;
   }
 
+  /// 核心判定逻辑：自顶向下首次匹配
+  ({NodeStatus status, String? rjCode}) _analyzeFolderStatus(String fullPath, String currentDirName) {
+    final segments = fullPath.split('/');
+
+    for (final segment in segments) {
+      final match = _rjRegex.firstMatch(segment);
+      if (match != null) {
+        // 找到了包含 RJ 码的层级
+        if (segment == currentDirName) {
+          // 如果命中层级正好是当前正在创建的文件夹，认定为待解析的作品根目录
+          return (
+          status: NodeStatus.pending,
+          rjCode: match.group(0)!.toUpperCase() // 统一转为大写存入
+          );
+        } else {
+          // 如果祖先节点已经包含了 RJ 码，说明当前文件夹是其子目录，降级为普通文件
+          return (status: NodeStatus.normal, rjCode: null);
+        }
+      }
+    }
+
+    // 未发现任何 RJ 码特征
+    return (status: NodeStatus.normal, rjCode: null);
+  }
+
   void _sortNodes(List<FileNode> nodes) {
     nodes.sort((a, b) {
-      // 1. 类型优先级：文件夹(-1) < 文件(1)
       final isAFolder = a.type == NodeType.folder;
       final isBFolder = b.type == NodeType.folder;
 
       if (isAFolder && !isBFolder) return -1;
       if (!isAFolder && isBFolder) return 1;
 
-      // 2. 同类型按名称排序
       return a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
   }
 
-  /// [修改] 清空方法，支持保留 RootPath
   void clear({bool keepRootPath = false}) {
     roots.clear();
     _dirCache.clear();
     _dirtyNodes.clear();
+    _touchedNodes.clear();
     if (!keepRootPath) {
       _lowerRootPath = "";
       _originalRootPath = "";
@@ -175,5 +205,13 @@ class IncrementalTreeBuilder {
     final lastSeparator = path.lastIndexOf('/');
     if (lastSeparator <= 0) return "";
     return path.substring(0, lastSeparator);
+  }
+
+  /// 提取并清空本次生成的脏节点集合
+  /// 扫描服务应当在 mergeChunk 执行完毕后，立刻调用此方法将其返回值写入 Hive
+  List<FileNode> consumeTouchedNodes() {
+    final nodesToSave = List<FileNode>.from(_touchedNodes);
+    _touchedNodes.clear();
+    return nodesToSave;
   }
 }

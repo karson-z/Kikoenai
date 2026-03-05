@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 
 import '../../../../core/widgets/common/kikoenai_dialog.dart';
-import '../../data/model/file_node.dart';
+import '../../../../core/model/file_node.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodel/provider/file_manage_provider.dart';
 

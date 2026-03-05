@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/model/file_node.dart';
+import '../../../../../core/model/file_node.dart';
 
 class AudioManageState {
   final bool multiSelectMode;

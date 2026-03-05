@@ -10,7 +10,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import '../../../../core/service/audio/audio_service.dart';
 import '../../../../core/service/cache/cache_service.dart';
-import '../../../../features/album/data/model/file_node.dart';
+import '../../../../core/model/file_node.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 

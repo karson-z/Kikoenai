@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import '../../../album/data/model/file_node.dart';
+import '../../../../core/model/file_node.dart';
 import '../provider/file_scanner_notifier.dart';
 
 class RenameFileDialog extends ConsumerStatefulWidget {

@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
@@ -24,7 +25,8 @@ class AppStorage {
   static late Box<HistoryEntry> historyBox;    // 播放历史 (Key: WorkId)
   static late Box<AppPlayerState> playerBox;   // 播放器状态
   static late Box<dynamic> settingsBox;        // 通用设置/缓存
-  static late Box<FileNode> scannerBox;         // 扫描结果
+  static late Box<FileNode> scannerBox;        // 扫描结果
+  static late Box<Work> scraperWorkBox;        // 爬取作品元数据
 
   static late final String _hiveRootPath;
   /// 初始化 Hive 和所有 Box
@@ -54,6 +56,7 @@ class AppStorage {
       _openBox<AppPlayerState>(BoxNames.playerState).then((val) => playerBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
+      _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
     ]);
   }
 

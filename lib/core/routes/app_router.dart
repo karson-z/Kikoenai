@@ -91,7 +91,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.test,
                 pageBuilder: (context, state) => const MaterialPage(
-                  child: MediaPanelApp(),
+                  child: LocalMediaPanel(),
                 ),
               ),
             ],

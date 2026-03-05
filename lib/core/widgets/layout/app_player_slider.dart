@@ -5,7 +5,6 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/player/presentation/page/player_music_view.dart';
-import '../../theme/theme_view_model.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/sllding_up_panel_modify.dart';
 
