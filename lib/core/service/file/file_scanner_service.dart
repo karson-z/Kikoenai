@@ -107,30 +107,29 @@ abstract class _BaseFileScanner implements FileScannerService {
 
     // 监听 Worker 发回来的实时文件流
     chunkStream.listen((flatChunk) async {
-      final List<FileNode> nodesToUpdate = [];
+      final List<FileNode> filesToUpdate = [];
 
       for (var node in flatChunk) {
-        // A. 标记：记录这个文件在磁盘上存在
         _visitedPaths.add(node.keyId);
-
-        // B. 比对：通过 Storage 获取旧节点
         final cachedNode = _storage.getNode(node.keyId);
-
-        // 增量逻辑：
-        // 1. 缓存里没有
-        // 2. 缓存里有，但 lastModified 变了
-        if (cachedNode == null || cachedNode.lastModified != node.lastModified) {
-          nodesToUpdate.add(node);
+        if (cachedNode == null ||
+            cachedNode.lastModified != node.lastModified) {
+          filesToUpdate.add(node);
         }
       }
 
-      // C. 更新：如果有变化，写入 DB 并刷新 UI
-      if (nodesToUpdate.isNotEmpty) {
-        // 1. 存入数据库 (持久化)
-        await _storage.saveNodes(nodesToUpdate);
+      if (filesToUpdate.isNotEmpty) {
+        // 1. 将物理层扫描到的裸文件喂给 Builder
+        // Builder 会在内部组装树结构，赋予文件夹 NodeStatus，并统筹所有变更节点
+        _treeBuilder.mergeChunk(filesToUpdate);
 
-        // 2. 更新内存树 (UI)
-        _treeBuilder.mergeChunk(nodesToUpdate);
+        // 2. 一次性提取包括文件、以及动态生成的带状态的文件夹
+        final nodesToSaveToDb = _treeBuilder.consumeTouchedNodes();
+
+        // 3. 将加工完毕的数据持久化，确保业务状态落盘
+        await _storage.saveNodes(nodesToSaveToDb);
+
+        // 4. 驱动 UI 更新
         _resultController.add(List.of(_treeBuilder.roots));
       }
     }, onDone: () {
@@ -162,14 +161,11 @@ abstract class _BaseFileScanner implements FileScannerService {
       await _storage.deleteNodes(keysToDelete);
 
       // B. 重构 UI
-      // 这里的逻辑是：删除节点在增量树中很难处理（不知道父节点是谁），
-      // 最稳妥的做法是拿最新的全量数据重新构建一次内存树。
+      // 从内存中获取数据后重建树
       final remainingNodes = _storage.getNodesByRootPath(rootPath);
 
-      // 注意：确保 FileTreeBuilder 中实现了 rebuild 方法，或者手动 clear + merge
       _treeBuilder.rebuild(remainingNodes);
 
-      // C. 推送新状态
       _resultController.add(List.of(_treeBuilder.roots));
     }
   }
