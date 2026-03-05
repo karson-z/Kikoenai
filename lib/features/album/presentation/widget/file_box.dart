@@ -13,7 +13,7 @@ import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/menu/menu.dart';
 import '../../../../core/widgets/text_preview/text_preview_page.dart';
 import '../../../player/presentation/provider/player_controller_provider.dart';
-import '../../data/model/file_node.dart';
+import '../../../../core/model/file_node.dart';
 import '../viewmodel/provider/file_manage_provider.dart';
 import 'file_download_dialog.dart';
 

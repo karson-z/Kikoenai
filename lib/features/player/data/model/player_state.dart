@@ -1,6 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:hive_ce/hive.dart'; // 或者 package:hive/hive.dart
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 
 // 1. 添加 part 指令，文件名需与当前文件名一致 (例如 player_state.dart -> player_state.g.dart)

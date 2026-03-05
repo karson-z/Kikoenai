@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
 import 'file_tree_builder.dart';

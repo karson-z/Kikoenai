@@ -10,7 +10,7 @@ import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/v4.dart';
 
-import '../../../features/album/data/model/file_node.dart';
+import '../../model/file_node.dart';
 import '../../storage/hive_storage.dart';
 import 'package:path/path.dart' as p;
 /// 统一管理的下载服务单例

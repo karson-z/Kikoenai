@@ -25,16 +25,18 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       duration: (fields[5] as num?)?.toDouble(),
       size: (fields[6] as num?)?.toInt(),
       workTitle: fields[7] as String?,
-      work: fields[8] as Work?,
-      artist: fields[9] as String?,
-      lastModified: fields[10] == null ? 0 : (fields[10] as num).toInt(),
+      artist: fields[8] as String?,
+      lastModified: fields[9] == null ? 0 : (fields[9] as num).toInt(),
+      nodeStatus:
+          fields[10] == null ? NodeStatus.normal : fields[10] as NodeStatus,
+      rjCode: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, FileNode obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.type)
       ..writeByte(1)
@@ -52,11 +54,13 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       ..writeByte(7)
       ..write(obj.workTitle)
       ..writeByte(8)
-      ..write(obj.work)
-      ..writeByte(9)
       ..write(obj.artist)
+      ..writeByte(9)
+      ..write(obj.lastModified)
       ..writeByte(10)
-      ..write(obj.lastModified);
+      ..write(obj.nodeStatus)
+      ..writeByte(11)
+      ..write(obj.rjCode);
   }
 
   @override
@@ -66,6 +70,51 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FileNodeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class NodeStatusAdapter extends TypeAdapter<NodeStatus> {
+  @override
+  final typeId = 14;
+
+  @override
+  NodeStatus read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return NodeStatus.normal;
+      case 1:
+        return NodeStatus.pending;
+      case 2:
+        return NodeStatus.parsing;
+      case 3:
+        return NodeStatus.parsed;
+      default:
+        return NodeStatus.normal;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, NodeStatus obj) {
+    switch (obj) {
+      case NodeStatus.normal:
+        writer.writeByte(0);
+      case NodeStatus.pending:
+        writer.writeByte(1);
+      case NodeStatus.parsing:
+        writer.writeByte(2);
+      case NodeStatus.parsed:
+        writer.writeByte(3);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeStatusAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -86,11 +135,12 @@ FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
       duration: (json['duration'] as num?)?.toDouble(),
       size: (json['size'] as num?)?.toInt(),
       workTitle: json['workTitle'] as String?,
-      work: json['work'] == null
-          ? null
-          : Work.fromJson(json['work'] as Map<String, dynamic>),
       artist: json['artist'] as String?,
       lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
+      nodeStatus:
+          $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
+              NodeStatus.normal,
+      rjCode: json['rjCode'] as String?,
     );
 
 Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
@@ -103,9 +153,10 @@ Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
       'duration': instance.duration,
       'size': instance.size,
       'workTitle': instance.workTitle,
-      'work': instance.work,
       'artist': instance.artist,
       'lastModified': instance.lastModified,
+      'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
+      'rjCode': instance.rjCode,
     };
 
 const _$NodeTypeEnumMap = {
@@ -116,4 +167,11 @@ const _$NodeTypeEnumMap = {
   NodeType.video: 'video',
   NodeType.other: 'other',
   NodeType.unknown: 'unknown',
+};
+
+const _$NodeStatusEnumMap = {
+  NodeStatus.normal: 'normal',
+  NodeStatus.pending: 'pending',
+  NodeStatus.parsing: 'parsing',
+  NodeStatus.parsed: 'parsed',
 };

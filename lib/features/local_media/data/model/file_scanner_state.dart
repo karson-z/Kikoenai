@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:kikoenai/features/album/data/model/file_node.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
 

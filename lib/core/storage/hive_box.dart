@@ -12,6 +12,8 @@ class BoxNames {
   static const String history = 'history';
   /// 播放状态
   static const String playerState = 'player_state';
+  /// 抓取的作品元数据
+  static const String scraper = 'scraper_work';
 
   static const List<String> values = [
     settings,
