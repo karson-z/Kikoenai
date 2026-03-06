@@ -44,8 +44,10 @@ dependencies:
     git:
       url: https://github.com/karson-z/just_audio_media_kit.git
       ref: 97c05f2adb4f18af9168d86d222a0d917aa7deb4
-  media_kit: ^1.2.0
   media_kit_libs_windows_audio: ^1.0.9
+  media_kit: ^1.2.6 # Primary package.
+  media_kit_video: ^2.0.1 # For video rendering.
+  media_kit_libs_video: ^1.0.7 # Native video dependencies.
   audio_service: ^0.18.12
   rxdart: ^0.28.0
   permission_handler: ^12.0.1
