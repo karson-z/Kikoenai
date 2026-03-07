@@ -13,15 +13,17 @@ enum NodeStatus {
   normal,
 
   @HiveField(1)
-  pending,
+  pending,  // 扫描发现，等待用户确认加入队列
 
   @HiveField(2)
-  parsing,
+  parsing,  // 正在发起网络请求爬取中
 
   @HiveField(3)
-  parsed;
+  parsed;   // 爬取完成
+
 
   /// 扩展一些常用的状态判断，提升代码可读性
+  bool get isPending => this == NodeStatus.pending;
   bool get isProcessing => this == NodeStatus.parsing;
   bool get isCompleted => this == NodeStatus.parsed;
 }
@@ -128,7 +130,6 @@ class FileNode extends HiveObject {
       rjCode: rjCode ?? this.rjCode,
     );
   }
-
   // 自动生成
   factory FileNode.fromJson(Map<String, dynamic> json) =>
       _$FileNodeFromJson(json);
