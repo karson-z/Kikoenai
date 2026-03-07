@@ -126,7 +126,7 @@ class DlSiteScraper {
     final data = response.data[rjcode];
 
     final Map<String, dynamic> work = {
-      'mainCoverUrl': 'https://${data['work_image']}',
+      'mainCoverUrl': 'https:${data['work_image']}',
       'dl_count': data['dl_count'] ?? "0",
       'rate_average_2dp': data['rate_average_2dp'] ?? 0.0,
       'rate_count': data['rate_count'] ?? 0,

@@ -44,6 +44,7 @@ class AppStorage {
     Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
     Hive.registerAdapter(NodeTypeAdapter());
+    Hive.registerAdapter(NodeStatusAdapter());
     Hive.registerAdapter(FileNodeAdapter());
     Hive.registerAdapter(AudioServiceRepeatModeAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
@@ -63,10 +64,33 @@ class AppStorage {
   /// 辅助方法：安全打开 Box
   static Future<Box<T>> _openBox<T>(String name) async {
     try {
+      // 防御性编程：如果已经打开，直接返回
+      if (Hive.isBoxOpen(name)) {
+        return Hive.box<T>(name);
+      }
       return await Hive.openBox<T>(name);
     } catch (e) {
-      debugPrint("Box $name 损坏，正在重建...");
-      await Hive.deleteBoxFromDisk(name);
+      debugPrint("Box $name 损坏或模型不匹配，正在重建... \n原因: $e");
+
+      // 1. 尝试强行关闭处于“半打开”状态的 Box，释放文件句柄
+      if (Hive.isBoxOpen(name)) {
+        try {
+          await Hive.box(name).close();
+        } catch (_) {
+          // 忽略关闭时的错误
+        }
+      }
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // 3. 再次尝试从磁盘删除
+      try {
+        await Hive.deleteBoxFromDisk(name);
+        debugPrint("Box $name 旧文件清理成功。");
+      } catch (deleteError) {
+        debugPrint("Box清理失败，请手动前往提示的 C 盘路径删除文件。错误: $deleteError");
+      }
+
+      // 4. 重新创建全新的 Box
       return await Hive.openBox<T>(name);
     }
   }
