@@ -6,13 +6,17 @@ import 'package:kikoenai/core/model/file_node.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
 import '../../../../core/service/permission/permission_service.dart';
+import '../../../../core/utils/scraper/scraper_controller.dart';
 import '../../data/model/file_scanner_state.dart';
 
 final fileScannerProvider =
-NotifierProvider.autoDispose<FileScannerNotifier, FileScannerState>(
+    NotifierProvider.autoDispose<FileScannerNotifier, FileScannerState>(
   FileScannerNotifier.new,
 );
-
+/// 文件扫描服务，仅作为扫描文件的入口
+/// 拥有保存路径，扫描状态，扫描进度等信息
+/// 管控 Worker 后台扫描的全生命周期
+/// 并将扫描结果交给爬虫队列管理的provider
 class FileScannerNotifier extends Notifier<FileScannerState> {
   FileScannerService? _service;
   late final CacheService _cacheService;
@@ -33,6 +37,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       savedPaths: _cacheService.getScanRootPaths(mode: initialMode),
     );
   }
+
   void _initializeService(ScanMode mode) {
     _cleanupService();
     _service = FileScannerService(mode);
@@ -42,7 +47,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     });
 
     _resultSub = _service!.result.listen(
-          (roots) {
+      (roots) {
         state = state.copyWith(
           roots: roots,
           scannedCount: _countNodes(roots),
@@ -55,6 +60,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     );
     final saved = _cacheService.getScanRootPaths(mode: mode);
     state = state.copyWith(savedPaths: saved);
+    // TODO 先以第一个路径作为初始化扫描路径，后续变为用户选择的路径
     if (saved.isNotEmpty) {
       startScan(saved.first);
     }
@@ -65,23 +71,20 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
 
     state = state.copyWith(
       scanMode: newMode,
-      roots: [],
+      // roots: [],
       currentPath: null,
       scannedCount: 0,
       status: WorkerState.idle,
       errorMessage: null,
       savedPaths: _cacheService.getScanRootPaths(mode: newMode),
     );
-
-    _initializeService(newMode);
   }
-
 
   Future<void> startScan(String path) async {
     if (_service == null) return;
     state = state.copyWith(
       currentPath: path,
-      roots: [],
+      // roots: [],
       errorMessage: null,
       scannedCount: 0,
     );
@@ -112,9 +115,11 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       }
     }
   }
+
   Future<void> changePath(String newPath) async {
     await startScan(newPath);
   }
+
   /// 移除目录
   Future<void> removeDirectory(String pathToRemove) async {
     final newPaths = state.savedPaths.where((p) => p != pathToRemove).toList();
@@ -138,7 +143,8 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
   Future<void> clearAllDirectories() async {
     state = state.copyWith(
       savedPaths: [],
-      roots: [], // 清空视图
+      // roots: [],
+      // 清空视图
       currentPath: null,
       scannedCount: 0,
       status: WorkerState.idle,
@@ -151,7 +157,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     // 3. 持久化清理
     await _cacheService.saveScanRootPaths([], mode: state.scanMode);
   }
-
 
   void _cleanupService() {
     _stateSub?.cancel();

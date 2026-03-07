@@ -26,7 +26,7 @@ class ResponsiveCardGrid extends StatelessWidget {
       );
     }
 
-    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
+    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
 
@@ -61,10 +61,10 @@ class ResponsiveCardGrid extends StatelessWidget {
   }
 
   Widget _buildEmptyView() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.search_off, size: 54, color: Colors.grey),
           SizedBox(height: 16),
           Text(

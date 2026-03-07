@@ -11,6 +11,4 @@ class RegexPatterns {
   /// 纯日期格式 (YYYY-MM-DD)
   /// 用于验证文件夹是否是日期归档
   static const String dateFolder = r'^\d{4}-\d{2}-\d{2}$';
-
-
 }

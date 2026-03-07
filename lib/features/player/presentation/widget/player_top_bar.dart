@@ -102,7 +102,7 @@ class TopBar extends ConsumerWidget {
                   if(panelCtrl.isPanelOpen){
                     panelCtrl.close();
                   }
-                  context.pushReplacement(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
+                  context.push(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
                 }
               },
             ),

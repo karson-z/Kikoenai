@@ -2,13 +2,16 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import '../../utils/scraper/scraper_storage.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
 import 'file_tree_builder.dart';
+import 'package:path/path.dart' as p;
 
 enum ScanMode { audio, video, subtitles }
 
 abstract class FileScannerService {
+  /// 扫描模式
   ScanMode get scanMode;
 
   /// 输出完整的文件列表流
@@ -96,77 +99,92 @@ abstract class _BaseFileScanner implements FileScannerService {
   /// 步骤 2: 后台执行扫描并同步差异
   Future<void> _performSilentSync(String path, Set<String> extensions, {required bool scanArchives}) async {
     _visitedPaths.clear();
-
+    final allParsedWorks = ScraperStorage().getAllWorks();
+    final parsedRjCodes = allParsedWorks.expand((w) => [
+      'RJ${w.id}'.toUpperCase(),
+      'RJ0${w.id}'.toUpperCase()
+    ]).toSet();
     // 启动 Worker
     final chunkStream = _worker.start(
+      parsedRjCodes: parsedRjCodes,
       path: path,
       extensions: extensions,
       scanMode: scanMode,
       scanArchives: scanArchives,
     );
 
-    // 监听 Worker 发回来的实时文件流
-    chunkStream.listen((flatChunk) async {
+    /// 监听 Worker 发回来的实时文件流
+    /// 由于Worker 中扫描后传递回来的数据是裸数据（单纯的扫描文件）,那么添加至扫描白名单[_visitedPaths]这里的数据永远只有文件
+    /// 如果只把文件添加至白名单就会出现扫描完成后，清除不存在数据时把构建好或解析完成的文件夹目录删除
+    /// 所以必须使用_markPathAndParentsAsVisited 将其父级目录一并添加至白名单中。
+    /// 只要文件夹里还有一个有效文件，文件夹的路径就会被 _markPathAndParentsAsVisited 保护，其状态（已解析/待解析）安全无恙。
+    /// 如果用户删除了整个作品文件夹，里面没有任何文件了，该文件夹路径不会进入白名单，最终会被 _handleDeletedFiles 连带业务状态一起从 Hive 中干净地抹除。
+    /// 采用 await for 保证其顺序执行，避免竞态的产生
+    await for (final flatChunk in chunkStream) {
       final List<FileNode> filesToUpdate = [];
 
       for (var node in flatChunk) {
-        _visitedPaths.add(node.keyId);
+        _markPathAndParentsAsVisited(node.keyId, path);
         final cachedNode = _storage.getNode(node.keyId);
+
         if (cachedNode == null ||
-            cachedNode.lastModified != node.lastModified) {
+            cachedNode.lastModified != node.lastModified ||
+            cachedNode.nodeStatus != node.nodeStatus ||
+            cachedNode.rjCode != node.rjCode) {
           filesToUpdate.add(node);
         }
       }
-
       if (filesToUpdate.isNotEmpty) {
-        // 1. 将物理层扫描到的裸文件喂给 Builder
-        // Builder 会在内部组装树结构，赋予文件夹 NodeStatus，并统筹所有变更节点
         _treeBuilder.mergeChunk(filesToUpdate);
-
-        // 2. 一次性提取包括文件、以及动态生成的带状态的文件夹
         final nodesToSaveToDb = _treeBuilder.consumeTouchedNodes();
-
-        // 3. 将加工完毕的数据持久化，确保业务状态落盘
-        await _storage.saveNodes(nodesToSaveToDb);
-
-        // 4. 驱动 UI 更新
+        await _storage.saveNodes(nodesToSaveToDb); // 等待落盘完成
         _resultController.add(List.of(_treeBuilder.roots));
       }
-    }, onDone: () {
-      // D. 清除 ：处理被删除的文件
-      _handleDeletedFiles(path);
-    });
+    }
+
+    // 当流真正结束（所有 await 都执行完毕）后，才会走到这里
+    // D. 清除 ：处理被删除的文件
+    await _handleDeletedFiles(path);
   }
 
   /// 步骤 3: 处理删除逻辑 (Mark & Sweep 的 Sweep 阶段)
   Future<void> _handleDeletedFiles(String rootPath) async {
-    // 1. 获取数据库中该路径下目前所有的文件
     final allCachedNodes = _storage.getNodesByRootPath(rootPath);
-
     final List<String> keysToDelete = [];
 
-    // 2. 遍历缓存
     for (var node in allCachedNodes) {
-      // 如果缓存里的文件，在刚才的扫描中没出现 (_visitedPaths)，说明物理文件被删了
-      if (!_visitedPaths.contains(node.keyId)) {
-        keysToDelete.add(node.keyId);
+      // 同样使用 p.normalize 进行结构化对齐
+      final normalizedKey = p.normalize(node.keyId).toLowerCase();
+
+      if (!_visitedPaths.contains(normalizedKey)) {
+        keysToDelete.add(node.keyId); // 删除依然用原始 key
       }
     }
 
-    // 3. 执行删除和重构
     if (keysToDelete.isNotEmpty) {
       debugPrint("Scanner: Detected ${keysToDelete.length} deleted files. Cleaning up...");
-
-      // A. 从数据库删除
       await _storage.deleteNodes(keysToDelete);
 
-      // B. 重构 UI
-      // 从内存中获取数据后重建树
       final remainingNodes = _storage.getNodesByRootPath(rootPath);
-
       _treeBuilder.rebuild(remainingNodes);
-
       _resultController.add(List.of(_treeBuilder.roots));
+    }
+  }
+
+  //递归获取所有父级路径，加入白名单
+  void _markPathAndParentsAsVisited(String fullPath, String rootPath) {
+    String currentPath = p.normalize(fullPath).toLowerCase();
+    final String lowerRoot = p.normalize(rootPath).toLowerCase();
+
+    while (true) {
+      _visitedPaths.add(currentPath);
+      // 退出条件 1: 退到了你指定的扫描根目录
+      // 退出条件 2: 退到了系统的顶级目录 (例如 p.dirname("C:\") 依然是 "C:\")，防止死循环
+      if (currentPath == lowerRoot || currentPath == p.dirname(currentPath)) {
+        break;
+      }
+      // 核心替换：直接用 p.dirname 安全获取上一级目录，告别 substring 和 lastIndexOf
+      currentPath = p.dirname(currentPath);
     }
   }
 }

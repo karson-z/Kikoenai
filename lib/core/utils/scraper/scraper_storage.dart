@@ -53,7 +53,7 @@ class ScraperStorage {
   /// 场景：用户手动解除本地文件夹与作品的关联，或清除指定错误数据
   Future<void> deleteWork(String rjCode) async {
     if (rjCode.isEmpty) return;
-    await _box.delete(rjCode.toUpperCase());
+    await _box.delete('RJ0${rjCode.toUpperCase()}');
   }
 
   /// 清空所有作品元数据 (慎用)

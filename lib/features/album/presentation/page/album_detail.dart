@@ -19,6 +19,8 @@ import '../widget/file_box.dart';
 import '../widget/rating_menu.dart';
 import '../widget/rating_section.dart';
 import '../widget/work_tag.dart';
+import 'package:kikoenai/core/model/file_node.dart'; // 确保引入 FileNode
+import '../../../../core/service/file/file_scanner_storage.dart'; // 引入你的本地存储类
 
 /// 专辑详情页
 class AlbumDetailPage extends ConsumerWidget {
@@ -29,11 +31,17 @@ class AlbumDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     var work = extra['work'];
-    if(work is Map){
+    if (work is Map) {
       work = Work.fromJson(work as Map<String, dynamic>);
     }
-    final workStatus = ref.watch(workDetailProvider(work.id));
-    final asyncData = ref.watch(trackFileNodeProvider(work.id));
+
+    // 1. 提取本地标识，默认为 false
+    final bool isLocal = extra['isLocal'] as bool? ?? false;
+
+    // 2. 如果是本地模式，禁用网络 Provider 监听
+    final workStatus = isLocal ? null : ref.watch(workDetailProvider(work.id));
+    final asyncData = isLocal ? null : ref.watch(trackFileNodeProvider(work.id));
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -46,70 +54,79 @@ class AlbumDetailPage extends ConsumerWidget {
           onPressed: () {
             if (context.canPop()) {
               context.pop();
-            }else{
+            } else {
               context.go(AppRoutes.home);
             }
           },
         ),
         actions: [
-          InkWell(
-            borderRadius: BorderRadius.circular(4),
-            onTap: () {
-              final currentData = workStatus.value;
+          // 3. 本地模式下禁用状态标记按钮，只展示 "本地" 标签
+          if (isLocal)
+            Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: const Text(
+                "本地作品",
+                style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            )
+          else
+            InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () {
+                final currentData = workStatus?.value;
 
-              final initialStatus = UserWorkStatus(
-                workId: work.id,
-                rating: currentData?.userRating ?? 0,
-                reviewText: currentData?.reviewText ?? '',
-                progress: currentData?.progress != null
-                    ? WorkProgress.fromString(currentData!.progress)
-                    : WorkProgress.marked,
-              );
+                final initialStatus = UserWorkStatus(
+                  workId: work.id,
+                  rating: currentData?.userRating ?? 0,
+                  reviewText: currentData?.reviewText ?? '',
+                  progress: currentData?.progress != null
+                      ? WorkProgress.fromString(currentData!.progress)
+                      : WorkProgress.marked,
+                );
 
-              // 3. 弹出 BottomSheet
-              KikoenaiDialog.showBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                useSafeArea: true,
-                builder: (ctx) {
-                  return ReviewBottomSheet(
-                    initialStatus: initialStatus,
-                    onSubmit: (newStatus) async {
-                      await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-                      ref.invalidate(workDetailProvider(work.id));
-                    },
-                  );
-                },
-              );
-            },
-            child: Padding( // 加点 padding 增加点击区域和美观度
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.bookmark_add_outlined, color: Colors.grey, size: 20),
-                  const SizedBox(width: 4),
-                  // 4. 渲染文字：处理 AsyncValue 的三种状态
-                  workStatus.when(
-                    data: (status) {
-                      return Text(
-                        WorkProgress.fromString(status.progress).label,
-                        style: const TextStyle(fontSize: 16),
-                      );
-                    },
-                    error: (_, __) => const Text(
-                      "标记", // 出错时回退到默认
-                      style: TextStyle(fontSize: 16, color: Colors.black),
+                KikoenaiDialog.showBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  builder: (ctx) {
+                    return ReviewBottomSheet(
+                      initialStatus: initialStatus,
+                      onSubmit: (newStatus) async {
+                        await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+                        ref.invalidate(workDetailProvider(work.id));
+                      },
+                    );
+                  },
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bookmark_add_outlined, color: Colors.grey, size: 20),
+                    const SizedBox(width: 4),
+                    workStatus!.when(
+                      data: (status) {
+                        return Text(
+                          WorkProgress.fromString(status.progress).label,
+                          style: const TextStyle(fontSize: 16),
+                        );
+                      },
+                      error: (_, __) => const Text(
+                        "标记",
+                        style: TextStyle(fontSize: 16, color: Colors.black),
+                      ),
+                      loading: () => const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     ),
-                    loading: () => const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -129,12 +146,12 @@ class AlbumDetailPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(work.title ?? '',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (work.name != null)
                 GestureDetector(
                   onTap: () {
+                    // 即使是本地模式，标签跳转功能一般也可以保留（如果分类页支持全局浏览的话）
                     ref.read(categoryUiProvider.notifier).toggleTag(
                         TagType.circle.stringValue, work.name!,
                         refreshData: true);
@@ -157,38 +174,33 @@ class AlbumDetailPage extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               RatingSection(
-                // 1. 基础数据 (来自 extra work)
                 average: work.rateAverage2dp ?? 0,
-
-                // 2. 动态数据 (来自 Riverpod workStatus)
-                // 使用 value 获取当前值，如果加载中或为空，则默认为 0
-                userRating: workStatus.value?.userRating ?? 0,
+                // 4. 本地模式下读取不到网络评分，默认为 0
+                userRating: isLocal ? 0 : (workStatus?.value?.userRating ?? 0),
                 extraWidgets: [
-                  // 1. 评论数
                   RatingMetaItem(
                       icon: Icons.comment,
                       text: "(${work.reviewCount ?? 0})"
                   ),
-
-                  // 2. 时长 (你可以决定是否显示，或者格式化方式)
                   if ((work.duration ?? 0) > 0)
                     RatingMetaItem(
                         icon: Icons.timer,
                         text: "(${TimeFormatter.formatSeconds(work.duration!)})"
                     )
                 ],
-                // 3. 交互回调 (点击星星)
-                onRatingUpdate: (int newRating) {
-                  // A. 获取当前状态对象 (如果是空的则新建一个)
+                // 5. 本地模式下禁用评分提交
+                onRatingUpdate: isLocal
+                    ? (int _) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('本地模式下无法提交评价')),
+                  );
+                }
+                    : (int newRating) {
                   final currentStatus = UserWorkStatus(workId: work.id);
-
-                  // B. 复制并更新 rating 字段
                   final newStatus = currentStatus.copyWith(
                     rating: newRating,
-                    // 确保 workId 存在
                     workId: work.id,
                   );
-                  // C. 调用提交逻辑
                   HandleSubmit.handleRatingSubmit(context, ref, newStatus);
                   ref.invalidate(workDetailProvider(work.id));
                 },
@@ -213,51 +225,78 @@ class AlbumDetailPage extends ConsumerWidget {
             children: [cover, const SizedBox(height: 16), info],
           );
 
-          return RefreshIndicator(
-            onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
-            child: CustomScrollView(
-              // 关键：确保即使内容不足也能下拉刷新
+          // 核心滚动视图（包含 metadata 和 树形列表）
+          Widget buildScrollBody() {
+            return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                // 1. 头部区域 (元数据)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: metadata,
                   ),
                 ),
-
-                // 间距
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                // 2. 异步内容区域
-                asyncData.when(
-                  loading: () =>
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                        child: LottieLoadingIndicator(message: 'loading...')),
-                  ),
-                  error: (err, stack) =>
-                      SliverFillRemaining(
+                // 6. 根据是否是本地模式渲染不同的列表源
+                if (isLocal)
+                // 本地模式：直接从 FileScannerStorage 拿取匹配此 RJ 码的节点
+                  Builder(builder: (context) {
+                    // 极其清爽的调用！全量跨路径查找并组装！
+                    final localWorkTree = FileScannerStorage().getWorkFileTreeLocally(work.id);
+
+                    if (localWorkTree == null) {
+                      return const SliverFillRemaining(
                         hasScrollBody: false,
-                        child: Center(
-                          child: err is GlobalException
-                              ? Text("GlobalException: ${err
-                              .message}\ncode=${err.code}")
-                              : Text("Error: $err"),
-                        ),
-                      ),
-                  data: (nodes) {
+                        child: Center(child: Text("本地未找到该作品的文件", style: TextStyle(color: Colors.grey))),
+                      );
+                    }
+
+                    if (localWorkTree.children == null || localWorkTree.children!.isEmpty) {
+                      return const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(child: Text("该文件夹内部为空", style: TextStyle(color: Colors.grey))),
+                      );
+                    }
+
+                    // 把拼好的 children 喂给浏览器
                     return FileNodeBrowser(
                       work: work,
-                      rootNodes: nodes,
+                      rootNodes: localWorkTree.children!,
                     );
-                  },
-                ),
+                  })
+                else
+                // 网络模式：渲染异步加载的数据
+                  asyncData!.when(
+                    loading: () => const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: LottieLoadingIndicator(message: 'loading...')),
+                    ),
+                    error: (err, stack) => SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: err is GlobalException
+                            ? Text("GlobalException: ${err.message}\ncode=${err.code}")
+                            : Text("Error: $err"),
+                      ),
+                    ),
+                    data: (nodes) {
+                      return FileNodeBrowser(
+                        work: work,
+                        rootNodes: nodes,
+                      );
+                    },
+                  ),
               ],
-            ),
+            );
+          }
+
+          // 7. 本地模式下直接返回列表，禁用下拉刷新
+          return isLocal
+              ? buildScrollBody()
+              : RefreshIndicator(
+            onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
+            child: buildScrollBody(),
           );
         },
       ),
@@ -265,8 +304,7 @@ class AlbumDetailPage extends ConsumerWidget {
   }
 }
 
-/// 封面组件：Hero + 缩略图动画 + 大图加载
-/// 修复后的封面组件
+/// 封面组件 (保持不变)
 class AlbumCover extends StatelessWidget {
   final String? thumbnailUrl;
   final String? mainUrl;
@@ -276,16 +314,13 @@ class AlbumCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 构建缩略图组件 (作为占位符)
     Widget buildThumbnail() {
       if (thumbnailUrl != null) {
         return CachedNetworkImage(
           imageUrl: thumbnailUrl!,
           fit: BoxFit.cover,
-          // 缩略图本身不需要占位符，或者用灰色背景
           placeholder: (context, url) => Container(color: Colors.grey.shade300),
-          errorWidget: (context, url, error) =>
-              Container(color: Colors.grey.shade300),
+          errorWidget: (context, url, error) => Container(color: Colors.grey.shade300),
         );
       }
       return Container(color: Colors.grey.shade300);
@@ -301,14 +336,9 @@ class AlbumCover extends StatelessWidget {
               ? CachedNetworkImage(
             imageUrl: mainUrl!,
             fit: BoxFit.cover,
-            // ✅ 关键修复：直接使用 placeholder 属性展示缩略图
-            // 当大图加载时，CachedNetworkImage 会自动处理从 placeholder 到大图的过渡
             placeholder: (context, url) => buildThumbnail(),
-            // 如果大图加载失败，保留缩略图或显示错误
             errorWidget: (context, url, error) => buildThumbnail(),
-            // 淡入动画时长
             fadeInDuration: const Duration(milliseconds: 400),
-            // 确保淡入时占位符不会立即消失，而是平滑过渡
             useOldImageOnUrlChange: true,
           )
               : buildThumbnail(),

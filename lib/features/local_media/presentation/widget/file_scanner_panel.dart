@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
+
 import '../../../../core/constants/app_file_extensions.dart';
+import '../../../../core/model/file_node.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
-import '../../../../core/model/file_node.dart';
 import '../../../player/presentation/provider/player_controller_provider.dart';
+import '../../../test/file_operation_sheet.dart';
+import '../../../test/status_pill.dart'; // 确认你的实际路径
 
 class FileBrowserPanel extends ConsumerWidget {
   final List<FileNode> rootNodes;
@@ -21,10 +26,8 @@ class FileBrowserPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 监听面包屑状态
     final breadcrumbs = ref.watch(breadcrumbProvider);
 
-    // 计算当前需要显示的节点
     final List<FileNode> currentNodes = breadcrumbs.isEmpty
         ? rootNodes
         : (breadcrumbs.last.children ?? []);
@@ -33,25 +36,9 @@ class FileBrowserPanel extends ConsumerWidget {
       canPop: breadcrumbs.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        // 拦截物理返回键，执行返回上一级逻辑
         ref.read(breadcrumbProvider.notifier).navigateBack();
       },
-      child: Column(
-        children: [
-          // 面包屑导航栏
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: BreadcrumbBar(),
-          ),
-
-          const Divider(height: 1),
-
-          // 文件列表
-          Expanded(
-            child: _buildFileList(context, ref, currentNodes, scanMode),
-          ),
-        ],
-      ),
+      child: _buildFileList(context, ref, currentNodes, scanMode),
     );
   }
 
@@ -85,20 +72,45 @@ class FileBrowserPanel extends ConsumerWidget {
   Widget _buildFolderItem(BuildContext context, WidgetRef ref, FileNode node) {
     final isArchiveFolder = FileExtensions.isArchive(node.title);
 
+    // 构建副标题：如果有 RJ 码则拼接在前面
+    final itemCountText = "${node.children?.length ?? 0} 项";
+    final subtitleText = (node.rjCode != null && node.rjCode!.isNotEmpty)
+        ? "${node.rjCode}  •  $itemCountText"
+        : itemCountText;
+
     return ListTile(
       leading: Icon(
         isArchiveFolder ? Icons.folder_zip : Icons.folder,
         color: isArchiveFolder ? Colors.purpleAccent : Colors.amber,
       ),
-      title: Text(node.title),
+      title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        "${node.children?.length ?? 0} 项",
-        style: TextStyle(color: Theme.of(context).colorScheme.outline),
+        subtitleText,
+        style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12),
       ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-      onLongPress: () => RenameFileDialog.show(context, node),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          NodeStatusPill(status: node.nodeStatus), // 中间展示胶囊
+          const SizedBox(width: 8),
+          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        ],
+      ),
+      onLongPress: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          // 适配深色/浅色模式的圆角底板
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (context) {
+            return FolderActionBottomSheet(node: node);
+          },
+        );
+      },
       onTap: () {
-        // 使用 Provider 的逻辑进入文件夹
         ref.read(breadcrumbProvider.notifier).enterFolder(node);
       },
     );
@@ -153,7 +165,21 @@ class FileBrowserPanel extends ConsumerWidget {
               )
           );
         } else {
-          ref.read(playerControllerProvider.notifier).handleFileTap(node, contextNodes);
+          final breadcrumbs = ref.read(breadcrumbProvider);
+          FileNode? targetRootNode;
+          for (final bNode in breadcrumbs) {
+            if (bNode.rjCode != null && bNode.rjCode!.isNotEmpty) {
+              targetRootNode = bNode;
+              break; // 找到了就跳出循环
+            }
+          }
+          final rjCode = targetRootNode?.rjCode;
+          Work? work;
+          if(rjCode != null){
+           work = ScraperStorage().getWork(rjCode.toUpperCase());
+          }
+          // 调用播放
+          ref.read(playerControllerProvider.notifier).handleFileTap(node,contextNodes,work: work);
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("开始播放: ${node.title}"),

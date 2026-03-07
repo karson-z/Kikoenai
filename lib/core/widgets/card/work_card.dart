@@ -6,11 +6,13 @@ import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
+import '../../../features/local_media/presentation/provider/file_scanner_notifier.dart';
 import '../../enums/age_rating.dart';
 import '../../enums/tag_enum.dart';
 
 class WorkCard extends ConsumerWidget {
   final Work work;
+  final bool? isLocalMedia;
   final String? lastTrackTitle;
   final DateTime? lastPlayedAt;
   static const double kTitleFontSize = 13.0;
@@ -22,6 +24,7 @@ class WorkCard extends ConsumerWidget {
     required this.work,
     this.lastTrackTitle,
     this.lastPlayedAt,
+    this.isLocalMedia
   });
 
   @override
@@ -32,7 +35,7 @@ class WorkCard extends ConsumerWidget {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
-        context.push(AppRoutes.detail, extra: {'work': work});
+        context.push(AppRoutes.detail, extra: {'work': work,'isLocal': isLocalMedia});
       },
       child: Card(
         clipBehavior: Clip.hardEdge,
@@ -60,6 +63,7 @@ class WorkCard extends ConsumerWidget {
                     text: "RJ${work.id}",
                     color: Colors.black.withAlpha(60),
                   ),
+                  if(work.ageCategoryString != null)
                   _PositionedBadge(
                     top: 8, right: 8,
                     text: AgeRatingEnum.labelFromValue(work.ageCategoryString),
@@ -69,6 +73,7 @@ class WorkCard extends ConsumerWidget {
                     bottom: 2, left: 8,
                     child: _AppIconBadge(isSubTitle: isSubTitle),
                   ),
+                  if(work.release != null)
                   _PositionedBadge(
                     bottom: 0, right: 0,
                     text: work.release.toString(),
@@ -115,7 +120,7 @@ class WorkCard extends ConsumerWidget {
                           }
                         },
                         child: Text(
-                          work.name ?? "",
+                          work.name ?? work.circle?.name ?? '',
                           style: TextStyle(
                             fontSize: kSubtitleFontSize,
                             color: Colors.grey[700],

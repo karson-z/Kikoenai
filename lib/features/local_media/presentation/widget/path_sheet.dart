@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
+import '../../../../core/service/file/file_scanner_service.dart';
+import '../../../../core/service/file/file_scanner_worker.dart';
 import '../provider/file_scanner_notifier.dart';
 
 class PathManagerSheet extends ConsumerWidget {
@@ -22,8 +24,8 @@ class PathManagerSheet extends ConsumerWidget {
       builder: (context) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.5,
-          maxChildSize: 0.85,
+          initialChildSize: 0.55,
+          maxChildSize: 0.55,
           minChildSize: 0.3,
           builder: (context, scrollController) {
             return PathManagerSheet(scrollController: scrollController);
@@ -37,144 +39,239 @@ class PathManagerSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(fileScannerProvider);
     final notifier = ref.read(fileScannerProvider.notifier);
-    final paths = state.savedPaths;
-    // 获取当前正在浏览的路径（如果有）
-    final currentPath = state.currentPath;
 
-    return Column(
-      children: [
-        // 1. 把手条
-        Center(
-          child: Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2),
+    final paths = state.savedPaths;
+    final currentPath = state.currentPath;
+    final currentMode = state.scanMode;
+    final isScanning = state.status == WorkerState.scanning;
+
+    // 根据当前的枚举值，计算出应该激活哪个 Tab 索引
+    int initialIndex = 0;
+    switch (currentMode) {
+      case ScanMode.audio:
+        initialIndex = 0;
+        break;
+      case ScanMode.video:
+        initialIndex = 1;
+        break;
+      case ScanMode.subtitles:
+        initialIndex = 2;
+        break;
+    }
+
+    // 整个 Sheet 用 DefaultTabController 包裹，接管状态
+    return DefaultTabController(
+      length: 3,
+      initialIndex: initialIndex,
+      child: Column(
+        children: [
+          // 1. 把手条
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
-        ),
 
-        // 2. 标题栏
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "扫描路径管理",
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  Text(
-                    "点击列表切换路径", // 提示用户可以点击
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
+          // 2. 标题栏
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "扫描路径管理",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      "点击列表切换路径",
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: paths.isEmpty
+                      ? null
+                      : () => _showClearConfirmation(context, notifier),
+                  child: Text(
+                    "清空",
+                    style: TextStyle(
+                      color: paths.isEmpty
+                          ? Theme.of(context).disabledColor
+                          : Theme.of(context).colorScheme.error,
                     ),
                   ),
-                ],
+                )
+              ],
+            ),
+          ),
+
+          // 3. 自定义样式的药丸型 TabBar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Container(
+              height: 40, // 控制整体高度
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.15), // 整个区域的灰色背景
+                borderRadius: BorderRadius.circular(20), // 外层大圆角
               ),
-              TextButton(
-                onPressed: paths.isEmpty
-                    ? null
-                    : () => _showClearConfirmation(context, notifier),
-                child: Text(
-                  "清空",
-                  style: TextStyle(
-                    color: paths.isEmpty
-                        ? Theme.of(context).disabledColor
-                        : Theme.of(context).colorScheme.error,
+              child: Padding(
+                padding: const EdgeInsets.all(4.0), // 留出一点内边距给白色滑块
+                child: TabBar(
+                  dividerColor: Colors.transparent, // 隐藏默认底线
+                  indicatorSize: TabBarIndicatorSize.tab, // 指示器撑满单个 tab
+                  labelColor: Colors.black87, // 选中文字颜色
+                  unselectedLabelColor: Colors.grey.shade600, // 未选中文字颜色
+                  // 核心：自定义指示器，也就是那个白色的高亮块
+                  indicator: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ),
-              )
-            ],
-          ),
-        ),
+                  // 点击 Tab 时的联动事件
+                  onTap: (index) {
+                    if (isScanning) return; // 扫描中禁止切换
 
-        const Divider(height: 1),
-
-        // 3. 列表区域
-        Expanded(
-          child: paths.isEmpty
-              ? _buildEmptyManager(context)
-              : ListView.separated(
-            controller: scrollController,
-            itemCount: paths.length,
-            padding: const EdgeInsets.only(bottom: 80, top: 8),
-            separatorBuilder: (c, i) =>
-            const Divider(height: 1, indent: 72),
-            itemBuilder: (context, index) {
-              final path = paths[index];
-              final folderName = path.split(Platform.pathSeparator).last;
-              final parentPath = File(path).parent.path;
-
-              // 判断是否是当前选中的路径
-              final isSelected = path == currentPath;
-
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 4),
-                // 选中状态样式
-                selected: isSelected,
-                selectedTileColor: Theme.of(context)
-                    .colorScheme
-                    .primaryContainer
-                    .withOpacity(0.1),
-                leading: CircleAvatar(
-                  backgroundColor: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context)
-                      .colorScheme
-                      .secondaryContainer,
-                  foregroundColor: isSelected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(context)
-                      .colorScheme
-                      .onSecondaryContainer,
-                  child: Icon(
-                    isSelected ? Icons.check : Icons.folder,
-                  ),
-                ),
-                title: Text(
-                  folderName.isEmpty ? path : folderName,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    color: isSelected ? Theme.of(context).colorScheme.primary : null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  parentPath,
-                  style: const TextStyle(fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // --- 核心修改：点击事件 ---
-                onTap: () {
-                  // 1. 触发扫描
-                  notifier.startScan(path);
-                  // 2. 关闭弹窗
-                  Navigator.pop(context);
-                },
-                trailing: IconButton(
-                  icon: const Icon(Icons.remove_circle_outline),
-                  color: Theme.of(context).colorScheme.error,
-                  tooltip: "移除此路径",
-                  onPressed: () {
-                    notifier.removeDirectory(path);
+                    ScanMode targetMode;
+                    switch (index) {
+                      case 0:
+                        targetMode = ScanMode.audio;
+                        break;
+                      case 1:
+                        targetMode = ScanMode.video;
+                        break;
+                      case 2:
+                        targetMode = ScanMode.subtitles;
+                        break;
+                      default:
+                        targetMode = ScanMode.audio;
+                    }
+                    notifier.switchMode(targetMode);
                   },
+                  tabs: const [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.music_note, size: 16),
+                          SizedBox(width: 4),
+                          Text("音频"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.videocam, size: 16),
+                          SizedBox(width: 4),
+                          Text("视频"),
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.subtitles, size: 16),
+                          SizedBox(width: 4),
+                          Text("字幕"),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
-        ),
 
-        // 4. 底部固定按钮
-        Container(
+          const SizedBox(height: 8),
+
+          // 4. 列表区域
+          Expanded(
+            child: paths.isEmpty
+                ? _buildEmptyManager(context)
+                : ListView.separated(
+              controller: scrollController,
+              itemCount: paths.length,
+              padding: const EdgeInsets.only(bottom: 80, top: 0),
+              separatorBuilder: (c, i) => const Divider(height: 1, indent: 72),
+              itemBuilder: (context, index) {
+                final path = paths[index];
+                final folderName = path.split(Platform.pathSeparator).last;
+                final parentPath = File(path).parent.path;
+
+                final isSelected = path == currentPath;
+
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  selected: isSelected,
+                  selectedTileColor: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withOpacity(0.1),
+                  leading: CircleAvatar(
+                    backgroundColor: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.secondaryContainer,
+                    foregroundColor: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSecondaryContainer,
+                    child: Icon(
+                      isSelected ? Icons.check : Icons.folder,
+                    ),
+                  ),
+                  title: Text(
+                    folderName.isEmpty ? path : folderName,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    parentPath,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () {
+                    notifier.startScan(path);
+                    Navigator.pop(context);
+                  },
+                  trailing: IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    color: Theme.of(context).colorScheme.error,
+                    tooltip: "移除此路径",
+                    onPressed: () async {
+                      notifier.removeDirectory(path);
+                      await FileScannerStorage().clearByRootPath(path);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // 5. 底部固定按钮
+          Container(
             padding: const EdgeInsets.all(16),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 48),
@@ -186,14 +283,14 @@ class PathManagerSheet extends ConsumerWidget {
                   minimumSize: const Size(double.infinity, 50),
                 ),
               ),
-            )),
-      ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// 显示二次确认弹窗
-  void _showClearConfirmation(
-      BuildContext context, FileScannerNotifier notifier) {
+  void _showClearConfirmation(BuildContext context, FileScannerNotifier notifier) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
