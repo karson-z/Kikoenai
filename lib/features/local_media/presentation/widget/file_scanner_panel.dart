@@ -4,15 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
+import 'package:kikoenai/features/local_media/presentation/widget/status_pill.dart';
 
 import '../../../../core/constants/app_file_extensions.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import '../../../player/presentation/provider/player_controller_provider.dart';
-import '../../../test/file_operation_sheet.dart';
-import '../../../test/status_pill.dart'; // 确认你的实际路径
+import 'file_operation_sheet.dart';
 
 class FileBrowserPanel extends ConsumerWidget {
   final List<FileNode> rootNodes;

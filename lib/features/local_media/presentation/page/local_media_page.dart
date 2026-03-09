@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_worker.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import 'package:kikoenai/features/test/scraper_drawer.dart';
-import '../../../../core/service/file/file_scanner_service.dart';
-import '../../core/utils/scraper/scraper_controller.dart';
-import '../local_media/data/model/file_scanner_state.dart';
-import '../local_media/presentation/provider/file_scanner_notifier.dart';
-import '../local_media/presentation/widget/file_scanner_panel.dart';
-import '../local_media/presentation/widget/path_sheet.dart';
-import '../../../../core/model/file_node.dart';
-import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
-import 'parsed_works_view.dart';
+import '../../../../../../core/service/file/file_scanner_service.dart';
+import '../../../../core/utils/scraper/scraper_controller.dart';
+import '../../data/model/file_scanner_state.dart';
+import '../provider/file_scanner_notifier.dart';
+import '../widget/file_scanner_panel.dart';
+import '../widget/parsed_works_view.dart';
+import '../widget/path_sheet.dart';
+import '../../../../../../core/model/file_node.dart';
+import '../../../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
+import '../widget/scraper_drawer.dart';
 
 class ScannerPage extends ConsumerWidget {
   const ScannerPage({super.key});

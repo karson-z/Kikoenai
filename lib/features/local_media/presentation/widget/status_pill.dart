@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/model/file_node.dart';
+import '../../../../core/model/file_node.dart';
 
 class NodeStatusPill extends StatelessWidget {
   final NodeStatus status;

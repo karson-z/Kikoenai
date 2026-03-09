@@ -1,70 +1,23 @@
-import 'package:flutter/foundation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
+// ... 其他 import
 
-@immutable
-class FileScannerState {
-  final List<FileNode> roots;
-  final List<String> savedPaths; // 已保存的路径列表（书签）
-  final String? currentPath;     // 当前正在扫描/展示的路径
-  final WorkerState status;
-  final ScanMode scanMode;
-  final String? errorMessage;
-  final int scannedCount;
+// 必须加上这行，让生成器知道往哪写代码
+part 'file_scanner_state.freezed.dart';
 
-  const FileScannerState({
-    this.roots = const [],
-    this.savedPaths = const [],
-    this.currentPath,
-    this.status = WorkerState.idle,
-    this.scanMode = ScanMode.audio,
-    this.errorMessage,
-    this.scannedCount = 0,
-  });
 
-  FileScannerState copyWith({
-    List<FileNode>? roots,
-    List<String>? savedPaths,
+@freezed
+abstract class FileScannerState with _$FileScannerState {
+  const factory FileScannerState({
+    @Default([]) List<FileNode> roots,
+    @Default([]) List<String> savedPaths,
     String? currentPath,
-    WorkerState? status,
-    ScanMode? scanMode,
+    @Default(WorkerState.idle) WorkerState status,
+    @Default(ScanMode.audio) ScanMode scanMode,
     String? errorMessage,
-    int? scannedCount,
-  }) {
-    return FileScannerState(
-      roots: roots ?? this.roots,
-      savedPaths: savedPaths ?? this.savedPaths,
-      currentPath: currentPath ?? this.currentPath,
-      status: status ?? this.status,
-      scanMode: scanMode ?? this.scanMode,
-      errorMessage: errorMessage ?? this.errorMessage,
-      scannedCount: scannedCount ?? this.scannedCount,
-    );
-  }
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is FileScannerState &&
-        listEquals(other.roots, roots) &&
-        other.status == status &&
-        other.scanMode == scanMode &&
-        other.errorMessage == errorMessage &&
-        other.scannedCount == scannedCount &&
-        other.savedPaths == savedPaths &&
-        other.currentPath == currentPath;
-  }
-
-  @override
-  int get hashCode {
-    return Object.hash(
-      Object.hashAll(roots),
-      status,
-      scanMode,
-      errorMessage,
-      scannedCount,
-      savedPaths,
-      currentPath,
-    );
-  }
+    @Default(0) int scannedCount,
+  }) = _FileScannerState;
 }

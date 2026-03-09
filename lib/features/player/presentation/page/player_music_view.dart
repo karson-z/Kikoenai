@@ -14,6 +14,7 @@ import '../widget/player_layout.dart';
 import '../widget/player_lyrics_content.dart';
 import '../widget/player_mini_bar.dart';
 import '../widget/player_top_bar.dart';
+import '../widget/player_video_content.dart';
 
 class MusicPlayerView extends ConsumerStatefulWidget {
   final PanelController? panelController;
@@ -55,34 +56,25 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final padding = mediaQuery.padding;
-    final isWide = mediaQuery.size.width > 800; // 【核心判断】是否为宽屏
+    final isWide = mediaQuery.size.width > 800;
 
     final currentTrack =
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
+    // 【新增】判断是否为视频
+    final isVideo = currentTrack?.extras?['isVideo'] == true;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final expandVal = _controller.expandValue; // 展开进度 0~1
-        final lyricsVal = _controller.lyricsValue; // 歌词切换进度 0~1
+        final expandVal = _controller.expandValue;
+        final lyricsVal = _controller.lyricsValue;
 
-        // 1. 计算基础透明度 (受展开进度控制)
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
 
-        // 2. 计算分栏透明度 (受宽屏/窄屏逻辑控制)
-        double currentAlbumAlpha;
-        double currentLyricsAlpha;
-
-        if (isWide) {
-          // 【宽屏模式】：两者共存，透明度只受 expandedOpacity 影响，不受 lyricsVal 影响
-          currentAlbumAlpha = 1.0;
-          currentLyricsAlpha = 1.0;
-        } else {
-          // 【窄屏模式】：互斥显示，受 lyricsVal 影响
-          currentAlbumAlpha = (1 - lyricsVal).clamp(0.0, 1.0);
-          currentLyricsAlpha = lyricsVal.clamp(0.0, 1.0);
-        }
+        double currentAlbumAlpha = isWide ? 1.0 : (1 - lyricsVal).clamp(0.0, 1.0);
+        double currentLyricsAlpha = isWide ? 1.0 : lyricsVal.clamp(0.0, 1.0);
 
         return CustomMultiChildLayout(
           delegate: PlayerLayoutDelegate(
@@ -90,58 +82,66 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             lyricsProgress: lyricsVal,
             minHeight: widget.minHeight,
             padding: padding,
-            isWideScreen: isWide, // 传入宽屏标志
+            isWideScreen: isWide,
+            isVideo: isVideo, // 【传入参数】
           ),
           children: [
             // 1. 背景层
             LayoutId(
               id: PlayerLayoutId.background,
-              child: PlayerBackground(
-                expandedOpacity: expandedOpacity,
-              ),
+              child: PlayerBackground(expandedOpacity: expandedOpacity),
             ),
 
-            // 2. 专辑内容层 (Album Body) - 左侧或全屏
-            LayoutId(
-              id: PlayerLayoutId.bodyAlbum,
-              child: Opacity(
-                opacity: expandedOpacity * currentAlbumAlpha,
-                child: IgnorePointer(
-                  // 宽屏时：只要展开了(expandVal > 0.5) 就可以点击
-                  // 窄屏时：必须是专辑模式(lyricsVal < 0.5) 且展开了 才可以点击
-                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
-                  child: PlayerAlbumContent(track: currentTrack),
-                ),
-              ),
-            ),
-
-            // 3. 歌词内容层 (Lyrics Body) - 右侧或全屏
-            LayoutId(
-              id: PlayerLayoutId.bodyLyrics,
-              child: Opacity(
-                opacity: expandedOpacity * currentLyricsAlpha,
-                child: IgnorePointer(
-                  // 宽屏时：只要展开了就可以点击
-                  // 窄屏时：必须是歌词模式(lyricsVal > 0.5) 且展开了 才可以点击
-                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
-                  child: MobileLyricsContent(
-                    isWideScreen:isWide,
-                    track: currentTrack,
-                    // 宽屏下如果不需要点击标题切换，可以在这里传 null 或者内部做判断
-                    onTapHeader: isWide ? null : _controller.toggleLyrics,
-                    padding: padding,
+            // 2. 视频内容层 (仅视频存在)
+            if (isVideo)
+              LayoutId(
+                id: PlayerLayoutId.videoContainer,
+                child: Opacity(
+                  opacity: expandedOpacity,
+                  child: IgnorePointer(
+                    ignoring: expandVal < 0.5,
+                    child: const PlayerVideoContent(), // 渲染自带控制器的 media_kit_video
                   ),
                 ),
               ),
-            ),
 
-            // 4. 底部 Minibar
+            // 3. 专辑内容层 (仅音频存在)
+            if (!isVideo)
+              LayoutId(
+                id: PlayerLayoutId.bodyAlbum,
+                child: Opacity(
+                  opacity: expandedOpacity * currentAlbumAlpha,
+                  child: IgnorePointer(
+                    ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
+                    child: PlayerAlbumContent(track: currentTrack),
+                  ),
+                ),
+              ),
+
+            // 4. 歌词内容层 (仅音频存在)
+            if (!isVideo)
+              LayoutId(
+                id: PlayerLayoutId.bodyLyrics,
+                child: Opacity(
+                  opacity: expandedOpacity * currentLyricsAlpha,
+                  child: IgnorePointer(
+                    ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
+                    child: MobileLyricsContent(
+                      isWideScreen: isWide,
+                      track: currentTrack,
+                      onTapHeader: isWide ? null : _controller.toggleLyrics,
+                      padding: padding,
+                    ),
+                  ),
+                ),
+              ),
+
+            // 5. 底部 Minibar (全局保留)
             LayoutId(
               id: PlayerLayoutId.minibar,
               child: Opacity(
                 opacity: collapsedOpacity,
                 child: IgnorePointer(
-                  // 修复浮点数精度问题，防止微弱透明度下的误触
                   ignoring: collapsedOpacity < 0.05,
                   child: CollapsedMinibar(
                     track: currentTrack,
@@ -151,40 +151,36 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               ),
             ),
 
-            // 5. 顶部 TopBar
+            // 6. 顶部 TopBar (全局保留下拉收起按钮与扩展菜单)
             LayoutId(
               id: PlayerLayoutId.topBar,
               child: Opacity(
                 opacity: expandedOpacity,
                 child: IgnorePointer(
                   ignoring: expandedOpacity == 0,
-                  child: TopBar(
-                    onClose: () => widget.panelController?.close(),
-                  ),
+                  child: TopBar(onClose: () => widget.panelController?.close()),
                 ),
               ),
             ),
 
-            // 6. 浮动封面 (Hero Image)
+            // 7. 浮动封面
             LayoutId(
               id: PlayerLayoutId.coverHero,
-              child: GestureDetector(
-                onTap: () {
-                  if (expandVal < 0.5) {
-                    // 收起状态：点击打开
-                    widget.panelController?.open();
-                  } else {
-                    if (!isWide) {
+              // 【核心】视频模式下，随着展开渐隐封面，仅作为 Minibar 中的小图可见
+              child: Opacity(
+                opacity: isVideo ? collapsedOpacity : 1.0,
+                child: GestureDetector(
+                  onTap: () {
+                    if (expandVal < 0.5) {
+                      widget.panelController?.open();
+                    } else if (!isWide && !isVideo) {
                       _controller.toggleLyrics();
                     }
-                  }
-                },
-                child: FloatingCoverImage(
-                  url: currentTrack?.extras?['mainCoverUrl'],
-                  // 宽屏时固定圆角，窄屏时随歌词进度变化
-                  radiusValue: isWide
-                      ? 8.0
-                      : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                  },
+                  child: FloatingCoverImage(
+                    url: currentTrack?.extras?['mainCoverUrl'],
+                    radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                  ),
                 ),
               ),
             ),

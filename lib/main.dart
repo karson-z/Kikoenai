@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio_media_kit/just_audio_media_kit.dart';
-import 'package:kikoenai/core/service/audio/audio_service.dart';
 import 'package:kikoenai/core/service/download/download_service.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'package:media_kit/media_kit.dart';
@@ -16,13 +14,6 @@ import 'core/storage/hive_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    JustAudioMediaKit.ensureInitialized(
-      linux: true,            // default: true  - dependency: media_kit_libs_linux
-      windows: true,          // default: true  - dependency: media_kit_libs_windows_audio
-    );
-    JustAudioMediaKit.mpvLogLevel = MPVLogLevel.debug;
-  }
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent, // 强制透明
     statusBarIconBrightness: Brightness.dark, // 设置图标颜色：dark 为黑色图标，light 为白色图标

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/model/file_node.dart';
-import '../../core/utils/scraper/scraper_controller.dart';
+import '../../../../../../core/model/file_node.dart';
+import '../../../../core/utils/scraper/scraper_controller.dart';
 enum _QueueItemType { processing, pending, failed, completed }
 class _QueueItem {
   final FileNode node;

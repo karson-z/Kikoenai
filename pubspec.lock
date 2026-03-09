@@ -57,14 +57,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.13.0"
-  audio_metadata_reader:
-    dependency: "direct main"
-    description:
-      name: audio_metadata_reader
-      sha256: b7cecf78178075c8f8281ae184ae81d137eb6e751f5d193334984eb732662ee0
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.4.2"
   audio_service:
     dependency: "direct main"
     description:
@@ -257,14 +249,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.4.0"
-  charset:
-    dependency: transitive
-    description:
-      name: charset
-      sha256: "27802032a581e01ac565904ece8c8962564b1070690794f0072f6865958ce8b9"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.0.1"
   checked_yaml:
     dependency: transitive
     description:
@@ -729,14 +713,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "4.5.4"
-  intl:
-    dependency: transitive
-    description:
-      name: intl
-      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.20.2"
   io:
     dependency: transitive
     description:
@@ -777,39 +753,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.11.1"
-  just_audio:
-    dependency: "direct main"
-    description:
-      name: just_audio
-      sha256: "9694e4734f515f2a052493d1d7e0d6de219ee0427c7c29492e246ff32a219908"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.10.5"
-  just_audio_media_kit:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: "97c05f2adb4f18af9168d86d222a0d917aa7deb4"
-      resolved-ref: "97c05f2adb4f18af9168d86d222a0d917aa7deb4"
-      url: "https://github.com/karson-z/just_audio_media_kit.git"
-    source: git
-    version: "2.0.6"
-  just_audio_platform_interface:
-    dependency: transitive
-    description:
-      name: just_audio_platform_interface
-      sha256: "2532c8d6702528824445921c5ff10548b518b13f808c2e34c2fd54793b999a6a"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "4.6.0"
-  just_audio_web:
-    dependency: transitive
-    description:
-      name: just_audio_web
-      sha256: "6ba8a2a7e87d57d32f0f7b42856ade3d6a9fbe0f1a11fabae0a4f00bb73f0663"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.4.16"
   leak_tracker:
     dependency: transitive
     description:
@@ -930,14 +873,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.7"
-  media_kit_libs_windows_audio:
-    dependency: "direct main"
-    description:
-      name: media_kit_libs_windows_audio
-      sha256: c2fd558cc87b9d89a801141fcdffe02e338a3b21a41a18fbd63d5b221a1b8e53
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.9"
   media_kit_libs_windows_video:
     dependency: transitive
     description:

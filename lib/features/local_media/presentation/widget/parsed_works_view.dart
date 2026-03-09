@@ -3,8 +3,8 @@ import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
-// 请确认你实际的存储类路径
-import '../../core/utils/scraper/scraper_storage.dart';
+
+import '../../../../core/utils/scraper/scraper_storage.dart';
 
 class ParseWorksView extends StatefulWidget {
   final List<Work> work;
