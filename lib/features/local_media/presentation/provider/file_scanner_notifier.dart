@@ -84,7 +84,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     if (_service == null) return;
     state = state.copyWith(
       currentPath: path,
-      // roots: [],
+      roots: [],
       errorMessage: null,
       scannedCount: 0,
     );
@@ -131,11 +131,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       scannedCount: isRemovingCurrent ? 0 : state.scannedCount,
       status: isRemovingCurrent ? WorkerState.idle : state.status,
     );
-
-    if (isRemovingCurrent) {
-      stopScan();
-    }
-
     await _cacheService.saveScanRootPaths(newPaths, mode: state.scanMode);
   }
 
@@ -143,8 +138,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
   Future<void> clearAllDirectories() async {
     state = state.copyWith(
       savedPaths: [],
-      // roots: [],
-      // 清空视图
+      roots: [],
       currentPath: null,
       scannedCount: 0,
       status: WorkerState.idle,

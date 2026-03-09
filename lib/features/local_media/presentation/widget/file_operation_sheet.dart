@@ -6,10 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 
-import '../../core/constants/app_file_extensions.dart';
-import '../../core/model/file_node.dart';
-import '../../core/utils/scraper/scraper_controller.dart';
-import '../local_media/presentation/widget/rename_dialog.dart';
+import '../../../../core/constants/app_file_extensions.dart';
+import '../../../../core/model/file_node.dart';
+import '../../../../core/utils/scraper/scraper_controller.dart';
+import 'rename_dialog.dart';
 
 class FolderActionBottomSheet extends ConsumerWidget {
   final FileNode node;

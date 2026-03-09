@@ -261,7 +261,7 @@ class PathManagerSheet extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.error,
                     tooltip: "移除此路径",
                     onPressed: () async {
-                      notifier.removeDirectory(path);
+                      await notifier.removeDirectory(path);
                       await FileScannerStorage().clearByRootPath(path);
                     },
                   ),

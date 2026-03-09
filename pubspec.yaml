@@ -39,12 +39,6 @@ dependencies:
   shimmer: ^3.0.0
   skeletonizer: ^2.1.0
   wolt_modal_sheet: ^0.11.0
-  just_audio: ^0.10.5
-  just_audio_media_kit:
-    git:
-      url: https://github.com/karson-z/just_audio_media_kit.git
-      ref: 97c05f2adb4f18af9168d86d222a0d917aa7deb4
-  media_kit_libs_windows_audio: ^1.0.9
   media_kit: ^1.2.6 # Primary package.
   media_kit_video: ^2.0.1 # For video rendering.
   media_kit_libs_video: ^1.0.7 # Native video dependencies.
@@ -57,7 +51,6 @@ dependencies:
   file_picker: ^10.3.7   # 用于选择文件/文件夹
   fast_gbk: ^1.0.0
   scrollable_positioned_list: ^0.3.8
-  audio_metadata_reader: ^1.4.2
   lottie: ^3.3.2
   logger: ^2.4.0
   url_launcher: ^6.3.2

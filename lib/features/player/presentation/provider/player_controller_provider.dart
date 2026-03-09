@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/history_entry.dart';
 import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
@@ -438,6 +439,11 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
   MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
     String? imagePath;
+
+    final url = node.mediaStreamUrl ?? '';
+    final isVideo = FileExtensions.video.any((ext) => url.toLowerCase().endsWith(ext))
+        || node.isVideo == true;
+
     return MediaItem(
       id: node.hash.toString(),
       album: node.workTitle,
@@ -451,10 +457,11 @@ class PlayerController extends Notifier<AppPlayerState> {
           : null,
 
       extras: {
-        'url': node.mediaStreamUrl,
+        'url': url,
         'mainCoverUrl': work.mainCoverUrl ?? imagePath,
         'samCorverUrl': work.samCoverUrl ?? imagePath,
         'workData': jsonEncode(work),
+        'isVideo': isVideo, // 【新增】将视频标记存入 extras
       },
     );
   }

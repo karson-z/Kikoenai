@@ -123,12 +123,25 @@ class FileScanWorker {
   // 预编译正则：匹配 RJ 或 RJ0 开头，后接 6-8 位数字
   static final RegExp _rjRegex = RegExp(r'RJ0?\d{6,8}', caseSensitive: false);
 
+  /// 【核心新增】：辅助方法，从路径中逆向提取 RJ 号
+  /// 逆向提取的好处是：如果文件叫 sub.srt，它会去找父文件夹名；如果文件本身叫 RJ123456.srt，就直接提取
+  static String? _extractRjCodeFromPath(String path) {
+    final segments = path.split('/');
+    // 倒序遍历，优先获取最贴近文件的 RJ 号
+    for (int i = segments.length - 1; i >= 0; i--) {
+      final match = _rjRegex.firstMatch(segments[i]);
+      if (match != null) {
+        return match.group(0)!.toUpperCase();
+      }
+    }
+    return null;
+  }
+
   static void _entryPoint(_WorkerConfig config) async {
     final buffer = <FileNode>[];
 
-    // 【核心新增】：延迟发射机制的暂存区
     final pendingDirectories = <String, FileNode>{};
-    final emittedDirectories = <String>{}; // 记录已经发送过的文件夹，避免重复发送
+    final emittedDirectories = <String>{};
     final rootPathNorm = config.rootPath.replaceAll('\\', '/');
 
     int lastSendTime = DateTime.now().millisecondsSinceEpoch;
@@ -143,26 +156,21 @@ class FileScanWorker {
       }
     }
 
-    // 辅助方法：快速获取父路径
     String getDirname(String path) {
       final lastSlash = path.lastIndexOf('/');
       return lastSlash > 0 ? path.substring(0, lastSlash) : path;
     }
 
-    // 【核心新增】：顺藤摸瓜，将合法文件的父目录从暂存区激活并发送
     void flushAncestors(String filePath) {
       String current = getDirname(filePath);
       while (true) {
-        // 如果这个父目录已经发射过了，说明再往上的祖先肯定也发射过了，直接停止
         if (emittedDirectories.contains(current)) break;
 
-        // 如果在待定区里，把它拿出来放进发送缓冲，并标记为已发射
         if (pendingDirectories.containsKey(current)) {
           buffer.add(pendingDirectories.remove(current)!);
           emittedDirectories.add(current);
         }
 
-        // 已经追溯到了根目录，或者到顶了，停止循环
         if (current == rootPathNorm || current == getDirname(current)) break;
         current = getDirname(current);
       }
@@ -177,24 +185,18 @@ class FileScanWorker {
     try {
       await for (final entity in dir.list(recursive: true, followLinks: false)) {
 
-        // --- 1. 处理文件夹：盖章并放入【暂存区】 ---
         if (entity is Directory) {
           final node = _processDirectory(entity, config);
           if (node != null) {
-            // 存入暂存区，键为标准化后的绝对路径
             pendingDirectories[node.mediaStreamUrl!] = node;
           }
         }
-        // --- 2. 处理普通文件 ---
         else if (entity is File) {
           final node = _processFile(entity, config);
           if (node != null) {
             buffer.add(node);
-            // 既然文件有效，立即激活它所有的父目录！
             flushAncestors(node.mediaStreamUrl!);
           }
-
-          // --- 3. 处理压缩包 ---
           else if (config.scanArchives && ArchiveService.isArchive(entity.path)) {
             try {
               int archiveLastMod = 0;
@@ -204,14 +206,14 @@ class FileScanWorker {
               bool hasValidArchiveEntry = false;
 
               for (var entry in entries) {
-                final zipNode = _processArchiveEntry(entry.virtualPath, archiveLastMod, config);
+                // 【核心修改】：把压缩包本身的路径 entity.path 也传进去，用于匹配 RJ 号
+                final zipNode = _processArchiveEntry(entity.path, entry.virtualPath, archiveLastMod, config);
                 if(zipNode != null) {
                   buffer.add(zipNode);
                   hasValidArchiveEntry = true;
                 }
               }
 
-              // 只要压缩包里有有效文件，就把压缩包所在的父目录激活！
               if (hasValidArchiveEntry) {
                 flushAncestors(entity.path.replaceAll('\\', '/'));
               }
@@ -230,34 +232,43 @@ class FileScanWorker {
       flush();
       config.sendPort.send('DONE');
 
-      // 注意：循环结束后，留在 pendingDirectories 里的文件夹，
-      // 就是那些没有匹配文件的“空壳”文件夹。随着 Isolate 的销毁，它们会被自动无情抹除！
-
     } catch (e) {
       config.sendPort.send("ERROR: $e");
     } finally {
       Isolate.exit();
     }
   }
-  static FileNode? _processArchiveEntry(String virtualPath, int lastMod, _WorkerConfig config) {
+
+  /// 【核心修改】：接收压缩包本体路径 `archivePath`，从而能从压缩包的名字中提取 RJ 号
+  static FileNode? _processArchiveEntry(String archivePath, String virtualPath, int lastMod, _WorkerConfig config) {
     final lastDotIndex = virtualPath.lastIndexOf('.');
     if (lastDotIndex == -1 || lastDotIndex == virtualPath.length - 1) return null;
     final ext = virtualPath.substring(lastDotIndex).toLowerCase();
 
     if (config.extensions.contains(ext)) {
-      final normalizedPath = virtualPath.replaceAll('\\', '/');
+      final normalizedVirtualPath = virtualPath.replaceAll('\\', '/');
+      final normalizedArchivePath = archivePath.replaceAll('\\', '/');
+
+      String? rjCode;
+      // 在字幕模式下，拼接压缩包路径和虚拟路径，从中提取 RJ 号
+      if (config.scanMode == ScanMode.subtitles) {
+        rjCode = _extractRjCodeFromPath('$normalizedArchivePath/$normalizedVirtualPath');
+      }
 
       return FileNode(
-        mediaStreamUrl: normalizedPath,
-        mediaDownloadUrl: normalizedPath,
+        mediaStreamUrl: normalizedVirtualPath,
+        mediaDownloadUrl: normalizedVirtualPath,
         type: _mapModeToType(config.scanMode),
-        title: normalizedPath.split('/').last,
+        title: normalizedVirtualPath.split('/').last,
         lastModified: lastMod,
+        // 【核心修改】：强制普通状态，并注入可能存在的 RJ 号
+        nodeStatus: NodeStatus.normal,
+        rjCode: rjCode,
       );
     }
     return null;
   }
-  /// 鉴定文件夹：执行正则与查表，组装完整状态的 Folder Node
+
   static FileNode? _processDirectory(Directory dir, _WorkerConfig config) {
     final normalizedPath = dir.path.replaceAll('\\', '/');
     final segments = normalizedPath.split('/');
@@ -279,7 +290,6 @@ class FileScanWorker {
       }
     }
 
-    // 获取物理修改时间
     int lastMod = 0;
     try { lastMod = dir.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
 
@@ -289,7 +299,7 @@ class FileScanWorker {
       title: currentDirName,
       nodeStatus: status,
       rjCode: rjCode,
-      lastModified: lastMod, // 【关键】注入真实时间
+      lastModified: lastMod,
     );
   }
 
@@ -302,16 +312,24 @@ class FileScanWorker {
     if (config.extensions.contains(ext)) {
       final normalizedPath = filePath.replaceAll('\\', '/');
 
-      // 获取物理修改时间
       int lastMod = 0;
       try { lastMod = file.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
+
+      String? rjCode;
+      // 在字幕模式下，从当前文件的全路径中尝试提取 RJ 号
+      if (config.scanMode == ScanMode.subtitles) {
+        rjCode = _extractRjCodeFromPath(normalizedPath);
+      }
 
       return FileNode(
         mediaStreamUrl: normalizedPath,
         mediaDownloadUrl: normalizedPath,
         type: _mapModeToType(config.scanMode),
         title: normalizedPath.split('/').last,
-        lastModified: lastMod, // 【关键】注入真实时间
+        lastModified: lastMod,
+        // 【核心修改】：强制普通状态，并注入可能存在的 RJ 号
+        nodeStatus: NodeStatus.normal,
+        rjCode: rjCode,
       );
     }
     return null;
