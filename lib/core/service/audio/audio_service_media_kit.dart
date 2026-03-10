@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:media_kit/media_kit.dart'; // 替换 just_audio 引入 media_kit
+import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-import 'package:audio_session/audio_session.dart'; // 新增导入
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -32,19 +35,29 @@ class AudioServiceSingleton {
 
 class MyAudioHandler extends BaseAudioHandler {
   final Player _player = Player();
+
   Player get player => _player;
 
+  Box<dynamic> get _settingBox => AppStorage.settingsBox;
+
   final List<MediaItem> _playlist = [];
+
   int _retryCount = 0;
+
   static const int _maxRetries = 3;
 
-  // --- Audio Session 相关变量 ---
   AudioSession? _audioSession;
+
   bool _playInterrupted = false;
+
   double _normalVolume = 100.0;
 
+  // 实时读取是否忽略音频焦点的配置
+  bool get _ignoreAudioFocus =>
+      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
+
   MyAudioHandler() {
-    _setupAudioSession(); // 初始化 AudioSession
+    _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
@@ -52,21 +65,58 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenErrorPlayState();
   }
 
+  /// 动态应用当前的 AudioSession 配置
+  Future<void> _applyAudioSessionConfiguration() async {
+    if (_audioSession == null) return;
+
+    if (_ignoreAudioFocus) {
+      // 开启忽略：允许与其他音频混音播放 (Mix with others)
+      await _audioSession!.configure(const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionCategoryOptions:
+        AVAudioSessionCategoryOptions.mixWithOthers,
+        avAudioSessionMode: AVAudioSessionMode.defaultMode,
+        avAudioSessionRouteSharingPolicy:
+        AVAudioSessionRouteSharingPolicy.defaultPolicy,
+        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType:
+        AndroidAudioFocusGainType.gainTransientMayDuck,
+        androidWillPauseWhenDucked: false,
+      ));
+    } else {
+      // 关闭忽略：恢复默认独占播放的音乐模式
+      await _audioSession!.configure(const AudioSessionConfiguration.music());
+    }
+  }
+
+  /// 供 UI 调用的设置方法，更新 Hive 并刷新配置
+  Future<void> _setIgnoreAudioFocus(bool ignore) async {
+    await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
+    await _applyAudioSessionConfiguration();
+  }
+
   /// 初始化并监听音频焦点中断事件
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
-    await _audioSession!.configure(const AudioSessionConfiguration.music());
+
+    // 初始化时，根据 Hive 中的设置应用对应的音频策略
+    await _applyAudioSessionConfiguration();
+
     _audioSession!.interruptionEventStream.listen((event) {
+      // 拦截：如果开启了忽略焦点，跳过系统的中断事件
+      if (_ignoreAudioFocus) return;
+
       if (event.begin) {
-        // 失去焦点
         switch (event.type) {
           case AudioInterruptionType.duck:
-          // 其他应用播放短暂音效（如通知），降低当前音量至 30%
             _player.setVolume(_normalVolume * 0.3);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-          // 其他应用开始持续播放音频（如接电话、播客），暂停当前播放
             if (_player.state.playing) {
               _player.pause();
               _playInterrupted = true;
@@ -74,17 +124,14 @@ class MyAudioHandler extends BaseAudioHandler {
             break;
         }
       } else {
-        // 恢复焦点
         switch (event.type) {
           case AudioInterruptionType.duck:
-          // 恢复正常音量
             _player.setVolume(_normalVolume);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-          // 如果是因为失去焦点而暂停的，则恢复播放
             if (_playInterrupted) {
-              play(); // 这里直接调用重写后的 play()，会重新申请 active 状态
+              play();
               _playInterrupted = false;
             }
             break;
@@ -95,8 +142,14 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> play() async {
+    if (_ignoreAudioFocus) {
+      // 忽略焦点模式：不关心是否独占，直接播放
+      await _audioSession?.setActive(true);
+      await _player.play();
+      return;
+    }
+
     if (_audioSession != null) {
-      // 播放前请求音频焦点
       final success = await _audioSession!.setActive(true);
       if (success) {
         await _player.play();
@@ -110,7 +163,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> pause() async {
-    _playInterrupted = false; // 用户主动暂停，清除被动暂停标记
+    _playInterrupted = false;
     await _player.pause();
   }
 
@@ -118,7 +171,7 @@ class MyAudioHandler extends BaseAudioHandler {
   Future<void> stop() async {
     _playInterrupted = false;
     await _player.stop();
-    await _audioSession?.setActive(false); // 停止时释放音频焦点
+    await _audioSession?.setActive(false);
     return super.stop();
   }
 
@@ -132,7 +185,8 @@ class MyAudioHandler extends BaseAudioHandler {
   }) async {
     await setVolume(volume);
     await setRepeatMode(repeatMode);
-    await setShuffleMode(shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+    await setShuffleMode(
+        shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
 
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
@@ -174,13 +228,12 @@ class MyAudioHandler extends BaseAudioHandler {
     final playlist = Playlist(children, index: initialIndex);
 
     try {
-      // 如果要求自动播放，需在 open 前通过重写的 play() 逻辑获取焦点
       await _player.open(playlist, play: false);
       if (initialPosition != null && initialPosition > Duration.zero) {
         await _player.seek(initialPosition);
       }
       if (autoPlay) {
-        await play(); // 使用重写的 play() 确保获取焦点
+        await play(); // 使用重写的 play() 确保走焦点逻辑
       }
     } catch (e) {
       debugPrint("Error loading playlist: $e");
@@ -349,7 +402,7 @@ class MyAudioHandler extends BaseAudioHandler {
       final currentSource = _player.state.playlist.medias.isNotEmpty;
       if (currentSource) {
         await Future.delayed(const Duration(milliseconds: 1500));
-        play(); // 使用重写的 play()，不仅重试，还能重新确认焦点状态
+        play();
       }
     });
   }
@@ -361,12 +414,18 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> setVolume(double v) {
     final targetVolume = (v * 100.0).clamp(0.0, 100.0);
-    _normalVolume = targetVolume; // 保存用户的设定音量，防止被 duck 机制覆盖
+    _normalVolume = targetVolume;
     return _player.setVolume(targetVolume);
   }
 
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+    if (name == 'setIgnoreAudioFocus') {
+      final bool ignore = extras?['ignore'] ?? false;
+      await _setIgnoreAudioFocus(ignore);
+      return;
+    }
+
     if (name == 'reorderQueue') {
       final int oldIndex = extras!['oldIndex'];
       final int newIndex = extras['newIndex'];

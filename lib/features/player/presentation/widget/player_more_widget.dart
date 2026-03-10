@@ -147,33 +147,72 @@ class MoreOptionsBottomSheet extends StatelessWidget {
   }
 
   // 内部组件构建方法 - 接收 ListActionItem 对象
+// 内部组件构建方法 - 接收 ListActionItem 对象
   Widget _buildListItem(ListActionItem item, Color iconColor, Color titleColor, Color subtitleColor) {
-    return InkWell(
-      onTap: item.onTap, // 直接绑定传入的回调
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-        child: Row(
-          children: [
-            Icon(item.icon, size: 24, color: iconColor),
-            const SizedBox(width: 16),
-            Text(
-              item.title,
-              style: TextStyle(fontSize: 16, color: titleColor),
-            ),
-            if (item.subtitle != null) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  item.subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, color: subtitleColor),
+    // 提取初始状态（闭包外声明，防止 StatefulBuilder 重绘时重置）
+    bool currentSwitchValue = item.initialSwitchValue;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return InkWell(
+          // 如果是开关模式，点击整行也能切换开关；否则执行常规 onTap
+          onTap: item.hasSwitch
+              ? () {
+            setState(() {
+              currentSwitchValue = !currentSwitchValue;
+            });
+            item.onSwitchChanged?.call(currentSwitchValue);
+          }
+              : item.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0), // 包含 Switch 时稍微缩小垂直 padding
+            child: Row(
+              children: [
+                Icon(item.icon, size: 24, color: iconColor),
+                const SizedBox(width: 16),
+                // 使用 Expanded 撑开中间区域，将 Switch 推到最右侧
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        item.title,
+                        style: TextStyle(fontSize: 16, color: titleColor),
+                      ),
+                      if (item.subtitle != null) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            item.subtitle!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 14, color: subtitleColor),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
-      ),
+                // 如果启用了开关，则在右侧渲染 Switch
+                if (item.hasSwitch)
+                  Transform.scale(
+                    scale: 0.75,
+                    child: Switch(
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      value: currentSwitchValue,
+                      activeTrackColor: Theme.of(context).primaryColor,
+                      onChanged: (val) {
+                        setState(() {
+                          currentSwitchValue = val;
+                        });
+                        item.onSwitchChanged?.call(val);
+                      },
+                    ),
+                  )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -196,12 +235,20 @@ class ListActionItem {
   final IconData icon;
   final String title;
   final String? subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+
+  // --- 新增开关相关属性 ---
+  final bool hasSwitch;
+  final bool initialSwitchValue;
+  final ValueChanged<bool>? onSwitchChanged;
 
   ListActionItem({
     required this.icon,
     required this.title,
     this.subtitle,
-    required this.onTap,
+    this.onTap,
+    this.hasSwitch = false,
+    this.initialSwitchValue = false,
+    this.onSwitchChanged,
   });
 }

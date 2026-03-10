@@ -67,6 +67,9 @@ class StorageKeys {
   /// 存储 LyricConfigModel，包含字体大小、行间距等细分设置
   static const String lyricsStyleConfig = 'lyrics_style_config';
 
+  /// 忽略音频焦点
+  static const String  ignoreAudioFocus ='ignore_audio_focus';
+
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key
