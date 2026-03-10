@@ -57,31 +57,36 @@ class MyAudioHandler extends BaseAudioHandler {
     required AudioServiceRepeatMode repeatMode,
     required bool shuffleEnabled,
   }) async {
-    // 1. 设置音量 (注意：media_kit 音量范围是 0.0 - 100.0)
     await setVolume(volume);
-
     await setRepeatMode(repeatMode);
-    await setShuffleMode(shuffleEnabled
-        ? AudioServiceShuffleMode.all
-        : AudioServiceShuffleMode.none);
+    await setShuffleMode(shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
 
-    // 3. 更新本地数据源和通知 UI
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
     queue.add(List.from(_playlist));
 
     if (_playlist.isEmpty) return;
 
-    // 4. 构建 media_kit 的 Media 列表
     final children = _playlist.map(_buildMedia).toList();
     final playlist = Playlist(children, index: initialIndex);
 
-    // 5. 设置资源（media_kit 用 open 代替 setAudioSources）
+    // 1. 先 open
     await _player.open(playlist, play: false);
 
-    // 6. 恢复进度
+    // 2. 解决 Seek 失效：等待 duration 变为有效值
     if (initialPosition > Duration.zero) {
-      await _player.seek(initialPosition);
+      // 这里的逻辑是：如果当前还没有时长，就等它有。
+      if (_player.state.duration == Duration.zero) {
+        StreamSubscription? subscription;
+        subscription = _player.stream.duration.listen((duration) {
+          if (duration > Duration.zero) {
+            _player.seek(initialPosition);
+            subscription?.cancel(); // 跳转一次后取消监听
+          }
+        });
+      } else {
+        await _player.seek(initialPosition);
+      }
     }
   }
 
