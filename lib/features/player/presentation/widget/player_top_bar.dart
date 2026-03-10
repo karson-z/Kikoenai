@@ -5,11 +5,14 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/service/audio/audio_service_media_kit.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
 
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../provider/player_controller_provider.dart';
 
@@ -90,6 +93,19 @@ class TopBar extends ConsumerWidget {
             ),
           ],
           listActions: [
+            ListActionItem(
+              icon: Icons.multitrack_audio_outlined,
+              title: '忽略音频焦点',
+              hasSwitch: true,
+              // 从 Hive 中读取当前的设置状态（你需要替换为你的实际读取逻辑）
+              initialSwitchValue: AppStorage.settingsBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false),
+              onSwitchChanged: (bool value) async {
+                await AudioServiceSingleton.instance.customAction(
+                  'setIgnoreAudioFocus',
+                  {'ignore': value},
+                );
+              },
+            ),
             ListActionItem(
               icon: Icons.album_outlined,
               title: "专辑",
