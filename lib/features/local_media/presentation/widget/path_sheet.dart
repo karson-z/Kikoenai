@@ -262,7 +262,7 @@ class PathManagerSheet extends ConsumerWidget {
                     tooltip: "移除此路径",
                     onPressed: () async {
                       await notifier.removeDirectory(path);
-                      await FileScannerStorage().clearByRootPath(path);
+                      await FileScannerStorage(state.scanMode).clearByRootPath(path);
                     },
                   ),
                 );

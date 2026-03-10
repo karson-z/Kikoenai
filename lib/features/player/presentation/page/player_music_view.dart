@@ -14,7 +14,6 @@ import '../widget/player_layout.dart';
 import '../widget/player_lyrics_content.dart';
 import '../widget/player_mini_bar.dart';
 import '../widget/player_top_bar.dart';
-import '../widget/player_video_content.dart';
 
 class MusicPlayerView extends ConsumerStatefulWidget {
   final PanelController? panelController;
@@ -93,17 +92,17 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             ),
 
             // 2. 视频内容层 (仅视频存在)
-            if (isVideo)
-              LayoutId(
-                id: PlayerLayoutId.videoContainer,
-                child: Opacity(
-                  opacity: expandedOpacity,
-                  child: IgnorePointer(
-                    ignoring: expandVal < 0.5,
-                    child: const PlayerVideoContent(), // 渲染自带控制器的 media_kit_video
-                  ),
-                ),
-              ),
+            // if (isVideo)
+              // LayoutId(
+              //   id: PlayerLayoutId.videoContainer,
+              //   child: Opacity(
+              //     opacity: expandedOpacity,
+              //     child: IgnorePointer(
+              //       ignoring: expandVal < 0.5,
+              //       child: const PlayerVideoContent(), // 渲染自带控制器的 media_kit_video
+              //     ),
+              //   ),
+              // ),
 
             // 3. 专辑内容层 (仅音频存在)
             if (!isVideo)
