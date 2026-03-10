@@ -8,6 +8,7 @@ import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -36,7 +37,13 @@ class AudioServiceSingleton {
 class MyAudioHandler extends BaseAudioHandler {
   final Player _player = Player();
 
-  Player get player => _player;
+  // 这里不应该直接暴露 _player 实例给到外部调用
+  VideoController? _videoController;
+
+  VideoController get videoController {
+    _videoController ??= VideoController(_player);
+    return _videoController!;
+  }
 
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
@@ -172,6 +179,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _playInterrupted = false;
     await _player.stop();
     await _audioSession?.setActive(false);
+    _videoController = null;
     return super.stop();
   }
 
