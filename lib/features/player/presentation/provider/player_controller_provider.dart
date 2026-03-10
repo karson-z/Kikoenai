@@ -479,3 +479,29 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 }
+
+class AudioOnlyModeNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    // 初始状态：默认不开启仅音频模式 (画面正常解码)
+    return false;
+  }
+
+  /// 暴露给 UI 调用的唯一方法，屏蔽底层通信细节
+  Future<void> toggleMode(bool isAudioOnly) async {
+    // 1. 更新内部状态，触发 UI 重绘
+    state = isAudioOnly;
+
+    // 2. 状态变更的副作用：统一下发指令给音频服务
+    // 仅音频 (isAudioOnly = true) 时，关闭视频解码 (enable = false)
+    await AudioServiceSingleton.instance.customAction(
+      'toggleVideoDecoding',
+      {'enable': !isAudioOnly},
+    );
+  }
+}
+
+// 暴露 Provider
+final audioOnlyModeProvider = NotifierProvider<AudioOnlyModeNotifier, bool>(() {
+  return AudioOnlyModeNotifier();
+});

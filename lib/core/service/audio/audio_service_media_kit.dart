@@ -414,12 +414,26 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
   }
+  Future<void> toggleVideoDecoding(bool enable) async {
+    try {
+      if (enable) {
+        // 唤醒视频解码器，mpv 会自动将画面同步到当前音频的时间戳
+        await _player.setVideoTrack(VideoTrack.auto());
+        KikoenaiLogger().d("视频画面解码已开启");
+      } else {
+        // 挂起视频解码器，保留纯音频播放，大幅降低功耗
+        await _player.setVideoTrack(VideoTrack.no());
+        KikoenaiLogger().d("视频画面解码已关闭，进入纯音频模式");
+      }
+    } catch (e) {
+      KikoenaiLogger().e("切换视频轨道失败: $e");
+    }
+  }
 
   Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
 
   double get volume => _normalVolume / 100.0;
 
-  @override
   Future<void> setVolume(double v) {
     final targetVolume = (v * 100.0).clamp(0.0, 100.0);
     _normalVolume = targetVolume;
@@ -433,7 +447,11 @@ class MyAudioHandler extends BaseAudioHandler {
       await _setIgnoreAudioFocus(ignore);
       return;
     }
-
+    if (name == 'toggleVideoDecoding') {
+      final bool enable = extras?['enable'] ?? false;
+      await toggleVideoDecoding(enable);
+      return;
+    }
     if (name == 'reorderQueue') {
       final int oldIndex = extras!['oldIndex'];
       final int newIndex = extras['newIndex'];

@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:ui';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +13,8 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../provider/player_controller_provider.dart';
+
+
 
 class TopBar extends ConsumerWidget {
   final VoidCallback onClose;
@@ -51,7 +51,7 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    _showMoreOptions(context, currentTrack,ref);
+                    _showMoreOptions(context, currentTrack, ref);
                   },
                 ),
               ],
@@ -62,12 +62,83 @@ class TopBar extends ConsumerWidget {
     );
   }
 
-  // 简单的 Helper 方法，复用原有的逻辑
-  void _showMoreOptions(BuildContext context, MediaItem? track,WidgetRef ref) {
+  void _showMoreOptions(BuildContext context, MediaItem? track, WidgetRef ref) {
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
     }
+
+    // 判断当前音源是否包含视频 (需确保你存入了正确的 key)
+    final bool isVideoTrack = track.extras?['isVideo'] == true;
+
+    // 构建基础菜单列表
+    final List<ListActionItem> dynamicListActions = [
+      ListActionItem(
+        icon: Icons.multitrack_audio_outlined,
+        title: '忽略音频焦点',
+        hasSwitch: true,
+        initialSwitchValue: AppStorage.settingsBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false),
+        onSwitchChanged: (bool value) async {
+          await AudioServiceSingleton.instance.customAction(
+            'setIgnoreAudioFocus',
+            {'ignore': value},
+          );
+        },
+      ),
+    ];
+
+    // 如果是视频源，动态插入“仅音频模式”
+    if (isVideoTrack) {
+      // 从 Riverpod 读取当前内存中的开关状态
+      final bool currentAudioOnlyState = ref.read(audioOnlyModeProvider);
+
+      dynamicListActions.add(
+        ListActionItem(
+          icon: Icons.videocam_off_outlined,
+          title: '仅音频模式',
+          subtitle: '关闭视频画面以省电',
+          hasSwitch: true,
+          initialSwitchValue: currentAudioOnlyState,
+          onSwitchChanged: (bool value) async {
+            // 1. 更新 Riverpod 内存状态，保证重开弹窗时状态一致
+            ref.read(audioOnlyModeProvider.notifier).state = value;
+
+            // 2. 下发指令给底层：开启仅音频(value=true) 时关闭视频解码(enable=false)
+            await AudioServiceSingleton.instance.customAction(
+              'toggleVideoDecoding',
+              {'enable': !value},
+            );
+          },
+        ),
+      );
+    }
+
+    // 追加常驻菜单项
+    dynamicListActions.addAll([
+      ListActionItem(
+        icon: Icons.album_outlined,
+        title: "专辑",
+        subtitle: track.album,
+        onTap: () {
+          Navigator.pop(context);
+          if (track.extras?['workData'] != null) {
+            final panelCtrl = ref.read(panelController);
+            if (panelCtrl.isPanelOpen) {
+              panelCtrl.close();
+            }
+            context.push(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
+          }
+        },
+      ),
+      ListActionItem(
+        icon: Icons.person_outline_rounded,
+        title: "歌手",
+        subtitle: track.artist,
+        onTap: () {},
+      ),
+    ]);
+
+    // 渲染 BottomSheet
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -92,43 +163,7 @@ class TopBar extends ConsumerWidget {
               onTap: () {},
             ),
           ],
-          listActions: [
-            ListActionItem(
-              icon: Icons.multitrack_audio_outlined,
-              title: '忽略音频焦点',
-              hasSwitch: true,
-              // 从 Hive 中读取当前的设置状态（你需要替换为你的实际读取逻辑）
-              initialSwitchValue: AppStorage.settingsBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false),
-              onSwitchChanged: (bool value) async {
-                await AudioServiceSingleton.instance.customAction(
-                  'setIgnoreAudioFocus',
-                  {'ignore': value},
-                );
-              },
-            ),
-            ListActionItem(
-              icon: Icons.album_outlined,
-              title: "专辑",
-              subtitle: track.album,
-              onTap: () {
-                Navigator.pop(context);
-                // 路由跳转逻辑需要 context 和 ref，这里简化处理
-                if (track.extras?['workData'] != null) {
-                  final panelCtrl = ref.read(panelController);
-                  if(panelCtrl.isPanelOpen){
-                    panelCtrl.close();
-                  }
-                  context.push(AppRoutes.detail, extra: {'work': jsonDecode(track.extras!['workData'])});
-                }
-              },
-            ),
-            ListActionItem(
-              icon: Icons.person_outline_rounded,
-              title: "歌手",
-              subtitle: track.artist,
-              onTap: () {},
-            ),
-          ],
+          listActions: dynamicListActions,
         );
       },
     );

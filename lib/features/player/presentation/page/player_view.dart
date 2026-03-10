@@ -14,13 +14,14 @@ import '../widget/player_layout.dart';
 import '../widget/player_lyrics_content.dart';
 import '../widget/player_mini_bar.dart';
 import '../widget/player_top_bar.dart';
+import '../widget/player_video_content.dart';
 
-class MusicPlayerView extends ConsumerStatefulWidget {
+class PlayerView extends ConsumerStatefulWidget {
   final PanelController? panelController;
   final ValueListenable<double>? dragProgressNotifier;
   final double minHeight;
 
-  const MusicPlayerView({
+  const PlayerView({
     super.key,
     this.panelController,
     this.dragProgressNotifier,
@@ -28,10 +29,10 @@ class MusicPlayerView extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MusicPlayerView> createState() => _MusicPlayerViewState();
+  ConsumerState<PlayerView> createState() => _MusicPlayerViewState();
 }
 
-class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
+class _MusicPlayerViewState extends ConsumerState<PlayerView>
     with SingleTickerProviderStateMixin {
   late final PlayerViewController _controller;
 
@@ -60,8 +61,14 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
     final currentTrack =
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
-    // 【新增】判断是否为视频
-    final isVideo = currentTrack?.extras?['isVideo'] == true;
+    // 1. 判断音源本身是否包含视频流
+    final isVideoTrack = currentTrack?.extras?['isVideo'] == true;
+
+    // 2. 监听用户是否主动开启了“仅听模式”
+    final isAudioOnlyMode = ref.watch(audioOnlyModeProvider);
+
+    // 3. 【核心逻辑】：只有当音源是视频，且用户没有开启仅听模式时，才渲染视频 UI
+    final shouldRenderVideo = isVideoTrack && !isAudioOnlyMode;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -82,7 +89,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             minHeight: widget.minHeight,
             padding: padding,
             isWideScreen: isWide,
-            isVideo: isVideo, // 【传入参数】
+            // 传给 Layout 引擎，控制底层排版
+            isVideo: shouldRenderVideo,
           ),
           children: [
             // 1. 背景层
@@ -91,21 +99,21 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
               child: PlayerBackground(expandedOpacity: expandedOpacity),
             ),
 
-            // 2. 视频内容层 (仅视频存在)
-            // if (isVideo)
-              // LayoutId(
-              //   id: PlayerLayoutId.videoContainer,
-              //   child: Opacity(
-              //     opacity: expandedOpacity,
-              //     child: IgnorePointer(
-              //       ignoring: expandVal < 0.5,
-              //       child: const PlayerVideoContent(), // 渲染自带控制器的 media_kit_video
-              //     ),
-              //   ),
-              // ),
+            // 2. 视频内容层 (仅需要渲染视频时存在)
+            if (shouldRenderVideo)
+              LayoutId(
+                id: PlayerLayoutId.videoContainer,
+                child: Opacity(
+                  opacity: expandedOpacity,
+                  child: IgnorePointer(
+                    ignoring: expandVal < 0.5,
+                    child: const PlayerVideoContent(),
+                  ),
+                ),
+              ),
 
-            // 3. 专辑内容层 (仅音频存在)
-            if (!isVideo)
+            // 3. 专辑内容层 (仅音频模式存在)
+            if (!shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.bodyAlbum,
                 child: Opacity(
@@ -117,8 +125,8 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
                 ),
               ),
 
-            // 4. 歌词内容层 (仅音频存在)
-            if (!isVideo)
+            // 4. 歌词内容层 (仅音频模式存在)
+            if (!shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.bodyLyrics,
                 child: Opacity(
@@ -165,14 +173,14 @@ class _MusicPlayerViewState extends ConsumerState<MusicPlayerView>
             // 7. 浮动封面
             LayoutId(
               id: PlayerLayoutId.coverHero,
-              // 【核心】视频模式下，随着展开渐隐封面，仅作为 Minibar 中的小图可见
+              // 如果要渲染视频，大封面就渐隐；如果是纯音频模式，封面就常驻显示
               child: Opacity(
-                opacity: isVideo ? collapsedOpacity : 1.0,
+                opacity: shouldRenderVideo ? collapsedOpacity : 1.0,
                 child: GestureDetector(
                   onTap: () {
                     if (expandVal < 0.5) {
                       widget.panelController?.open();
-                    } else if (!isWide && !isVideo) {
+                    } else if (!isWide && !shouldRenderVideo) { // 同步修改判断条件
                       _controller.toggleLyrics();
                     }
                   },
