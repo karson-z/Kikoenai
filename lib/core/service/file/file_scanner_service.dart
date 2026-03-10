@@ -48,7 +48,7 @@ abstract class _BaseFileScanner implements FileScannerService {
   final _treeBuilder = IncrementalTreeBuilder();
 
   // 数据存储层
-  final _storage = FileScannerStorage();
+  late final _storage = FileScannerStorage(scanMode);
 
   // 记录本次扫描访问过的路径 (用于标记清除算法检测删除的文件)
   final Set<String> _visitedPaths = {};

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
@@ -243,7 +244,7 @@ class AlbumDetailPage extends ConsumerWidget {
                 // 本地模式：直接从 FileScannerStorage 拿取匹配此 RJ 码的节点
                   Builder(builder: (context) {
                     // 极其清爽的调用！全量跨路径查找并组装！
-                    final localWorkTree = FileScannerStorage().getWorkFileTreeLocally(work.id);
+                    final localWorkTree = FileScannerStorage.getWorkFileTreeLocally(work.id);
 
                     if (localWorkTree == null) {
                       return const SliverFillRemaining(

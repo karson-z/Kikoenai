@@ -57,30 +57,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
   @override
   ScraperQueueState build() {
-    // 延迟执行初始化，避免在构建阶段阻塞 UI
-    Future.microtask(_initQueueFromDisk);
     return const ScraperQueueState();
-  }
-
-  /// 核心机制：从本地磁盘恢复遗留的未完成任务
-  void _initQueueFromDisk() {
-    final allNodes = FileScannerStorage().getAll();
-    final historicalPending = <FileNode>[];
-
-    for (final node in allNodes) {
-      // 恢复“待解析 (pending)”和“之前正在解析突然闪退 (parsing)”的任务
-      if ((node.nodeStatus == NodeStatus.pending || node.nodeStatus == NodeStatus.parsing)
-          && node.rjCode != null) {
-
-        // 如果之前是 parsing 闪退的，统一降级回 pending 重新排队
-        historicalPending.add(node.copyWith(nodeStatus: NodeStatus.pending));
-      }
-    }
-
-    if (historicalPending.isNotEmpty) {
-      // 恢复到排队列表，保持 isRunning 为 false
-      state = state.copyWith(pending: historicalPending);
-    }
   }
 
   /// 外部接口：由弹窗“确认加入队列”后调用，提交新任务
@@ -160,11 +137,10 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
   }
 
   /// 内部工作单元：执行单个解析和持久化任务
+  /// 内部工作单元：执行单个解析和持久化任务
   Future<void> _executeScrape(FileNode node) async {
-    // 开始解析前，将物理状态标记为 parsing
+    // 1. 开始解析前，将队列中的节点状态更新，并通过全局静态方法落盘
     final parsingNode = node.copyWith(nodeStatus: NodeStatus.parsing);
-    await FileScannerStorage().saveNode(parsingNode);
-
     try {
       final rjStr = parsingNode.rjCode!.toUpperCase();
       final numericIdStr = rjStr.replaceAll(RegExp(r'[^0-9]'), '');
@@ -178,12 +154,11 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       } else {
         debugPrint('[ScraperQueue] 命中本地缓存，跳过网络爬取: $rjStr');
       }
-
-      // 解析成功，将物理状态标记为 parsed
+      // 2. 解析成功，全局同步 physical 状态为 parsed
       final parsedNode = parsingNode.copyWith(nodeStatus: NodeStatus.parsed);
-      await FileScannerStorage().saveNode(parsedNode);
+      await FileScannerStorage.updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.parsed);
 
-      // 任务成功，状态转移
+      // 任务成功，状态转移 (内存队列中直接替换)
       state = state.copyWith(
         processing: state.processing.where((n) => n.keyId != parsingNode.keyId).toList(),
         completed: [...state.completed, parsedNode],
@@ -192,9 +167,9 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     } catch (e, stack) {
       debugPrint('[ScraperQueue] 爬取任务崩溃: ${parsingNode.rjCode} \n异常: $e\n$stack');
 
-      // 解析失败，将物理状态退回 pending，以便后续重试
+      // 3. 解析失败，全局同步 physical 状态退回 pending
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);
-      await FileScannerStorage().saveNode(failedNode);
+      await FileScannerStorage.updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.pending);
 
       // 任务失败，状态转移
       state = state.copyWith(

@@ -261,7 +261,6 @@ class FileScanWorker {
         type: _mapModeToType(config.scanMode),
         title: normalizedVirtualPath.split('/').last,
         lastModified: lastMod,
-        // 【核心修改】：强制普通状态，并注入可能存在的 RJ 号
         nodeStatus: NodeStatus.normal,
         rjCode: rjCode,
       );

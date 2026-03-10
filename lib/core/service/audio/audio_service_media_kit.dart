@@ -16,10 +16,6 @@ class AudioServiceSingleton {
 
   static Future<void> init() async {
     debugPrint("AudioServiceSingleton.init()");
-
-    // 【新增】初始化 media_kit
-    MediaKit.ensureInitialized();
-
     _instance = await AudioService.init(
       builder: () => MyAudioHandler(),
       config: const AudioServiceConfig(
@@ -364,7 +360,6 @@ class MyAudioHandler extends BaseAudioHandler {
         queueIndex: currentIndex,
       ));
 
-      // 完美映射：调用 media_kit 原生调整列表顺序 Api
       await _player.move(oldIndex, newIndex);
     }
     return super.customAction(name, extras);
