@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:media_kit/media_kit.dart'; // 替换 just_audio 引入 media_kit
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import 'package:audio_session/audio_session.dart'; // 新增导入
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -30,17 +31,20 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-  // 1. 替换为 media_kit 的 Player
   final Player _player = Player();
-
-  // 暴露给外层，用于给 VideoController 渲染视频画面
   Player get player => _player;
 
   final List<MediaItem> _playlist = [];
-  int _retryCount = 0; // 当前重试次数
-  static const int _maxRetries = 3; // 最大重试次数
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+
+  // --- Audio Session 相关变量 ---
+  AudioSession? _audioSession;
+  bool _playInterrupted = false;
+  double _normalVolume = 100.0;
 
   MyAudioHandler() {
+    _setupAudioSession(); // 初始化 AudioSession
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
@@ -48,7 +52,76 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenErrorPlayState();
   }
 
-  // 初始化播放状态
+  /// 初始化并监听音频焦点中断事件
+  Future<void> _setupAudioSession() async {
+    _audioSession = await AudioSession.instance;
+    await _audioSession!.configure(const AudioSessionConfiguration.music());
+    _audioSession!.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        // 失去焦点
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+          // 其他应用播放短暂音效（如通知），降低当前音量至 30%
+            _player.setVolume(_normalVolume * 0.3);
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+          // 其他应用开始持续播放音频（如接电话、播客），暂停当前播放
+            if (_player.state.playing) {
+              _player.pause();
+              _playInterrupted = true;
+            }
+            break;
+        }
+      } else {
+        // 恢复焦点
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+          // 恢复正常音量
+            _player.setVolume(_normalVolume);
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+          // 如果是因为失去焦点而暂停的，则恢复播放
+            if (_playInterrupted) {
+              play(); // 这里直接调用重写后的 play()，会重新申请 active 状态
+              _playInterrupted = false;
+            }
+            break;
+        }
+      }
+    });
+  }
+
+  @override
+  Future<void> play() async {
+    if (_audioSession != null) {
+      // 播放前请求音频焦点
+      final success = await _audioSession!.setActive(true);
+      if (success) {
+        await _player.play();
+      } else {
+        KikoenaiLogger().e("获取音频焦点失败，无法播放");
+      }
+    } else {
+      await _player.play();
+    }
+  }
+
+  @override
+  Future<void> pause() async {
+    _playInterrupted = false; // 用户主动暂停，清除被动暂停标记
+    await _player.pause();
+  }
+
+  @override
+  Future<void> stop() async {
+    _playInterrupted = false;
+    await _player.stop();
+    await _audioSession?.setActive(false); // 停止时释放音频焦点
+    return super.stop();
+  }
+
   Future<void> initPlayback({
     required List<MediaItem> initialPlaylist,
     required int initialIndex,
@@ -70,18 +143,15 @@ class MyAudioHandler extends BaseAudioHandler {
     final children = _playlist.map(_buildMedia).toList();
     final playlist = Playlist(children, index: initialIndex);
 
-    // 1. 先 open
     await _player.open(playlist, play: false);
 
-    // 2. 解决 Seek 失效：等待 duration 变为有效值
     if (initialPosition > Duration.zero) {
-      // 这里的逻辑是：如果当前还没有时长，就等它有。
       if (_player.state.duration == Duration.zero) {
         StreamSubscription? subscription;
         subscription = _player.stream.duration.listen((duration) {
           if (duration > Duration.zero) {
             _player.seek(initialPosition);
-            subscription?.cancel(); // 跳转一次后取消监听
+            subscription?.cancel();
           }
         });
       } else {
@@ -104,34 +174,29 @@ class MyAudioHandler extends BaseAudioHandler {
     final playlist = Playlist(children, index: initialIndex);
 
     try {
-      await _player.open(playlist, play: autoPlay);
+      // 如果要求自动播放，需在 open 前通过重写的 play() 逻辑获取焦点
+      await _player.open(playlist, play: false);
       if (initialPosition != null && initialPosition > Duration.zero) {
         await _player.seek(initialPosition);
+      }
+      if (autoPlay) {
+        await play(); // 使用重写的 play() 确保获取焦点
       }
     } catch (e) {
       debugPrint("Error loading playlist: $e");
     }
   }
 
-  /// 核心映射：将 MediaItem 转换为 media_kit 的 Media
   Media _buildMedia(MediaItem item) {
     final url = item.extras!['url'] as String;
-    // media_kit 底层直接支持网络和本地绝对路径，无需区分 Uri.parse 和 Uri.file
-    return Media(
-      url,
-      // 巧妙的做法：将 mediaItem 的 id 存在 extras 中，方便在其它地方做业务对比
-      extras: {'id': item.id},
-    );
+    return Media(url, extras: {'id': item.id});
   }
 
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
     if (_playlist.any((item) => item.id == mediaItem.id)) return;
-
     _playlist.add(mediaItem);
     queue.add(List.from(_playlist));
-
-    // 同步给底层播放器
     await _player.add(_buildMedia(mediaItem));
   }
 
@@ -140,11 +205,8 @@ class MyAudioHandler extends BaseAudioHandler {
     final existingIds = _playlist.map((e) => e.id).toSet();
     final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
     if (toAdd.isEmpty) return;
-
     _playlist.addAll(toAdd);
     queue.add(List.from(_playlist));
-
-    // 循环添加至 media_kit 的队列末尾
     for (var item in toAdd) {
       await _player.add(_buildMedia(item));
     }
@@ -153,52 +215,35 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> removeQueueItemAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
-
     _playlist.removeAt(index);
     queue.add(List.from(_playlist));
-
     await _player.remove(index);
   }
 
   Future<void> clearPlaylist() async {
     _playlist.clear();
     queue.add([]);
-    // 用一个空的 Playlist 覆盖当前资源实现清空
     await _player.open(Playlist([]));
   }
-
-  @override
-  Future<void> play() => _player.play();
-
-  @override
-  Future<void> pause() => _player.pause();
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
-  Future<void> stop() async {
-    await _player.stop();
-    return super.stop();
-  }
+  Future<void> skipToNext() => _player.next();
 
   @override
-  Future<void> skipToNext() => _player.next(); // 替换 seekToNext()
-
-  @override
-  Future<void> skipToPrevious() => _player.previous(); // 替换 seekToPrevious()
+  Future<void> skipToPrevious() => _player.previous();
 
   @override
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= _playlist.length) return;
-    await _player.jump(index); // media_kit 的列表跳转 api 是 jump()
+    await _player.jump(index);
   }
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     playbackState.add(playbackState.value.copyWith(repeatMode: repeatMode));
-
-    // 映射 media_kit 的 PlaylistMode
     switch (repeatMode) {
       case AudioServiceRepeatMode.none:
         await _player.setPlaylistMode(PlaylistMode.none);
@@ -216,18 +261,10 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
-
-    if (shuffleMode == AudioServiceShuffleMode.all) {
-      await _player.setShuffle(true);
-    } else {
-      await _player.setShuffle(false);
-    }
+    await _player.setShuffle(shuffleMode == AudioServiceShuffleMode.all);
   }
 
-  // --- 监听与同步 (替换为 media_kit 的 stream) ---
-
   void _listenForCurrentItemChanges() {
-    // 监听 playlist 变化，相当于 currentIndexStream
     _player.stream.playlist.listen((playlist) {
       final index = playlist.index;
       if (index >= 0 && index < _playlist.length) {
@@ -252,7 +289,6 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
-    // 1. 监听播放/暂停状态
     _player.stream.playing.listen((playing) {
       playbackState.add(playbackState.value.copyWith(
         playing: playing,
@@ -267,7 +303,6 @@ class MyAudioHandler extends BaseAudioHandler {
       ));
     });
 
-    // 2. 监听缓冲与加载状态
     _player.stream.buffering.listen((buffering) {
       playbackState.add(playbackState.value.copyWith(
         processingState: buffering
@@ -276,7 +311,6 @@ class MyAudioHandler extends BaseAudioHandler {
       ));
     });
 
-    // 3. 监听播放完成状态
     _player.stream.completed.listen((completed) {
       if (completed) {
         playbackState.add(playbackState.value.copyWith(
@@ -285,7 +319,6 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     });
 
-    // 4. 监听倍速
     _player.stream.rate.listen((rate) {
       playbackState.add(playbackState.value.copyWith(speed: rate));
     });
@@ -295,7 +328,6 @@ class MyAudioHandler extends BaseAudioHandler {
     _player.stream.position.listen((position) {
       playbackState.add(playbackState.value.copyWith(updatePosition: position));
     });
-    // media_kit 缓存流
     _player.stream.buffer.listen((bufferedPosition) {
       playbackState.add(
           playbackState.value.copyWith(bufferedPosition: bufferedPosition));
@@ -314,27 +346,22 @@ class MyAudioHandler extends BaseAudioHandler {
       _retryCount++;
       KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
 
-      // 取 media_kit 当前的数据源
       final currentSource = _player.state.playlist.medias.isNotEmpty;
-
       if (currentSource) {
         await Future.delayed(const Duration(milliseconds: 1500));
-        // media_kit 重试机制直接调用 play() 即可
-        _player.play();
+        play(); // 使用重写的 play()，不仅重试，还能重新确认焦点状态
       }
     });
   }
 
-  // --- 音量控制转换 (关键点) ---
-
-  // 如果你在 UI 层依然使用 0.0 - 1.0 传值，这里做 /100 兼容
   Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
 
-  double get volume => _player.state.volume / 100.0;
+  double get volume => _normalVolume / 100.0;
 
+  @override
   Future<void> setVolume(double v) {
-    // 拦截转换：将 UI 层的 0.0~1.0 转换为 media_kit 的 0.0~100.0
     final targetVolume = (v * 100.0).clamp(0.0, 100.0);
+    _normalVolume = targetVolume; // 保存用户的设定音量，防止被 duck 机制覆盖
     return _player.setVolume(targetVolume);
   }
 
