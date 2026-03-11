@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
+import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import '../provider/file_scanner_notifier.dart';
 
 class PathManagerSheet extends ConsumerWidget {
@@ -253,6 +254,7 @@ class PathManagerSheet extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onTap: () {
+                    ref.read(breadcrumbProvider.notifier).jumpTo(-1);
                     notifier.startScan(path);
                     Navigator.pop(context);
                   },
