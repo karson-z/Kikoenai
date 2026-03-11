@@ -20,6 +20,12 @@ class _PlayerVideoContentState extends State<PlayerVideoContent> {
     // 利用之前写的 extension，直接从单例中安全地获取 VideoController
     _videoController = AudioServiceSingleton.instance.videoController;
   }
+  @override
+  void dispose() {
+    super.dispose();
+    AudioServiceSingleton.instance.toggleVideoDecoding(false);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +50,7 @@ class _PlayerVideoContentState extends State<PlayerVideoContent> {
           // --- 占位图设置 ---
           // 视频在刚切过来、还在解码第一帧时的背景图
           // 可以传入当前的专辑封面图以实现更平滑的过渡
-          // fill: Colors.transparent,
+          fill: Colors.transparent,
         ),
       ),
     );

@@ -318,8 +318,8 @@ class PlayerController extends Notifier<AppPlayerState> {
         Work? work
       }
       ) async {
-    if (node.isAudio) {
-      final audioFiles = currentNodes.where((n) => n.isAudio).toList();
+    if (node.isAudio || node.isVideo) {
+      final audioFiles = currentNodes.where((n) => n.isAudio || n.isVideo).toList();
       final mediaList = audioFiles.map((n) {
         return _fileNodeToMediaItem(n, work ?? Work());
       }).toList();
