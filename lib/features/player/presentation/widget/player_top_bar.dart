@@ -101,7 +101,7 @@ class TopBar extends ConsumerWidget {
           initialSwitchValue: currentAudioOnlyState,
           onSwitchChanged: (bool value) async {
             // 1. 更新 Riverpod 内存状态，保证重开弹窗时状态一致
-            ref.read(audioOnlyModeProvider.notifier).state = value;
+            ref.read(audioOnlyModeProvider.notifier).toggleMode(value);
 
             // 2. 下发指令给底层：开启仅音频(value=true) 时关闭视频解码(enable=false)
             await AudioServiceSingleton.instance.customAction(
