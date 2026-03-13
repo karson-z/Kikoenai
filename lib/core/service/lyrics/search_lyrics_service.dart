@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -5,6 +7,8 @@ import 'package:kikoenai/core/model/file_node.dart';
 import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
 import '../../enums/node_type.dart';
 import 'package:path/path.dart' as p;
+
+import '../file/file_scanner_storage.dart';
 
 class LyricsDataProcess {
   /// 字幕文件名数据处理
@@ -372,6 +376,12 @@ class SearchLyricsService {
     traverse(targetNode);
     return results;
   }
+
+  static FileNode? findSubtitleInLocalById(int workId) {
+    final nodeList = FileScannerStorage.getWorkFileTreeLocally(workId);
+    return nodeList;
+  }
+
   /// 获取本地字幕
   /// [workId] 作品Id
   // static List<FileNode> findSubtitleInLocalById(String workId) {

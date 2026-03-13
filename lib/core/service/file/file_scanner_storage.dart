@@ -66,6 +66,13 @@ class FileScannerStorage {
         .map((e) => e.value)
         .toList();
   }
+  /// 获取指定模式下的所有缓存节点
+ static List<FileNode> getAllByMode(ScanMode mode) {
+    return _staticBox.toMap().entries
+        .where((e) => _isCurrentModeKey(mode))
+        .map((e) => e.value)
+        .toList();
+  }
 
   /// 批量保存或更新节点
   Future<void> saveNodes(List<FileNode> nodes) async {
@@ -138,7 +145,9 @@ class FileScannerStorage {
     await _staticBox.clear();
     debugPrint('[FileScannerStorage] 已彻底清空所有模式的缓存数据。');
   }
-
+ static List<FileNode> getSubtitleInNode () {
+    final subTitleNode = getAllByMode(ScanMode.subtitles);
+ }
   /// 全局静态方法：根据作品 ID，从全局扁平缓存中捞取并重组出该作品的专属文件树
   ///
   /// 场景：聚合音频、视频、字幕文件，构建一棵完整的作品媒体树。
