@@ -258,15 +258,15 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
     if (currentItem.id == state.currentTrack?.id) return;
     // 2. 获取 ID 进行比对
-    final String? lastWorkId = _getWorkIdFromItem(state.currentTrack);
-    final String? newWorkId = _getWorkIdFromItem(currentItem);
+    final int? lastWorkId = _getWorkIdFromItem(state.currentTrack);
+    final int? newWorkId = _getWorkIdFromItem(currentItem);
     List<FileNode> targetSubtitleList = [];
     bool isWorkChanged = newWorkId != lastWorkId;
-    if (isWorkChanged && newWorkId != null && newWorkId.isNotEmpty) {
+    if (isWorkChanged && newWorkId != null) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
       // 当前作品发生变化，需要重新拉取字幕列表
       // TODO 查找本地字幕
-      // targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
+      targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
       // 如果当前状态中没有字幕列表先匹配本地后匹配ASMR服务器上的字幕列表
       if(targetSubtitleList.isEmpty){
         targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);
@@ -465,14 +465,14 @@ class PlayerController extends Notifier<AppPlayerState> {
       },
     );
   }
-  String? _getWorkIdFromItem(MediaItem? item) {
+  int? _getWorkIdFromItem(MediaItem? item) {
     if (item == null) return null;
     final workData = item.extras?['workData'];
     if (workData == null) return null;
     try {
       // 兼容 JSON String 和 Map
       final workJson = workData is String ? jsonDecode(workData) : workData;
-      return workJson['id']?.toString();
+      return workJson['id'];
     } catch (e) {
       debugPrint("解析 WorkID 异常: $e");
       return null;

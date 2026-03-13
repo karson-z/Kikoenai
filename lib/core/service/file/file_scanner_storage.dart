@@ -125,7 +125,6 @@ class FileScannerStorage {
   List<FileNode> getAllAcrossModes() {
     return _box.values.toList();
   }
-
   /// 危险操作：无视模式隔离，清空整个扫描器数据库的所有数据
   Future<void> clearAbsolutelyAll() async {
     await _box.clear();

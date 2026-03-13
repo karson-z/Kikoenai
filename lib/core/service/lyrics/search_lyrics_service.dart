@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
 import '../../enums/node_type.dart';
 import 'package:path/path.dart' as p;
@@ -377,9 +378,61 @@ class SearchLyricsService {
     return results;
   }
 
-  static FileNode? findSubtitleInLocalById(int workId) {
-    final nodeList = FileScannerStorage.getWorkFileTreeLocally(workId);
-    return nodeList;
+  static List<FileNode> findSubtitleInLocalById(int workId) {
+    final targetRj = "RJ$workId".toUpperCase();
+    final targetRj0 = "RJ0$workId".toUpperCase();
+
+    // 1. 获取所有的字幕节点
+    final nodeList = FileScannerStorage().getAllByMode(ScanMode.subtitles);
+
+    // 2. 寻找匹配该 RJ 码的根文件夹节点
+    final rootFolders = nodeList.where((node) {
+      final nodeRj = node.rjCode?.toUpperCase() ?? '';
+      return node.isFolder && (nodeRj == targetRj || nodeRj == targetRj0);
+    }).toList();
+
+    // 如果没有找到该作品的根目录，返回空列表
+    if (rootFolders.isEmpty) return [];
+
+    final rootFolder = rootFolders.first;
+    final rawRootPath = rootFolder.mediaStreamUrl;
+    if (rawRootPath == null) return [];
+
+    // 统一路径分隔符
+    final posix = p.Context(style: p.Style.posix);
+    final rootPath = posix.normalize(rawRootPath.replaceAll('\\', '/'));
+
+    // 3. 捞取所有属于该根文件夹下的字幕子孙节点（使用 Map 通过路径去重）
+    final Map<String, FileNode> uniqueNodes = {};
+
+    // 将根文件夹自身也加入列表（如果不需要根文件夹，可以注释掉这行，并将下方判断改为纯粹的 isWithin）
+    uniqueNodes[rootPath] = rootFolder;
+
+    for (var node in nodeList) {
+      if (node.mediaStreamUrl == null) continue;
+
+      final path = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
+
+      // 如果是子节点，加入字典
+      if (posix.isWithin(rootPath, path)) {
+        uniqueNodes[path] = node;
+      }
+    }
+
+    // 4. 提取为扁平列表
+    final flatList = uniqueNodes.values.toList();
+
+    // 5. 排序：文件夹优先，同类按路径字母升序排序
+    flatList.sort((a, b) {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+
+      final pathA = a.mediaStreamUrl?.toLowerCase() ?? '';
+      final pathB = b.mediaStreamUrl?.toLowerCase() ?? '';
+      return pathA.compareTo(pathB);
+    });
+
+    return flatList;
   }
 
   /// 获取本地字幕
@@ -417,10 +470,10 @@ class SearchLyricsService {
   /// [workId] 作品Id
   /// [ref] ProviderRef
   static Future<List<FileNode>> findSubtitleInNetWorkById(
-      String workId, Ref ref) async {
+      int workId, Ref ref) async {
     // A.拿到作品对应的文件列表
     final workFiles =
-        await ref.read(trackFileNodeProvider(int.parse(workId)).future);
+        await ref.read(trackFileNodeProvider(workId).future);
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }
