@@ -156,7 +156,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       }
       // 2. 解析成功，全局同步 physical 状态为 parsed
       final parsedNode = parsingNode.copyWith(nodeStatus: NodeStatus.parsed);
-      await FileScannerStorage.updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.parsed);
+      await FileScannerStorage().updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.parsed);
 
       // 任务成功，状态转移 (内存队列中直接替换)
       state = state.copyWith(
@@ -169,7 +169,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
       // 3. 解析失败，全局同步 physical 状态退回 pending
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);
-      await FileScannerStorage.updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.pending);
+      await FileScannerStorage().updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.pending);
 
       // 任务失败，状态转移
       state = state.copyWith(

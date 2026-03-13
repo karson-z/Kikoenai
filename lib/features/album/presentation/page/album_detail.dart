@@ -244,7 +244,7 @@ class AlbumDetailPage extends ConsumerWidget {
                 // 本地模式：直接从 FileScannerStorage 拿取匹配此 RJ 码的节点
                   Builder(builder: (context) {
                     // 极其清爽的调用！全量跨路径查找并组装！
-                    final localWorkTree = FileScannerStorage.getWorkFileTreeLocally(work.id);
+                    final localWorkTree = FileScannerStorage().getWorkFileTreeLocally(work.id);
 
                     if (localWorkTree == null) {
                       return const SliverFillRemaining(

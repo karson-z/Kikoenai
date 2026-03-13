@@ -36,6 +36,7 @@ abstract class FileScannerService {
     }
   }
 }
+
 /// 基类，固定一整套扫描流程
 abstract class _BaseFileScanner implements FileScannerService {
   // 组合 Worker
@@ -47,8 +48,8 @@ abstract class _BaseFileScanner implements FileScannerService {
   // 内存树构建器
   final _treeBuilder = IncrementalTreeBuilder();
 
-  // 数据存储层
-  late final _storage = FileScannerStorage(scanMode);
+  // 数据存储层：获取单例
+  late final _storage = FileScannerStorage();
 
   // 记录本次扫描访问过的路径 (用于标记清除算法检测删除的文件)
   final Set<String> _visitedPaths = {};
@@ -75,8 +76,8 @@ abstract class _BaseFileScanner implements FileScannerService {
     await _initAndLoadCache(path);
 
     // 2. 开启后台 Worker 进行“纠错” (增量同步)
-    // 静默扫描开启会去
-    _performSilentSync(path, extensions, scanArchives: scanArchives);
+    // 静默扫描开启
+    await _performSilentSync(path, extensions, scanArchives: scanArchives);
   }
 
   /// 步骤 1: 从 DB 加载缓存并构建 UI 树
@@ -85,8 +86,8 @@ abstract class _BaseFileScanner implements FileScannerService {
     _treeBuilder.clear(keepRootPath: false);
     _treeBuilder.setRootPath(rootPath);
 
-    // 直接通过 Storage 获取该路径下的所有缓存节点
-    final cachedNodes = _storage.getNodesByRootPath(rootPath);
+    // 直接通过 Storage 获取该路径下对应模式的所有缓存节点
+    final cachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
 
     if (cachedNodes.isNotEmpty) {
       // 构建内存树
@@ -104,6 +105,7 @@ abstract class _BaseFileScanner implements FileScannerService {
       'RJ${w.id}'.toUpperCase(),
       'RJ0${w.id}'.toUpperCase()
     ]).toSet();
+
     // 启动 Worker
     final chunkStream = _worker.start(
       parsedRjCodes: parsedRjCodes,
@@ -125,7 +127,9 @@ abstract class _BaseFileScanner implements FileScannerService {
 
       for (var node in flatChunk) {
         _markPathAndParentsAsVisited(node.keyId, path);
-        final cachedNode = _storage.getNode(node.keyId);
+
+        // 获取指定模式的缓存节点
+        final cachedNode = _storage.getNode(scanMode, node.keyId);
 
         if (cachedNode == null ||
             cachedNode.lastModified != node.lastModified ||
@@ -137,7 +141,9 @@ abstract class _BaseFileScanner implements FileScannerService {
       if (filesToUpdate.isNotEmpty) {
         _treeBuilder.mergeChunk(filesToUpdate);
         final nodesToSaveToDb = _treeBuilder.consumeTouchedNodes();
-        await _storage.saveNodes(nodesToSaveToDb); // 等待落盘完成
+
+        // 保存指定模式的节点至 DB
+        await _storage.saveNodes(scanMode, nodesToSaveToDb); // 等待落盘完成
         _resultController.add(List.of(_treeBuilder.roots));
       }
     }
@@ -149,7 +155,8 @@ abstract class _BaseFileScanner implements FileScannerService {
 
   /// 步骤 3: 处理删除逻辑 (Mark & Sweep 的 Sweep 阶段)
   Future<void> _handleDeletedFiles(String rootPath) async {
-    final allCachedNodes = _storage.getNodesByRootPath(rootPath);
+    // 获取指定模式下的所有缓存节点
+    final allCachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
     final List<String> keysToDelete = [];
 
     for (var node in allCachedNodes) {
@@ -163,15 +170,18 @@ abstract class _BaseFileScanner implements FileScannerService {
 
     if (keysToDelete.isNotEmpty) {
       debugPrint("Scanner: Detected ${keysToDelete.length} deleted files. Cleaning up...");
-      await _storage.deleteNodes(keysToDelete);
 
-      final remainingNodes = _storage.getNodesByRootPath(rootPath);
+      // 删除指定模式的失效节点
+      await _storage.deleteNodes(scanMode, keysToDelete);
+
+      // 重新拉取最新的指定模式节点并重建内存树
+      final remainingNodes = _storage.getNodesByRootPath(scanMode, rootPath);
       _treeBuilder.rebuild(remainingNodes);
       _resultController.add(List.of(_treeBuilder.roots));
     }
   }
 
-  //递归获取所有父级路径，加入白名单
+  // 递归获取所有父级路径，加入白名单
   void _markPathAndParentsAsVisited(String fullPath, String rootPath) {
     String currentPath = p.normalize(fullPath).toLowerCase();
     final String lowerRoot = p.normalize(rootPath).toLowerCase();
@@ -188,6 +198,7 @@ abstract class _BaseFileScanner implements FileScannerService {
     }
   }
 }
+
 /// 下方三个文件为不同策略，根据模式的不同选择的模式就不同
 class _AudioFileScannerServiceImpl extends _BaseFileScanner {
   @override
