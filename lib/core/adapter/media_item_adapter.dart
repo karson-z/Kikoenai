@@ -1,9 +1,10 @@
 import 'package:hive_ce/hive.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 
 class MediaItemAdapter extends TypeAdapter<MediaItem> {
   @override
-  final int typeId = 2; // 确保 ID 唯一
+  final int typeId = TypeIds.mediaItem; // 确保 ID 唯一
 
   @override
   MediaItem read(BinaryReader reader) {

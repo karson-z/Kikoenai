@@ -1,8 +1,10 @@
 import 'package:hive_ce/hive.dart';
 
+import '../constants/app_typeIds.dart';
+
 part 'lyric_model.g.dart';
 
-@HiveType(typeId: 6) // 确保 ID 不重复
+@HiveType(typeId: TypeIds.lyricConfig) // 确保 ID 不重复
 class LyricConfigModel {
   // === 字体大小细分 ===
   @HiveField(0)

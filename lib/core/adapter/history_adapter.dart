@@ -1,13 +1,14 @@
 
 
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 
 import '../../features/album/data/model/work.dart';
 import '../model/history_entry.dart';
 
 class HistoryEntryAdapter extends TypeAdapter<HistoryEntry> {
   @override
-  int get typeId => 203;
+  int get typeId => TypeIds.historyEntry;
 
   @override
   void write(BinaryWriter writer, HistoryEntry obj) {

@@ -4,10 +4,11 @@ import 'dart:convert';
 import 'package:hive_ce/hive.dart';
 
 import '../../features/album/data/model/work.dart';
+import '../constants/app_typeIds.dart';
 
 class WorkAdapter extends TypeAdapter<Work> {
   @override
-  int get typeId => 101; // 确保全局唯一，自己定义一个
+  int get typeId => TypeIds.work; // 确保全局唯一，自己定义一个
 
   @override
   Work read(BinaryReader reader) {

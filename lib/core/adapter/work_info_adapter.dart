@@ -1,10 +1,11 @@
 
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 import 'package:kikoenai/features/album/data/model/work_info.dart';
 
 class WorkInfoAdapter extends TypeAdapter<WorkInfo> {
   @override
-  final int typeId = 5; // 确保不与 PlayerState(3) 或 FileNode(4) 冲突
+  final int typeId = TypeIds.workInfo;
 
   @override
   WorkInfo read(BinaryReader reader) {

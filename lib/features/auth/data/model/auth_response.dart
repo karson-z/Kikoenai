@@ -2,10 +2,12 @@
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 
+import '../../../../core/constants/app_typeIds.dart';
+
 // 这一行必须加，文件名必须和当前文件名一致
 part 'auth_response.g.dart';
 
-@HiveType(typeId: 9) // 设置唯一的 TypeId
+@HiveType(typeId: TypeIds.authResponse) // 设置唯一的 TypeId
 class AuthResponse {
 
   @HiveField(0) // 字段索引，一旦定好不要轻易修改
