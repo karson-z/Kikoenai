@@ -6,14 +6,10 @@ import 'package:kikoenai/features/album/presentation/widget/work_vertical_colum.
 
 class WorkListHorizontal extends StatefulWidget {
   final List<Work> items;
-  final VoidCallback? onLoadMore; // 新增：加载更多回调
-  final bool hasMore;             // 新增：是否有更多数据
 
   const WorkListHorizontal({
     super.key,
     required this.items,
-    this.onLoadMore,
-    this.hasMore = false,
   });
 
   @override
@@ -23,21 +19,11 @@ class WorkListHorizontal extends StatefulWidget {
 class _WorkListHorizontalState extends State<WorkListHorizontal> {
   late final PageController _pageController;
   int _currentPage = 0;
-  bool _isLoading = false; // 防止重复触发
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-  }
-
-  @override
-  void didUpdateWidget(WorkListHorizontal oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 当 items 数量增加时，重置 loading 锁
-    if (widget.items.length > oldWidget.items.length) {
-      _isLoading = false;
-    }
   }
 
   @override
@@ -54,21 +40,11 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
     );
   }
 
-  void _checkLoadMore(int index, int totalDataPages) {
-    // 触发策略：滑动到【数据页的最后一页】或者【Loading页】时触发
-    // index 是当前页码（从0开始）
-    // totalDataPages 是纯数据的总页数
-    if (widget.hasMore && !_isLoading && widget.onLoadMore != null) {
-      // 如果当前页是最后一页数据，或者已经滑到了 loading 页
-      if (index >= totalDataPages - 1) {
-        _isLoading = true; // 加锁
-        widget.onLoadMore!();
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // 如果没有数据，直接返回空盒子，避免后续计算报错
+    if (widget.items.isEmpty) return const SizedBox();
+
     const spacing = 16.0;
     const cardHeight = 65.0;
     const maxCardsPerColumn = 3;
@@ -78,7 +54,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
     for (var i = 0; i < widget.items.length; i += maxCardsPerColumn) {
       columnComponents.add(widget.items.sublist(
         i,
-        (i + maxCardsPerColumn).clamp(0, widget.items.length),
+        min(i + maxCardsPerColumn, widget.items.length),
       ));
     }
 
@@ -91,17 +67,15 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final maxColumnsPerScreen = WorkListLayout(layoutType: WorkListLayoutType.list)
+        final visibleColumns = WorkListLayout(layoutType: WorkListLayoutType.list)
             .getColumnsCount(context);
-
-        final visibleColumns = maxColumnsPerScreen;
 
         // 计算单列宽度
         final columnWidth =
             (availableWidth - (visibleColumns - 1) * spacing) / visibleColumns;
         final totalColumns = columnComponents.length;
-        final int dataPagesCount = (totalColumns / visibleColumns).ceil();
-        final int totalPageViewCount = widget.hasMore ? dataPagesCount + 1 : dataPagesCount;
+        // 计算纯数据总页数
+        final int totalPageViewCount = (totalColumns / visibleColumns).ceil();
         const pageHeight = cardHeight * maxCardsPerColumn + (maxCardsPerColumn - 1);
 
         return Stack(
@@ -112,34 +86,18 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: totalPageViewCount,
+                physics: const ClampingScrollPhysics(),
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
                   });
-                  _checkLoadMore(index, dataPagesCount);
                 },
-                physics: const ClampingScrollPhysics(),
                 itemBuilder: (context, pageIndex) {
-                  // --- 情况 A: 渲染 Loading 页 ---
-                  // 如果当前索引 等于 数据总页数，说明这是多出来的那一页 Loading
-                  if (widget.hasMore && pageIndex == dataPagesCount) {
-                    return Center(
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    );
-                  }
-
-                  // --- 情况 B: 渲染数据页 ---
+                  // --- 渲染数据页 ---
                   final startIndex = pageIndex * visibleColumns;
                   final endIndex = min(startIndex + visibleColumns, totalColumns);
 
-                  // 安全检查：如果数据还没有加载完但计算有误，防止越界
+                  // 安全检查：防止越界
                   if (startIndex >= totalColumns) return const SizedBox();
 
                   final pageColumns = columnComponents.sublist(startIndex, endIndex);
@@ -159,7 +117,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
                           ),
                         ),
                         if (i < pageColumns.length - 1)
-                          SizedBox(width: spacing),
+                          const SizedBox(width: spacing),
                       ],
                     ],
                   );
@@ -168,17 +126,17 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
             ),
 
             // 左右箭头 (Desktop)
-            // 注意：totalPageViewCount 可能包含了 Loading 页，箭头逻辑需要适配
             if (isDesktop && totalPageViewCount > 1) ...[
               if (_currentPage > 0)
                 Positioned(
                   left: 0,
                   child: IconButton(
                     onPressed: () => _changePage(-1),
-                    icon: const Icon(Icons.arrow_back_ios),
-                    color: Colors.black,
+                    icon: const Icon(Icons.arrow_back_ios, size: 18),
+                    color: Colors.black87,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.7),
+                      backgroundColor: Colors.white.withOpacity(0.8),
+                      elevation: 2,
                     ),
                   ),
                 ),
@@ -188,10 +146,11 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
                   right: 0,
                   child: IconButton(
                     onPressed: () => _changePage(1),
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    color: Colors.black,
+                    icon: const Icon(Icons.arrow_forward_ios, size: 18),
+                    color: Colors.black87,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.7),
+                      backgroundColor: Colors.white.withOpacity(0.8),
+                      elevation: 2,
                     ),
                   ),
                 ),

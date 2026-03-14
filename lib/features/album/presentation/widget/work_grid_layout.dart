@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:visibility_detector/visibility_detector.dart'; // 引入三方库
+
 import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
@@ -18,7 +20,7 @@ class ResponsiveCardGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. 如果完全没有数据且没有更多了，显示“空状态”占满屏幕
+    // 1. 空状态拦截
     if (work.isEmpty && !hasMore) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -32,7 +34,7 @@ class ResponsiveCardGrid extends StatelessWidget {
 
     return SliverMainAxisGroup(
       slivers: [
-        // 2. 内容区域
+        // 2. 内容区域：现在变得极其干净，只负责纯粹的 UI 渲染
         SliverGrid.builder(
           itemCount: work.length,
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
@@ -42,17 +44,11 @@ class ResponsiveCardGrid extends StatelessWidget {
             childAspectRatio: 0.75,
           ),
           itemBuilder: (context, index) {
-            // 触发加载更多的逻辑保持不变
-            if (index == work.length-1 && hasMore) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                onLoadMore();
-              });
-            }
             return WorkCard(work: work[index]);
           },
         ),
 
-        // 3. 底部 Footer (负责 加载动画 或 到底提示)
+        // 3. 底部 Footer：专门负责接管无限滚动的触发
         SliverToBoxAdapter(
           child: _buildFooter(context),
         ),
@@ -78,20 +74,33 @@ class ResponsiveCardGrid extends StatelessWidget {
 
   Widget _buildFooter(BuildContext context) {
     if (hasMore) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: LottieLoadingIndicator(
-          message: "loading...",
-          size: 80,
+      // ★ 核心改变：使用 VisibilityDetector 监听底部 Loading 是否露脸
+      return VisibilityDetector(
+        key: const Key('infinite-scroll-footer'),
+        onVisibilityChanged: (info) {
+          // 当 Loading 动画露出屏幕超过 10% 时，无缝触发加载更多
+          if (info.visibleFraction > 0.1) {
+            onLoadMore();
+          }
+        },
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: LottieLoadingIndicator(
+            message: "loading...",
+            size: 80,
+          ),
         ),
       );
     }
 
-    // 情况 B: 没有更多数据了 (且列表不为空，因为空的已经被上面 SliverFillRemaining 拦截了)
+    // 没有更多数据了
     return const Center(
-      child: Text(
-        "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
-        style: TextStyle(color: Colors.grey, fontSize: 12),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 24), // 增加 padding 保持与 Loading 高度一致
+        child: Text(
+          "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
       ),
     );
   }

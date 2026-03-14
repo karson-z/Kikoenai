@@ -13,14 +13,13 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String detail = '/detail';
   static const String imageView = '/image_preview';
-
+  static const String  hotAndRecommend = '/hot_and_recommend';
   // ==============================
   // 二级目录：通过拼接实现
   // ==============================
 
   // 关于页面
   static String get about => '$settings/about';
-
   // 设置子项
   static String get settingsTheme => '$settings/theme';
   static String get settingsPermission => '$settings/permission';
