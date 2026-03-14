@@ -62,6 +62,7 @@ dependencies:
   background_downloader: ^9.5.2
   watcher: ^1.2.1
   html: ^0.15.0
+  flutter_slidable: ^3.1.0
   flutter_lyric:
     git:
       url: https://github.com/karson-z/flutter_lyric.git

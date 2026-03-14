@@ -30,9 +30,9 @@ const List<NavigationItem> appNavigationItems = [
     routePath: AppRoutes.category, // e.g., "/album"
   ),
   NavigationItem(
-    label: '设置',
-    icon: Icon(Icons.settings_outlined),
-    routePath: AppRoutes.settings, // e.g., "/settings"
+    label: '本地媒体',
+    icon: Icon(Icons.local_hospital_outlined),
+    routePath: AppRoutes.category, // e.g., "/album"
   ),
   NavigationItem(
     label: '我的',
@@ -40,5 +40,5 @@ const List<NavigationItem> appNavigationItems = [
     icon: Icon(Icons.account_circle_outlined),
     routePath: AppRoutes.user,
   ),
-  NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)
+  // NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)
 ];
