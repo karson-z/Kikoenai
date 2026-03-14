@@ -13,6 +13,8 @@ import '../widget/skeleton/h_card_list_skeleton.dart';
 import '../widget/skeleton/work_list_h_skeleton.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
+// TODO: 请确保引入了刚才定义的智能容器和枚举
+import '../widget/smart_works_sliver_grid.dart';
 
 class AlbumPage extends ConsumerStatefulWidget {
   const AlbumPage({Key? key}) : super(key: key);
@@ -29,17 +31,18 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
     final hotState = ref.watch(hotWorksProvider);
     final recState = ref.watch(recommendedWorksProvider);
     final newState = ref.watch(newWorksProvider);
+
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
           ? PreferredSize(
-              preferredSize: const Size.fromHeight(80),
-              child: MobileSearchAppBar(
-                onSearchTap: () {
-                  debugPrint("跳转到搜索页面");
-                  context.push(AppRoutes.search);
-                },
-              ),
-            )
+        preferredSize: const Size.fromHeight(80),
+        child: MobileSearchAppBar(
+          onSearchTap: () {
+            debugPrint("跳转到搜索页面");
+            context.push(AppRoutes.search);
+          },
+        ),
+      )
           : null,
       // 添加下拉刷新，同时控制三个 Provider
       body: RefreshIndicator(
@@ -54,9 +57,11 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
         child: CustomScrollView(
           slivers: [
             // 1. 热门作品区域
-            ..._buildHotSection(hotState),
+            ..._buildHotSection(hotState, context),
 
-            ..._buildRecommendSection(recState),
+            // 2. 推荐作品区域
+            ..._buildRecommendSection(recState, context),
+
             // 3. 最新作品区域 (带分页)
             ..._buildNewSection(newState),
 
@@ -69,19 +74,27 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   }
 
   // --- 热门作品构建逻辑 ---
-  List<Widget> _buildHotSection(AsyncValue hotState) {
+  // 传入 context 以便使用 GoRouter 跳转
+  List<Widget> _buildHotSection(AsyncValue hotState, BuildContext context) {
     return [
-      const SectionHeader(
+      SectionHeader(
         title: '热门作品',
+        isShowMoreButton: true,
+        onMore: () {
+          // 跳转并传递路由参数
+          context.push(
+            AppRoutes.hotAndRecommend,
+            extra: {
+              'title': '热门作品',
+              'source': WorkDataSource.hot,
+            },
+          );
+        },
       ),
       hotState.when(
         data: (state) => SliverToBoxAdapter(
           child: ResponsiveHorizontalCardList(
             items: state.works,
-            hasMore: state.hasMore,
-            onLoadMore: () {
-              ref.read(hotWorksProvider.notifier).loadMore();
-            },
           ),
         ),
         loading: () => const SliverToBoxAdapter(
@@ -98,11 +111,22 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
   }
 
   // --- 推荐作品构建逻辑 ---
-  List<Widget> _buildRecommendSection(AsyncValue recState) {
+  List<Widget> _buildRecommendSection(AsyncValue recState, BuildContext context) {
     return [
-        const SectionHeader(
-          title: '推荐作品',
-        ),
+      SectionHeader(
+        title: '推荐作品',
+        isShowMoreButton: true,
+        onMore: () {
+          // 跳转并传递路由参数
+          context.push(
+            AppRoutes.hotAndRecommend,
+            extra: {
+              'title': '推荐作品',
+              'source': WorkDataSource.recommended,
+            },
+          );
+        },
+      ),
       recState.when(
         data: (state) {
           if (state.works.isEmpty) {
@@ -111,14 +135,9 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
           return SliverToBoxAdapter(
             child: WorkListHorizontal(
               items: state.works,
-              hasMore: state.hasMore,
-              onLoadMore: () {
-                ref.read(recommendedWorksProvider.notifier).loadMore();
-              },
             ),
           );
         },
-        // 加载中显示骨架屏（这里我选择显示骨架屏，你也可以选择隐藏）
         loading: () => const SliverToBoxAdapter(
           child: WorkListHorizontalSkeleton(),
         ),

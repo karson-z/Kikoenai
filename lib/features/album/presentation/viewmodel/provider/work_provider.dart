@@ -1,74 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/enums/sort_options.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/state/work_state.dart';
+import 'package:kikoenai/core/enums/sort_options.dart';
 import '../../../../../core/service/cache/cache_service.dart';
-import '../../../data/model/work.dart';
 import '../../../data/service/work_repository.dart';
 
-class HotWorksNotifier extends AsyncNotifier<WorkState> {
+abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
+  /// 子类必须实现这个方法，负责调用具体的 API 并返回 result.data
+  Future<Map<String, dynamic>?> fetchWorksData(int page);
+
   @override
   Future<WorkState> build() async {
-    return _load(page: 1);
+    return _loadPage(1);
   }
 
-  Future<WorkState> _load({required int page}) async {
-    final repo = ref.read(workRepositoryProvider);
-    final result = await repo.getPopularWorks(page: page);
-    // 这里简化展示
-    final works = OtherUtil.parseWorks(result.data?['works']);
-    final pagination = result.data?['pagination'];
-    final total = pagination?['totalCount'] ?? 0;
+  /// 核心的通用加载与解析逻辑
+  Future<WorkState> _loadPage(int page) async {
+    // 1. 调用子类实现的具体网络请求
+    final data = await fetchWorksData(page);
 
-    // 如果是第一页直接覆盖，否则追加
-    final currentList = (page == 1) ? <Work>[] : (state.value?.works ?? []);
+    // 2. 统一解析数据
+    final newWorks = OtherUtil.parseWorks(data?['works']);
+    final total = data?['pagination']?['totalCount'] ?? 0;
 
-    return WorkState(
-      works: [...currentList, ...works],
-      currentPage: page,
-      totalCount: total,
-      hasMore: works.length < total, // 简化的 hasMore 逻辑
-    );
-  }
-  // 加载更多
-  Future<void> loadMore() async {
-    final currentState = state.value;
-    if (currentState == null || !currentState.hasMore || state.isLoading) return;
-
-    state = await AsyncValue.guard(() async {
-      return _load(page: currentState.currentPage + 1);
-    });
-  }
-  // 只需要对外暴露刷新方法，内部复用 _load
-  Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _load(page: 1));
-  }
-}
-
-final hotWorksProvider =
-AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(HotWorksNotifier.new);
-
-class NewWorksNotifier extends AsyncNotifier<WorkState> {
-  @override
-  Future<WorkState> build() async {
-    // 初始加载第一页
-    return _fetch(page: 1);
-  }
-
-  Future<WorkState> _fetch({required int page}) async {
-    final repo = ref.read(workRepositoryProvider);
-    const order = 'release';
-    final sort = SortDirection.desc.value;
-    final result = await repo.getWorks(page: page, order: order,sort: sort);
-
-    final newWorks = OtherUtil.parseWorks(result.data?['works']);
-    final pagination = result.data?['pagination'];
-    final total = pagination?['totalCount'] ?? 0;
-
-    // 获取旧数据
-    final oldWorks = state.value?.works ?? [];
-    final finalWorks = page == 1 ? newWorks : [...oldWorks, ...newWorks];
+    // 3. 统一合并逻辑：第一页覆盖，其他页追加
+    final currentWorks = state.value?.works ?? [];
+    final finalWorks = page == 1 ? newWorks : [...currentWorks, ...newWorks];
 
     return WorkState(
       works: finalWorks,
@@ -78,90 +35,72 @@ class NewWorksNotifier extends AsyncNotifier<WorkState> {
     );
   }
 
-  // 加载更多
+  /// 通用加载更多
   Future<void> loadMore() async {
     final currentState = state.value;
     if (currentState == null || !currentState.hasMore || state.isLoading) return;
 
     state = await AsyncValue.guard(() async {
-      return _fetch(page: currentState.currentPage + 1);
+      return _loadPage(currentState.currentPage + 1);
     });
   }
 
+  /// 通用刷新
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _fetch(page: 1));
+    state = await AsyncValue.guard(() => _loadPage(1));
   }
 }
 
-final newWorksProvider =
-AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(NewWorksNotifier.new);
-class RecommendedWorksNotifier extends AsyncNotifier<WorkState> {
+// 1. 热门作品
+class HotWorksNotifier extends BaseWorksNotifier {
   @override
-  Future<WorkState> build() async {
-    // 初始化加载第一页
-    return _fetch(page: 1);
+  Future<Map<String, dynamic>?> fetchWorksData(int page) async {
+    final repo = ref.read(workRepositoryProvider);
+    final result = await repo.getPopularWorks(page: page);
+    return result.data;
   }
+}
 
-  /// 核心加载逻辑
-  Future<WorkState> _fetch({required int page}) async {
+final hotWorksProvider = AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
+  HotWorksNotifier.new,
+);
+
+// 2. 最新作品
+class NewWorksNotifier extends BaseWorksNotifier {
+  @override
+  Future<Map<String, dynamic>?> fetchWorksData(int page) async {
+    final repo = ref.read(workRepositoryProvider);
+    const order = 'release';
+    final sort = SortDirection.desc.value;
+
+    final result = await repo.getWorks(page: page, order: order, sort: sort);
+    return result.data;
+  }
+}
+
+final newWorksProvider = AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
+  NewWorksNotifier.new,
+);
+
+// 3. 推荐作品
+class RecommendedWorksNotifier extends BaseWorksNotifier {
+  @override
+  Future<Map<String, dynamic>?> fetchWorksData(int page) async {
     final repo = ref.read(workRepositoryProvider);
 
-    // 1. 获取推荐 UUID (保留原逻辑)
     final recommendUuid = await CacheService.instance.getOrGenerateRecommendUuid();
     final currentUser = CacheService.instance.getAuthSession();
-    // 优先使用登录用户的 UUID，否则使用设备 UUID
     final targetUuid = currentUser?.user?.recommenderUuid ?? recommendUuid;
 
-    // 2. 发起请求
     final result = await repo.getRecommendedWorks(
       recommenderUuid: targetUuid,
       page: page,
     );
-
-    // 3. 解析数据
-    final worksJson = result.data?['works'];
-    final newWorks = OtherUtil.parseWorks(worksJson);
-
-    final pagination = result.data?['pagination'];
-    final totalCount = pagination?['totalCount'] ?? 0;
-
-    // 4. 合并数据
-    final currentWorks = state.value?.works ?? [];
-    // 如果是第1页，直接使用新数据；否则追加到旧数据后面
-    final finalWorks = page == 1 ? newWorks : [...currentWorks, ...newWorks];
-
-    return WorkState(
-      works: finalWorks,
-      currentPage: page,
-      totalCount: totalCount,
-      // 如果当前列表长度小于总数，说明还有更多
-      hasMore: finalWorks.length < totalCount,
-    );
-  }
-
-  /// 加载更多
-  Future<void> loadMore() async {
-    final currentState = state.value;
-    // 卫语句：如果没有数据、没有更多、或者正在加载中，直接返回
-    if (currentState == null || !currentState.hasMore || state.isLoading) return;
-
-    // 仅更新数据，不设置 state = AsyncLoading，防止 UI 闪烁
-    state = await AsyncValue.guard(() async {
-      return _fetch(page: currentState.currentPage + 1);
-    });
-  }
-
-  /// 刷新 (重置为第一页)
-  Future<void> refresh() async {
-    // 刷新时显示 Loading 状态
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _fetch(page: 1));
+    return result.data;
   }
 }
 
-// 定义 Provider
-final recommendedWorksProvider =
-AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
-      () => RecommendedWorksNotifier(),
+final recommendedWorksProvider = AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
+  RecommendedWorksNotifier.new,
 );

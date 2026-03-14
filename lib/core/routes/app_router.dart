@@ -8,6 +8,8 @@ import 'package:kikoenai/features/local_media/presentation/page/local_media_page
 import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
+import '../../features/album/presentation/page/category_works_page.dart';
+import '../../features/album/presentation/widget/smart_works_sliver_grid.dart';
 import '../../features/settings/presentation/pages/setting_page.dart';
 import '../../features/settings/presentation/pages/permission_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
@@ -41,6 +43,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) => const MaterialPage(
                   child: AlbumPage(),
                 ),
+              ),
+              GoRoute(
+                path: AppRoutes.hotAndRecommend,
+                pageBuilder: (context, state) {
+                  // 从 extra 中解析参数
+                  final args = state.extra as Map<String, dynamic>?;
+                  final title = args?['title'] as String? ?? '更多作品';
+                  final source = args?['source'] as WorkDataSource? ?? WorkDataSource.newest;
+                  return SlideRightTransitionPage(
+                    key: state.pageKey,
+                    child: CategoryWorksPage(title: title, source: source),
+                  );
+                },
               ),
               GoRoute(
                 path: AppRoutes.detail,
@@ -85,7 +100,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) => const MaterialPage(
