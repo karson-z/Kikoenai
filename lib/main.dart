@@ -19,9 +19,9 @@ void main() async {
     statusBarColor: Colors.transparent, // 强制透明
     statusBarIconBrightness: Brightness.dark, // 设置图标颜色：dark 为黑色图标，light 为白色图标
   ));
+  await AppStorage.init();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await AudioServiceSingleton.init();
-  await AppStorage.init();
   await ProxyService.init();
   await DownloadService.init();
   debugPrint('开始检测最优服务器...');

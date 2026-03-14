@@ -14,5 +14,6 @@ class AppRoutes {
   static const String settingsCache = '/settings/cache';
   static const String settingsAccount = '/settings/account';
   static const String settingsComment = '/settings/comment';
+  static const String localMedia = '/media';
   static const String test = '/test';
 }
