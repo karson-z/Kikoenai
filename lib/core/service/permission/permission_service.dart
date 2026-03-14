@@ -3,99 +3,50 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class PermissionService {
-  static int? _cachedSdk;
+  static int? _cachedAndroidSdk;
 
-  /// 读取 Android SDK 版本（使用 device_info_plus）
   static Future<int> get androidSdk async {
-    if (!Platform.isAndroid) return 30;
-
-    // 缓存避免频繁调用
-    if (_cachedSdk != null) return _cachedSdk!;
-
+    if (!Platform.isAndroid) return 0; // 非 Android 统一返回 0
+    if (_cachedAndroidSdk != null) return _cachedAndroidSdk!;
     final info = await DeviceInfoPlugin().androidInfo;
-    _cachedSdk = info.version.sdkInt;
-    return _cachedSdk!;
+    return _cachedAndroidSdk = info.version.sdkInt;
   }
 
-  /// 返回当前设备适用的权限列表
-  static Future<Map<String, Permission>> getAvailablePermissions() async {
-    final Map<String, Permission> data = {};
-
-    if (!Platform.isAndroid) return data;
+  /// 1. 获取【存储权限】状态 (完美封装 Android 10/11/13+ 的差异)
+  static Future<bool> checkStoragePermission() async {
+    if (!Platform.isAndroid) return await Permission.storage.isGranted;
 
     final sdk = await androidSdk;
-
-    // 通知
-    data["通知权限"] = Permission.notification;
-
-    // Android 13+ (SDK 33)
     if (sdk >= 33) {
-      data["读取音频"] = Permission.audio;
-      data["读取图片"] = Permission.photos;
-      data["读取视频"] = Permission.videos;
+      // Android 13+ 废弃了普通存储权限，细分为音视频和图片
+      return await Permission.audio.isGranted &&
+          await Permission.photos.isGranted;
+    } else if (sdk >= 30) {
+      return await Permission.manageExternalStorage.isGranted;
     } else {
-      // Android 12 及以下
-      data["读存储"] = Permission.storage;
-      data["写存储"] = Permission.manageExternalStorage;
+      return await Permission.storage.isGranted;
     }
-
-    // 特殊权限
-    data["悬浮窗"] = Permission.systemAlertWindow;
-
-    return data;
   }
 
-  /// 检查所有权限（例如 App 启动时调用）
-  static Future<Map<String, bool>> checkAllPermissions() async {
-    final perms = await getAvailablePermissions();
-    final results = <String, bool>{};
+  /// 2. 请求【存储权限】
+  static Future<bool> requestStoragePermission() async {
+    if (!Platform.isAndroid) return (await Permission.storage.request()).isGranted;
 
-    for (final entry in perms.entries) {
-      final status = await entry.value.status;
-      results[entry.key] = status.isGranted;
+    final sdk = await androidSdk;
+    if (sdk >= 33) {
+      final statuses = await [Permission.audio, Permission.photos, Permission.videos].request();
+      return statuses.values.every((s) => s.isGranted);
+    } else if (sdk >= 30) {
+      return (await Permission.manageExternalStorage.request()).isGranted;
+    } else {
+      return (await Permission.storage.request()).isGranted;
     }
-
-    return results;
   }
+  static Future<bool> checkNotificationPermission() async => await Permission.notification.isGranted;
+  static Future<bool> requestNotificationPermission() async => (await Permission.notification.request()).isGranted;
 
-  /// 请求单个权限
-  static Future<bool> requestPermission(Permission p) async {
-    final result = await p.request();
-    return result.isGranted;
-  }
-
-  /// 是否开启通知（用于检查是否禁用通知渠道）
-  static Future<bool> isNotificationChannelEnabled() async {
-    final result = await Permission.notification.status;
-    return result.isGranted;
-  }
-  static Future<bool> requestExternalPermissions() async {
-    // 1. 非 Android 平台直接通过 (iOS/Windows 等逻辑另写)
-    if (!Platform.isAndroid) return true;
-
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-
-    // 2. Android 11 (SDK 30) 及以上：申请 "管理所有文件" 权限
-    if (androidInfo.version.sdkInt >= 30) {
-      // 检查当前状态
-      if (await Permission.manageExternalStorage.isGranted) {
-        return true;
-      }
-
-      // 申请权限 (会跳转到系统设置页面)
-      final status = await Permission.manageExternalStorage.request();
-
-      // 返回申请后的最终状态
-      return status.isGranted;
-    }
-
-    // 3. Android 10 及以下：申请普通存储权限
-    else {
-      if (await Permission.storage.isGranted) {
-        return true;
-      }
-      final status = await Permission.storage.request();
-      return status.isGranted;
-    }
+  /// 跳转到系统设置页
+  static Future<void> openSystemSettings() async {
+    await openAppSettings();
   }
 }

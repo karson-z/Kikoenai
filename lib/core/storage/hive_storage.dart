@@ -139,8 +139,31 @@ class AppStorage {
 
   /// 清理 Box
   static Future<void> clearBox(String boxName) async {
-    if (Hive.isBoxOpen(boxName)) {
-      await Hive.box(boxName).clear();
+    // 核心修复：通过匹配 boxName，直接使用顶部已定义好的强类型实例进行清理，避免泛型丢失导致的异常
+    switch (boxName) {
+      case BoxNames.auth:
+        await authBox.clear();
+        break;
+      case BoxNames.history:
+        await historyBox.clear();
+        break;
+      case BoxNames.playerState:
+        await playerBox.clear();
+        break;
+      case BoxNames.settings:
+        await settingsBox.clear();
+        break;
+      case BoxNames.scanner:
+        await scannerBox.clear();
+        break;
+      case BoxNames.scraper:
+        await scraperWorkBox.clear();
+        break;
+      default:
+      // 兜底逻辑：处理那些没有定义为静态变量、或者确实是 dynamic 类型的临时 Box
+        if (Hive.isBoxOpen(boxName)) {
+          await Hive.box(boxName).clear();
+        }
     }
   }
 }

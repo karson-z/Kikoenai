@@ -23,34 +23,29 @@ class GuestPlaceholderView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // 动态颜色定义 (保持与 DownloadPage 一致的设计语言)
-    final Color cTextMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final Color cTextSub = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final Color cIconBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
-    final Color cIconColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6);
-    final Color cButtonBg = isDark ? const Color(0xFF3B82F6) : const Color(0xFF2563EB);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. 图标区域
+            // 1. 图标区域 (极简柔和底色)
             Container(
-              width: 100,
-              height: 100,
+              width: 96,
+              height: 96,
               decoration: BoxDecoration(
-                color: cIconBg,
+                // 使用我们在设置卡片中用过的底层亮色，保持视觉语言统一
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.lock_person_outlined, // 或者 Icons.account_circle_outlined
-                size: 48,
-                color: cIconColor,
+                Icons.lock_person_outlined,
+                size: 40,
+                // 图标使用次级文本色，避免过度抢眼
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 24),
@@ -59,42 +54,33 @@ class GuestPlaceholderView extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: cTextMain,
-                letterSpacing: 0.5,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 12),
             Container(
-              constraints: const BoxConstraints(maxWidth: 280),
+              constraints: const BoxConstraints(maxWidth: 260),
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: cTextSub,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
             ),
             const SizedBox(height: 32),
 
-            // 3. 按钮区域
+            // 3. 按钮区域 (使用 Material 3 规范的主按钮 FilledButton)
             SizedBox(
+              height: 48,
               width: 200,
-              height: 46,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: onLoginTap,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cButtonBg,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(23), // 圆角按钮
-                  ),
+                style: FilledButton.styleFrom(
+                  elevation: 0, // 扁平化，去阴影
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +88,7 @@ class GuestPlaceholderView extends StatelessWidget {
                     Text(
                       buttonText,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

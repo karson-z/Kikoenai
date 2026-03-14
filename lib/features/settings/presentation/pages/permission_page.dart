@@ -1,216 +1,156 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../../../../core/service/permission/permission_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PermissionSettingsPage extends StatefulWidget {
+import '../../../../config/app_version_config.dart';
+import '../../../../core/service/permission/permission_provider.dart';
+
+// 请替换为你的 provider 实际路径
+// import 'permission_status_provider.dart';
+
+class PermissionSettingsPage extends ConsumerStatefulWidget {
   const PermissionSettingsPage({super.key});
 
   @override
-  State<PermissionSettingsPage> createState() => _PermissionSettingsPageState();
+  ConsumerState<PermissionSettingsPage> createState() => _PermissionSettingsPageState();
 }
 
-class _PermissionSettingsPageState extends State<PermissionSettingsPage> {
-  Map<String, Permission> _permissions = {};
-  final Map<String, bool> _permStatus = {};
-  bool _loading = true;
-  int _androidSdk = 30;
+class _PermissionSettingsPageState extends ConsumerState<PermissionSettingsPage> {
+  late final AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    _androidSdk = await PermissionService.androidSdk;
-    _permissions = await PermissionService.getAvailablePermissions();
-
-    final results = await PermissionService.checkAllPermissions();
-    _permStatus
-      ..clear()
-      ..addAll(results);
-
-    _loading = false;
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _request(Permission p) async {
-    await PermissionService.requestPermission(p);
-    await _load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!Platform.isAndroid) {
-      return const Scaffold(body: Center(child: Text("仅支持 Android")));
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("权限控制中心"),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSectionTitle("通知相关"),
-          ..._buildCards(filter(["通知权限"])),
-
-          const SizedBox(height: 20),
-          if (_androidSdk >= 33) ...[
-            _buildSectionTitle("媒体访问（Android 13+）"),
-            ..._buildCards(filter(["读取音频", "读取图片", "读取视频"])),
-          ],
-
-          if (_androidSdk <= 32) ...[
-            const SizedBox(height: 20),
-            _buildSectionTitle("传统存储（Android 12−）"),
-            ..._buildCards(filter(["读存储", "写存储"])),
-          ],
-
-          const SizedBox(height: 20),
-          _buildSectionTitle("特殊权限"),
-          ..._buildCards(filter(["悬浮窗"])),
-
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Map<String, Permission> filter(List<String> keys) {
-    final result = <String, Permission>{};
-    for (final k in keys) {
-      if (_permissions.containsKey(k)) {
-        result[k] = _permissions[k]!;
-      }
-    }
-    return result;
-  }
-
-  Widget _buildSectionTitle(String title) {
-    final color = Theme.of(context).colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: color),
-      ),
-    );
-  }
-
-  List<Widget> _buildCards(Map<String, Permission> items) {
-    return items.entries.map((e) {
-      final title = e.key;
-      final granted = _permStatus[title] ?? false;
-
-      return PermissionCard(
-        title: title,
-        granted: granted,
-        onRequest: () => _request(e.value),
-      );
-    }).toList();
-  }
-}
-
-// --------------------------------------------------------
-// ✔ 权限卡片
-// --------------------------------------------------------
-class PermissionCard extends StatefulWidget {
-  final String title;
-  final bool granted;
-  final VoidCallback onRequest;
-
-  const PermissionCard({
-    required this.title,
-    required this.granted,
-    required this.onRequest,
-    super.key,
-  });
-
-  @override
-  State<PermissionCard> createState() => _PermissionCardState();
-}
-
-class _PermissionCardState extends State<PermissionCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-
-    if (widget.granted) _controller.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant PermissionCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.granted != widget.granted) {
-      widget.granted ? _controller.forward() : _controller.reverse();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-        child: Row(
-          children: [
-            AnimatedIconWidget(controller: _controller),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                widget.title,
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            FilledButton(
-              onPressed: widget.onRequest,
-              child: Text(widget.granted ? "已授权" : "授权"),
-            ),
-          ],
-        ),
-      ),
+    // 核心魔法：监听 App 从后台(系统设置)切回前台的事件，自动刷新权限状态！
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        ref.read(permissionStatusProvider.notifier).refresh();
+      },
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _lifecycleListener.dispose();
     super.dispose();
   }
-}
-
-// --------------------------------------------------------
-// ✔ 动画图标：红叉 → 勾
-// --------------------------------------------------------
-class AnimatedIconWidget extends StatelessWidget {
-  final AnimationController controller;
-
-  const AnimatedIconWidget({required this.controller, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (_, __) {
-        final t = controller.value;
-        final icon = t > 0.5 ? Icons.check_circle : Icons.error_outline;
-        final color = t > 0.5 ? Colors.green : Colors.redAccent;
-        return Icon(icon, color: color, size: 28);
-      },
+    final theme = Theme.of(context);
+    final statusAsync = ref.watch(permissionStatusProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('系统权限', style: TextStyle(fontSize: 18)),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: statusAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('加载失败: $e')),
+        data: (statuses) {
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            children: [
+              // 顶部提示文案
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text(
+                  '为提供更好的体验，${VersionConfig.appName}在特定场景可能需要申请以下手机权限,PC端的话无需申请任何权限',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+
+              // 权限卡片列表
+              _buildPermissionBlock(
+                context: context,
+                title: '存储空间信息',
+                description: '用于下载音频视频, 扫描资源等操作。关闭该权限后本地媒体功能将不可用',
+                isGranted: statuses['storage'] ?? false,
+                onTap: () => ref.read(permissionStatusProvider.notifier).handleRequest('storage'),
+              ),
+              _buildPermissionBlock(
+                context: context,
+                title: '通知权限',
+                description: '帮助你第一时间接收到${VersionConfig.appName}的通知信息',
+                isGranted: statuses['notification'] ?? false,
+                onTap: () => ref.read(permissionStatusProvider.notifier).handleRequest('notification'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 内部构建权限卡片 + 底部悬挂描述文字 的组件
+  Widget _buildPermissionBlock({
+    required BuildContext context,
+    required String title,
+    required String description,
+    required bool isGranted,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. 卡片本身
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isGranted ? null : onTap, // 如果已开启，禁止再次点击，否则去设置
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    isGranted ? '已开启' : '去设置',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant, // 均使用暗色字还原截图质感
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // 2. 卡片底部的灰色描述文字
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 4, top: 12, bottom: 28),
+          child: Text(
+            description,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
