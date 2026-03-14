@@ -1,8 +1,10 @@
 import 'package:hive_ce/hive.dart';
 
+import '../constants/app_typeIds.dart';
+
 part 'node_type.g.dart';
 
-@HiveType(typeId: 13)
+@HiveType(typeId: TypeIds.nodeType)
 enum NodeType {
   @HiveField(0)
   folder,

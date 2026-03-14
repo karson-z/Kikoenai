@@ -2,12 +2,13 @@ import 'package:hive_ce/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/data/model/work_info.dart';
+import '../constants/app_typeIds.dart';
 import '../enums/node_type.dart';
 
 part 'file_node.g.dart';
 
 // 基础枚举结构，保留 Hive 注解
-@HiveType(typeId: 14)
+@HiveType(typeId: TypeIds.nodeStatus)
 enum NodeStatus {
   @HiveField(0)
   normal,
@@ -29,7 +30,7 @@ enum NodeStatus {
 }
 
 @JsonSerializable()
-@HiveType(typeId: 10) // Hive 适配器 ID，确保唯一
+@HiveType(typeId: TypeIds.fileNode) // Hive 适配器 ID，确保唯一
 class FileNode extends HiveObject {
   @HiveField(0)
   final NodeType type;

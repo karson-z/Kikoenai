@@ -1,10 +1,11 @@
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 import '../../features/player/data/model/progress_state.dart';
 
 
 class ProgressBarStateAdapter extends TypeAdapter<ProgressBarState> {
   @override
-  int get typeId => 1;
+  int get typeId => TypeIds.progressBarState;
 
   @override
   ProgressBarState read(BinaryReader reader) {

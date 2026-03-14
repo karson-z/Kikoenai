@@ -3,11 +3,13 @@ import 'package:hive_ce/hive.dart'; // 或者 package:hive/hive.dart
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 
+import '../../../../core/constants/app_typeIds.dart';
+
 // 1. 添加 part 指令，文件名需与当前文件名一致 (例如 player_state.dart -> player_state.g.dart)
 part 'player_state.g.dart';
 
 // 2. 添加 HiveType 注解，typeId 保持为你之前的 3
-@HiveType(typeId: 3)
+@HiveType(typeId: TypeIds.appPlayerState)
 class AppPlayerState {
   @HiveField(0)
   final bool playing;

@@ -1,10 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:hive_ce/hive.dart';
 
+import '../../../../core/constants/app_typeIds.dart';
+
 // 2. 指定生成的 Adapter 文件名
 part 'user.g.dart';
 
-@HiveType(typeId: 11) // 3. 设置唯一的 typeId
+@HiveType(typeId: TypeIds.user) // 3. 设置唯一的 typeId
 class User extends Equatable {
 
   @HiveField(0)
