@@ -74,6 +74,7 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
               // 下拉菜单
               return DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
+                  focusColor: Colors.transparent, // <--- 新增这行，去掉选中时的灰色背景框
                   value: isValid ? currentId : null,
                   hint: Text(
                     // 1. 如果没登录 -> 显示 "请登录"
@@ -93,7 +94,7 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
                   items: playlists.map((Playlist playlist) {
                     final displayName = OtherUtil.getDisplayName(playlist.name);
                     return DropdownMenuItem<String>(
-                      value: playlist.id, // 这里的 value 必须和上面的 value 类型一致
+                      value: playlist.id,
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 100),
                         child: Text(

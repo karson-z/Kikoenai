@@ -8,7 +8,6 @@ import 'package:kikoenai/core/storage/hive_storage.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
 import '../../../../core/service/permission/permission_service.dart';
-import '../../../../core/utils/scraper/scraper_controller.dart';
 import '../../data/model/file_scanner_state.dart';
 
 final fileScannerProvider =
@@ -154,7 +153,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
 
   /// 添加新目录
   Future<void> addDirectory() async {
-    await PermissionService.requestExternalPermissions();
+    await PermissionService.requestStoragePermission();
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
 
     if (selectedDirectory != null) {

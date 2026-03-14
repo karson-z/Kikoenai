@@ -4,18 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/presentation/page/auth_page.dart';
-import 'package:kikoenai/features/settings/presentation/pages/account_page.dart';
-import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
 import 'package:kikoenai/features/local_media/presentation/page/local_media_page.dart';
+import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
-import '../../features/settings/presentation/pages/comment_setting_page.dart';
+import '../../features/settings/presentation/pages/setting_page.dart';
 import '../../features/settings/presentation/pages/permission_page.dart';
-import '../../features/settings/presentation/pages/settings_overview_page.dart';
-import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/album/presentation/page/album_page.dart';
 import '../../features/category/presentation/page/category_page.dart';
 import '../../features/search/presentation/page/search_page.dart';
+import '../../features/settings/presentation/pages/theme_setting_page.dart';
+import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
 import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
@@ -32,7 +31,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          // 这里传入我们在 MainScaffold 中修改后的 navigationShell
           return MainScaffold(navigationShell: navigationShell);
         },
         branches: [
@@ -85,18 +83,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // StatefulShellBranch(
-          //   routes: [
-          //     GoRoute(
-          //       path: AppRoutes.settings,
-          //       pageBuilder: (context, state) => const MaterialPage(
-          //         child: SettingsOverviewPage(),
-          //       ),
-          //     ),
-          //   ],
-          // ),
         ],
       ),
+
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) => const MaterialPage(
@@ -104,40 +93,48 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: AppRoutes.settingsTheme,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: SettingsPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsPermission,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: PermissionSettingsPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsCache,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: CacheManagementPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsAccount,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: AccountPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsComment,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: GeneralSettingsPage(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.about,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: AboutPage(),
-        ),
+          path: AppRoutes.settings,
+          pageBuilder: (context, state) => SlideRightTransitionPage(
+            key: state.pageKey,
+            child: const SettingsPage(),
+          ),
+          routes: [
+            // 1. 关于页面
+            GoRoute(
+              path: AppRoutes.toRelative(AppRoutes.about),
+              pageBuilder: (context, state) => SlideRightTransitionPage(
+                key: state.pageKey, // 传入 pageKey 保证动画期间的状态一致性
+                child: const AboutPage(),
+              ),
+            ),
+
+            // 2. 权限设置
+            GoRoute(
+              path: AppRoutes.toRelative(AppRoutes.settingsPermission),
+              pageBuilder: (context, state) => SlideRightTransitionPage(
+                key: state.pageKey,
+                child: const PermissionSettingsPage(),
+              ),
+            ),
+
+            // 3. 主题设置
+            GoRoute(
+              path: AppRoutes.toRelative(AppRoutes.settingsTheme),
+              pageBuilder: (context, state) => SlideRightTransitionPage(
+                key: state.pageKey,
+                child: const ThemeSettingPage(),
+              ),
+            ),
+
+            // 4. 缓存设置
+            GoRoute(
+              path: AppRoutes.toRelative(AppRoutes.settingsCache),
+              pageBuilder: (context, state) => SlideRightTransitionPage(
+                key: state.pageKey,
+                child: const CacheManagementPage(),
+              ),
+            ),
+          ]
       ),
       GoRoute(
         path: AppRoutes.imageView,
@@ -145,9 +142,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final Map<String, dynamic> args = state.extra as Map<String, dynamic>;
           return CustomTransitionPage(
             key: state.pageKey,
-            opaque: false, // 必须 false
-            barrierColor: Colors.transparent, // 必须透明
-            // 缩短路由本身的过渡时间，避免和内部滑动冲突
+            opaque: false,
+            barrierColor: Colors.transparent,
             transitionDuration: const Duration(milliseconds: 200),
             reverseTransitionDuration: const Duration(milliseconds: 200),
             child: ExtendedImagePreviewPage(
@@ -162,22 +158,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.search,
-        pageBuilder: (context, state) {
-          return CustomTransitionPage(
-            key: state.pageKey,
-            child: const SearchPage(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              final tween = Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeOutQuart));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
-          );
-        },
+        pageBuilder: (context, state) => SlideRightTransitionPage(
+          key: state.pageKey, // 传入 pageKey 保持状态
+          child: const SearchPage(),
+        ),
       ),
     ],
   );

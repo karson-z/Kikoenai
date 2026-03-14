@@ -441,6 +441,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.1"
+  disk_space_2:
+    dependency: "direct main"
+    description:
+      name: disk_space_2
+      sha256: "3d8662a6ed022defb4205bdc453480f5f1ea4b1494fbc6711d564616c1ff8a68"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.0.12"
   equatable:
     dependency: "direct main"
     description:
@@ -913,14 +921,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.0"
-  mockito:
-    dependency: transitive
-    description:
-      name: mockito
-      sha256: "2314cbe9165bcd16106513df9cf3c3224713087f09723b128928dc11a4379f99"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "5.5.0"
   native_flutter_proxy:
     dependency: "direct main"
     description:
@@ -1161,22 +1161,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.0-dev.7"
-  riverpod_annotation:
-    dependency: "direct main"
-    description:
-      name: riverpod_annotation
-      sha256: "7230014155777fc31ba3351bc2cb5a3b5717b11bfafe52b1553cb47d385f8897"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "3.0.3"
-  riverpod_generator:
-    dependency: "direct dev"
-    description:
-      name: riverpod_generator
-      sha256: "49894543a42cf7a9954fc4e7366b6d3cb2e6ec0fa07775f660afcdd92d097702"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "3.0.3"
   riverpod_lint:
     dependency: "direct dev"
     description:

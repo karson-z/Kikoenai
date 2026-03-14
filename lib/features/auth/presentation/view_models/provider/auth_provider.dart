@@ -1,32 +1,28 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../../core/service/cache/cache_service.dart';
 import '../../../../user/data/models/user.dart';
+import '../../../data/model/auth_response.dart';
 import '../../../data/model/login_params.dart';
 import '../../../data/model/register_model.dart';
 import '../../../data/service/auth_repository.dart';
 import '../state/auth_state.dart';
-import '../../../data/model/auth_response.dart'; // 导入之前定义的 AuthResponse
+
+final cacheServiceProvider = Provider<CacheService>((ref) => CacheService.instance);
 
 class AuthNotifier extends AsyncNotifier<AuthState> {
-  late final AuthRepository _authRepository;
-  late final CacheService _cacheService;
+  AuthRepository get _authRepository => ref.read(authRepositoryProvider);
+  CacheService get _cacheService => ref.read(cacheServiceProvider);
 
   @override
   Future<AuthState> build() async {
-    _authRepository = ref.read(authRepositoryProvider);
-    // 获取单例实例
-    _cacheService = CacheService.instance;
-
     return _loadInitialState();
   }
 
-  /// 初始化逻辑：直接从 CacheService 获取完整的会话信息
   Future<AuthState> _loadInitialState() async {
     try {
       final authSession = _cacheService.getAuthSession();
-
-      // 验证数据完整性
       if (authSession != null && authSession.isSuccess) {
         return AuthState(
           currentUser: authSession.user,
@@ -34,82 +30,57 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         );
       }
     } catch (e) {
-      // 如果解析出错（比如数据结构变更），安全起见清除缓存
       await _cacheService.clearAuthSession();
     }
-
-    // 默认未登录
     return const AuthState(currentUser: null, token: null);
   }
 
-  /// 登录方法
+  /// 登录逻辑：不再手动处理 Loading，遇到错误直接 throw 即可
   Future<void> login(String username, String password) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final result = await _authRepository.login(
-        LoginParams(username: username, password: password),
-      );
-      return _handleAuthSuccess(result);
-    });
+    final result = await _authRepository.login(
+      LoginParams(username: username, password: password),
+    );
+    final newState = await _handleAuthSuccess(result);
+    // 成功后，直接更新全局用户状态
+    state = AsyncData(newState);
   }
 
-  /// 注册方法
+  /// 注册逻辑
   Future<void> register(String username, String password) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      final request = RegisterRequestModel(
-        name: username,
-        password: password,
-      );
-      final result = await _authRepository.register(request);
-      return _handleAuthSuccess(result);
-    });
+    final request = RegisterRequestModel(name: username, password: password);
+    final result = await _authRepository.register(request);
+    final newState = await _handleAuthSuccess(result);
+    state = AsyncData(newState);
   }
 
-  /// 统一处理认证成功逻辑
   Future<AuthState> _handleAuthSuccess(dynamic result) async {
     if (result.data != null) {
-      final data = result.data!;
-
+      final data = result.data as Map<String, dynamic>;
       final authResponse = AuthResponse(
         user: data['user'] != null ? User.fromJson(data['user']) : null,
         token: data['token'] as String?,
       );
 
-      // 2. 校验关键数据
       if (!authResponse.isSuccess) {
-        throw Exception("服务端返回数据不完整");
+        throw const FormatException("服务端返回数据不完整");
       }
 
-      // 3. 调用 CacheService 一次性存储 (User + Token)
       await _cacheService.saveAuthSession(authResponse);
-
-      // 4. 更新内存状态
-      return AuthState(
-        currentUser: authResponse.user,
-        token: authResponse.token,
-      );
+      return AuthState(currentUser: authResponse.user, token: authResponse.token);
     } else {
-      // 处理业务错误
-      throw Exception(result.message ?? '操作失败');
+      // 业务错误直接抛出，UI 层的 Mutation 会自动将其转为 MutationError 状态
+      throw Exception(result.message ?? '服务器操作失败');
     }
   }
 
-  /// 登出方法
   Future<void> logout() async {
-    state = const AsyncValue.loading();
     try {
-      // 调用 CacheService 清除数据
       await _cacheService.clearAuthSession();
-
-      // 重置状态
+    } finally {
       state = const AsyncValue.data(AuthState(currentUser: null, token: null));
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
     }
   }
 }
-
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
       () => AuthNotifier(),
 );
