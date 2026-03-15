@@ -74,6 +74,63 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
           typeId == other.typeId;
 }
 
+class NodeTypeAdapter extends TypeAdapter<NodeType> {
+  @override
+  final typeId = 13;
+
+  @override
+  NodeType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return NodeType.folder;
+      case 1:
+        return NodeType.audio;
+      case 2:
+        return NodeType.image;
+      case 3:
+        return NodeType.text;
+      case 4:
+        return NodeType.video;
+      case 5:
+        return NodeType.other;
+      case 6:
+        return NodeType.unknown;
+      default:
+        return NodeType.folder;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, NodeType obj) {
+    switch (obj) {
+      case NodeType.folder:
+        writer.writeByte(0);
+      case NodeType.audio:
+        writer.writeByte(1);
+      case NodeType.image:
+        writer.writeByte(2);
+      case NodeType.text:
+        writer.writeByte(3);
+      case NodeType.video:
+        writer.writeByte(4);
+      case NodeType.other:
+        writer.writeByte(5);
+      case NodeType.unknown:
+        writer.writeByte(6);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeTypeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 class NodeStatusAdapter extends TypeAdapter<NodeStatus> {
   @override
   final typeId = 14;

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
-import 'package:kikoenai/core/enums/node_type.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'archive_service.dart';
 import 'file_scanner_service.dart';
