@@ -1,12 +1,26 @@
 import 'package:hive_ce/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'package:kikoenai/features/album/data/model/work.dart';
-import 'package:kikoenai/features/album/data/model/work_info.dart';
 import '../constants/app_typeIds.dart';
-import '../enums/node_type.dart';
 
 part 'file_node.g.dart';
 
+@HiveType(typeId: TypeIds.nodeType)
+enum NodeType {
+  @HiveField(0)
+  folder,
+  @HiveField(1)
+  audio,
+  @HiveField(2)
+  image,
+  @HiveField(3)
+  text,
+  @HiveField(4)
+  video,
+  @HiveField(5)
+  other,
+  @HiveField(6)
+  unknown,
+}
 // 基础枚举结构，保留 Hive 注解
 @HiveType(typeId: TypeIds.nodeStatus)
 enum NodeStatus {

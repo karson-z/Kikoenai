@@ -15,7 +15,6 @@ import '../adapter/media_item_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
-import '../enums/node_type.dart';
 import '../model/lyric_model.dart';
 
 

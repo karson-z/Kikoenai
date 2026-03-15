@@ -6,7 +6,6 @@ import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
-import '../../enums/node_type.dart';
 import 'package:path/path.dart' as p;
 
 import '../file/file_scanner_storage.dart';
