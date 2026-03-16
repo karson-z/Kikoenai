@@ -66,17 +66,14 @@ class MyAudioHandler extends BaseAudioHandler {
   MyAudioHandler() {
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
-
-      // 注入 FFmpeg 重连配置，这是 PlayerConfiguration 无法做到的
-      nativePlayer.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
-      nativePlayer.setProperty('demuxer-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
+      nativePlayer.setProperty('network-timeout', '15');
     }
     _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
     _listenForCurrentItemChanges();
-    _listenErrorPlayState();
+    // _listenErrorPlayState();
   }
 
   /// 动态应用当前的 AudioSession 配置
@@ -402,25 +399,25 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
-  void _listenErrorPlayState() {
-    _player.stream.error.listen((e) async {
-      KikoenaiLogger().e("播放异常: $e");
-      if (_retryCount >= _maxRetries) {
-        KikoenaiToast.error('播放失败，已停止重试');
-        _retryCount = 0;
-        return;
-      }
-
-      _retryCount++;
-      KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
-
-      final currentSource = _player.state.playlist.medias.isNotEmpty;
-      if (currentSource) {
-        await Future.delayed(const Duration(milliseconds: 1500));
-        play();
-      }
-    });
-  }
+  // void _listenErrorPlayState() {
+  //   _player.stream.error.listen((e) async {
+  //     KikoenaiLogger().e("播放异常: $e");
+  //     if (_retryCount >= _maxRetries) {
+  //       KikoenaiToast.error('播放失败，已停止重试');
+  //       _retryCount = 0;
+  //       return;
+  //     }
+  //
+  //     _retryCount++;
+  //     KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
+  //
+  //     final currentSource = _player.state.playlist.medias.isNotEmpty;
+  //     if (currentSource) {
+  //       await Future.delayed(const Duration(milliseconds: 1500));
+  //       play();
+  //     }
+  //   });
+  // }
   Future<void> toggleVideoDecoding(bool enable) async {
     try {
       if (enable) {
