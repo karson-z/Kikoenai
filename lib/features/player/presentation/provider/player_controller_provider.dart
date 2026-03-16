@@ -12,6 +12,7 @@ import 'package:kikoenai/features/player/presentation/provider/player_feedback_p
 import '../../../../core/service/audio/audio_service_media_kit.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
+import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 
