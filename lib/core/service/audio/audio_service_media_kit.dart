@@ -64,6 +64,13 @@ class MyAudioHandler extends BaseAudioHandler {
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
 
   MyAudioHandler() {
+    if (_player.platform is NativePlayer) {
+      final nativePlayer = _player.platform as NativePlayer;
+
+      // 注入 FFmpeg 重连配置，这是 PlayerConfiguration 无法做到的
+      nativePlayer.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
+      nativePlayer.setProperty('demuxer-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
+    }
     _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
