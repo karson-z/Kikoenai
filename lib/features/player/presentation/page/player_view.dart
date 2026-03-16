@@ -39,7 +39,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
   @override
   void initState() {
     super.initState();
-    // 初始化逻辑控制器
     _controller = PlayerViewController(
       vsync: this,
       expandProgress: widget.dragProgressNotifier ?? ValueNotifier(0.0),
@@ -61,13 +60,8 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
     final currentTrack =
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
-    // 1. 判断音源本身是否包含视频流
     final isVideoTrack = currentTrack?.extras?['isVideo'] == true;
-
-    // 2. 监听用户是否主动开启了“仅听模式”
     final isAudioOnlyMode = ref.watch(audioOnlyModeProvider);
-
-    // 3. 【核心逻辑】：只有当音源是视频，且用户没有开启仅听模式时，才渲染视频 UI
     final shouldRenderVideo = isVideoTrack && !isAudioOnlyMode;
 
     return AnimatedBuilder(
@@ -89,17 +83,20 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             minHeight: widget.minHeight,
             padding: padding,
             isWideScreen: isWide,
-            // 传给 Layout 引擎，控制底层排版
             isVideo: shouldRenderVideo,
           ),
           children: [
             // 1. 背景层
+            if (!shouldRenderVideo)
             LayoutId(
               id: PlayerLayoutId.background,
-              child: PlayerBackground(expandedOpacity: expandedOpacity),
+              // 【核心优化】：背景（尤其是包含高斯模糊时）是非常昂贵的，将其作为独立图层缓存。
+              child: RepaintBoundary(
+                child: PlayerBackground(expandedOpacity: expandedOpacity),
+              ),
             ),
 
-            // 2. 视频内容层 (仅需要渲染视频时存在)
+            // 2. 视频内容层
             if (shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.videoContainer,
@@ -107,12 +104,15 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                   opacity: expandedOpacity,
                   child: IgnorePointer(
                     ignoring: expandVal < 0.5,
-                    child: const PlayerVideoContent(),
+                    // 【核心优化】：视频播放器组件属于重载组件，将其绘制与外层动画剥离。
+                    child: const RepaintBoundary(
+                      child: PlayerVideoContent(),
+                    ),
                   ),
                 ),
               ),
 
-            // 3. 专辑内容层 (仅音频模式存在)
+            // 3. 专辑内容层
             if (!shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.bodyAlbum,
@@ -120,12 +120,14 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                   opacity: expandedOpacity * currentAlbumAlpha,
                   child: IgnorePointer(
                     ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
-                    child: PlayerAlbumContent(track: currentTrack),
+                    child: RepaintBoundary(
+                      child: PlayerAlbumContent(track: currentTrack),
+                    ),
                   ),
                 ),
               ),
 
-            // 4. 歌词内容层 (仅音频模式存在)
+            // 4. 歌词内容层
             if (!shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.bodyLyrics,
@@ -133,17 +135,19 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                   opacity: expandedOpacity * currentLyricsAlpha,
                   child: IgnorePointer(
                     ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
-                    child: MobileLyricsContent(
-                      isWideScreen: isWide,
-                      track: currentTrack,
-                      onTapHeader: isWide ? null : _controller.toggleLyrics,
-                      padding: padding,
+                    child: RepaintBoundary(
+                      child: MobileLyricsContent(
+                        isWideScreen: isWide,
+                        track: currentTrack,
+                        onTapHeader: isWide ? null : _controller.toggleLyrics,
+                        padding: padding,
+                      ),
                     ),
                   ),
                 ),
               ),
 
-            // 5. 底部 Minibar (全局保留)
+            // 5. 底部 Minibar
             LayoutId(
               id: PlayerLayoutId.minibar,
               child: Opacity(
@@ -158,29 +162,31 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               ),
             ),
 
-            // 6. 顶部 TopBar (全局保留下拉收起按钮与扩展菜单)
+            // 6. 顶部 TopBar
             LayoutId(
               id: PlayerLayoutId.topBar,
               child: Opacity(
                 opacity: expandedOpacity,
                 child: IgnorePointer(
                   ignoring: expandedOpacity == 0,
-                  child: TopBar(onClose: () => widget.panelController?.close()),
+                  // 顶部工具栏通常不会频繁重绘内部元素，加入隔离。
+                  child: RepaintBoundary(
+                    child: TopBar(onClose: () => widget.panelController?.close()),
+                  ),
                 ),
               ),
             ),
 
-            // 7. 浮动封面
+            // 7. 浮动封面 (故意不使用 RepaintBoundary)
             LayoutId(
               id: PlayerLayoutId.coverHero,
-              // 如果要渲染视频，大封面就渐隐；如果是纯音频模式，封面就常驻显示
               child: Opacity(
                 opacity: shouldRenderVideo ? collapsedOpacity : 1.0,
                 child: GestureDetector(
                   onTap: () {
                     if (expandVal < 0.5) {
                       widget.panelController?.open();
-                    } else if (!isWide && !shouldRenderVideo) { // 同步修改判断条件
+                    } else if (!isWide && !shouldRenderVideo) {
                       _controller.toggleLyrics();
                     }
                   },
