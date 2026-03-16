@@ -33,12 +33,12 @@ class PermissionService {
     if (!Platform.isAndroid) return (await Permission.storage.request()).isGranted;
 
     final sdk = await androidSdk;
-    if (sdk >= 33) {
-      final statuses = await [Permission.audio, Permission.photos, Permission.videos].request();
-      return statuses.values.every((s) => s.isGranted);
-    } else if (sdk >= 30) {
-      return (await Permission.manageExternalStorage.request()).isGranted;
+    // API 30 及以上 (包含 Android 11, 12, 13, 14+) 统一申请所有文件管理权限
+    if (sdk >= 30) {
+      final status = await Permission.manageExternalStorage.request();
+      return status.isGranted;
     } else {
+      // API 29 及以下申请传统读写权限
       return (await Permission.storage.request()).isGranted;
     }
   }
