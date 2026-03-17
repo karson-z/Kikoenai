@@ -21,16 +21,18 @@ class FileTreeDialogContent extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<FileTreeDialogContent> createState() => _FileTreeDialogContentState();
+  ConsumerState<FileTreeDialogContent> createState() =>
+      _FileTreeDialogContentState();
 }
 
 class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
-
   Icon _getIconForNode(FileNode node) {
     if (node.isFolder) return const Icon(Icons.folder, color: Colors.amber);
-    if (node.isAudio) return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
+    if (node.isAudio)
+      return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
     if (node.isImage) return const Icon(Icons.image, color: Colors.blue);
-    if (node.isVideo) return const Icon(Icons.videocam, color: Colors.redAccent);
+    if (node.isVideo)
+      return const Icon(Icons.videocam, color: Colors.redAccent);
     if (node.isText) return const Icon(Icons.description, color: Colors.grey);
     return const Icon(Icons.insert_drive_file, color: Colors.blueGrey);
   }
@@ -58,9 +60,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     // 允许下载的条件：
     // 1. 至少选中了一个文件 (selectedCount > 0)
     // 2. 选中的文件中，至少有一个是"未下载"状态
-    final bool canDownload = selectedList.any((node) =>
-    !node.isFolder && !_isDownloaded(node)
-    );
+    final bool canDownload =
+        selectedList.any((node) => !node.isFolder && !_isDownloaded(node));
 
     return Dialog(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -81,19 +82,24 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     onChanged: (_) {
                       notifier.toggleSelectAll(widget.roots);
                     },
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        rootCheckboxState != null && rootCheckboxState ? '取消全选' : '全选文件',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        rootCheckboxState != null && rootCheckboxState
+                            ? '取消全选'
+                            : '全选文件',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       if (selectedCount > 0)
                         Text(
                           '已选: $totalSizeStr',
-                          style: TextStyle(fontSize: 12, color: theme.primaryColor),
+                          style: TextStyle(
+                              fontSize: 12, color: theme.primaryColor),
                         ),
                     ],
                   ),
@@ -106,28 +112,34 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     icon: const Icon(Icons.queue_music, size: 20),
                     label: const Text('加入队列'),
                     style: TextButton.styleFrom(
-                      foregroundColor: musicCount == 0 ? Colors.grey : theme.primaryColor,
+                      foregroundColor:
+                          musicCount == 0 ? Colors.grey : theme.primaryColor,
                     ),
                   ),
                 ],
               ),
             ),
             const Divider(height: 1, thickness: 1),
-
             Expanded(
               child: widget.roots.isEmpty
                   ? const Center(child: Text("暂无文件数据"))
-                  : ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: widget.roots.length,
-                itemBuilder: (context, index) {
-                  return _buildNodeItem(widget.roots[index], 0, notifier);
-                },
+                  : SingleChildScrollView(
+                scrollDirection: Axis.horizontal, // 2. 允许水平滚动
+                child: IntrinsicWidth(
+                  child: SizedBox(
+                    width: 500, // 提供一个最小基础宽度，防止内容太少时缩成一团
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: widget.roots.length,
+                      itemBuilder: (context, index) {
+                        return _buildNodeItem(widget.roots[index], 0, notifier);
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
-
             const Divider(height: 1, thickness: 1),
-
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -137,7 +149,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                       onPressed: () => KikoenaiDialog.dismiss(),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       child: const Text('取消'),
                     ),
@@ -150,23 +163,25 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                       onPressed: !canDownload
                           ? null
                           : () {
-                        // 提交时，只传递"未下载"的文件给下载器，避免重复下载
-                        // 或者根据需求传递所有选中文件，由后端去重
-                        final filesToDownload = selectedList.where((node) =>
-                        !node.isFolder && !_isDownloaded(node)
-                        ).toList();
+                              // 提交时，只传递"未下载"的文件给下载器，避免重复下载
+                              // 或者根据需求传递所有选中文件，由后端去重
+                              final filesToDownload = selectedList
+                                  .where((node) =>
+                                      !node.isFolder && !_isDownloaded(node))
+                                  .toList();
 
-                        if (filesToDownload.isNotEmpty) {
-                          widget.onDownload(filesToDownload);
-                        }
-                        KikoenaiDialog.dismiss();
-                      },
+                              if (filesToDownload.isNotEmpty) {
+                                widget.onDownload(filesToDownload);
+                              }
+                              KikoenaiDialog.dismiss();
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.primaryColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         disabledBackgroundColor: Colors.grey.shade300,
                       ),
                       child: const Text(
@@ -185,7 +200,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     );
   }
 
-  Widget _buildNodeItem(FileNode node, int level, FileSelectionNotifier notifier) {
+  Widget _buildNodeItem(
+      FileNode node, int level, FileSelectionNotifier notifier) {
     final double indent = level * 20.0;
     final bool isDownloaded = _isDownloaded(node);
     final bool? checkboxState = notifier.getNodeState(node);
@@ -217,13 +233,17 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     node.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
             ),
           ),
-          children: node.children?.map((child) => _buildNodeItem(child, level + 1, notifier)).toList() ?? [],
+          children: node.children
+                  ?.map((child) => _buildNodeItem(child, level + 1, notifier))
+                  .toList() ??
+              [],
         ),
       );
     } else {
@@ -231,7 +251,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
         // 恢复点击事件，允许 toggleNode
         onTap: () => notifier.toggleNode(node),
         child: Padding(
-          padding: EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
+          padding:
+              EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
           child: Row(
             children: [
               buildCheckbox(),
@@ -258,9 +279,18 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                         // 视觉提示：如果已下载，显示一个小勾选图标，提示用户状态
                         if (isDownloaded) ...[
                           const SizedBox(width: 6),
-                          Icon(Icons.check_circle, size: 14, color: Theme.of(context).primaryColor.withOpacity(0.7)),
+                          Icon(Icons.check_circle,
+                              size: 14,
+                              color: Theme.of(context)
+                                  .primaryColor
+                                  .withOpacity(0.7)),
                           const SizedBox(width: 2),
-                          Text("已下载", style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withOpacity(0.7))),
+                          Text("已下载",
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.7))),
                         ],
                       ],
                     ),
@@ -269,7 +299,8 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                         OtherUtil.formatBytes(node.size ?? 0),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.grey.shade600),
                       ),
                   ],
                 ),
