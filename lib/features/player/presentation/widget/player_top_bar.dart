@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/service/audio/audio_service_media_kit.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
@@ -120,6 +121,11 @@ class TopBar extends ConsumerWidget {
         title: "专辑",
         subtitle: track.album,
         onTap: () {
+          final workData = track.extras?['workData'];
+          if(workData != null) {
+            KikoenaiLogger().w('本地文件没有专辑信息哦！');
+            return;
+          }
           Navigator.pop(context);
           if (track.extras?['workData'] != null) {
             final panelCtrl = ref.read(panelController);
