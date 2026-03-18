@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import '../../../../config/app_version_config.dart';
 import '../../../../config/environment_config.dart';
@@ -78,6 +81,18 @@ class SettingsPage extends ConsumerWidget {
                 storageKey: StorageKeys.ignoreAudioFocus,
                 defaultValue: false,
               ),
+              if (Platform.isAndroid)
+                HiveSegmentedButtonTile<String>(
+                  title: '音频输出引擎 (Android)',
+                  subtitle: '如遇破音或无声请尝试切换，AAudio 延迟更低',
+                  storageKey: StorageKeys.audioOutputMode, // 别忘了在 HiveKey 里补上这个
+                  defaultValue: AppConstants.defaultAoMode,
+                  options: const {
+                    AppConstants.aoAudioTrack: 'AudioTrack',
+                    AppConstants.aoAAudio: 'AAudio',
+                    AppConstants.aoOpenSLES: 'OpenSL',
+                  },
+                ),
               _ChevronTile(
                 title: '音频类型偏好',
                 trailingText: 'wav > mp3...',

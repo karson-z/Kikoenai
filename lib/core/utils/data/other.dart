@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../features/album/data/model/va.dart';
 import '../../../features/album/data/model/work.dart';
 
@@ -190,5 +191,10 @@ class OtherUtil {
     final seconds = twoDigits(duration.inSeconds.remainder(60));
 
     return "$minutes:$seconds";
+  }
+
+  static Future getPlayerTempPath() async {
+    final tempDir = await getTemporaryDirectory();
+    return tempDir.path;
   }
 }

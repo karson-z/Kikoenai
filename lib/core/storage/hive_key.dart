@@ -69,6 +69,8 @@ class StorageKeys {
 
   /// 忽略音频焦点
   static const String  ignoreAudioFocus ='ignore_audio_focus';
+  /// 是否打开OpenSlES
+  static const String enableOpenSLES = 'enable_open_sles';
 
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
@@ -79,4 +81,8 @@ class StorageKeys {
   /// 缓存包装器 - 过期时间字段 Key
   /// 存储时间戳
   static const String wrapperExpiry = 'exp';
+
+  static get audioOutputMode => 'audio_output_mode';
+
+
 }
