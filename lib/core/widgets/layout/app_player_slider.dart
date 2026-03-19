@@ -7,6 +7,7 @@ import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dar
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 import '../../../features/player/presentation/page/player_view.dart';
+import '../../service/audio/audio_service_ctrl.dart';
 import '../../service/audio/audio_service_media_kit.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/sllding_up_panel_modify.dart';
