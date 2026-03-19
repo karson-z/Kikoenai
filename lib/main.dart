@@ -8,6 +8,7 @@ import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'package:media_kit/media_kit.dart';
 import 'app/app.dart';
 import 'config/environment_config.dart';
+import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/audio/audio_service_media_kit.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/storage/hive_storage.dart';

@@ -9,6 +9,7 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
+import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/audio/audio_service_media_kit.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';

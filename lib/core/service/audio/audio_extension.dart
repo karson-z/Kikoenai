@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'audio_service_ctrl.dart';
 import 'audio_service_media_kit.dart';
 
 extension KikoenaiAudioHandlerX on AudioHandler {
