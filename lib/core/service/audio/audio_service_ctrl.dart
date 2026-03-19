@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math'; // 用于随机播放
+import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
@@ -15,16 +15,20 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/data/other.dart';
 
-// (AudioServiceSingleton 保持不变，省略不写)
+/// 全局单例的 AudioService 管理器
+///
+/// 负责初始化 [AudioService] 并对外提供 [AudioHandler] 实例的访问。
 class AudioServiceSingleton {
   AudioServiceSingleton._();
 
   static late final AudioHandler _instance;
 
+  /// 获取当前的 [AudioHandler] 实例
   static AudioHandler get instance {
     return _instance;
   }
 
+  /// 初始化 AudioService 及底层通知配置
   static Future<void> init() async {
     debugPrint("AudioServiceSingleton.init()");
     _instance = await AudioService.init(
@@ -39,29 +43,48 @@ class AudioServiceSingleton {
     );
   }
 }
+
+/// 自定义音频处理器，连接 UI 状态与底层 media_kit 播放器。
+///
+/// 采用由 Dart 业务层全权接管播放队列管理的策略，
+/// 从而避免底层播放器因网络等异常造成的循环跳集问题。
 class MyAudioHandler extends BaseAudioHandler {
+  /// 底层媒体播放器实例
   final Player _player = Player();
 
   VideoController? _videoController;
 
+  /// 视频控制器，供 UI 层挂载视频画面时使用
   VideoController get videoController {
     _videoController ??= VideoController(_player);
     return _videoController!;
   }
 
+  /// 本地配置存储
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
-  // --- 【新增】手动管理的播放状态 ---
+  /// 当前播放列表
   final List<MediaItem> _playlist = [];
-  int _currentIndex = -1; // 当前正在播放的索引
-  AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
-  AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
-  // ---------------------------------
 
+  /// 当前播放曲目的索引
+  int _currentIndex = -1;
+
+  /// 循环模式
+  AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
+
+  /// 随机模式
+  AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
+
+  /// 音频会话控制器，用于处理系统音频焦点
   AudioSession? _audioSession;
+
+  /// 标识播放是否被系统音频焦点中断
   bool _playInterrupted = false;
+
+  /// 设定的正常播放音量 (0-100)
   double _normalVolume = 100.0;
 
+  /// 实时读取是否忽略音频焦点的用户配置
   bool get _ignoreAudioFocus =>
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
 
@@ -72,11 +95,11 @@ class MyAudioHandler extends BaseAudioHandler {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
-    // 取消了 _listenForCurrentItemChanges，因为底层不再管理 Playlist
   }
 
+  /// 初始化底层 mpv 播放器参数
   Future<void> _initPlayerConfig() async {
-    // 强制关闭底层 mpv 的列表循环，确保它播完一首就停，触发 completed 事件
+    // 强制关闭底层 mpv 的列表功能，仅作为单例播放器使用
     await _player.setPlaylistMode(PlaylistMode.none);
 
     if (_player.platform is NativePlayer) {
@@ -89,6 +112,7 @@ class MyAudioHandler extends BaseAudioHandler {
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
         await nativePlayer.setProperty("network-timeout", "60");
         await nativePlayer.setProperty("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
+
         if (Platform.isAndroid) {
           await nativePlayer.setProperty("volume-max", "100");
           final String audioOutputMode = _settingBox.get(
@@ -107,11 +131,12 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
+  /// 动态应用当前的 AudioSession 策略配置
   Future<void> _applyAudioSessionConfiguration() async {
-    // (逻辑保持不变)
     if (_audioSession == null) return;
 
     if (_ignoreAudioFocus) {
+      // 开启忽略焦点：允许与其他音频混音播放
       await _audioSession!.configure(const AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playback,
         avAudioSessionCategoryOptions:
@@ -129,10 +154,12 @@ class MyAudioHandler extends BaseAudioHandler {
         androidWillPauseWhenDucked: false,
       ));
     } else {
+      // 关闭忽略焦点：恢复默认独占播放模式
       await _audioSession!.configure(const AudioSessionConfiguration.music());
     }
   }
 
+  /// 监听并过滤底层播放器的日志流
   void _listenMpvLogs() {
     _player.stream.log.listen((event) {
       final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
@@ -146,18 +173,20 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
+  /// 切换并持久化音频焦点忽略设置
   Future<void> _setIgnoreAudioFocus(bool ignore) async {
     await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
     await _applyAudioSessionConfiguration();
   }
 
+  /// 初始化音频会话并监听焦点中断事件（如来电、通知等）
   Future<void> _setupAudioSession() async {
-    // (逻辑保持不变)
     _audioSession = await AudioSession.instance;
     await _applyAudioSessionConfiguration();
 
     _audioSession!.interruptionEventStream.listen((event) {
       if (_ignoreAudioFocus) return;
+
       if (event.begin) {
         switch (event.type) {
           case AudioInterruptionType.duck:
@@ -222,18 +251,20 @@ class MyAudioHandler extends BaseAudioHandler {
     return super.stop();
   }
 
-  //内部核心方法：播放指定索引的单曲 ---
+  /// 播放列表中指定索引的曲目
+  ///
+  /// [index] 目标曲目在 [_playlist] 中的索引
+  /// [position] 初始播放跳转位置
+  /// [autoPlay] 加载后是否立即播放
   Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
     if (index < 0 || index >= _playlist.length) return;
 
     _currentIndex = index;
     final item = _playlist[index];
 
-    // 手动更新 AudioService 状态
     mediaItem.add(item);
     playbackState.add(playbackState.value.copyWith(queueIndex: index));
 
-    // 关键改变：永远只传单个 Media，不传 Playlist
     final media = _buildMedia(item);
     await _player.open(media, play: false);
 
@@ -256,7 +287,7 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  // --- 重写初始化与加载方法 ---
+  /// 初始化并重置播放环境
   Future<void> initPlayback({
     required List<MediaItem> initialPlaylist,
     required int initialIndex,
@@ -279,6 +310,7 @@ class MyAudioHandler extends BaseAudioHandler {
     await _playIndex(initialIndex, position: initialPosition, autoPlay: false);
   }
 
+  /// 加载播放列表并开始播放
   Future<void> loadPlaylist(
       List<MediaItem> items, {
         int initialIndex = 0,
@@ -298,12 +330,12 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
+  /// 构建底层所需使用的媒体对象
   Media _buildMedia(MediaItem item) {
     final url = item.extras!['url'] as String;
     return Media(url, extras: {'id': item.id});
   }
 
-  // --- 重写队列管理，仅操作 Dart 集合，不再调用 _player.add/remove ---
   @override
   Future<void> addQueueItem(MediaItem mediaItem) async {
     if (_playlist.any((item) => item.id == mediaItem.id)) return;
@@ -326,22 +358,20 @@ class MyAudioHandler extends BaseAudioHandler {
     _playlist.removeAt(index);
     queue.add(List.from(_playlist));
 
-    // 如果移除的是当前正在播放的曲目，自动播下一首或者停止
     if (index == _currentIndex) {
       if (_playlist.isEmpty) {
         await stop();
       } else {
-        // 如果移除后到达列表末尾，播当前第一首，否则顺延播当前的 index
         final nextPlayIndex = index >= _playlist.length ? 0 : index;
         await _playIndex(nextPlayIndex);
       }
     } else if (index < _currentIndex) {
-      // 移除的是前面的曲目，纠正 _currentIndex 偏移量
       _currentIndex--;
       playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
     }
   }
 
+  /// 清空当前播放列表并释放媒体
   Future<void> clearPlaylist() async {
     _playlist.clear();
     _currentIndex = -1;
@@ -352,23 +382,19 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
-  // --- 重写切歌逻辑（包含循环与随机） ---
   @override
   Future<void> skipToNext() async {
     if (_playlist.isEmpty) return;
 
     int nextIndex = _currentIndex + 1;
 
-    // 处理随机播放
     if (_shuffleMode == AudioServiceShuffleMode.all) {
       nextIndex = Random().nextInt(_playlist.length);
     } else {
-      // 处理顺序/循环播放
       if (nextIndex >= _playlist.length) {
         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
-          nextIndex = 0; // 列表循环
+          nextIndex = 0;
         } else {
-          // 不循环，停在最后
           await stop();
           return;
         }
@@ -388,9 +414,9 @@ class MyAudioHandler extends BaseAudioHandler {
     } else {
       if (prevIndex < 0) {
         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
-          prevIndex = _playlist.length - 1; // 绕回最后一首
+          prevIndex = _playlist.length - 1;
         } else {
-          prevIndex = 0; // 强制播放第一首
+          prevIndex = 0;
         }
       }
     }
@@ -402,7 +428,6 @@ class MyAudioHandler extends BaseAudioHandler {
     await _playIndex(index);
   }
 
-  // --- 重写模式管理 ---
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
     _repeatMode = repeatMode;
@@ -415,6 +440,7 @@ class MyAudioHandler extends BaseAudioHandler {
     playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
   }
 
+  /// 监听底层媒体时长变化并更新列表数据
   void _listenForDurationChanges() {
     _player.stream.duration.listen((duration) {
       if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
@@ -427,6 +453,7 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
+  /// 监听底层播放事件并同步到 AudioService 状态机
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
       playbackState.add(playbackState.value.copyWith(
@@ -450,16 +477,14 @@ class MyAudioHandler extends BaseAudioHandler {
       ));
     });
 
-    // --- 核心改动：监听播放完成，手动切歌 ---
+    // 播放完毕事件监听与自动跳转
     _player.stream.completed.listen((completed) {
       if (completed) {
         playbackState.add(playbackState.value.copyWith(
           processingState: AudioProcessingState.completed,
         ));
 
-        // 自动推进队列
         if (_repeatMode == AudioServiceRepeatMode.one) {
-          // 单曲循环
           _playIndex(_currentIndex);
         } else {
           skipToNext();
@@ -472,6 +497,7 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
+  /// 监听并同步播放位置与缓冲进度
   void _listenForPositionChanges() {
     _player.stream.position.listen((position) {
       playbackState.add(playbackState.value.copyWith(updatePosition: position));
@@ -482,8 +508,8 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
+  /// 控制硬件视频解码器的开启与关闭，以优化功耗
   Future<void> toggleVideoDecoding(bool enable) async {
-    // (逻辑保持不变)
     try {
       if (enable) {
         await _player.setVideoTrack(VideoTrack.auto());
@@ -497,9 +523,15 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
+  /// 获取标准化音量流（0.0 ~ 1.0）
   Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
+
+  /// 获取当前标准化音量（0.0 ~ 1.0）
   double get volume => _normalVolume / 100.0;
 
+  /// 设定播放音量
+  ///
+  /// [v] 标准化音量，取值范围 0.0 ~ 1.0
   Future<void> setVolume(double v) {
     final targetVolume = (v * 100.0).clamp(0.0, 100.0);
     _normalVolume = targetVolume;
@@ -522,7 +554,6 @@ class MyAudioHandler extends BaseAudioHandler {
       final int oldIndex = extras!['oldIndex'];
       final int newIndex = extras['newIndex'];
 
-      // 更新本地 Dart 队列
       final currentQueue = queue.value;
       final item = currentQueue.removeAt(oldIndex);
       currentQueue.insert(newIndex, item);
@@ -531,7 +562,6 @@ class MyAudioHandler extends BaseAudioHandler {
       _playlist.addAll(currentQueue);
       queue.add(List.from(_playlist));
 
-      // 调整当前的 _currentIndex
       if (_currentIndex == oldIndex) {
         _currentIndex = newIndex;
       } else if (oldIndex < _currentIndex && newIndex >= _currentIndex) {
@@ -543,8 +573,6 @@ class MyAudioHandler extends BaseAudioHandler {
       playbackState.add(playbackState.value.copyWith(
         queueIndex: _currentIndex,
       ));
-
-      // 注意：不再调用 _player.move
     }
     return super.customAction(name, extras);
   }
