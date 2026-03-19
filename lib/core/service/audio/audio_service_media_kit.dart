@@ -83,6 +83,12 @@ class MyAudioHandler extends BaseAudioHandler {
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         // 2. 音频变速不变调
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
+        await nativePlayer.setProperty("network-timeout", "60");
+        // 2. 透传参数给底层的 FFmpeg (libavformat)，开启断线重连
+        // reconnect=1: 开启普通网络流重连
+        // reconnect_streamed=1: 强制对非 seekable 的直播/电台流也开启重连
+        // reconnect_delay_max=5: 每次重试的间隔最大不超过 5 秒，避免过载
+        await nativePlayer.setProperty("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
         // 3. Android 平台专属配置
         if (Platform.isAndroid) {
           // 锁定软件最大增益，防止破音
