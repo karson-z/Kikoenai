@@ -6,13 +6,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
-import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../constants/app_constants.dart';
+import '../../utils/data/other.dart';
 
 class AudioServiceSingleton {
   AudioServiceSingleton._();
@@ -39,30 +39,10 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-
   final Player _player = Player();
 
-  final List<MediaItem> _playlist = [];
-
+  // 这里不应该直接暴露 _player 实例给到外部调用
   VideoController? _videoController;
-
-  AudioSession? _audioSession;
-
-  int _retryCount = 0;
-
-  static const int _maxRetries = 3; // 最大重试次数
-
-  int _currentIndex = -1;
-
-  AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
-
-  AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
-
-  List<int> _shuffledIndices = [];
-
-  bool _playInterrupted = false;
-
-  double _normalVolume = 100.0;
 
   VideoController get videoController {
     _videoController ??= VideoController(_player);
@@ -71,12 +51,17 @@ class MyAudioHandler extends BaseAudioHandler {
 
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
+  final List<MediaItem> _playlist = [];
+
+  AudioSession? _audioSession;
+
+  bool _playInterrupted = false;
+
+  double _normalVolume = 100.0;
+
+  // 实时读取是否忽略音频焦点的配置
   bool get _ignoreAudioFocus =>
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
-
-  Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
-
-  double get volume => _normalVolume / 100.0;
 
   MyAudioHandler() {
     _initPlayerConfig();
@@ -84,7 +69,8 @@ class MyAudioHandler extends BaseAudioHandler {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
-    _listenErrorPlayState();
+    _listenForCurrentItemChanges();
+    // _listenErrorPlayState();
   }
   Future<void> _initPlayerConfig() async {
     // 强制类型检查：setProperty 仅在原生端（Android/iOS/macOS/Windows/Linux）有效，Web 端调用会崩溃
@@ -119,108 +105,12 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     }
   }
-  void _notifyAudioHandlerAboutPlaybackEvents() {
-    _player.stream.playing.listen((playing) {
-      playbackState.add(playbackState.value.copyWith(
-        playing: playing,
-        controls: [
-          MediaControl.skipToPrevious,
-          if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.stop,
-          MediaControl.skipToNext,
-        ],
-        systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [0, 1, 3],
-      ));
-    });
-
-    _player.stream.buffering.listen((buffering) {
-      playbackState.add(playbackState.value.copyWith(
-        processingState: buffering
-            ? AudioProcessingState.buffering
-            : AudioProcessingState.ready,
-      ));
-    });
-
-    _player.stream.completed.listen((completed) {
-      if (completed) {
-        playbackState.add(playbackState.value.copyWith(
-          processingState: AudioProcessingState.completed,
-        ));
-        _skip(isNext: true, isAutoAdvance: true);
-      }
-    });
-
-    _player.stream.rate.listen((rate) {
-      playbackState.add(playbackState.value.copyWith(speed: rate));
-    });
-  }
-
-  void _listenForDurationChanges() {
-    _player.stream.duration.listen((duration) {
-      if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-        final oldMediaItem = _playlist[_currentIndex];
-        final newMediaItem = oldMediaItem.copyWith(duration: duration);
-        _playlist[_currentIndex] = newMediaItem;
-        queue.add(List.from(_playlist));
-        mediaItem.add(newMediaItem);
-      }
-    });
-  }
-
-  void _listenForPositionChanges() {
-    _player.stream.position.listen((position) {
-      playbackState.add(playbackState.value.copyWith(updatePosition: position));
-    });
-    _player.stream.buffer.listen((bufferedPosition) {
-      playbackState.add(
-          playbackState.value.copyWith(bufferedPosition: bufferedPosition));
-    });
-  }
-
-  void _listenErrorPlayState() {
-    _player.stream.error.listen((e) async {
-      KikoenaiLogger().e("播放异常: $e");
-
-      if (_retryCount < _maxRetries) {
-        _retryCount++;
-        KikoenaiLogger().w("资源加载失败，尝试重连... ($_retryCount/$_maxRetries)");
-        KikoenaiToast.error('加载失败，正在重试 ($_retryCount/$_maxRetries)');
-
-        // 延迟 2 秒后重试，避免死循环请求打满网络和 CPU
-        await Future.delayed(const Duration(seconds: 2));
-
-        if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-          // 记录出错前的播放进度，以便重连后恢复
-          final lastPosition = _player.state.position;
-
-          final item = _playlist[_currentIndex];
-          final media = _buildMedia(item);
-
-          // 重新 open 资源
-          await _player.open(media, play: false);
-
-          if (lastPosition > Duration.zero) {
-            await _player.seek(lastPosition);
-          }
-
-          // 重新获取焦点并播放
-          await play();
-        }
-      } else {
-        // 重试次数耗尽
-        KikoenaiLogger().e("重连次数耗尽，停止播放");
-        KikoenaiToast.error('连接彻底断开，请检查网络');
-        _retryCount = 0; // 重置计数器
-        await pause(); // 你也可以根据业务需求在这里调用 _skip(isNext: true, isAutoAdvance: true) 跳到下一首
-      }
-    });
-  }
-
+  /// 动态应用当前的 AudioSession 配置
   Future<void> _applyAudioSessionConfiguration() async {
     if (_audioSession == null) return;
 
     if (_ignoreAudioFocus) {
+      // 开启忽略：允许与其他音频混音播放 (Mix with others)
       await _audioSession!.configure(const AudioSessionConfiguration(
         avAudioSessionCategory: AVAudioSessionCategory.playback,
         avAudioSessionCategoryOptions:
@@ -238,20 +128,26 @@ class MyAudioHandler extends BaseAudioHandler {
         androidWillPauseWhenDucked: false,
       ));
     } else {
+      // 关闭忽略：恢复默认独占播放的音乐模式
       await _audioSession!.configure(const AudioSessionConfiguration.music());
     }
   }
 
+  /// 供 UI 调用的设置方法，更新 Hive 并刷新配置
   Future<void> _setIgnoreAudioFocus(bool ignore) async {
     await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
     await _applyAudioSessionConfiguration();
   }
 
+  /// 初始化并监听音频焦点中断事件
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
+
+    // 初始化时，根据 Hive 中的设置应用对应的音频策略
     await _applyAudioSessionConfiguration();
 
     _audioSession!.interruptionEventStream.listen((event) {
+      // 拦截：如果开启了忽略焦点，跳过系统的中断事件
       if (_ignoreAudioFocus) return;
 
       if (event.begin) {
@@ -287,6 +183,7 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> play() async {
     if (_ignoreAudioFocus) {
+      // 忽略焦点模式：不关心是否独占，直接播放
       await _audioSession?.setActive(true);
       await _player.play();
       return;
@@ -328,27 +225,34 @@ class MyAudioHandler extends BaseAudioHandler {
     required bool shuffleEnabled,
   }) async {
     await setVolume(volume);
+    await setRepeatMode(repeatMode);
+    await setShuffleMode(
+        shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
 
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
     queue.add(List.from(_playlist));
 
-    _repeatMode = repeatMode;
-    _shuffleMode = shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none;
-    _currentIndex = initialIndex;
-
-    if (_shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
-    }
-
-    playbackState.add(playbackState.value.copyWith(
-      repeatMode: _repeatMode,
-      shuffleMode: _shuffleMode,
-    ));
-
     if (_playlist.isEmpty) return;
 
-    await _openCurrentMedia(initialPosition: initialPosition, autoPlay: false);
+    final children = _playlist.map(_buildMedia).toList();
+    final playlist = Playlist(children, index: initialIndex);
+
+    await _player.open(playlist, play: false);
+
+    if (initialPosition > Duration.zero) {
+      if (_player.state.duration == Duration.zero) {
+        StreamSubscription? subscription;
+        subscription = _player.stream.duration.listen((duration) {
+          if (duration > Duration.zero) {
+            _player.seek(initialPosition);
+            subscription?.cancel();
+          }
+        });
+      } else {
+        await _player.seek(initialPosition);
+      }
+    }
   }
 
   Future<void> loadPlaylist(
@@ -361,38 +265,19 @@ class MyAudioHandler extends BaseAudioHandler {
     _playlist.addAll(items);
     queue.add(List.from(_playlist));
 
-    _currentIndex = initialIndex;
-    if (_shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
-    }
-
-    if (_playlist.isEmpty) return;
+    final children = items.map(_buildMedia).toList();
+    final playlist = Playlist(children, index: initialIndex);
 
     try {
-      await _openCurrentMedia(initialPosition: initialPosition, autoPlay: autoPlay);
+      await _player.open(playlist, play: false);
+      if (initialPosition != null && initialPosition > Duration.zero) {
+        await _player.seek(initialPosition);
+      }
+      if (autoPlay) {
+        await play(); // 使用重写的 play() 确保走焦点逻辑
+      }
     } catch (e) {
       debugPrint("Error loading playlist: $e");
-    }
-  }
-
-  Future<void> _openCurrentMedia({Duration? initialPosition, bool autoPlay = true}) async {
-    if (_currentIndex < 0 || _currentIndex >= _playlist.length) return;
-
-    final item = _playlist[_currentIndex];
-
-    mediaItem.add(item);
-    playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
-
-    final media = _buildMedia(item);
-
-    await _player.open(media, play: false);
-
-    if (initialPosition != null && initialPosition > Duration.zero) {
-      await _player.seek(initialPosition);
-    }
-
-    if (autoPlay) {
-      await play();
     }
   }
 
@@ -406,9 +291,7 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_playlist.any((item) => item.id == mediaItem.id)) return;
     _playlist.add(mediaItem);
     queue.add(List.from(_playlist));
-    if (_shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
-    }
+    await _player.add(_buildMedia(mediaItem));
   }
 
   @override
@@ -416,150 +299,162 @@ class MyAudioHandler extends BaseAudioHandler {
     final existingIds = _playlist.map((e) => e.id).toSet();
     final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
     if (toAdd.isEmpty) return;
-
     _playlist.addAll(toAdd);
     queue.add(List.from(_playlist));
-    if (_shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
+    for (var item in toAdd) {
+      await _player.add(_buildMedia(item));
     }
   }
 
   @override
   Future<void> removeQueueItemAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
-
     _playlist.removeAt(index);
     queue.add(List.from(_playlist));
-
-    if (_shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
-    }
-
-    if (_playlist.isEmpty) {
-      _currentIndex = -1;
-      await stop();
-      return;
-    }
-
-    if (_currentIndex == index) {
-      if (_currentIndex >= _playlist.length) {
-        _currentIndex = 0;
-      }
-      await _openCurrentMedia(autoPlay: _player.state.playing);
-    }
-    else if (_currentIndex > index) {
-      _currentIndex--;
-      playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
-    }
+    await _player.remove(index);
   }
 
   Future<void> clearPlaylist() async {
     _playlist.clear();
-    _shuffledIndices.clear();
-    _currentIndex = -1;
     queue.add([]);
-    await stop();
+    await _player.open(const Playlist([]));
   }
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
-  Future<void> skipToNext() => _skip(isNext: true, isAutoAdvance: false);
+  Future<void> skipToNext() => _player.next();
 
   @override
-  Future<void> skipToPrevious() => _skip(isNext: false, isAutoAdvance: false);
+  Future<void> skipToPrevious() => _player.previous();
 
   @override
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= _playlist.length) return;
-    _currentIndex = index;
-    await _openCurrentMedia(autoPlay: _player.state.playing);
-  }
-
-  Future<void> _skip({required bool isNext, required bool isAutoAdvance}) async {
-    if (_playlist.isEmpty) return;
-
-    int nextIndex = _calculateNextIndex(isNext: isNext, isAutoAdvance: isAutoAdvance);
-
-    if (nextIndex == -1) {
-      await stop();
-      return;
-    }
-
-    _currentIndex = nextIndex;
-    bool shouldPlay = _player.state.playing || isAutoAdvance;
-    await _openCurrentMedia(autoPlay: shouldPlay);
-  }
-
-  int _calculateNextIndex({required bool isNext, required bool isAutoAdvance}) {
-    if (_playlist.isEmpty) return -1;
-
-    if (isAutoAdvance && _repeatMode == AudioServiceRepeatMode.one) {
-      return _currentIndex;
-    }
-
-    List<int> currentOrder = _shuffleMode == AudioServiceShuffleMode.all
-        ? _shuffledIndices
-        : List.generate(_playlist.length, (i) => i);
-
-    if (currentOrder.isEmpty) return -1;
-
-    int positionInOrder = currentOrder.indexOf(_currentIndex);
-    if (positionInOrder == -1) positionInOrder = 0;
-
-    if (isNext) {
-      if (positionInOrder < currentOrder.length - 1) {
-        return currentOrder[positionInOrder + 1];
-      } else {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
-          return currentOrder[0];
-        }
-        return -1;
-      }
-    } else {
-      if (positionInOrder > 0) {
-        return currentOrder[positionInOrder - 1];
-      } else {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
-          return currentOrder[currentOrder.length - 1];
-        }
-        return currentOrder[0];
-      }
-    }
+    await _player.jump(index);
   }
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
-    _repeatMode = repeatMode;
     playbackState.add(playbackState.value.copyWith(repeatMode: repeatMode));
+    switch (repeatMode) {
+      case AudioServiceRepeatMode.none:
+        await _player.setPlaylistMode(PlaylistMode.none);
+        break;
+      case AudioServiceRepeatMode.group:
+      case AudioServiceRepeatMode.all:
+        await _player.setPlaylistMode(PlaylistMode.loop);
+        break;
+      case AudioServiceRepeatMode.one:
+        await _player.setPlaylistMode(PlaylistMode.single);
+        break;
+    }
   }
 
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
-    _shuffleMode = shuffleMode;
-    if (shuffleMode == AudioServiceShuffleMode.all) {
-      _generateShuffledIndices();
-    }
     playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
+    await _player.setShuffle(shuffleMode == AudioServiceShuffleMode.all);
   }
 
-  void _generateShuffledIndices() {
-    _shuffledIndices = List.generate(_playlist.length, (i) => i);
-    _shuffledIndices.shuffle();
-
-    if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-      _shuffledIndices.remove(_currentIndex);
-      _shuffledIndices.insert(0, _currentIndex);
-    }
+  void _listenForCurrentItemChanges() {
+    _player.stream.playlist.listen((playlist) {
+      final index = playlist.index;
+      if (index >= 0 && index < _playlist.length) {
+        final item = _playlist[index];
+        mediaItem.add(item);
+        playbackState.add(playbackState.value.copyWith(queueIndex: index));
+      }
+    });
   }
 
+  void _listenForDurationChanges() {
+    _player.stream.duration.listen((duration) {
+      int currentIndex = _player.state.playlist.index;
+      if (currentIndex >= 0 && currentIndex < _playlist.length) {
+        final oldMediaItem = _playlist[currentIndex];
+        final newMediaItem = oldMediaItem.copyWith(duration: duration);
+        _playlist[currentIndex] = newMediaItem;
+        queue.add(_playlist);
+        mediaItem.add(newMediaItem);
+      }
+    });
+  }
+
+  void _notifyAudioHandlerAboutPlaybackEvents() {
+    _player.stream.playing.listen((playing) {
+      playbackState.add(playbackState.value.copyWith(
+        playing: playing,
+        controls: [
+          MediaControl.skipToPrevious,
+          if (playing) MediaControl.pause else MediaControl.play,
+          MediaControl.stop,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {MediaAction.seek},
+        androidCompactActionIndices: const [0, 1, 3],
+      ));
+    });
+
+    _player.stream.buffering.listen((buffering) {
+      playbackState.add(playbackState.value.copyWith(
+        processingState: buffering
+            ? AudioProcessingState.buffering
+            : AudioProcessingState.ready,
+      ));
+    });
+
+    _player.stream.completed.listen((completed) {
+      if (completed) {
+        playbackState.add(playbackState.value.copyWith(
+          processingState: AudioProcessingState.completed,
+        ));
+      }
+    });
+
+    _player.stream.rate.listen((rate) {
+      playbackState.add(playbackState.value.copyWith(speed: rate));
+    });
+  }
+
+  void _listenForPositionChanges() {
+    _player.stream.position.listen((position) {
+      playbackState.add(playbackState.value.copyWith(updatePosition: position));
+    });
+    _player.stream.buffer.listen((bufferedPosition) {
+      playbackState.add(
+          playbackState.value.copyWith(bufferedPosition: bufferedPosition));
+    });
+  }
+
+  // void _listenErrorPlayState() {
+  //   _player.stream.error.listen((e) async {
+  //     KikoenaiLogger().e("播放异常: $e");
+  //     if (_retryCount >= _maxRetries) {
+  //       KikoenaiToast.error('播放失败，已停止重试');
+  //       _retryCount = 0;
+  //       return;
+  //     }
+  //
+  //     _retryCount++;
+  //     KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
+  //
+  //     final currentSource = _player.state.playlist.medias.isNotEmpty;
+  //     if (currentSource) {
+  //       await Future.delayed(const Duration(milliseconds: 1500));
+  //       play();
+  //     }
+  //   });
+  // }
   Future<void> toggleVideoDecoding(bool enable) async {
     try {
       if (enable) {
+        // 唤醒视频解码器，mpv 会自动将画面同步到当前音频的时间戳
         await _player.setVideoTrack(VideoTrack.auto());
         KikoenaiLogger().d("视频画面解码已开启");
       } else {
+        // 挂起视频解码器，保留纯音频播放，大幅降低功耗
         await _player.setVideoTrack(VideoTrack.no());
         KikoenaiLogger().d("视频画面解码已关闭，进入纯音频模式");
       }
@@ -567,6 +462,10 @@ class MyAudioHandler extends BaseAudioHandler {
       KikoenaiLogger().e("切换视频轨道失败: $e");
     }
   }
+
+  Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
+
+  double get volume => _normalVolume / 100.0;
 
   Future<void> setVolume(double v) {
     final targetVolume = (v * 100.0).clamp(0.0, 100.0);
@@ -590,25 +489,28 @@ class MyAudioHandler extends BaseAudioHandler {
       final int oldIndex = extras!['oldIndex'];
       final int newIndex = extras['newIndex'];
 
-      final item = _playlist.removeAt(oldIndex);
-      _playlist.insert(newIndex, item);
-      queue.add(List.from(_playlist));
+      int? currentIndex = playbackState.value.queueIndex;
 
-      if (_currentIndex == oldIndex) {
-        _currentIndex = newIndex;
-      } else if (oldIndex < _currentIndex && newIndex >= _currentIndex) {
-        _currentIndex--;
-      } else if (oldIndex > _currentIndex && newIndex <= _currentIndex) {
-        _currentIndex++;
+      if (currentIndex != null) {
+        if (oldIndex == currentIndex) {
+          currentIndex = newIndex;
+        } else if (oldIndex < currentIndex && newIndex >= currentIndex) {
+          currentIndex--;
+        } else if (oldIndex > currentIndex && newIndex <= currentIndex) {
+          currentIndex++;
+        }
       }
 
-      if (_shuffleMode == AudioServiceShuffleMode.all) {
-        _generateShuffledIndices();
-      }
+      final currentQueue = queue.value;
+      final item = currentQueue.removeAt(oldIndex);
+      currentQueue.insert(newIndex, item);
+      queue.add(currentQueue);
 
       playbackState.add(playbackState.value.copyWith(
-        queueIndex: _currentIndex,
+        queueIndex: currentIndex,
       ));
+
+      await _player.move(oldIndex, newIndex);
     }
     return super.customAction(name, extras);
   }
