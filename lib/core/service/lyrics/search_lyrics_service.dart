@@ -255,4 +255,16 @@ class SearchLyricsService {
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }
+  /// 查找当前作品下的所有字幕
+  /// [workId] 作品Id
+  /// [ref] ProviderRef
+  static Future<List<FileNode>> findLyrics(
+      int workId, Ref ref) async {
+    final localLyrics = findSubtitleInLocalById(workId);
+    if(localLyrics.isNotEmpty){
+      return localLyrics;
+    }
+    final netWorkLyrics = await findSubtitleInNetWorkById(workId, ref);
+    return netWorkLyrics;
+  }
 }

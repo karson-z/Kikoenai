@@ -1,14 +1,12 @@
 import 'package:audio_service/audio_service.dart';
-import 'package:hive_ce/hive.dart'; // 或者 package:hive/hive.dart
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 
 import '../../../../core/constants/app_typeIds.dart';
 
-// 1. 添加 part 指令，文件名需与当前文件名一致 (例如 player_state.dart -> player_state.g.dart)
 part 'player_state.g.dart';
 
-// 2. 添加 HiveType 注解，typeId 保持为你之前的 3
 @HiveType(typeId: TypeIds.appPlayerState)
 class AppPlayerState {
   @HiveField(0)
@@ -18,10 +16,10 @@ class AppPlayerState {
   final bool loading;
 
   @HiveField(2)
-  final ProgressBarState progressBarState; // 需确保 ProgressBarStateAdapter 已注册
+  final ProgressBarState progressBarState;
 
   @HiveField(3)
-  final MediaItem? currentTrack; // 需确保 MediaItemAdapter 已注册
+  final MediaItem? currentTrack;
 
   @HiveField(4)
   final List<MediaItem> playlist;
@@ -44,16 +42,19 @@ class AppPlayerState {
   @HiveField(10)
   final Map<String, FileNode?> subtitleMapping;
 
+  @HiveField(11)
+  final List<FileNode?> lyricsList;
+
   FileNode? get currentSubtitle =>
       currentTrack != null ? subtitleMapping[currentTrack!.id] : null;
 
-  // ----------------
 
   AppPlayerState({
     this.playing = false,
     this.loading = false,
     ProgressBarState? progressBarState,
     this.currentTrack,
+    this.lyricsList = const [],
     this.playlist = const [],
     this.isFirst = true,
     this.isLast = true,
@@ -74,6 +75,7 @@ class AppPlayerState {
     ProgressBarState? progressBarState,
     MediaItem? currentTrack,
     List<MediaItem>? playlist,
+    List<FileNode>? lyricsList,
     bool? isFirst,
     bool? isLast,
     bool? shuffleEnabled,
@@ -87,6 +89,7 @@ class AppPlayerState {
       progressBarState: progressBarState ?? this.progressBarState,
       currentTrack: currentTrack ?? this.currentTrack,
       playlist: playlist ?? this.playlist,
+      lyricsList: lyricsList ?? this.lyricsList,
       isFirst: isFirst ?? this.isFirst,
       isLast: isLast ?? this.isLast,
       shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
