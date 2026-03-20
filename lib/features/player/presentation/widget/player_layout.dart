@@ -96,11 +96,11 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
     }
     // --- 视频容器布局逻辑 (核心修改) ---
     if (hasChild(PlayerLayoutId.videoContainer) && isVideo) {
-      // 视频在展开时，无论宽窄屏都强制占满全屏可用区域（减去顶部 Padding 防止遮挡系统状态栏）
-      final Size videoSize = Size(size.width, size.height - padding.top);
+      // 视频在展开时，无论宽窄屏都强制占满全屏可用区域 无需减去系统状态栏高度，让黑色背景铺满。
+      final Size videoSize = Size(size.width, size.height);
       layoutChild(PlayerLayoutId.videoContainer, BoxConstraints.tight(videoSize));
       // 视频随面板展开向上滑动进入
-      positionChild(PlayerLayoutId.videoContainer, Offset(0, padding.top + (1 - expandProgress) * size.height));
+      positionChild(PlayerLayoutId.videoContainer, Offset(0,(1 - expandProgress) * size.height));
     }
 
 
