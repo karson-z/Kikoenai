@@ -27,7 +27,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   final List<SortOrder> sortOrders = SortOrder.values;
   late AutoScrollController _autoScrollController;
   late TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
+  late FocusNode _filterSearchFocusNode;
   final double pinnedHeaderHeight = 90.0;
 
   @override
@@ -45,6 +45,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     );
 
     _autoScrollController = AutoScrollController(axis: Axis.horizontal);
+    _filterSearchFocusNode = FocusNode();
 
     _tabController.addListener(() {
       if (!mounted) return;
@@ -59,8 +60,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
     _autoScrollController.dispose();
+    _filterSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -87,12 +88,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         );
       }
     });
-
-    if (uiState.localSearchKeyword.isEmpty && _searchController.text.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _searchController.clear();
-      });
-    }
 
     return SafeArea(
       child: Scaffold(
@@ -149,22 +144,24 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
               ),
               if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
                 Positioned(
-                  top: pinnedHeaderHeight, // 避开固定的 Header 区域
+                  top: pinnedHeaderHeight,
                   left: 0,
                   right: 0,
                   child: const LinearProgressIndicator(
-                    minHeight: 3.0, // 设置高度：3.0 看起来比较精致，默认是 4.0
-                    backgroundColor: Colors.transparent, // 轨道背景透明，只显示移动的进度条
+                    minHeight: 3.0,
+                    backgroundColor: Colors.transparent,
                   ),
                 ),
 
-              // 3. 筛选遮罩层
               if (uiState.isFilterOpen)
                 Positioned.fill(
                   top: pinnedHeaderHeight,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => uiNotifier.toggleFilterDrawer(),
+                    onTap: () {
+                      _filterSearchFocusNode.unfocus();
+                      uiNotifier.toggleFilterDrawer();
+                    },
                     child: Container(color: Colors.transparent),
                   ),
                 ),
@@ -179,6 +176,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   selectedFilterIndex: uiState.selectedFilterIndex,
                   localSearchKeyword: uiState.localSearchKeyword,
                   selectedTags: uiState.selected,
+                  searchFocusNode: _filterSearchFocusNode,
                   tagsAsync: ref.watch(tagsProvider),
                   circlesAsync: ref.watch(circlesProvider),
                   vasAsync: ref.watch(vasProvider),
@@ -186,6 +184,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                   onLocalSearchChanged: (val) => uiNotifier.setLocalSearchKeyword(val),
                   onReset: () => uiNotifier.resetSelected(),
                   onApply: () {
+                    _filterSearchFocusNode.unfocus();
                     uiNotifier.toggleFilterDrawer();
                     ref.invalidate(categoryProvider);
                   },
@@ -207,6 +206,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       ),
     );
   }
+
   Widget _buildFilterRowContent(
       CategoryUiState uiState,
       CategoryUiNotifier notifier,
@@ -224,6 +224,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       selectedTags: uiState.selected,
       totalCount: totalCount,
       onToggleFilter: () {
+        _filterSearchFocusNode.unfocus();
         notifier.toggleFilterDrawer();
       },
       onClearKeyword: () {
