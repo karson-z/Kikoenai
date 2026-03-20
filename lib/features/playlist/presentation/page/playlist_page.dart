@@ -28,6 +28,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   // 筛选行的滚动控制器
   late AutoScrollController _autoScrollController;
 
+  late FocusNode _filterSearchFocusNode;
   // AppBar 搜索框控制器
   final TextEditingController _appBarSearchController = TextEditingController();
 
@@ -38,12 +39,14 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   void initState() {
     super.initState();
     _autoScrollController = AutoScrollController(axis: Axis.horizontal);
+    _filterSearchFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _autoScrollController.dispose();
     _appBarSearchController.dispose();
+    _filterSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -123,7 +126,10 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 selectedTags: uiState.request.tags,
                 totalCount: worksAsync.value?.pagination.totalCount ?? 0,
                 // 回调
-                onToggleFilter: () => uiNotifier.toggleFilterDrawer(),
+                onToggleFilter: () {
+                  _filterSearchFocusNode.unfocus();
+                  uiNotifier.toggleFilterDrawer();
+                },
                 onClearKeyword: () {
                   uiNotifier.updateKeyword("", refreshData: true);
                   setState(() {
@@ -202,7 +208,10 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
               // top: 0, // 覆盖整个 body
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => uiNotifier.toggleFilterDrawer(),
+                onTap: () {
+                  _filterSearchFocusNode.unfocus();
+                  uiNotifier.toggleFilterDrawer();
+                },
                 child: Container(color: Colors.black12), // 稍微给点颜色
               ),
             ),
@@ -215,15 +224,14 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
             left: 0,
             right: 0,
             child: FilterDrawerPanel(
+              searchFocusNode: _filterSearchFocusNode,
               isOpen: uiState.isFilterOpen,
               selectedFilterIndex: uiState.selectedFilterIndex,
               localSearchKeyword: uiState.localSearchKeyword,
               selectedTags: uiState.request.tags,
-
               tagsAsync: ref.watch(tagsProvider),
               circlesAsync: ref.watch(circlesProvider),
               vasAsync: ref.watch(vasProvider),
-
               onFilterIndexChanged: (index) => uiNotifier.setFilterIndex(index),
               onLocalSearchChanged: (val) => uiNotifier.setLocalSearchKeyword(val),
               onReset: () => uiNotifier.resetSelected(),

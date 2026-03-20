@@ -1,36 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 仅用于 AsyncValue 类型定义
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../../core/widgets/loading/lottie_loading.dart';
 import '../../../../../../core/enums/tag_enum.dart';
 import '../../../core/model/search_tag.dart';
 
 class FilterDrawerPanel extends StatefulWidget {
-  // --- UI 状态 ---
   final bool isOpen;
   final int selectedFilterIndex;
   final String localSearchKeyword;
-  final List<SearchTag> selectedTags; // 用于判断选中状态
+  final List<SearchTag> selectedTags;
 
-  // --- 数据源 (AsyncValue) ---
+  final FocusNode searchFocusNode;
+
   final AsyncValue<List<dynamic>> tagsAsync;
   final AsyncValue<List<dynamic>> circlesAsync;
   final AsyncValue<List<dynamic>> vasAsync;
 
-  // --- 回调函数 ---
-  final ValueChanged<int> onFilterIndexChanged; // 切换左侧 Tab
-  final ValueChanged<String> onLocalSearchChanged; // 搜索框输入
-  final VoidCallback onReset; // 重置
-  final VoidCallback onApply; // 完成
-  final Function(String type, String name) onToggleTag; // 切换 Tag
+  final ValueChanged<int> onFilterIndexChanged;
+  final ValueChanged<String> onLocalSearchChanged;
+  final VoidCallback onReset;
+  final VoidCallback onApply;
+  final Function(String type, String name) onToggleTag;
 
   final String Function(String type) getLoadingMessage;
 
-  // 如果 AdvancedFilterPanel 也很复杂，建议后续也照此重构。
-  // 暂时通过回调透传或者保留部分对象传递
-  // 这里为了演示彻底解耦，我们假设 AdvancedFilterPanel 也能接收解耦后的参数
-  // 但为了简化，这里先暂时保留 uiState/notifier 给特殊面板，
-  // 或者让父组件构建好特殊面板传进来 (Builder 模式)。
-  // 这里采用 Builder 模式最灵活：
   final WidgetBuilder specialFilterBuilder;
 
   const FilterDrawerPanel({
@@ -39,6 +32,7 @@ class FilterDrawerPanel extends StatefulWidget {
     required this.selectedFilterIndex,
     required this.localSearchKeyword,
     required this.selectedTags,
+    required this.searchFocusNode,
     required this.tagsAsync,
     required this.circlesAsync,
     required this.vasAsync,
@@ -67,7 +61,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
   @override
   void didUpdateWidget(covariant FilterDrawerPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 外部状态重置时，清空输入框
     if (widget.localSearchKeyword.isEmpty && _searchController.text.isNotEmpty) {
       _searchController.clear();
     }
@@ -110,7 +103,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 左侧导航
                     Container(
                       width: 90,
                       color: fillColor,
@@ -121,7 +113,10 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                         itemBuilder: (context, index) {
                           final isSelected = widget.selectedFilterIndex == index;
                           return GestureDetector(
-                            onTap: () => widget.onFilterIndexChanged(index),
+                            onTap: () {
+                              widget.searchFocusNode.unfocus();
+                              widget.onFilterIndexChanged(index);
+                            },
                             child: Container(
                               height: 50,
                               alignment: Alignment.center,
@@ -144,14 +139,11 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                         },
                       ),
                     ),
-
-                    // 右侧内容
                     Expanded(
                       child: Container(
                         color: bgColor,
                         child: Column(
                           children: [
-                            // 搜索框 (特殊页不显示)
                             if (widget.selectedFilterIndex != 3)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -159,6 +151,7 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                                   height: 42,
                                   child: TextField(
                                     controller: _searchController,
+                                    focusNode: widget.searchFocusNode,
                                     onChanged: widget.onLocalSearchChanged,
                                     style: TextStyle(fontSize: 13, color: textColor),
                                     decoration: InputDecoration(
@@ -184,8 +177,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                                   ),
                                 ),
                               ),
-
-                            // 动态内容区
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -204,8 +195,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                   ],
                 ),
               ),
-
-              // 底部按钮
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
@@ -230,10 +219,9 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
                       child: ElevatedButton(
                         onPressed: () {
                           widget.onApply();
-                          // 清空搜索框逻辑在外部处理或者这里手动清
                           widget.onLocalSearchChanged("");
                           _searchController.clear();
-                          FocusScope.of(context).unfocus();
+                          widget.searchFocusNode.unfocus();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
@@ -254,7 +242,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
     );
   }
 
-  // --- 右侧内容分配逻辑 ---
   Widget _buildRightContent({
     required int index,
     required Color fillColor,
@@ -262,16 +249,16 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
     required Color primaryColor,
   }) {
     switch (index) {
-      case 0: // 标签
+      case 0:
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: widget.tagsAsync,
           type: TagType.tag.stringValue,
-          labelBuilder: (item) => item.name ?? "", // 假设 Model 有 name
+          labelBuilder: (item) => item.name ?? "",
           fillColor: fillColor,
           textColor: textColor,
           primaryColor: primaryColor,
         );
-      case 1: // 社团
+      case 1:
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: widget.circlesAsync,
           type: TagType.circle.stringValue,
@@ -280,7 +267,7 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
           textColor: textColor,
           primaryColor: primaryColor,
         );
-      case 2: // 声优
+      case 2:
         return _buildAsyncChipGrid<dynamic>(
           asyncValue: widget.vasAsync,
           type: TagType.va.stringValue,
@@ -289,10 +276,10 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
           textColor: textColor,
           primaryColor: primaryColor,
         );
-      case 3: // 特殊筛选
+      case 3:
         return SingleChildScrollView(
           primary: false,
-          child: widget.specialFilterBuilder(context), // 使用 Builder
+          child: widget.specialFilterBuilder(context),
         );
       default:
         return const SizedBox();
@@ -337,7 +324,6 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
             final item = list[index];
             final name = labelBuilder(item);
 
-            // 使用传入的 selectedTags 判断
             final tagIndex = widget.selectedTags.indexWhere((t) => t.type == type && t.name == name);
             final isSelected = tagIndex != -1;
             final isExclude = isSelected ? widget.selectedTags[tagIndex].isExclude : false;
@@ -346,8 +332,10 @@ class _FilterDrawerPanelState extends State<FilterDrawerPanel> {
               label: name,
               isSelected: isSelected,
               isExclude: isExclude,
-              // 调用回调
-              onTap: () => widget.onToggleTag(type, name),
+              onTap: () {
+                widget.searchFocusNode.unfocus();
+                widget.onToggleTag(type, name);
+              },
               fillColor: fillColor,
               textColor: textColor,
               primaryColor: primaryColor,
