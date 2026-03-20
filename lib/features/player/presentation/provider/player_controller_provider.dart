@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -10,7 +11,6 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
-import '../../../../core/service/audio/audio_service_media_kit.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
@@ -267,44 +267,39 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (isWorkChanged && newWorkId != null) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
       // 当前作品发生变化，需要重新拉取字幕列表
-      // TODO 查找本地字幕
-      targetSubtitleList = SearchLyricsService.findSubtitleInLocalById(newWorkId);
-      // 如果当前状态中没有字幕列表先匹配本地后匹配ASMR服务器上的字幕列表
-      if(targetSubtitleList.isEmpty){
-        targetSubtitleList = await SearchLyricsService.findSubtitleInNetWorkById(newWorkId, ref);
-      }
+      targetSubtitleList = await SearchLyricsService.findLyrics(newWorkId, ref);
       // 处理完的播放列表数据
       final playListProcessed = LyricsDataProcess.batchPlayListProcess(state.playlist);
       // 处理完的字幕数据
       final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
       // 匹配字幕
       final matches = MatchLyrics.match(playListProcessed, lyricListProcessed);
-
       state = state.copyWith(
           subtitleMapping: matches
       );
+      if(kDebugMode) {
+        if (matches.isEmpty) {
+          KikoenaiLogger().i('本次扫描未匹配到任何字幕。');
+        } else {
+          final buffer = StringBuffer();
+          buffer.writeln('匹配成功报告 (共 ${matches.length} 条):');
 
-      if (matches.isEmpty) {
-        KikoenaiLogger().i('本次扫描未匹配到任何字幕。');
-      } else {
-        final buffer = StringBuffer();
-        buffer.writeln('匹配成功报告 (共 ${matches.length} 条):');
+          // 1. 创建一个临时 Map 用于通过 Hash 反查音频标题 (提升日志可读性)
+          // key: hash, value: title
+          final audioTitleMap = {
+            for (var node in playListProcessed)
+              node.id: node.title
+          };
 
-        // 1. 创建一个临时 Map 用于通过 Hash 反查音频标题 (提升日志可读性)
-        // key: hash, value: title
-        final audioTitleMap = {
-          for (var node in playListProcessed)
-            node.id: node.title
-        };
+          // 2. 遍历结果构建日志
+          matches.forEach((audioHash, subtitleNode) {
+            final audioTitle = audioTitleMap[audioHash] ?? "Hash: $audioHash";
+            buffer.writeln('  🎵 $audioTitle');
+            buffer.writeln('   └── 📝 ${subtitleNode.title}');
+          });
 
-        // 2. 遍历结果构建日志
-        matches.forEach((audioHash, subtitleNode) {
-          final audioTitle = audioTitleMap[audioHash] ?? "Hash: $audioHash";
-          buffer.writeln('  🎵 $audioTitle');
-          buffer.writeln('   └── 📝 ${subtitleNode.title}');
-        });
-
-        KikoenaiLogger().i(buffer.toString());
+          KikoenaiLogger().i(buffer.toString());
+        }
       }
     }
   }
