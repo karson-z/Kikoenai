@@ -84,3 +84,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
       () => AuthNotifier(),
 );
+
+extension AuthRefX on WidgetRef {
+  /// 仅获取登录状态，不关心具体用户信息
+  /// 使用 select 优化性能：只有 isLoggedIn 变化时才会触发重绘
+  bool get isLoggedIn => watch(
+    authNotifierProvider.select((asyncState) => asyncState.value?.isLoggedIn ?? false),
+  );
+
+  /// 获取当前用户（可能为空）
+  User? get currentUser => watch(
+    authNotifierProvider.select((asyncState) => asyncState.value?.currentUser),
+  );
+}

@@ -98,6 +98,22 @@ class FileNode extends HiveObject {
   /// 辅助属性：获取唯一 ID (使用路径)
   String get keyId => mediaStreamUrl ?? hash ?? "";
 
+  bool get isLocal {
+    final url = mediaStreamUrl;
+    if (url == null || url.isEmpty) return false;
+
+    // 处理标准 URI 格式
+    if (url.startsWith('file://')) return true;
+
+    // 处理常见的网络协议
+    if (url.startsWith('http://') || url.startsWith('https://')) return false;
+
+    // 兜底逻辑：在移动端/桌面端，绝对路径通常以 / 开头，且不包含网络特征
+    return url.startsWith('/');
+  }
+
+  /// 判断是否为远程网络文件
+  bool get isRemote => !isLocal && (mediaStreamUrl?.startsWith('http') ?? false);
   FileNode({
     required this.type,
     required this.title,

@@ -65,7 +65,7 @@ dependencies:
   flutter_lyric:
     git:
       url: https://github.com/karson-z/flutter_lyric.git
-      ref: 646f948e8d5744da215358f7ed6e0a7ecf572c2c
+      ref: ced6863dc8e927d84d678d208e4ab7c168682bae
   disk_space_2: ^1.0.12
   visibility_detector: ^0.4.0+2
 dev_dependencies:

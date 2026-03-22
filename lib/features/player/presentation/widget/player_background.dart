@@ -20,47 +20,11 @@ class PlayerBackground extends ConsumerStatefulWidget {
 
 class _PlayerBackgroundState extends ConsumerState<PlayerBackground> {
   // 1. 定义颜色状态，给予默认值（墨蓝色）
-  Color _dominantColor = const Color(0xFF001F3F);
-  Color _vibrantColor = const Color(0xFF001F3F);
-  String? _lastProcessedUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    // 初始化时加载一次
-    final currentUrl = ref.read(playerControllerProvider).currentTrack?.extras?['mainCoverUrl'] as String?;
-    if (currentUrl != null) {
-      _updateColors(currentUrl);
-    }
-  }
-
-  // 2. 异步提取颜色逻辑
-  Future<void> _updateColors(String url) async {
-    if (url == _lastProcessedUrl) return;
-    _lastProcessedUrl = url;
-
-    try {
-      final colors = await ColorUtils.getMainColors(url);
-      if (mounted) {
-        setState(() {
-          _dominantColor = colors['dominant']!;
-          _vibrantColor = colors['vibrant']!;
-        });
-      }
-    } catch (e) {
-      debugPrint("Color extraction failed: $e");
-    }
-  }
+  final Color _dominantColor = const Color(0xFF001F3F);
+  final Color _vibrantColor = const Color(0xFF001F3F);
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(playerControllerProvider.select(
-            (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?
-    ), (previous, next) {
-      if (next != null && next != previous) {
-        _updateColors(next);
-      }
-    });
     final coverUrl = ref.watch(playerControllerProvider.select(
             (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?
     ));
@@ -80,8 +44,6 @@ class _PlayerBackgroundState extends ConsumerState<PlayerBackground> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // --- 第一层：插值渐变背景 ---
-        // 使用 AnimatedContainer 让切歌时的颜色变化更柔和
         AnimatedContainer(
           duration: const Duration(milliseconds: 500),
           decoration: BoxDecoration(
@@ -92,8 +54,6 @@ class _PlayerBackgroundState extends ConsumerState<PlayerBackground> {
             ),
           ),
         ),
-
-        // --- 第二层：模糊封面 + 遮罩 ---
         if (widget.expandedOpacity > 0.01)
           Opacity(
             opacity: widget.expandedOpacity,
