@@ -81,6 +81,18 @@ class MyAudioHandler extends BaseAudioHandler {
   /// 标识播放是否被系统音频焦点中断
   bool _playInterrupted = false;
 
+  /// 标识播放是否因外部设备断开而暂停
+  bool _pausedByDeviceDisconnect = false;
+
+  /// 记录设备断开的时间，用于过滤系统路由抖动
+  DateTime? _lastDisconnectTime;
+
+  /// 路由变更防抖定时器
+  Timer? _debounceTimer;
+
+  StreamSubscription? _noisySubscription;
+  StreamSubscription? _deviceSubscription;
+
   /// 设定的正常播放音量 (0-100)
   double _normalVolume = 100.0;
 
@@ -179,11 +191,12 @@ class MyAudioHandler extends BaseAudioHandler {
     await _applyAudioSessionConfiguration();
   }
 
-  /// 初始化音频会话并监听焦点中断事件（如来电、通知等）
+  /// 初始化音频会话并监听焦点中断与设备变更事件
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
     await _applyAudioSessionConfiguration();
 
+    // 1. 监听音频焦点中断（如来电、通知等）
     _audioSession!.interruptionEventStream.listen((event) {
       if (_ignoreAudioFocus) return;
 
@@ -215,15 +228,62 @@ class MyAudioHandler extends BaseAudioHandler {
         }
       }
     });
+
+    // 2. 监听外部设备断开事件
+    _noisySubscription = _audioSession!.becomingNoisyEventStream.listen((_) {
+      if (_player.state.playing) {
+        _player.pause();
+        _pausedByDeviceDisconnect = true;
+        _lastDisconnectTime = DateTime.now();
+      }
+    });
+
+    // 3. 监听设备状态变更，处理自动恢复播放
+    _deviceSubscription = _audioSession!.devicesChangedEventStream.listen((event) {
+      if (event.devicesAdded.isEmpty || !_pausedByDeviceDisconnect) return;
+
+      final isRealHeadset = event.devicesAdded.any((d) =>
+      d.isOutput && (
+          d.type == AudioDeviceType.bluetoothA2dp ||
+              d.type == AudioDeviceType.wiredHeadset ||
+              d.type == AudioDeviceType.wiredHeadphones ||
+              d.type == AudioDeviceType.bluetoothLe ||
+              d.type == AudioDeviceType.usbAudio
+      )
+      );
+
+      if (isRealHeadset) {
+        final now = DateTime.now();
+        final timeSinceDisconnect = _lastDisconnectTime != null
+            ? now.difference(_lastDisconnectTime!).inMilliseconds
+            : 0;
+
+        if (timeSinceDisconnect < 1500) {
+          _pausedByDeviceDisconnect = false;
+          return;
+        }
+
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+          if (_pausedByDeviceDisconnect) {
+            play();
+            _pausedByDeviceDisconnect = false;
+          }
+        });
+      }
+    });
   }
 
   @override
   Future<void> play() async {
+    _pausedByDeviceDisconnect = false;
+
     if (_ignoreAudioFocus) {
       await _audioSession?.setActive(true);
       await _player.play();
       return;
     }
+
     if (_audioSession != null) {
       final success = await _audioSession!.setActive(true);
       if (success) {
@@ -239,16 +299,26 @@ class MyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> pause() async {
     _playInterrupted = false;
+    _pausedByDeviceDisconnect = false;
     await _player.pause();
   }
 
   @override
   Future<void> stop() async {
     _playInterrupted = false;
+    _pausedByDeviceDisconnect = false;
     await _player.stop();
     await _audioSession?.setActive(false);
     _videoController = null;
     return super.stop();
+  }
+
+  /// 清理控制器资源
+  Future<void> dispose() async {
+    _debounceTimer?.cancel();
+    _noisySubscription?.cancel();
+    _deviceSubscription?.cancel();
+    await _player.dispose();
   }
 
   /// 播放列表中指定索引的曲目
