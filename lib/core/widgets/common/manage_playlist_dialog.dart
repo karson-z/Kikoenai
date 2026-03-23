@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 
-import '../../../../core/widgets/common/kikoenai_dialog.dart';
-import '../../../../core/model/file_node.dart';
+import 'kikoenai_dialog.dart';
+import '../../model/file_node.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../viewmodel/provider/file_manage_provider.dart';
+import '../../../features/album/presentation/viewmodel/provider/file_manage_provider.dart';
 
 class FileTreeDialogContent extends ConsumerStatefulWidget {
   final List<FileNode> roots;
@@ -28,11 +28,13 @@ class FileTreeDialogContent extends ConsumerStatefulWidget {
 class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
   Icon _getIconForNode(FileNode node) {
     if (node.isFolder) return const Icon(Icons.folder, color: Colors.amber);
-    if (node.isAudio)
+    if (node.isAudio) {
       return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
+    }
     if (node.isImage) return const Icon(Icons.image, color: Colors.blue);
-    if (node.isVideo)
+    if (node.isVideo) {
       return const Icon(Icons.videocam, color: Colors.redAccent);
+    }
     if (node.isText) return const Icon(Icons.description, color: Colors.grey);
     return const Icon(Icons.insert_drive_file, color: Colors.blueGrey);
   }

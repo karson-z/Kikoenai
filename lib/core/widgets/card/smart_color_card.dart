@@ -57,13 +57,6 @@ class _SmartColorCardState extends State<SmartColorCard> {
     const bottomHeight = 60.0;
     final baseColor = _dominantColor ?? Colors.grey.shade300;
 
-    final placeholderDecoration = BoxDecoration(
-      gradient: LinearGradient(
-        colors: [baseColor.withAlpha(50), baseColor],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-    );
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {

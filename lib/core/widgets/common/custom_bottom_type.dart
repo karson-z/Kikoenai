@@ -48,7 +48,7 @@ class CustomBottomType extends WoltModalType {
       TextDirection textDirection,
       ) {
     // bottomSheet 贴底部
-    final x = 0.0;
+    const x = 0.0;
     final y = availableSize.height - modalContentSize.height;
     return Offset(x, y);
   }

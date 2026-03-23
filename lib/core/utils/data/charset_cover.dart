@@ -81,20 +81,6 @@ class FileEncodingHelper {
       final decoded = utf8.decode(bytes, allowMalformed: false);
       return FileDecodingResult(decoded, 'UTF-8');
     } catch (_) {}
-
-    // 3. 竞争检测：Shift-JIS vs GBK
-
-    // A. 尝试 Shift-JIS
-    String? sjisResult;
-    bool sjisSuccess = false;
-    /* // 需要引入相关库
-    try {
-      sjisResult = ShiftJis().decode(bytes);
-      // 简单启发式：如果不包含乱码占位符，且长度合理
-      sjisSuccess = !sjisResult.contains('');
-    } catch (_) {}
-    */
-
     // B. 尝试 GBK
     String? gbkResult;
     bool gbkSuccess = false;
@@ -103,9 +89,6 @@ class FileEncodingHelper {
       // fast_gbk 可能会把无法识别的字节转为空或问号，需根据实际情况判断
       gbkSuccess = !gbkResult.contains('');
     } catch (_) {}
-
-    // 决策逻辑
-    if (sjisSuccess) return FileDecodingResult(sjisResult!, 'Shift-JIS');
     if (gbkSuccess && gbkResult != null) return FileDecodingResult(gbkResult, 'GBK');
 
     // 4. 降级到 Latin1 (原样输出)

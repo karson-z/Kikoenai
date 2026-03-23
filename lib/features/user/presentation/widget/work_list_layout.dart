@@ -11,7 +11,7 @@ class ResponsiveListGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.list);
+    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.list);
 
     final columns = layoutStrategy.getColumnsCount(context);
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);

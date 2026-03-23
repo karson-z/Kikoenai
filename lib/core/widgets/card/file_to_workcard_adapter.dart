@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive_ce/hive.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';

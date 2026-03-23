@@ -18,9 +18,9 @@ class WorkListHorizontalSkeleton extends StatelessWidget {
         itemCount: 3, // 固定骨架列数
         separatorBuilder: (_, __) => const SizedBox(width: spacing),
         itemBuilder: (context, index) {
-          return SizedBox(
+          return const SizedBox(
             width: 300, // 随便给一个骨架宽度，匹配你的真实布局即可
-            child: const VerticalCardColumnSkeleton(
+            child: VerticalCardColumnSkeleton(
               width: 300,
               maxHeight: maxHeight,
             ),

@@ -185,7 +185,7 @@ class Work {
       sourceType: sourceType ?? this.sourceType,
       sourceId: sourceId ?? this.sourceId,
       sourceUrl: sourceUrl ?? this.sourceUrl,
-      updatedAt: updateAt ?? this.updatedAt,
+      updatedAt: updateAt ?? updatedAt,
       userRating: userRating ?? this.userRating,
       playlistStatus: playlistStatus ?? this.playlistStatus, // New
       circle: circle ?? this.circle,
