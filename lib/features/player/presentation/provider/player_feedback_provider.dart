@@ -60,9 +60,10 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
       final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
+      if (currentUser == null) return;
       final data = {
         'itemId': state.currentWorkId,
-        'recommendUuid': currentUser?.recommenderUuid ?? recommendUuid,
+        'recommendUuid': currentUser.recommenderUuid ?? recommendUuid,
         'type': ListenEventType.start.type
       };
       final api = ref.read(apiClientProvider);
