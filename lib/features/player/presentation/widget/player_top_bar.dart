@@ -4,18 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
-import 'package:kikoenai/core/service/audio/audio_service_media_kit.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/common/manage_playlist_dialog.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
 import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
 
+import '../../../../core/model/file_node.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
+import '../../../../core/service/download/download_service.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
+import '../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
+import '../../../download/presentation/provider/download_provider.dart';
 import '../provider/player_controller_provider.dart';
 
 
@@ -28,6 +33,7 @@ class TopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -67,14 +73,16 @@ class TopBar extends ConsumerWidget {
   }
 
   void _showMoreOptions(BuildContext context, MediaItem? track, WidgetRef ref) {
+
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
     }
-
+    final workJson = track.extras?['workData'];
+    final work = workJson != null ? Work.fromJson(jsonDecode(workJson)) : null;
+    final rjCode = work?.id;
     // 判断当前音源是否包含视频 (需确保你存入了正确的 key)
     final bool isVideoTrack = track.extras?['isVideo'] == true;
-
     // 构建基础菜单列表
     final List<ListActionItem> dynamicListActions = [
       ListActionItem(
@@ -157,14 +165,60 @@ class TopBar extends ConsumerWidget {
           track: track,
           quickActions: [
             QuickActionItem(
-              icon: Icons.add_box_outlined,
+              icon: Icons.favorite_border,
               label: "收藏",
               onTap: () { Navigator.pop(context); },
             ),
             QuickActionItem(
-              icon: Icons.download_for_offline_outlined,
-              label: "下载",
-              onTap: () {},
+              icon: Icons.folder_open_outlined, // 替换为更符合文件管理的图标
+              label: "文件管理",
+              onTap: () async {
+                // 1. 优先关闭当前的 BottomSheet，避免弹窗层叠冲突
+                Navigator.pop(context);
+
+                if (rjCode != null) {
+                  try {
+                    // 2. 异步事件中必须使用 ref.read 读取 future 状态
+                    final roots = await ref.read(trackFileNodeProvider(rjCode).future);
+
+                    // 3. 读取已下载记录，用于在树状图中禁用已存在的文件
+                    final downloadedTasks = ref.read(completedTasksProvider);
+                    final downloadedIds = downloadedTasks.map((t) => t.task.taskId).toSet();
+
+                    // 4. 异步操作后的 context 挂载检查
+                    if (!context.mounted) return;
+
+                    // 5. 调用文件树对话框并补全业务逻辑
+                    FileTreeDialogExtension.showFileTree(
+                      context: context,
+                      roots: roots,
+                      disabledIds: downloadedIds,
+                      onDownload: (List<FileNode> selectedFiles) {
+                        DownloadService.instance.enqueueBatch(
+                          selectedFiles: selectedFiles,
+                          rootNodes: roots,
+                          title: work?.title ?? '未知作品',
+                          metaData: work?.toJson(),
+                        );
+                        KikoenaiToast.success("已加入下载队列");
+                      },
+                      onAddToQueue: (List<FileNode> selectedFiles) {
+                        final audioFiles = selectedFiles.where((f) => f.isAudio).toList();
+                        if (audioFiles.isNotEmpty && work != null) {
+                          ref.read(playerControllerProvider.notifier)
+                              .addMultiInQueue(audioFiles, work);
+                          KikoenaiToast.success("成功添加该列表");
+                        }
+                        KikoenaiDialog.dismiss();
+                      },
+                    );
+                  } catch (e) {
+                    if (context.mounted) {
+                      KikoenaiToast.error("获取文件列表失败");
+                    }
+                  }
+                }
+              },
             ),
             QuickActionItem(
               icon: Icons.picture_in_picture_alt,

@@ -22,6 +22,17 @@ abstract class PlaylistRepository {
     int pageSize = 12,
   });
 
+  Future<Map<String,dynamic>> addWorksToPlaylist({
+    required String playlistId,
+    required List<int> workIds,
+  });
+
+  Future<Map<String,dynamic>> removeWorksFromPlaylist({
+    required String playlistId,
+    required List<int> workIds,
+  });
+
+
   Future<Playlist> fetchDefaultMarkTargetPlaylist();
 
   Future<PlaylistWorksResponse> fetchPlaylistWorksByKeyword(PlaylistWorksRequest request);
@@ -98,6 +109,27 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     }
   }
 
+  @override
+  Future<Map<String, dynamic>> addWorksToPlaylist({required String playlistId, required List<int> workIds}) async {
+    final response = await api.post('/playlist/add-works-to-playlist',
+      data: {
+        'playlistId': playlistId,
+        'works': workIds,
+      }
+    );
+    return response.data;
+  }
+
+  @override
+  Future<Map<String, dynamic>> removeWorksFromPlaylist({required String playlistId, required List<int> workIds}) async {
+    final response = await api.post('/playlist/remove-works-from-playlist',
+        data: {
+          'playlistId': playlistId,
+          'works': workIds,
+        }
+    );
+    return response.data;
+  }
 }
 
 final playlistRepositoryProvider = Provider<PlaylistRepositoryImpl>((ref) {

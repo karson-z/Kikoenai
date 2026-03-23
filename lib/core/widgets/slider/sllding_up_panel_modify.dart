@@ -6,7 +6,6 @@ Copyright: © 2020, Akshath Jain. All rights reserved.
 Licensing: More information can be found here: https://github.com/akshathjain/sliding_up_panel/blob/master/LICENSE
 */
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
 
@@ -120,7 +119,7 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   void initState() {
     super.initState();
 
-    _ac = new AnimationController(
+    _ac = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 300),
         value: widget.defaultPanelState == PanelState.CLOSED
@@ -130,16 +129,18 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
       ..addListener(() {
         if (widget.onPanelSlide != null) widget.onPanelSlide!(_ac.value);
 
-        if (widget.onPanelOpened != null && _ac.value == 1.0)
+        if (widget.onPanelOpened != null && _ac.value == 1.0) {
           widget.onPanelOpened!();
+        }
 
-        if (widget.onPanelClosed != null && _ac.value == 0.0)
+        if (widget.onPanelClosed != null && _ac.value == 0.0) {
           widget.onPanelClosed!();
+        }
       });
 
     // 【修改】：这是一个 Dummy Controller，只为了满足 builder 签名
     // 不再监听它的 offset，因为我们不依赖它来判断是否可以拖动
-    _sc = new ScrollController();
+    _sc = ScrollController();
 
     widget.controller?._addState(this);
   }
@@ -158,10 +159,10 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
           builder: (context, child) {
             return Positioned(
               top: widget.parallaxEnabled ? _getParallax() : 0.0,
-              child: child ?? SizedBox(),
+              child: child ?? const SizedBox(),
             );
           },
-          child: Container(
+          child: SizedBox(
             height: MediaQuery.of(context).size.height,
             width: MediaQuery.of(context).size.width,
             child: widget.body,
@@ -179,7 +180,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                 ? 1
                 : -1) *
                 dets.velocity.pixelsPerSecond.dy >
-                0) _close();
+                0) {
+              _close();
+            }
           }
               : null,
           onTap: widget.backdropTapClosesPanel ? () => _close() : null,
@@ -238,11 +241,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                         (widget.padding != null
                             ? widget.padding!.horizontal
                             : 0),
-                    child: Container(
+                    child: SizedBox(
                       height: widget.maxHeight,
-                      child: widget.panel != null
-                          ? widget.panel
-                          : widget.panelBuilder!(_sc, _ac), // 传入 _ac
+                      child: widget.panel ?? widget.panelBuilder!(_sc, _ac), // 传入 _ac
                     )),
 
                 // Header
@@ -255,7 +256,7 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                   widget.slideDirection == SlideDirection.DOWN
                       ? 0.0
                       : null,
-                  child: widget.header ?? SizedBox(),
+                  child: widget.header ?? const SizedBox(),
                 )
                     : Container(),
 
@@ -269,7 +270,7 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                     widget.slideDirection == SlideDirection.DOWN
                         ? null
                         : 0.0,
-                    child: widget.footer ?? SizedBox())
+                    child: widget.footer ?? const SizedBox())
                     : Container(),
 
                 // Collapsed panel content
@@ -287,7 +288,7 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
                       (widget.padding != null
                           ? widget.padding!.horizontal
                           : 0),
-                  child: Container(
+                  child: SizedBox(
                     height: widget.minHeight,
                     child: widget.collapsed == null
                         ? Container()
@@ -319,14 +320,15 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   }
 
   double _getParallax() {
-    if (widget.slideDirection == SlideDirection.UP)
+    if (widget.slideDirection == SlideDirection.UP) {
       return -_ac.value *
           (widget.maxHeight - widget.minHeight) *
           widget.parallaxOffset;
-    else
+    } else {
       return _ac.value *
           (widget.maxHeight - widget.minHeight) *
           widget.parallaxOffset;
+    }
   }
 
   // 【核心修改】：统一手势处理逻辑
@@ -351,10 +353,11 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
   // 【修改】：简化的滑动逻辑
   // 不再判断 _scrollingEnabled，只要手势被 GestureDetector 捕获，就无条件移动面板
   void _onGestureSlide(double dy) {
-    if (widget.slideDirection == SlideDirection.UP)
+    if (widget.slideDirection == SlideDirection.UP) {
       _ac.value -= dy / (widget.maxHeight - widget.minHeight);
-    else
+    } else {
       _ac.value += dy / (widget.maxHeight - widget.minHeight);
+    }
   }
 
   // 【修改】：简化的结束逻辑
@@ -367,8 +370,9 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
     double visualVelocity =
         -v.pixelsPerSecond.dy / (widget.maxHeight - widget.minHeight);
 
-    if (widget.slideDirection == SlideDirection.DOWN)
+    if (widget.slideDirection == SlideDirection.DOWN) {
       visualVelocity = -visualVelocity;
+    }
 
     double d2Close = _ac.value;
     double d2Open = 1 - _ac.value;
@@ -379,16 +383,17 @@ class _SlidingUpPanelState extends State<SlidingUpPanel>
     if (v.pixelsPerSecond.dy.abs() >= minFlingVelocity) {
       if (widget.panelSnapping && widget.snapPoint != null) {
         if (v.pixelsPerSecond.dy.abs() >= kSnap * minFlingVelocity ||
-            minDistance == d2Snap)
+            minDistance == d2Snap) {
           _ac.fling(velocity: visualVelocity);
-        else
+        } else {
           _flingPanelToPosition(widget.snapPoint!, visualVelocity);
+        }
       } else if (widget.panelSnapping) {
         _ac.fling(velocity: visualVelocity);
       } else {
         _ac.animateTo(
           _ac.value + visualVelocity * 0.16,
-          duration: Duration(milliseconds: 410),
+          duration: const Duration(milliseconds: 410),
           curve: Curves.decelerate,
         );
       }
@@ -482,7 +487,7 @@ class PanelController {
   _SlidingUpPanelState? _panelState;
 
   void _addState(_SlidingUpPanelState panelState) {
-    this._panelState = panelState;
+    _panelState = panelState;
   }
 
   bool get isAttached => _panelState != null;

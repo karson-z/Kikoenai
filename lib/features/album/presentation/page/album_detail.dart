@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
@@ -20,7 +19,7 @@ import '../widget/file_box.dart';
 import '../widget/rating_menu.dart';
 import '../widget/rating_section.dart';
 import '../widget/work_tag.dart';
-import 'package:kikoenai/core/model/file_node.dart'; // 确保引入 FileNode
+// 确保引入 FileNode
 import '../../../../core/service/file/file_scanner_storage.dart'; // 引入你的本地存储类
 
 /// 专辑详情页
@@ -75,7 +74,7 @@ class AlbumDetailPage extends ConsumerWidget {
             InkWell(
               borderRadius: BorderRadius.circular(4),
               onTap: () {
-                final currentData = workStatus?.value;
+                final currentData = workStatus.value;
 
                 final initialStatus = UserWorkStatus(
                   workId: work.id,
@@ -260,7 +259,6 @@ class AlbumDetailPage extends ConsumerWidget {
                       );
                     }
 
-                    // 把拼好的 children 喂给浏览器
                     return FileNodeBrowser(
                       work: work,
                       rootNodes: localWorkTree.children!,

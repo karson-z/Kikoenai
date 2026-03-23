@@ -15,7 +15,7 @@ import '../../../../core/widgets/text_preview/text_preview_page.dart';
 import '../../../player/presentation/provider/player_controller_provider.dart';
 import '../../../../core/model/file_node.dart';
 import '../viewmodel/provider/file_manage_provider.dart';
-import 'file_download_dialog.dart';
+import '../../../../core/widgets/common/manage_playlist_dialog.dart';
 
 class FileNodeBrowser extends ConsumerStatefulWidget {
   final Work work;

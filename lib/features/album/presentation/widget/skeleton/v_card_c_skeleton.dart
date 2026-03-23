@@ -18,8 +18,8 @@ class VerticalCardColumnSkeleton extends StatelessWidget {
     return SizedBox(
       width: width,
       height: maxHeight,
-      child: Column(
-        children: const [
+      child: const Column(
+        children: [
           SizedBox(height: 75, child: WorkListItemSkeleton()),
           SizedBox(height: 8),
           SizedBox(height: 75, child: WorkListItemSkeleton()),
