@@ -70,6 +70,7 @@ class _HistoryPageState extends State<HistoryPage> {
       // 3. 将 FAB 放在 Scaffold 中
       floatingActionButton: historyList.isNotEmpty
           ? FloatingActionButton(
+        heroTag: 'clear_history',
         onPressed: _clearHistory,
         tooltip: '清空历史记录',
         child: const Icon(Icons.delete_forever),
