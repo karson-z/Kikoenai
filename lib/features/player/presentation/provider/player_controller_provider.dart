@@ -13,8 +13,10 @@ import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
+import '../../../../core/storage/hive_storage.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
+import '../widget/player_lyrics_mapping_sheet.dart';
 
 
 final playerControllerProvider = NotifierProvider<PlayerController, AppPlayerState>(() {
@@ -281,8 +283,34 @@ class PlayerController extends Notifier<AppPlayerState> {
       // 处理字幕数据
       final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
-      // 匹配字幕
-      final matches = MatchLyrics.match(playListProcessed, lyricListProcessed);
+      // 匹配字幕并处理手动匹配回调
+      final matches = MatchLyrics.match(
+          playListProcessed,
+          lyricListProcessed,
+          onShowManualMatchDialog: (playlist, availableSubtitles, currentMapping) async {
+            final manualResult = await LyricsMappingSheet.show(
+              playlist: playlist,
+              initialMapping: currentMapping,
+              availableSubtitles: availableSubtitles,
+            );
+            if (manualResult != null) {
+              final validManualMapping = <String, FileNode>{};
+              manualResult.forEach((key, value) {
+                if (value != null) {
+                  validManualMapping[key] = value;
+                } else {
+                  AppStorage.lyricMatchBox.delete(key);
+                }
+              });
+
+              MatchLyrics.persistMatchResults(validManualMapping);
+
+              state = state.copyWith(
+                  subtitleMapping: validManualMapping
+              );
+            }
+          }
+      );
 
       state = state.copyWith(
           lyricsList: targetSubtitleList,

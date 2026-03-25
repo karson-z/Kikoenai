@@ -16,17 +16,14 @@ class LyricsMappingSheet extends StatefulWidget {
     required this.availableSubtitles,
   }) : super(key: key);
 
-  static Future<Map<String, FileNode?>?> show(
-      BuildContext context, {
+  static Future<Map<String, FileNode?>?> show({
         required List<MediaItem> playlist,
         required Map<String, FileNode?> initialMapping,
         required List<FileNode?> availableSubtitles,
       }) {
     return KikoenaiDialog.showBottomSheet<Map<String, FileNode?>>(
-      context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       builder: (context) => LyricsMappingSheet(
         playlist: playlist,
         initialMapping: initialMapping,

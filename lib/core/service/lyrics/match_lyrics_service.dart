@@ -58,7 +58,7 @@ abstract class MatchLyrics {
       }
     }
 
-    _persistMatchResults(finalResults);
+    persistMatchResults(finalResults);
 
     final unmatchedAudios = playList
         .where((audio) => !finalResults.containsKey(audio.id))
@@ -82,7 +82,7 @@ abstract class MatchLyrics {
 
     return finalResults;
   }
-  static void _persistMatchResults(Map<String, FileNode> currentResults) {
+  static void persistMatchResults(Map<String, FileNode> currentResults) {
     if (currentResults.isEmpty) return;
 
     final box = AppStorage.lyricMatchBox;
@@ -102,7 +102,6 @@ abstract class MatchLyrics {
   }
 }
 /// 缓存匹配策略。
-///
 /// 优先读取本地持久化的匹配记录，跳过已匹配过的音频，避免重复计算。
 /// 从独立的 Hive Box 中读取 [audio.id] 与 [FileNode] 的映射关系。
 /// 验证缓存中的字幕文件是否仍然存在于当前的字幕列表中。
