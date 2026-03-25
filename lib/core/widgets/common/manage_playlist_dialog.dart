@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 
+import '../bread_crumb_bar/file_bread_crumb_bar.dart';
+import 'back_button_interceptor.dart';
 import 'kikoenai_dialog.dart';
 import '../../model/file_node.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,17 @@ class FileTreeDialogContent extends ConsumerStatefulWidget {
 }
 
 class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
+  // 局部导航路径状态
+  List<FileNode> _currentPath = [];
+
+  // 获取当前层级应该显示的节点列表
+  List<FileNode> get _currentNodes {
+    if (_currentPath.isEmpty) {
+      return widget.roots;
+    }
+    return _currentPath.last.children ?? [];
+  }
+
   Icon _getIconForNode(FileNode node) {
     if (node.isFolder) return const Icon(Icons.folder, color: Colors.amber);
     if (node.isAudio) {
@@ -48,34 +61,32 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
-    ref.watch(fileSelectionProvider);
+    // UI 渲染依然可以通过 ref.read/watch 获取所需的数据
+    final selectionState = ref.watch(fileSelectionProvider);
     final notifier = ref.read(fileSelectionProvider.notifier);
-
     final selectedList = notifier.selectedList;
     final selectedCount = notifier.count;
     final musicCount = notifier.musicCount;
     final totalSizeStr = notifier.totalSizeStr;
-    final bool? rootCheckboxState = notifier.getRootState(widget.roots);
+
+    // 全选状态针对当前显示的层级
+    final bool? currentLayerCheckboxState = notifier.getRootState(_currentNodes);
 
     final bool canDownload =
     selectedList.any((node) => !node.isFolder && !_isDownloaded(node));
 
-    // 移除原有的 Dialog，直接返回 Container
     return Container(
-      // 设置高度为全屏高度
-      height: mediaQuery.size.height,
+      height: mediaQuery.size.height * 0.95,
       width: double.infinity,
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        // BottomSheet 通常只需要顶部圆角
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      // 增加 SafeArea 防止内容被刘海屏或底部导航条遮挡
       child: SafeArea(
         child: Column(
           children: [
-            // 顶部增加一个拖拽指示条 (可选，增加 BottomSheet 的视觉暗示)
             Center(
               child: Container(
                 margin: const EdgeInsets.only(top: 12, bottom: 4),
@@ -87,15 +98,18 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                 ),
               ),
             ),
+
+            // 操作栏
             Padding(
               padding: const EdgeInsets.fromLTRB(6, 4, 12, 12),
               child: Row(
                 children: [
                   Checkbox(
                     tristate: true,
-                    value: rootCheckboxState,
+                    value: currentLayerCheckboxState,
                     onChanged: (_) {
-                      notifier.toggleSelectAll(widget.roots);
+                      // 【修复】点击交互时，实时读取最新的 notifier
+                      ref.read(fileSelectionProvider.notifier).toggleSelectAll(_currentNodes);
                     },
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4)),
@@ -104,11 +118,11 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        rootCheckboxState != null && rootCheckboxState
-                            ? '取消全选'
-                            : '全选文件',
+                        currentLayerCheckboxState != null && currentLayerCheckboxState
+                            ? '取消全选(当前层)'
+                            : '全选(当前层)',
                         style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       if (selectedCount > 0)
                         Text(
@@ -133,29 +147,50 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                 ],
               ),
             ),
+
+            // 面包屑导航栏：绑定局部状态 _currentPath
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: BreadcrumbBar(
+                paths: _currentPath.map((node) => node.title).toList(),
+                // 点击根目录，清空路径返回顶层
+                onHomeTap: () {
+                  if (_currentPath.isNotEmpty) {
+                    setState(() => _currentPath.clear());
+                  }
+                },
+                // 点击具体层级，截断到该层级
+                onPathTap: (index) {
+                  if (index < _currentPath.length - 1) {
+                    setState(() {
+                      _currentPath = _currentPath.sublist(0, index + 1);
+                    });
+                  }
+                },
+                backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                borderColor: Colors.transparent, // 如果想隐藏边框
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+
             const Divider(height: 1, thickness: 1),
+
+            // 列表区域
             Expanded(
-              child: widget.roots.isEmpty
-                  ? const Center(child: Text("暂无文件数据"))
-                  : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: IntrinsicWidth(
-                  child: SizedBox(
-                    // 将最小宽度改为屏幕宽度，而不是写死的 500
-                    width: mediaQuery.size.width,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: widget.roots.length,
-                      itemBuilder: (context, index) {
-                        return _buildNodeItem(
-                            widget.roots[index], 0, notifier);
-                      },
-                    ),
-                  ),
-                ),
+              child: _currentNodes.isEmpty
+                  ? const Center(child: Text("空文件夹"))
+                  : ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: _currentNodes.length,
+                itemBuilder: (context, index) {
+                  // 【修复】移除了 notifier 参数传递
+                  return _buildNodeItem(_currentNodes[index]);
+                },
               ),
             ),
             const Divider(height: 1, thickness: 1),
+
+            // 底部按钮区域
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -212,114 +247,102 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     );
   }
 
-  Widget _buildNodeItem(
-      FileNode node, int level, FileSelectionNotifier notifier) {
-    final double indent = level * 20.0;
+  Widget _buildNodeItem(FileNode node) {
     final bool isDownloaded = _isDownloaded(node);
-    final bool? checkboxState = notifier.getNodeState(node);
+    final bool? checkboxState = ref.read(fileSelectionProvider.notifier).getNodeState(node);
 
     Widget buildCheckbox() {
       return Checkbox(
         tristate: true,
         value: checkboxState,
-        onChanged: (_) => notifier.toggleNode(node),
+        onChanged: (_) {
+          // 【修复】交互时实时读取 notifier
+          ref.read(fileSelectionProvider.notifier).toggleNode(node);
+        },
         visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       );
     }
 
-    if (node.isFolder) {
-      return Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: PageStorageKey(node.hash ?? node.title),
-          tilePadding: EdgeInsets.only(left: 8 + indent, right: 16),
-          leading: buildCheckbox(),
-          title: InkWell(
-            child: Row(
-              children: [
-                _getIconForNode(node),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    node.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          children: node.children
-              ?.map((child) => _buildNodeItem(child, level + 1, notifier))
-              .toList() ??
-              [],
-        ),
-      );
-    } else {
-      return InkWell(
-        onTap: () => notifier.toggleNode(node),
-        child: Padding(
-          padding:
-          EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
-          child: Row(
-            children: [
-              buildCheckbox(),
-              const SizedBox(width: 8),
-              _getIconForNode(node),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            node.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDownloaded ? Colors.grey.shade600 : null,
-                            ),
+    return InkWell(
+      onTap: () {
+        if (node.isFolder) {
+          // 如果是文件夹，点击进入下一级
+          setState(() {
+            _currentPath.add(node);
+          });
+        } else {
+          // 【修复】交互时实时读取 notifier
+          ref.read(fileSelectionProvider.notifier).toggleNode(node);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            buildCheckbox(),
+            const SizedBox(width: 8),
+            _getIconForNode(node),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          node.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: node.isFolder ? FontWeight.w500 : FontWeight.normal,
+                            color: isDownloaded ? Colors.grey.shade600 : null,
                           ),
                         ),
-                        if (isDownloaded) ...[
-                          const SizedBox(width: 6),
-                          Icon(Icons.check_circle,
-                              size: 14,
-                              color: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.7)),
-                          const SizedBox(width: 2),
-                          Text("已下载",
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Theme.of(context)
-                                      .primaryColor
-                                      .withOpacity(0.7))),
-                        ],
+                      ),
+                      if (isDownloaded && !node.isFolder) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.check_circle,
+                            size: 14,
+                            color: Theme.of(context).primaryColor.withOpacity(0.7)),
+                        const SizedBox(width: 2),
+                        Text("已下载",
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context).primaryColor.withOpacity(0.7))),
                       ],
-                    ),
-                    if (node.size != null)
-                      Text(
+                    ],
+                  ),
+                  if (!node.isFolder && node.size != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
                         OtherUtil.formatBytes(node.size ?? 0),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 10, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                       ),
-                  ],
-                ),
+                    ),
+                  if (node.isFolder)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '${node.children?.length ?? 0} 项',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+            // 如果是文件夹，在最右侧显示一个向右的箭头提示可以点击进入
+            if (node.isFolder)
+              const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -335,14 +358,17 @@ extension FileTreeDialogExtension on KikoenaiDialog {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      // 解除 Material 规范中的默认最大宽度限制
       constraints: const BoxConstraints(maxWidth: double.infinity),
       builder: (context) {
-        return FileTreeDialogContent(
-          roots: roots,
-          disabledIds: disabledIds,
-          onDownload: onDownload,
-          onAddToQueue: onAddToQueue,
+        return BackButtonPriorityWrapper(
+          zIndex: 100,
+          name: 'FileTreeBottomSheet',
+          child: FileTreeDialogContent(
+            roots: roots,
+            disabledIds: disabledIds,
+            onDownload: onDownload,
+            onAddToQueue: onAddToQueue,
+          ),
         );
       },
     );

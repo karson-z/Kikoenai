@@ -18,6 +18,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/download/download_service.dart';
 import '../../../../core/storage/hive_storage.dart';
+import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
 import '../../../download/presentation/provider/download_provider.dart';
@@ -73,7 +74,6 @@ class TopBar extends ConsumerWidget {
   }
 
   void _showMoreOptions(BuildContext context, MediaItem? track, WidgetRef ref) {
-
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
@@ -89,7 +89,8 @@ class TopBar extends ConsumerWidget {
         icon: Icons.multitrack_audio_outlined,
         title: '忽略音频焦点',
         hasSwitch: true,
-        initialSwitchValue: AppStorage.settingsBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false),
+        initialSwitchValue: AppStorage.settingsBox.get(
+            StorageKeys.ignoreAudioFocus, defaultValue: false),
         onSwitchChanged: (bool value) async {
           await AudioServiceSingleton.instance.customAction(
             'setIgnoreAudioFocus',
@@ -161,72 +162,81 @@ class TopBar extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) {
-        return MoreOptionsBottomSheet(
-          track: track,
-          quickActions: [
-            QuickActionItem(
-              icon: Icons.favorite_border,
-              label: "收藏",
-              onTap: () { Navigator.pop(context); },
-            ),
-            QuickActionItem(
-              icon: Icons.folder_open_outlined, // 替换为更符合文件管理的图标
-              label: "文件管理",
-              onTap: () async {
-                // 1. 优先关闭当前的 BottomSheet，避免弹窗层叠冲突
-                Navigator.pop(context);
+        return BackButtonPriorityWrapper(
+          zIndex: 100,
+          name: 'PlayerMoreOptionsBottomSheet', // 给予一个明确的名称标识
+          child: MoreOptionsBottomSheet(
+            track: track,
+            quickActions: [
+              QuickActionItem(
+                icon: Icons.favorite_border,
+                label: "收藏",
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              QuickActionItem(
+                icon: Icons.folder_open_outlined,
+                label: "文件管理",
+                onTap: () async {
+                  // 1. 优先关闭当前的 BottomSheet，避免弹窗层叠冲突
+                  Navigator.pop(context);
 
-                if (rjCode != null) {
-                  try {
-                    // 2. 异步事件中必须使用 ref.read 读取 future 状态
-                    final roots = await ref.read(trackFileNodeProvider(rjCode).future);
+                  if (rjCode != null) {
+                    try {
+                      // 2. 异步事件中必须使用 ref.read 读取 future 状态
+                      final roots = await ref.read(
+                          trackFileNodeProvider(rjCode).future);
 
-                    // 3. 读取已下载记录，用于在树状图中禁用已存在的文件
-                    final downloadedTasks = ref.read(completedTasksProvider);
-                    final downloadedIds = downloadedTasks.map((t) => t.task.taskId).toSet();
+                      // 3. 读取已下载记录，用于在树状图中禁用已存在的文件
+                      final downloadedTasks = ref.read(completedTasksProvider);
+                      final downloadedIds = downloadedTasks.map((t) =>
+                      t.task.taskId).toSet();
 
-                    // 4. 异步操作后的 context 挂载检查
-                    if (!context.mounted) return;
+                      // 4. 异步操作后的 context 挂载检查
+                      if (!context.mounted) return;
 
-                    // 5. 调用文件树对话框并补全业务逻辑
-                    FileTreeDialogExtension.showFileTree(
-                      context: context,
-                      roots: roots,
-                      disabledIds: downloadedIds,
-                      onDownload: (List<FileNode> selectedFiles) {
-                        DownloadService.instance.enqueueBatch(
-                          selectedFiles: selectedFiles,
-                          rootNodes: roots,
-                          title: work?.title ?? '未知作品',
-                          metaData: work?.toJson(),
-                        );
-                        KikoenaiToast.success("已加入下载队列");
-                      },
-                      onAddToQueue: (List<FileNode> selectedFiles) {
-                        final audioFiles = selectedFiles.where((f) => f.isAudio).toList();
-                        if (audioFiles.isNotEmpty && work != null) {
-                          ref.read(playerControllerProvider.notifier)
-                              .addMultiInQueue(audioFiles, work);
-                          KikoenaiToast.success("成功添加该列表");
-                        }
-                        KikoenaiDialog.dismiss();
-                      },
-                    );
-                  } catch (e) {
-                    if (context.mounted) {
-                      KikoenaiToast.error("获取文件列表失败");
+                      // 5. 调用文件树对话框并补全业务逻辑
+                      FileTreeDialogExtension.showFileTree(
+                        context: context,
+                        roots: roots,
+                        disabledIds: downloadedIds,
+                        onDownload: (List<FileNode> selectedFiles) {
+                          DownloadService.instance.enqueueBatch(
+                            selectedFiles: selectedFiles,
+                            rootNodes: roots,
+                            title: work?.title ?? '未知作品',
+                            metaData: work?.toJson(),
+                          );
+                          KikoenaiToast.success("已加入下载队列");
+                        },
+                        onAddToQueue: (List<FileNode> selectedFiles) {
+                          final audioFiles = selectedFiles.where((f) =>
+                          f.isAudio).toList();
+                          if (audioFiles.isNotEmpty && work != null) {
+                            ref.read(playerControllerProvider.notifier)
+                                .addMultiInQueue(audioFiles, work);
+                            KikoenaiToast.success("成功添加该列表");
+                          }
+                          KikoenaiDialog.dismiss();
+                        },
+                      );
+                    } catch (e) {
+                      if (context.mounted) {
+                        KikoenaiToast.error("获取文件列表失败");
+                      }
                     }
                   }
-                }
-              },
-            ),
-            QuickActionItem(
-              icon: Icons.picture_in_picture_alt,
-              label: "桌面字幕",
-              onTap: () {},
-            ),
-          ],
-          listActions: dynamicListActions,
+                },
+              ),
+              QuickActionItem(
+                icon: Icons.picture_in_picture_alt,
+                label: "桌面字幕",
+                onTap: () {},
+              ),
+            ],
+            listActions: dynamicListActions,
+          ),
         );
       },
     );
