@@ -17,13 +17,16 @@ class LyricsMappingSheet extends StatefulWidget {
   }) : super(key: key);
 
   static Future<Map<String, FileNode?>?> show({
-        required List<MediaItem> playlist,
-        required Map<String, FileNode?> initialMapping,
-        required List<FileNode?> availableSubtitles,
-      }) {
+    BuildContext? context,
+    required List<MediaItem> playlist,
+    required Map<String, FileNode?> initialMapping,
+    required List<FileNode?> availableSubtitles,
+  }) {
     return KikoenaiDialog.showBottomSheet<Map<String, FileNode?>>(
+      context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: context != null ? Theme.of(context).scaffoldBackgroundColor : null, // 若为空交由内部处理主题色
       builder: (context) => LyricsMappingSheet(
         playlist: playlist,
         initialMapping: initialMapping,
