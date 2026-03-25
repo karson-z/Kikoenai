@@ -26,6 +26,7 @@ class AppStorage {
   static late Box<dynamic> settingsBox;        // 通用设置/缓存
   static late Box<FileNode> scannerBox;        // 扫描结果
   static late Box<Work> scraperWorkBox;        // 爬取作品元数据
+  static late Box<FileNode> lyricMatchBox;     // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
 
   static late final String _hiveRootPath;
   /// 初始化 Hive 和所有 Box
@@ -57,6 +58,7 @@ class AppStorage {
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
+      _openBox<FileNode>(BoxNames.lyricsMatch).then((val) => lyricMatchBox = val),
     ]);
   }
 

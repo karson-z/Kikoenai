@@ -259,39 +259,50 @@ class PlayerController extends Notifier<AppPlayerState> {
       return;
     }
     if (currentItem.id == state.currentTrack?.id) return;
+
     // 2. 获取 ID 进行比对
     final int? lastWorkId = _getWorkIdFromItem(state.currentTrack);
     final int? newWorkId = _getWorkIdFromItem(currentItem);
     List<FileNode> targetSubtitleList = [];
     bool isWorkChanged = newWorkId != lastWorkId;
+
     if (isWorkChanged && newWorkId != null) {
       debugPrint("检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
-      // 当前作品发生变化，需要重新拉取字幕列表
+
       targetSubtitleList = await SearchLyricsService.findLyrics(newWorkId, ref);
-      // 处理完的播放列表数据
-      final playListProcessed = LyricsDataProcess.batchPlayListProcess(state.playlist);
-      // 处理完的字幕数据
+
+      // 过滤播放列表，仅保留当前作品的音频
+      final currentWorkPlaylist = state.playlist
+          .where((item) => _getWorkIdFromItem(item) == newWorkId)
+          .toList();
+
+      // 处理过滤后的播放列表数据
+      final playListProcessed = LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
+
+      // 处理字幕数据
       final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
+
       // 匹配字幕
       final matches = MatchLyrics.match(playListProcessed, lyricListProcessed);
+
       state = state.copyWith(
+          lyricsList: targetSubtitleList,
           subtitleMapping: matches
       );
-      if(kDebugMode) {
+
+      if (kDebugMode) {
         if (matches.isEmpty) {
           KikoenaiLogger().i('本次扫描未匹配到任何字幕。');
         } else {
           final buffer = StringBuffer();
           buffer.writeln('匹配成功报告 (共 ${matches.length} 条):');
 
-          // 1. 创建一个临时 Map 用于通过 Hash 反查音频标题 (提升日志可读性)
-          // key: hash, value: title
+          // 创建一个临时 Map 用于通过 Hash 反查音频标题
           final audioTitleMap = {
             for (var node in playListProcessed)
               node.id: node.title
           };
 
-          // 2. 遍历结果构建日志
           matches.forEach((audioHash, subtitleNode) {
             final audioTitle = audioTitleMap[audioHash] ?? "Hash: $audioHash";
             buffer.writeln('  🎵 $audioTitle');

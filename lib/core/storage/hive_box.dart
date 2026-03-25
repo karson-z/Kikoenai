@@ -14,11 +14,17 @@ class BoxNames {
   static const String playerState = 'player_state';
   /// 抓取的作品元数据
   static const String scraper = 'scraper_work';
+  /// 抓取的作品元数据
+  static const String lyricsMatch = 'lyrics_match';
 
   static const List<String> values = [
     settings,
     logs,
     history,
-    playerState
+    playerState,
+    auth,
+    scanner,
+    scraper,
+    lyricsMatch,
   ];
 }
