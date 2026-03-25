@@ -6,7 +6,6 @@ import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
-import '../../../features/local_media/presentation/provider/file_scanner_notifier.dart';
 import '../../enums/age_rating.dart';
 import '../../enums/tag_enum.dart';
 

@@ -30,7 +30,7 @@ class PlaylistCardGridView extends StatelessWidget {
       return _buildEmptyView();
     }
 
-    final layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
+    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
     final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
     final verticalSpacing = layoutStrategy.getRowSpacing(context);
 
@@ -73,10 +73,10 @@ class PlaylistCardGridView extends StatelessWidget {
 
   /// 普通的空状态视图 (Center 居中即可)
   Widget _buildEmptyView() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.search_off, size: 54, color: Colors.grey),
           SizedBox(height: 16),
           Text(

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/features/playlist/presentation/provider/playlist_filter_provider.dart';
 import '../../../../core/enums/playlist_filter.dart';
+import '../../../auth/presentation/view_models/provider/auth_provider.dart';
 import '../../data/model/playlist_response.dart';
 import '../../data/model/playlist_work_response.dart';
 import '../../data/service/playlist_repository.dart';
@@ -94,6 +96,65 @@ class PlaylistWorksNotifier extends AsyncNotifier<PlaylistWorksResponse> {
       _page = nextPage;
     } catch (e) {
       print("加载更多失败: $e");
+    }
+  }
+}
+
+final playlistWorksMutationProvider = AsyncNotifierProvider.autoDispose<PlaylistWorksMutationController, void>(
+  PlaylistWorksMutationController.new,
+);
+
+class PlaylistWorksMutationController extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  Future<bool> addWorks({required String playlistId, required List<int> workIds}) async {
+    return _mutate(
+      playlistId: playlistId,
+      requestAction: () => ref.read(playlistRepositoryProvider).addWorksToPlaylist(
+        playlistId: playlistId,
+        workIds: workIds,
+      ),
+    );
+  }
+
+  Future<bool> removeWorks({required String playlistId, required List<int> workIds}) async {
+    return _mutate(
+      playlistId: playlistId,
+      requestAction: () => ref.read(playlistRepositoryProvider).removeWorksFromPlaylist(
+        playlistId: playlistId,
+        workIds: workIds,
+      ),
+    );
+  }
+
+  Future<bool> _mutate({
+    required String playlistId,
+    required Future<Map<String, dynamic>> Function() requestAction,
+  }) async {
+    // 鉴权前置拦截
+    final authState = ref.read(authNotifierProvider).value;
+    if (authState == null || !authState.isLoggedIn) {
+      // 抛出明确的未登录异常，交由 UI 层处理交互
+      KikoenaiToast.error("请先登录");
+      return false;
+    }
+
+    state = const AsyncLoading();
+
+    try {
+      final res = await requestAction();
+
+      if (res['rowCount'] != null && res['rowCount'] > 0) {
+        state = const AsyncData(null);
+        ref.invalidate(playlistWorksProvider(playlistId));
+        return true;
+      }
+      state = const AsyncData(null);
+      return false;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
     }
   }
 }

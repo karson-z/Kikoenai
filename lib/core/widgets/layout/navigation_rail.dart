@@ -26,11 +26,11 @@ class AdaptiveNavigationRail extends StatelessWidget {
                 label: Text(item.label),
               ))
           .toList(),
-      trailing:  Column(
+      trailing:  const Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Divider(),
-          const ThemeToggleButton(),
+          Divider(),
+          ThemeToggleButton(),
         ],
       ),
     );

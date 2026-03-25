@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import '../../../../core/utils/data/colors_util.dart';
 import '../provider/player_controller_provider.dart';
 
 

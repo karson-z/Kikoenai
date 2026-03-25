@@ -16,7 +16,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
   double? height = kToolbarHeight,
 }) {
   final theme = Theme.of(context);
-  final deviceType = WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
+  final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
 
   // ✅ Web 或非 Windows 平台
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
@@ -36,9 +36,9 @@ PreferredSizeWidget buildAdaptiveAppBar(
               if (deviceType == DeviceType.mobile) const ThemeToggleButton(),
               const Spacer(),
               // 右侧固定宽度搜索框
-              SizedBox(
+              const SizedBox(
                 width: 250,
-                child: const GlobalSearchInput(
+                child: GlobalSearchInput(
                   hintText: '搜索作品、作者或标签…',
                 ),
               ),
@@ -77,9 +77,9 @@ PreferredSizeWidget buildAdaptiveAppBar(
                       ),
                     const Spacer(),
                     // 右侧固定宽度搜索框
-                    SizedBox(
+                    const SizedBox(
                       width: 250,
-                      child: const GlobalSearchInput(
+                      child: GlobalSearchInput(
                         hintText: '搜索作品、作者或标签…',
                       ),
                     ),
