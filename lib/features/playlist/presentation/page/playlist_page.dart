@@ -111,6 +111,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
           theme
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'playlist_change',
         onPressed: () => PlaylistSheet.show(context),
         tooltip: "切换播放列表",
         child: const Icon(Icons.queue_music),

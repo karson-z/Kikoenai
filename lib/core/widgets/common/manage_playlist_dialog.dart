@@ -39,7 +39,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     return const Icon(Icons.insert_drive_file, color: Colors.blueGrey);
   }
 
-  /// 判断文件是否已下载
   bool _isDownloaded(FileNode node) {
     if (node.isFolder) return false;
     return widget.disabledIds?.contains(node.hash) ?? false;
@@ -48,34 +47,48 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
 
     ref.watch(fileSelectionProvider);
     final notifier = ref.read(fileSelectionProvider.notifier);
 
-    // 获取当前选中的所有节点（包含文件夹和文件）
     final selectedList = notifier.selectedList;
     final selectedCount = notifier.count;
     final musicCount = notifier.musicCount;
     final totalSizeStr = notifier.totalSizeStr;
     final bool? rootCheckboxState = notifier.getRootState(widget.roots);
 
-    // 允许下载的条件：
-    // 1. 至少选中了一个文件 (selectedCount > 0)
-    // 2. 选中的文件中，至少有一个是"未下载"状态
     final bool canDownload =
-        selectedList.any((node) => !node.isFolder && !_isDownloaded(node));
+    selectedList.any((node) => !node.isFolder && !_isDownloaded(node));
 
-    return Dialog(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        height: 500,
-        width: double.maxFinite,
-        constraints: const BoxConstraints(maxWidth: 500),
+    // 移除原有的 Dialog，直接返回 Container
+    return Container(
+      // 设置高度为全屏高度
+      height: mediaQuery.size.height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        // BottomSheet 通常只需要顶部圆角
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      // 增加 SafeArea 防止内容被刘海屏或底部导航条遮挡
+      child: SafeArea(
         child: Column(
           children: [
+            // 顶部增加一个拖拽指示条 (可选，增加 BottomSheet 的视觉暗示)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 4),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(6, 16, 12, 12),
+              padding: const EdgeInsets.fromLTRB(6, 4, 12, 12),
               child: Row(
                 children: [
                   Checkbox(
@@ -106,7 +119,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     ],
                   ),
                   const Spacer(),
-                  // 加入队列按钮：只要选中有音乐文件，无论是否下载，都允许加入队列
                   TextButton.icon(
                     onPressed: musicCount == 0
                         ? null
@@ -115,7 +127,7 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                     label: const Text('加入队列'),
                     style: TextButton.styleFrom(
                       foregroundColor:
-                          musicCount == 0 ? Colors.grey : theme.primaryColor,
+                      musicCount == 0 ? Colors.grey : theme.primaryColor,
                     ),
                   ),
                 ],
@@ -126,15 +138,17 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
               child: widget.roots.isEmpty
                   ? const Center(child: Text("暂无文件数据"))
                   : SingleChildScrollView(
-                scrollDirection: Axis.horizontal, // 2. 允许水平滚动
+                scrollDirection: Axis.horizontal,
                 child: IntrinsicWidth(
                   child: SizedBox(
-                    width: 500, // 提供一个最小基础宽度，防止内容太少时缩成一团
+                    // 将最小宽度改为屏幕宽度，而不是写死的 500
+                    width: mediaQuery.size.width,
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: widget.roots.length,
                       itemBuilder: (context, index) {
-                        return _buildNodeItem(widget.roots[index], 0, notifier);
+                        return _buildNodeItem(
+                            widget.roots[index], 0, notifier);
                       },
                     ),
                   ),
@@ -160,23 +174,19 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      // 下载按钮状态控制：
-                      // 如果选中的全部都是已下载文件 (canDownload == false)，则禁用按钮
                       onPressed: !canDownload
                           ? null
                           : () {
-                              // 提交时，只传递"未下载"的文件给下载器，避免重复下载
-                              // 或者根据需求传递所有选中文件，由后端去重
-                              final filesToDownload = selectedList
-                                  .where((node) =>
-                                      !node.isFolder && !_isDownloaded(node))
-                                  .toList();
+                        final filesToDownload = selectedList
+                            .where((node) =>
+                        !node.isFolder && !_isDownloaded(node))
+                            .toList();
 
-                              if (filesToDownload.isNotEmpty) {
-                                widget.onDownload(filesToDownload);
-                              }
-                              KikoenaiDialog.dismiss();
-                            },
+                        if (filesToDownload.isNotEmpty) {
+                          widget.onDownload(filesToDownload);
+                        }
+                        KikoenaiDialog.dismiss();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.primaryColor,
                         foregroundColor: Colors.white,
@@ -243,18 +253,17 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
             ),
           ),
           children: node.children
-                  ?.map((child) => _buildNodeItem(child, level + 1, notifier))
-                  .toList() ??
+              ?.map((child) => _buildNodeItem(child, level + 1, notifier))
+              .toList() ??
               [],
         ),
       );
     } else {
       return InkWell(
-        // 恢复点击事件，允许 toggleNode
         onTap: () => notifier.toggleNode(node),
         child: Padding(
           padding:
-              EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
+          EdgeInsets.only(left: 8 + indent, right: 16, top: 10, bottom: 10),
           child: Row(
             children: [
               buildCheckbox(),
@@ -278,7 +287,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
                             ),
                           ),
                         ),
-                        // 视觉提示：如果已下载，显示一个小勾选图标，提示用户状态
                         if (isDownloaded) ...[
                           const SizedBox(width: 6),
                           Icon(Icons.check_circle,
@@ -323,9 +331,12 @@ extension FileTreeDialogExtension on KikoenaiDialog {
     required Function(List<FileNode>) onDownload,
     required Function(List<FileNode>) onAddToQueue,
   }) async {
-    await KikoenaiDialog.show(
+    await KikoenaiDialog.showBottomSheet(
       context: context,
-      clickMaskDismiss: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      // 解除 Material 规范中的默认最大宽度限制
+      constraints: const BoxConstraints(maxWidth: double.infinity),
       builder: (context) {
         return FileTreeDialogContent(
           roots: roots,

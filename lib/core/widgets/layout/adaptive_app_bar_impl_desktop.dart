@@ -1,6 +1,6 @@
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
@@ -9,16 +9,15 @@ import 'package:kikoenai/core/widgets/common/win_control_button.dart';
 import '../../enums/device_type.dart';
 
 PreferredSizeWidget buildAdaptiveAppBar(
-  BuildContext context, {
-  Widget? title,
-  List<Widget>? actions,
-  bool automaticallyImplyLeading = true,
-  double? height = kToolbarHeight,
-}) {
+    BuildContext context, {
+      Widget? title,
+      List<Widget>? actions,
+      bool automaticallyImplyLeading = true,
+      double? height = kToolbarHeight,
+    }) {
   final theme = Theme.of(context);
   final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
 
-  // ✅ Web 或非 Windows 平台
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
     return PreferredSize(
       preferredSize: Size.fromHeight(height ?? kToolbarHeight),
@@ -32,10 +31,8 @@ PreferredSizeWidget buildAdaptiveAppBar(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              // 左侧可放 title 或其他控件
               if (deviceType == DeviceType.mobile) const ThemeToggleButton(),
               const Spacer(),
-              // 右侧固定宽度搜索框
               const SizedBox(
                 width: 250,
                 child: GlobalSearchInput(
@@ -50,7 +47,6 @@ PreferredSizeWidget buildAdaptiveAppBar(
     );
   }
 
-  // ✅ Windows 平台
   return PreferredSize(
     preferredSize: Size.fromHeight(height ?? kToolbarHeight),
     child: Container(
@@ -59,7 +55,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
       child: Row(
         children: [
           Expanded(
-            child: MoveWindow(
+            child: DragToMoveArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -76,7 +72,6 @@ PreferredSizeWidget buildAdaptiveAppBar(
                         child: title,
                       ),
                     const Spacer(),
-                    // 右侧固定宽度搜索框
                     const SizedBox(
                       width: 250,
                       child: GlobalSearchInput(
