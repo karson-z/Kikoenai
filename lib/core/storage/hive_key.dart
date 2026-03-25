@@ -69,8 +69,9 @@ class StorageKeys {
 
   /// 忽略音频焦点
   static const String  ignoreAudioFocus ='ignore_audio_focus';
-  /// 是否打开OpenSlES
-  static const String enableOpenSLES = 'enable_open_sles';
+
+  /// 是否自动跳出字幕匹配弹窗
+  static const String autoManualLyricsMatch = 'manual_lyrics_match';
 
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
