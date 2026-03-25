@@ -8,6 +8,7 @@ import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/download/presentation/provider/download_provider.dart';
 import '../../../../core/theme/theme_view_model.dart';
+import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../../../core/widgets/common/kikoenai_dialog.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/menu/menu.dart';
@@ -358,49 +359,25 @@ class _BreadcrumbHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
-    final ScrollController scrollController = ScrollController();
     final DownloadService downloadService = DownloadService.instance;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (scrollController.hasClients) {
-        scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-
     return Container(
+      height: 72,
       color: Theme.of(context).scaffoldBackgroundColor,
-      padding: const EdgeInsets.all(24.0),
+      // 调整外层 padding，配合 BreadcrumbBar 内部的 padding
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              controller: scrollController,
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: onRootTap,
-                    child: const Text('根目录',
-                        style: TextStyle(
-                            color: Colors.blue, fontWeight: FontWeight.bold)),
-                  ),
-                  for (int i = 0; i < breadcrumb.length; i++) ...[
-                    const Icon(Icons.chevron_right, size: 20),
-                    GestureDetector(
-                      onTap: () => onCrumbTap(i),
-                      child: Text(
-                        breadcrumb[i].title,
-                        style: const TextStyle(
-                            color: Colors.blue, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+            // 直接使用通用组件
+            child: BreadcrumbBar(
+              paths: breadcrumb.map((node) => node.title).toList(),
+              onHomeTap: onRootTap,
+              onPathTap: onCrumbTap,
+              // 根据需要调整样式，这里去掉了背景和边框，更接近原版 FileNodeBrowser 的样式
+              backgroundColor: Colors.transparent,
+              borderColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             ),
           ),
           IconButton(
@@ -428,7 +405,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
                       selectedFiles: selectedFiles,
                       rootNodes: rootNodes,
                       title: work.title ?? '未知作品',
-                      metaData: work.toJson()); // 确保 metaData 传入 Map
+                      metaData: work.toJson());
                 },
               );
             },

@@ -4,6 +4,7 @@ import 'package:kikoenai/core/service/file/file_scanner_worker.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import '../../../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
+import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import '../../data/model/file_scanner_state.dart';
 import '../provider/file_scanner_notifier.dart';
 import '../widget/file_scanner_panel.dart';
@@ -23,6 +24,9 @@ class ScannerPage extends ConsumerWidget {
 
     final isScanning = scannerState.status == WorkerState.scanning;
     final currentMode = scannerState.scanMode;
+    // 1. 获取全局的面包屑数据和控制器
+    final breadcrumbs = ref.watch(breadcrumbProvider);
+    final breadcrumbNotifier = ref.read(breadcrumbProvider.notifier);
 
     final queueCount = queueState.pending.length + queueState.processing.length;
 
@@ -90,8 +94,18 @@ class ScannerPage extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Expanded(
-                    child: BreadcrumbBar(), // 左侧：面包屑无限延伸
+                   Expanded(
+                    child: BreadcrumbBar(
+                      // 提取标题集合
+                      paths: breadcrumbs.map((node) => node.title).toList(),
+                      // 绑定点击根目录事件
+                      onHomeTap: () => breadcrumbNotifier.jumpTo(-1),
+                      // 绑定点击具体层级事件
+                      onPathTap: (index) => breadcrumbNotifier.jumpTo(index),
+
+                      // 可选：在此处覆盖默认样式
+                      // backgroundColor: Colors.transparent,
+                    ),// 左侧：面包屑无限延伸
                   ),
                   const SizedBox(width: 12),
                   // 右侧：药丸 TabBar
