@@ -20,11 +20,6 @@ class MobileLyricsContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 对应 LayoutDelegate 中的 lyricsHeaderTop 计算逻辑
-    // 为了让 Header 文字和左侧浮动小图对齐，我们需要精确控制顶部间距
-    const double lyricsHeaderSize = 50.0;
-    // 之前的计算公式：padding.top + 70 + (60 - lyricsHeaderSize) / 2
-    // 这里我们直接用 SizedBox 顶下来
     final double headerTopMargin = padding.top + 70;
 
     return Column(
