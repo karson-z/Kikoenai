@@ -87,7 +87,16 @@ class SimpleExtendedImage extends StatelessWidget {
         fadeInDuration: const Duration(milliseconds: 120),
         fadeOutDuration: const Duration(milliseconds: 120),
       );
+    } else if (url.startsWith('assets/')) {
+      // Flutter 资源路径（例如 assets/images/xxx.png）
+      imageContent = Image.asset(
+        url,
+        width: targetWidth,
+        height: targetHeight,
+        fit: targetFit,
+      );
     } else {
+      // 本地文件路径（例如 FilePicker 选择后的本地路径）
       final localFile = File(url.split('?').first);
       imageContent = ExtendedImage.file(
         localFile,
