@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
-import '../../../../core/service/audio/audio_service_media_kit.dart';
 
 class PlayerVideoContent extends StatefulWidget {
   const PlayerVideoContent({super.key});

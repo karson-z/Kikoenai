@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -87,7 +85,7 @@ class SearchLyricsService {
         final fileName = file.title.toLowerCase();
 
         bool isSubtitle =
-            allowedExtensions.any((ext) => fileName.endsWith('$ext'));
+            allowedExtensions.any((ext) => fileName.endsWith(ext));
 
         if (isSubtitle) {
           result.add(file);

@@ -67,7 +67,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final visibleColumns = WorkListLayout(layoutType: WorkListLayoutType.list)
+        final visibleColumns = const WorkListLayout(layoutType: WorkListLayoutType.list)
             .getColumnsCount(context);
 
         // 计算单列宽度

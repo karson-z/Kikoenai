@@ -18,7 +18,7 @@ class ResponsiveCardGridSkeleton extends StatelessWidget {
         childAspectRatio: 0.75,
       ),
       itemBuilder: (context, index) {
-        return Skeletonizer(
+        return const Skeletonizer(
           enabled: true,
           child: WorkCardSkeleton(),
         );

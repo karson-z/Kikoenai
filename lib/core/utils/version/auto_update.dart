@@ -114,7 +114,7 @@ class AutoUpdater {
       }
 
       final remoteVersion = data['tag_name'] as String;
-      final currentVersion = VersionConfig.version;
+      const currentVersion = VersionConfig.version;
 
       if (OtherUtil.needUpdate(currentVersion, remoteVersion)) {
         final availableTypes = await _detectAvailableInstallationTypes();
