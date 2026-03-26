@@ -62,18 +62,14 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
     final theme = Theme.of(context);
     final mediaQuery = MediaQuery.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
-
-    // UI 渲染依然可以通过 ref.read/watch 获取所需的数据
-    final selectionState = ref.watch(fileSelectionProvider);
+    ref.watch(fileSelectionProvider);
     final notifier = ref.read(fileSelectionProvider.notifier);
     final selectedList = notifier.selectedList;
     final selectedCount = notifier.count;
     final musicCount = notifier.musicCount;
     final totalSizeStr = notifier.totalSizeStr;
-
     // 全选状态针对当前显示的层级
     final bool? currentLayerCheckboxState = notifier.getRootState(_currentNodes);
-
     final bool canDownload =
     selectedList.any((node) => !node.isFolder && !_isDownloaded(node));
 
@@ -256,7 +252,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
         tristate: true,
         value: checkboxState,
         onChanged: (_) {
-          // 【修复】交互时实时读取 notifier
           ref.read(fileSelectionProvider.notifier).toggleNode(node);
         },
         visualDensity: VisualDensity.compact,
@@ -272,7 +267,6 @@ class _FileTreeDialogContentState extends ConsumerState<FileTreeDialogContent> {
             _currentPath.add(node);
           });
         } else {
-          // 【修复】交互时实时读取 notifier
           ref.read(fileSelectionProvider.notifier).toggleNode(node);
         }
       },

@@ -16,10 +16,10 @@ class SubtitleWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SubtitleWidgetState createState() => _SubtitleWidgetState();
+  SubtitleWidgetState createState() => SubtitleWidgetState();
 }
 
-class _SubtitleWidgetState extends State<SubtitleWidget> {
+class SubtitleWidgetState extends State<SubtitleWidget> {
   String _text = "等待接收字幕...";
   double _fontSize = 24.0;
   double _opacity = 0.4;
