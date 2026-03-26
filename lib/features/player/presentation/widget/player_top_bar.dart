@@ -22,6 +22,7 @@ import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
 import '../../../download/presentation/provider/download_provider.dart';
+import '../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
 import '../provider/player_controller_provider.dart';
 
 
@@ -232,7 +233,21 @@ class TopBar extends ConsumerWidget {
               QuickActionItem(
                 icon: Icons.picture_in_picture_alt,
                 label: "桌面字幕",
-                onTap: () {},
+                onTap: () {
+                  Navigator.pop(context);
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (context) {
+                      return const BackButtonPriorityWrapper(
+                        zIndex: 101, // 确保层级高于之前的面板
+                        name: 'SubtitleConfigBottomSheet',
+                        child: SubtitleConfigBottomSheet(),
+                      );
+                    },
+                  );
+                },
               ),
             ],
             listActions: dynamicListActions,

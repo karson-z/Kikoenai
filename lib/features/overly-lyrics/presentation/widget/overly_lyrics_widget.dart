@@ -36,6 +36,7 @@ class SubtitleWidgetState extends State<SubtitleWidget> {
   }
 
   void _handleEvent(dynamic event) {
+    print("====== 悬浮窗 Isolate 收到事件: $event ======");
     if (event is Map) {
       final action = event['action'];
       final payload = event['payload'];
@@ -81,8 +82,8 @@ class SubtitleWidgetState extends State<SubtitleWidget> {
       onPanStart: (_isLocked || !_isDraggable) ? null : widget.onPanStart,
       onPanUpdate: (_isLocked || !_isDraggable) ? null : widget.onPanUpdate,
       child: Container(
-        width: double.infinity,
-        height: double.infinity,
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
         color: _isLocked ? Colors.transparent : Colors.black.withOpacity(_opacity),
         alignment: Alignment.center,
         child: Flex(
