@@ -10,8 +10,10 @@ import '../../../../config/app_version_config.dart';
 import '../../../../config/environment_config.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/hive_storage.dart';
+import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
+import '../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
 import '../widget/default_playlist_setting_tile.dart';
 import '../widget/hive_switch_tile.dart';
 import '../widget/service_selection.dart';
@@ -93,6 +95,24 @@ class SettingsPage extends ConsumerWidget {
                     AppConstants.aoOpenSLES: 'OpenSL',
                   },
                 ),
+              _ChevronTile(
+                title: '桌面字幕',
+                trailingText: '配置桌面字幕',
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (context) {
+                      return const BackButtonPriorityWrapper(
+                        zIndex: 101, // 确保层级高于之前的面板
+                        name: 'SubtitleConfigBottomSheet',
+                        child: SubtitleConfigBottomSheet(),
+                      );
+                    },
+                  );
+                },
+              ),
               _ChevronTile(
                 title: '音频类型偏好',
                 trailingText: 'wav > mp3...',

@@ -12,7 +12,15 @@ import 'config/environment_config.dart';
 import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/storage/hive_storage.dart';
-
+import 'features/overly-lyrics/presentation/page/android_overly_page.dart';
+@pragma("vm:entry-point")
+void overlayMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: AndroidOverlayPage(),
+  ));
+}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();

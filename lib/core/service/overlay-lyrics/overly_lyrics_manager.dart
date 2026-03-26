@@ -61,11 +61,12 @@ class AndroidSubtitleManager implements SubtitleManager {
   @override
   Future<void> showOverlay() async {
     await FlutterOverlayWindow.showOverlay(
-      // 禁用插件原生的拖拽，统一交由 UI 层的 GestureDetector 接管
-      enableDrag: false,
+      enableDrag: true, // 开启原生拖拽，方便寻找和移动悬浮窗
       flag: OverlayFlag.defaultFlag,
-      alignment: OverlayAlignment.bottomCenter,
+      alignment: OverlayAlignment.center, // 避开底部计算的系统Bug，强制居中
       visibility: NotificationVisibility.visibilityPublic,
+      width: -1,
+      height: 350,
     );
   }
 
