@@ -1,37 +1,22 @@
-// 定义字幕配置数据类
-class LyricsState {
-  // 悬浮窗是否显示
-  final bool isShowing;
-  final String text;
-  final double fontSize;
-  final double opacity;
-  final bool isLocked;
-  final bool isDraggable;
+import 'package:flutter/widgets.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const LyricsState({
-    this.isShowing = false,
-    this.text = '等待接收字幕...',
-    this.fontSize = 24.0,
-    this.opacity = 0.4,
-    this.isLocked = false,
-    this.isDraggable = true,
-  });
+part 'lyrics_state.freezed.dart';
 
-  LyricsState copyWith({
-    bool? isShowing,
-    String? text,
-    double? fontSize,
-    double? opacity,
-    bool? isLocked,
-    bool? isDraggable,
-  }) {
-    return LyricsState(
-      isShowing: isShowing ?? this.isShowing,
-      text: text ?? this.text,
-      fontSize: fontSize ?? this.fontSize,
-      opacity: opacity ?? this.opacity,
-      isLocked: isLocked ?? this.isLocked,
-      isDraggable: isDraggable ?? this.isDraggable,
-    );
-  }
+@freezed
+abstract class LyricsState with _$LyricsState {
+  const factory LyricsState({
+    @Default(false) bool isShowing,
+    @Default(24.0) double fontSize,
+    @Default(0.4) double opacity,
+    @Default(false) bool isLocked,
+    @Default(true) bool isDraggable,
+    @Default(Axis.horizontal) Axis orientation,
+    @Default(Size(-1, 350)) Size windowSize,
+    @Default(Color(0xFFFFFFFF)) Color textColor,
+    @Default(Color(0xFF000000)) Color backgroundColor,
+    @Default(Offset.zero) Offset position,
+    @Default('等待接收字幕...') String text,
+    @Default(false) bool isPlaying,
+  }) = _LyricsState;
 }

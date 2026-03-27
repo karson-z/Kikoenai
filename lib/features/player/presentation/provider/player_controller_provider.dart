@@ -14,6 +14,7 @@ import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../core/storage/hive_storage.dart';
+import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 import '../widget/player_lyrics_mapping_sheet.dart';
@@ -96,6 +97,33 @@ class PlayerController extends Notifier<AppPlayerState> {
       );
     }
   }
+  void _listenToOverlayCommands() async {
+    debugPrint('AudioController: 准备连接悬浮窗事件总线...');
+    final subtitleManager = ref.read(subtitleManagerProvider);
+
+    await subtitleManager.init();
+    debugPrint('AudioController: 悬浮窗管理器初始化完成，开始监听...');
+
+    subtitleManager.eventStream.listen((event) {
+      debugPrint('AudioController: 事件流捕获到数据 -> $event');
+      final action = event['action'];
+
+      switch (action) {
+        case 'CMD_PLAY':
+          play();
+          break;
+        case 'CMD_PAUSE':
+          pause();
+          break;
+        case 'CMD_NEXT':
+          next();
+          break;
+        case 'CMD_PREVIOUS':
+          previous();
+          break;
+      }
+    });
+  }
   /// 监听播放状态变化
   void _listen() {
     // 播放状态 & 缓冲状态
@@ -154,6 +182,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         }
       });
     }
+    _listenToOverlayCommands();
   }
 
   void _updateSkipInfo() {

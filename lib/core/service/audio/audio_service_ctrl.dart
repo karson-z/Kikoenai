@@ -116,7 +116,7 @@ class MyAudioHandler extends BaseAudioHandler {
       final nativePlayer = _player.platform as NativePlayer;
       try {
         await nativePlayer.setProperty("terminal", "yes");
-        await nativePlayer.setProperty("msg-level", "all=v");
+        // await nativePlayer.setProperty("msg-level", "all=v");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
