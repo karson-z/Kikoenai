@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
-import 'dart:async';
 import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 
@@ -14,6 +14,9 @@ abstract class SubtitleManager {
     }
     throw UnsupportedError('Unsupported platform');
   }
+
+  // 统一的事件暴露接口
+  Stream<Map<String, dynamic>> get eventStream;
 
   // 初始化底层环境与权限
   Future<void> init();
@@ -30,9 +33,6 @@ abstract class SubtitleManager {
   // 恢复事件拦截，解除锁定状态
   Future<void> unlock();
 
-  // 下发字幕文本内容
-  Future<void> updateText(String text);
-
   // 设置字幕字体大小
   Future<void> setFontSize(double size);
 
@@ -47,15 +47,65 @@ abstract class SubtitleManager {
 
   // 设置是否允许拖拽
   Future<void> setDraggable(bool isDraggable);
+
+  // 同步业务状态 (包含歌词文本、播放状态等)
+  Future<void> syncBusinessState(Map<String, dynamic> state);
+
+  // 发送业务控制指令
+  Future<void> sendCommand(String command, [dynamic payload]);
+
+  // 释放资源
+  void dispose();
 }
 
 class AndroidSubtitleManager implements SubtitleManager {
+  // 1. 实现绝对单例模式
+  static final AndroidSubtitleManager _instance = AndroidSubtitleManager._internal();
+  factory AndroidSubtitleManager() => _instance;
+
+  AndroidSubtitleManager._internal(); // 私有构造函数
+
+  final StreamController<Map<String, dynamic>> _eventController = StreamController<Map<String, dynamic>>.broadcast();
+
+  bool _isInitialized = false;
+  StreamSubscription? _overlaySubscription; // 保存底层监听器的引用
+
+  @override
+  Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
+
   @override
   Future<void> init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+
     bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
     if (!isGranted) {
       await FlutterOverlayWindow.requestPermission();
     }
+
+    // 2. 挂载系统级的消息通道，并保存引用
+    _overlaySubscription = FlutterOverlayWindow.overlayListener.listen((event) {
+      debugPrint('IPC Receiver (Main): $event');
+      if (event is Map) {
+        final action = event['action'] as String?;
+        final payload = event['payload'];
+
+        if (action == 'UPDATE_POSITION') {
+          _eventController.add({
+            'action': 'UPDATE_POSITION',
+            'payload': Offset(
+              (event['dx'] as num?)?.toDouble() ?? 0.0,
+              (event['dy'] as num?)?.toDouble() ?? 0.0,
+            ),
+          });
+        } else if (action != null) {
+          _eventController.add({
+            'action': action,
+            'payload': payload,
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -77,6 +127,7 @@ class AndroidSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> lock() async {
+    await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
     await FlutterOverlayWindow.shareData({
       'action': 'LOCK_OVERLAY',
     });
@@ -84,16 +135,9 @@ class AndroidSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> unlock() async {
+    await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
     await FlutterOverlayWindow.shareData({
       'action': 'UNLOCK_OVERLAY',
-    });
-  }
-
-  @override
-  Future<void> updateText(String text) async {
-    await FlutterOverlayWindow.shareData({
-      'action': 'UPDATE_TEXT',
-      'payload': text,
     });
   }
 
@@ -133,15 +177,59 @@ class AndroidSubtitleManager implements SubtitleManager {
       'payload': isDraggable,
     });
   }
+
+  @override
+  Future<void> syncBusinessState(Map<String, dynamic> state) async {
+    await FlutterOverlayWindow.shareData({
+      'action': 'SYNC_BUSINESS_STATE',
+      'payload': state,
+    });
+  }
+
+  @override
+  Future<void> sendCommand(String command, [dynamic payload]) async {
+    try {
+      debugPrint('IPC Sender (Overlay): $command');
+      await FlutterOverlayWindow.shareData({
+        'action': command,
+        'payload': payload,
+      });
+    } catch (e) {
+      debugPrint('IPC Send Exception: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    // 3. 作为全局单例，通常不需要频繁 close。
+    // 但为了严谨，如果你一定要 dispose，必须同时取消掉底层系统通道的订阅
+    _overlaySubscription?.cancel();
+    _isInitialized = false;
+  }
 }
 
-class DesktopSubtitleManager implements SubtitleManager {
+class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   static final DesktopSubtitleManager _instance = DesktopSubtitleManager._internal();
   factory DesktopSubtitleManager() => _instance;
-  DesktopSubtitleManager._internal();
 
-  final StreamController<Map<String, dynamic>> _uiEventController = StreamController<Map<String, dynamic>>.broadcast();
-  Stream<Map<String, dynamic>> get uiEventStream => _uiEventController.stream;
+  final StreamController<Map<String, dynamic>> _eventController = StreamController<Map<String, dynamic>>.broadcast();
+
+  DesktopSubtitleManager._internal() {
+    windowManager.addListener(this);
+  }
+
+  @override
+  Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
+
+  // 桌面端窗口移动事件回调
+  @override
+  void onWindowMoved() async {
+    final position = await windowManager.getPosition();
+    _eventController.add({
+      'action': 'UPDATE_POSITION',
+      'payload': position,
+    });
+  }
 
   @override
   Future<void> init() async {
@@ -174,26 +262,18 @@ class DesktopSubtitleManager implements SubtitleManager {
   @override
   Future<void> lock() async {
     await windowManager.setIgnoreMouseEvents(true);
-    _uiEventController.add({'action': 'LOCK_OVERLAY'});
+    _eventController.add({'action': 'LOCK_OVERLAY'});
   }
 
   @override
   Future<void> unlock() async {
     await windowManager.setIgnoreMouseEvents(false);
-    _uiEventController.add({'action': 'UNLOCK_OVERLAY'});
-  }
-
-  @override
-  Future<void> updateText(String text) async {
-    _uiEventController.add({
-      'action': 'UPDATE_TEXT',
-      'payload': text,
-    });
+    _eventController.add({'action': 'UNLOCK_OVERLAY'});
   }
 
   @override
   Future<void> setFontSize(double size) async {
-    _uiEventController.add({
+    _eventController.add({
       'action': 'SET_FONT_SIZE',
       'payload': size,
     });
@@ -201,7 +281,7 @@ class DesktopSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> setBackgroundOpacity(double opacity) async {
-    _uiEventController.add({
+    _eventController.add({
       'action': 'SET_OPACITY',
       'payload': opacity,
     });
@@ -209,7 +289,7 @@ class DesktopSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> setLayoutOrientation(Axis orientation) async {
-    _uiEventController.add({
+    _eventController.add({
       'action': 'SET_ORIENTATION',
       'payload': orientation.index,
     });
@@ -222,13 +302,31 @@ class DesktopSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> setDraggable(bool isDraggable) async {
-    _uiEventController.add({
+    _eventController.add({
       'action': 'SET_DRAGGABLE',
       'payload': isDraggable,
     });
   }
 
+  @override
+  Future<void> syncBusinessState(Map<String, dynamic> state) async {
+    _eventController.add({
+      'action': 'SYNC_BUSINESS_STATE',
+      'payload': state,
+    });
+  }
+
+  @override
+  Future<void> sendCommand(String command, [dynamic payload]) async {
+    _eventController.add({
+      'action': command,
+      'payload': payload,
+    });
+  }
+
+  @override
   void dispose() {
-    _uiEventController.close();
+    windowManager.removeListener(this);
+    _eventController.close();
   }
 }

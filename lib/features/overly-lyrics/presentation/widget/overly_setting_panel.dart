@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../provider/overly_lyrics_provider.dart';
 
 class SubtitleConfigBottomSheet extends ConsumerWidget {
@@ -8,11 +7,9 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 监听字幕状态
-    final state = ref.watch(lyricsOverlayProvider);
-    final controller = ref.read(lyricsOverlayProvider.notifier);
+    final state = ref.watch(lyricsControllerProvider);
+    final controller = ref.read(lyricsControllerProvider.notifier);
 
-    // 获取当前主题配色以适配暗黑/明亮模式
     final theme = Theme.of(context);
 
     return Container(
@@ -24,7 +21,6 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 顶部拖拽条指示器
           Container(
             width: 40,
             height: 4,
@@ -34,23 +30,24 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
           const Text(
-            '桌面字幕设置',
+            '悬浮字幕设置',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-
-          // 主开关
           SwitchListTile(
             title: const Text('开启悬浮字幕'),
             subtitle: const Text('在系统顶层显示歌词'),
             value: state.isShowing,
-            onChanged: (val) => controller.toggleOverlay(val),
+            onChanged: (val) {
+              if (val) {
+                controller.show();
+              } else {
+                controller.hide();
+              }
+            },
           ),
           const Divider(),
-
-          // 字体大小调节
           ListTile(
             title: const Text('字体大小'),
             subtitle: Slider(
@@ -66,8 +63,6 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
           ),
-
-          // 透明度调节
           ListTile(
             title: const Text('背景透明度'),
             subtitle: Slider(
@@ -76,27 +71,23 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
               max: 1.0,
               divisions: 20,
               label: '${(state.opacity * 100).toInt()}%',
-              onChanged: (val) => controller.updateOpacity(val),
+              onChanged: (val) => controller.setOpacity(val),
             ),
             trailing: Text(
               '${(state.opacity * 100).toInt()}%',
               style: theme.textTheme.bodySmall,
             ),
           ),
-
-          // 物理穿透开关
           SwitchListTile(
             title: const Text('物理穿透锁定'),
-            subtitle: const Text('锁定后鼠标/手势将穿透字幕，适用于打游戏时开启'),
+            subtitle: const Text('锁定后鼠标/手势将穿透字幕'),
             value: state.isLocked,
-            onChanged: (val) => controller.toggleLock(val),
+            onChanged: (val) => controller.toggleLock(),
           ),
-
-          // 拖拽开关
           SwitchListTile(
             title: const Text('允许自由拖拽'),
             value: state.isDraggable,
-            onChanged: (val) => controller.toggleDraggable(val),
+            onChanged: (val) => controller.setDraggable(val),
           ),
         ],
       ),
