@@ -4,6 +4,7 @@ import 'package:kikoenai/config/app_version_config.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
+import 'package:kikoenai/features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../core/theme/theme_view_model.dart';
 import '../features/settings/presentation/provider/setting_provider.dart';
 
@@ -12,6 +13,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(lyricsControllerProvider);
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
     final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);

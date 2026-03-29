@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:window_manager/window_manager.dart';
@@ -22,31 +24,19 @@ abstract class SubtitleManager {
   Future<void> init();
 
   // 显示字幕悬浮窗
-  Future<void> showOverlay();
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350});
 
   // 隐藏字幕悬浮窗
   Future<void> hideOverlay();
 
+  // 调整悬浮窗尺寸
+  Future<void> resizeOverlay(double width, double height);
+
   // 开启点击穿透，进入锁定状态
-  Future<void> lock();
+  Future<void> lock({bool isMain = false});
 
   // 恢复事件拦截，解除锁定状态
-  Future<void> unlock();
-
-  // 设置字幕字体大小
-  Future<void> setFontSize(double size);
-
-  // 设置悬浮窗背景/边框透明度 (0.0 为全透，1.0 为不透)
-  Future<void> setBackgroundOpacity(double opacity);
-
-  // 设置字幕排列方向 (Axis.horizontal 为水平，Axis.vertical 为垂直)
-  Future<void> setLayoutOrientation(Axis orientation);
-
-  // 调整悬浮窗物理尺寸
-  Future<void> setWindowSize(double width, double height);
-
-  // 设置是否允许拖拽
-  Future<void> setDraggable(bool isDraggable);
+  Future<void> unlock({bool isMain = false});
 
   // 同步业务状态 (包含歌词文本、播放状态等)
   Future<void> syncBusinessState(Map<String, dynamic> state);
@@ -77,12 +67,6 @@ class AndroidSubtitleManager implements SubtitleManager {
   Future<void> init() async {
     if (_isInitialized) return;
     _isInitialized = true;
-
-    bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
-    if (!isGranted) {
-      await FlutterOverlayWindow.requestPermission();
-    }
-
     // 2. 挂载系统级的消息通道，并保存引用
     _overlaySubscription = FlutterOverlayWindow.overlayListener.listen((event) {
       debugPrint('IPC Receiver (Main): $event');
@@ -109,14 +93,23 @@ class AndroidSubtitleManager implements SubtitleManager {
   }
 
   @override
-  Future<void> showOverlay() async {
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 550}) async {
+    bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    if (!isGranted) {
+      await FlutterOverlayWindow.requestPermission();
+    }
+
+    // 根据传入的锁定状态决定初始 Flag
+    final flag = isLocked ? OverlayFlag.clickThrough : OverlayFlag.defaultFlag;
+
     await FlutterOverlayWindow.showOverlay(
-      enableDrag: true, // 开启原生拖拽，方便寻找和移动悬浮窗
-      flag: OverlayFlag.defaultFlag,
-      alignment: OverlayAlignment.center, // 避开底部计算的系统Bug，强制居中
+      enableDrag: true,
+      flag: flag,
+      alignment: OverlayAlignment.center,
       visibility: NotificationVisibility.visibilityPublic,
-      width: -1,
-      height: 350,
+      width: width.toInt(),
+      height: height.toInt(),
+      positionGravity: PositionGravity.auto,
     );
   }
 
@@ -126,56 +119,31 @@ class AndroidSubtitleManager implements SubtitleManager {
   }
 
   @override
-  Future<void> lock() async {
-    await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
-    await FlutterOverlayWindow.shareData({
-      'action': 'LOCK_OVERLAY',
-    });
-  }
-
-  @override
-  Future<void> unlock() async {
-    await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
-    await FlutterOverlayWindow.shareData({
-      'action': 'UNLOCK_OVERLAY',
-    });
-  }
-
-  @override
-  Future<void> setFontSize(double size) async {
-    await FlutterOverlayWindow.shareData({
-      'action': 'SET_FONT_SIZE',
-      'payload': size,
-    });
-  }
-
-  @override
-  Future<void> setBackgroundOpacity(double opacity) async {
-    await FlutterOverlayWindow.shareData({
-      'action': 'SET_OPACITY',
-      'payload': opacity,
-    });
-  }
-
-  @override
-  Future<void> setLayoutOrientation(Axis orientation) async {
-    await FlutterOverlayWindow.shareData({
-      'action': 'SET_ORIENTATION',
-      'payload': orientation.index,
-    });
-  }
-
-  @override
-  Future<void> setWindowSize(double width, double height) async {
+  Future<void> resizeOverlay(double width, double height) async {
+    // enableDrag 传 true 保持窗口的可拖拽属性
     await FlutterOverlayWindow.resizeOverlay(width.toInt(), height.toInt(), true);
   }
 
   @override
-  Future<void> setDraggable(bool isDraggable) async {
-    await FlutterOverlayWindow.shareData({
-      'action': 'SET_DRAGGABLE',
-      'payload': isDraggable,
-    });
+  Future<void> lock({bool isMain = false}) async {
+    if (!isMain) {
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
+    } else {
+      await FlutterOverlayWindow.shareData({
+        'action': 'LOCK_OVERLAY',
+      });
+    }
+  }
+
+  @override
+  Future<void> unlock({bool isMain = false}) async {
+    if (!isMain) {
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
+    } else {
+      await FlutterOverlayWindow.shareData({
+        'action': 'UNLOCK_OVERLAY',
+      });
+    }
   }
 
   @override
@@ -189,11 +157,19 @@ class AndroidSubtitleManager implements SubtitleManager {
   @override
   Future<void> sendCommand(String command, [dynamic payload]) async {
     try {
-      debugPrint('IPC Sender (Overlay): $command');
-      await FlutterOverlayWindow.shareData({
-        'action': command,
-        'payload': payload,
-      });
+      debugPrint('IPC Sender (Overlay Isolate): 尝试发送指令 $command');
+
+      // 1. 查找主应用注册的播控端口
+      final SendPort? sendPort = IsolateNameServer.lookupPortByName('overlay_playback_port');
+
+      if (sendPort != null) {
+        // 2. 找到端口，直接在内存中发送 String 指令
+        sendPort.send(command);
+        debugPrint('IPC Sender: 播控指令 [$command] 内存投递成功');
+      } else {
+        // 3. 找不到端口时，说明主应用引擎已被系统回收或端口未注册成功
+        debugPrint('IPC Sender: ⚠️ 投递失败，未找到主应用的播控端口 overlay_playback_port');
+      }
     } catch (e) {
       debugPrint('IPC Send Exception: $e');
     }
@@ -250,7 +226,9 @@ class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   }
 
   @override
-  Future<void> showOverlay() async {
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350}) async {
+    await windowManager.setSize(Size(width, height));
+    await windowManager.setIgnoreMouseEvents(isLocked);
     await windowManager.show();
   }
 
@@ -260,52 +238,22 @@ class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   }
 
   @override
-  Future<void> lock() async {
+  Future<void> resizeOverlay(double width, double height) async {
+    // 如果传入的 width 是 matchParent (-1)，桌面端需要特殊处理或者给个固定默认值
+    final w = width < 0 ? 800.0 : width;
+    await windowManager.setSize(Size(w, height));
+  }
+
+  @override
+  Future<void> lock({bool isMain = false}) async {
     await windowManager.setIgnoreMouseEvents(true);
     _eventController.add({'action': 'LOCK_OVERLAY'});
   }
 
   @override
-  Future<void> unlock() async {
+  Future<void> unlock({bool isMain = false}) async {
     await windowManager.setIgnoreMouseEvents(false);
     _eventController.add({'action': 'UNLOCK_OVERLAY'});
-  }
-
-  @override
-  Future<void> setFontSize(double size) async {
-    _eventController.add({
-      'action': 'SET_FONT_SIZE',
-      'payload': size,
-    });
-  }
-
-  @override
-  Future<void> setBackgroundOpacity(double opacity) async {
-    _eventController.add({
-      'action': 'SET_OPACITY',
-      'payload': opacity,
-    });
-  }
-
-  @override
-  Future<void> setLayoutOrientation(Axis orientation) async {
-    _eventController.add({
-      'action': 'SET_ORIENTATION',
-      'payload': orientation.index,
-    });
-  }
-
-  @override
-  Future<void> setWindowSize(double width, double height) async {
-    await windowManager.setSize(Size(width, height));
-  }
-
-  @override
-  Future<void> setDraggable(bool isDraggable) async {
-    _eventController.add({
-      'action': 'SET_DRAGGABLE',
-      'payload': isDraggable,
-    });
   }
 
   @override

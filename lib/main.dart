@@ -12,8 +12,9 @@ import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/presentation/page/overly_lyrics_panel.dart';
 
 @pragma("vm:entry-point")
-void overlayMain() {
+void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppStorage.init();
   runApp(
     const ProviderScope(
       child: MaterialApp(
