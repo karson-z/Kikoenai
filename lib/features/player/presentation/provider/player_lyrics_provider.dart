@@ -13,29 +13,41 @@ import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/utils/log/kikoenai_log.dart';
 /// 字幕提供者
 final lyricsProvider = FutureProvider<String?>((ref) async {
+  // 1. 监听当前字幕源变化
   final currentSub = ref.watch(playerControllerProvider.select((s) => s.currentSubtitle));
   final newUrl = currentSub?.mediaStreamUrl;
 
   if (newUrl == null || newUrl.isEmpty) return null;
 
+  // 2. 读取一次依赖的 API Client
+  final api = ref.read(apiClientProvider);
+
+  // 3. 调用抽离的基础方法并返回结果
+  return fetchLyricContent(newUrl, api);
+});
+Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
+  if (url == null || url.isEmpty) return null;
+
   try {
-    if (newUrl.startsWith('http')) {
-      final api = ref.read(apiClientProvider);
-      final response = await api.get(newUrl);
+    if (url.startsWith('http')) {
+      // 网络请求获取
+      final response = await apiClient.get(url);
       return response.data.toString();
     } else {
-      final file = File(newUrl);
+      // 本地文件读取或解压
+      final file = File(url);
       if (await file.exists()) {
         return await file.readAsString();
       } else {
-        return await ArchiveService.extractText(newUrl);
+        // 假设这里 ArchiveService.extractText 也是返回 Future<String?>
+        return await ArchiveService.extractText(url);
       }
     }
   } catch (e, stack) {
-    KikoenaiLogger().e("加载字幕失败", error: e, stackTrace: stack);
+    KikoenaiLogger().e("加载字幕失败, URL: $url", error: e, stackTrace: stack);
     return null;
   }
-});
+}
 /// 自定义的加载方法，支持传入解析器列表
 extension LyricControllerExt on LyricController {
   void loadLyricWithParsers(String lyric, {

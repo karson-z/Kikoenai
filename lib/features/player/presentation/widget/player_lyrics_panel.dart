@@ -27,9 +27,10 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
 
     return lyricsAsync.when(
       data: (lyricContent) {
-        if ((lyricContent != null && lyricContent.isEmpty) || lyricContent == null) return const Center(child: Text("暂无字幕"));
+        if ((lyricContent != null && lyricContent.isEmpty) || lyricContent == null) return const Center(child: Text("暂无字幕",style: TextStyle(color: Colors.white)));
 
         return ShowLyric(
+          key: ValueKey(lyricContent.hashCode),
           initStyle: LyricStyles.default2,
           progress: progressNotifier,
           initController: (controller) {

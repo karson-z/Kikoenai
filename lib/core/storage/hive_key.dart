@@ -73,6 +73,18 @@ class StorageKeys {
   /// 是否自动跳出字幕匹配弹窗
   static const String autoManualLyricsMatch = 'manual_lyrics_match';
 
+  /// 是否开启桌面字幕
+  static const String desktopLyricsEnabled = 'desktop_lyrics_enabled';
+
+  /// 是否开启点击穿透
+  static const String overlayLyricsIsLocked = 'overlay_lyrics_is_locked';
+
+  /// 悬浮窗字体大小
+  static const String overlayLyricsFontSize = 'overlay_lyrics_font_size';
+
+  /// 悬浮窗字体颜色
+  static const String overlayLyricsFontColor = 'overlay_lyrics_font_color';
+
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key
