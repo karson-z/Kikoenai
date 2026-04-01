@@ -99,14 +99,10 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             if (shouldRenderVideo)
               LayoutId(
                 id: PlayerLayoutId.videoContainer,
-                child: Opacity(
-                  opacity: expandedOpacity,
-                  child: IgnorePointer(
-                    ignoring: expandVal < 0.5,
-                    // 【核心优化】：视频播放器组件属于重载组件，将其绘制与外层动画剥离。
-                    child: const RepaintBoundary(
-                      child: PlayerVideoContent(),
-                    ),
+                child: IgnorePointer(
+                  ignoring: expandVal < 0.5,
+                  child: const RepaintBoundary(
+                    child: PlayerVideoContent(),
                   ),
                 ),
               ),

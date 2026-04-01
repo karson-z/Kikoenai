@@ -115,13 +115,11 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
       try {
-        await nativePlayer.setProperty("terminal", "yes");
+        // await nativePlayer.setProperty("terminal", "yes");
         // await nativePlayer.setProperty("msg-level", "all=v");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
-        await nativePlayer.setProperty("network-timeout", "60");
-        await nativePlayer.setProperty("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
 
         if (Platform.isAndroid) {
           await nativePlayer.setProperty("volume-max", "100");
