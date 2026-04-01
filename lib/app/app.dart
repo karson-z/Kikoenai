@@ -13,7 +13,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(lyricsControllerProvider);
+    ref.listen(lyricsControllerProvider, (_, __) {});
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
     final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);
