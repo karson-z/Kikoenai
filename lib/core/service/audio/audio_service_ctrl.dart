@@ -333,22 +333,9 @@ class MyAudioHandler extends BaseAudioHandler {
     mediaItem.add(item);
     playbackState.add(playbackState.value.copyWith(queueIndex: index));
 
-    final media = _buildMedia(item);
-    await _player.open(media, play: false);
+    final media = _buildMedia(item, startPosition: position);
 
-    if (position != null && position > Duration.zero) {
-      if (_player.state.duration == Duration.zero) {
-        StreamSubscription? subscription;
-        subscription = _player.stream.duration.listen((duration) {
-          if (duration > Duration.zero) {
-            _player.seek(position);
-            subscription?.cancel();
-          }
-        });
-      } else {
-        await _player.seek(position);
-      }
-    }
+    await _player.open(media, play: false);
 
     if (autoPlay) {
       await play();
@@ -399,9 +386,13 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   /// 构建底层所需使用的媒体对象
-  Media _buildMedia(MediaItem item) {
+  Media _buildMedia(MediaItem item, {Duration? startPosition}) {
     final url = item.extras!['url'] as String;
-    return Media(url, extras: {'id': item.id});
+    return Media(
+      url,
+      extras: {'id': item.id},
+      start: startPosition,
+    );
   }
 
   @override
