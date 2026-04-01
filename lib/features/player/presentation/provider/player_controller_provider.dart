@@ -17,6 +17,7 @@ import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
+import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../overly-lyrics/data/service/overly_lyrics_sync_service.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
@@ -142,9 +143,18 @@ class PlayerController extends Notifier<AppPlayerState> {
       // 监听内存通道传入的数据
       _overlayReceivePort!.listen((message) {
         debugPrint('AudioController: 内存通道捕获到指令 -> $message');
+        String? action;
+        Map<dynamic, dynamic>? payload;
 
-        // 此处统一按 String 处理 action
-        final action = message.toString();
+        if (message is Map) {
+          action = message['action'] as String?;
+          payload = message['payload'] as Map<dynamic, dynamic>?;
+        } else if (message is String) {
+          action = message;
+        }
+        if (action == null) return;
+        final lyricsNotifier = ref.read(lyricsControllerProvider.notifier);
+        final setting = AppStorage.settingsBox;
 
         switch (action) {
           case 'CMD_PLAY':
@@ -161,15 +171,36 @@ class PlayerController extends Notifier<AppPlayerState> {
             break;
           case 'CMD_CLOSE_OVERLAY':
           // 由主应用统一执行隐藏，这会同时销毁窗口并休眠字幕同步服务
-            ref.read(lyricsControllerProvider.notifier).hide(isUserAction: true);
+            lyricsNotifier.hide(isUserAction: true);
             break;
           case 'CMD_TOGGLE_LOCK':
-            ref.read(lyricsControllerProvider.notifier).updateLockState(true);
+            final isLocked = ref.read(lyricsControllerProvider).isLocked;
+            lyricsNotifier.updateLockState(!isLocked);
+            break;
+          case 'CMD_COLOR':
+            final colorValue = payload?['color'] as int?;
+            if (colorValue != null) {
+              setting.put(StorageKeys.overlayLyricsFontColor, colorValue);
+            }
+            break;
+          case 'CMD_SAVE_POSITION':
+            final x = payload?['x'] as double?;
+            final y = payload?['y'] as double?;
+            if (x != null && y != null) {
+              setting.put(StorageKeys.overlayLyricsPositionX, x);
+              setting.put(StorageKeys.overlayLyricsPositionY, y);
+            }
+            break;
+          case 'CMD_UPDATE_FONT_SIZE':
+            final size = payload?['size'] as double?;
+            if (size != null) {
+              setting.put(StorageKeys.overlayLyricsFontSize, size);
+            }
             break;
         }
       });
     } else {
-      debugPrint('AudioController: ⚠️ 悬浮窗播控端口注册失败，名称可能被占用。');
+      debugPrint('AudioController: ⚠ 悬浮窗播控端口注册失败，名称可能被占用。');
     }
   }
 

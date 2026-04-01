@@ -24,7 +24,7 @@ abstract class SubtitleManager {
   Future<void> init();
 
   // 显示字幕悬浮窗
-  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350});
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350,double posX = 0 , double posY = 0});
 
   // 隐藏字幕悬浮窗
   Future<void> hideOverlay();
@@ -43,6 +43,9 @@ abstract class SubtitleManager {
 
   // 发送业务控制指令
   Future<void> sendCommand(String command, [dynamic payload]);
+
+  // 获取悬浮窗当前坐标
+  Future<Offset> getOverlayPosition();
 
   // 释放资源
   void dispose();
@@ -73,27 +76,16 @@ class AndroidSubtitleManager implements SubtitleManager {
       if (event is Map) {
         final action = event['action'] as String?;
         final payload = event['payload'];
-
-        if (action == 'UPDATE_POSITION') {
-          _eventController.add({
-            'action': 'UPDATE_POSITION',
-            'payload': Offset(
-              (event['dx'] as num?)?.toDouble() ?? 0.0,
-              (event['dy'] as num?)?.toDouble() ?? 0.0,
-            ),
-          });
-        } else if (action != null) {
-          _eventController.add({
-            'action': action,
-            'payload': payload,
-          });
-        }
+        _eventController.add({
+          'action': action,
+          'payload': payload,
+        });
       }
     });
   }
 
   @override
-  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 550}) async {
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 550,double posX = 0 , double posY = 0}) async {
     bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
     if (!isGranted) {
       await FlutterOverlayWindow.requestPermission();
@@ -110,6 +102,7 @@ class AndroidSubtitleManager implements SubtitleManager {
       width: width.toInt(),
       height: height.toInt(),
       positionGravity: PositionGravity.auto,
+      startPosition: OverlayPosition(posX, posY)
     );
   }
 
@@ -153,21 +146,20 @@ class AndroidSubtitleManager implements SubtitleManager {
       'payload': state,
     });
   }
-
   @override
   Future<void> sendCommand(String command, [dynamic payload]) async {
     try {
       debugPrint('IPC Sender (Overlay Isolate): 尝试发送指令 $command');
-
-      // 1. 查找主应用注册的播控端口
       final SendPort? sendPort = IsolateNameServer.lookupPortByName('overlay_playback_port');
 
       if (sendPort != null) {
-        // 2. 找到端口，直接在内存中发送 String 指令
-        sendPort.send(command);
+        final Map<String, dynamic> message = {
+          'action': command,
+          'payload': payload,
+        };
+        sendPort.send(message);
         debugPrint('IPC Sender: 播控指令 [$command] 内存投递成功');
       } else {
-        // 3. 找不到端口时，说明主应用引擎已被系统回收或端口未注册成功
         debugPrint('IPC Sender: ⚠️ 投递失败，未找到主应用的播控端口 overlay_playback_port');
       }
     } catch (e) {
@@ -181,6 +173,19 @@ class AndroidSubtitleManager implements SubtitleManager {
     // 但为了严谨，如果你一定要 dispose，必须同时取消掉底层系统通道的订阅
     _overlaySubscription?.cancel();
     _isInitialized = false;
+  }
+
+  @override
+  Future<Offset> getOverlayPosition() async {
+    try {
+      // 获取底层返回的 OverlayPosition
+      final position = await FlutterOverlayWindow.getOverlayPosition();
+      // 转换为通用的 Offset 类型返回
+      return Offset(position.x.toDouble(), position.y.toDouble());
+    } catch (e) {
+      debugPrint('IPC Exception: 获取Android悬浮窗坐标失败 $e');
+      return Offset.zero;
+    }
   }
 }
 
@@ -226,7 +231,7 @@ class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   }
 
   @override
-  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350}) async {
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350,double posX = 0 , double posY = 0}) async {
     await windowManager.setSize(Size(width, height));
     await windowManager.setIgnoreMouseEvents(isLocked);
     await windowManager.show();
@@ -276,5 +281,11 @@ class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   void dispose() {
     windowManager.removeListener(this);
     _eventController.close();
+  }
+
+  @override
+  Future<Offset> getOverlayPosition() {
+    // TODO: implement getOverlayPosition
+    throw UnimplementedError();
   }
 }

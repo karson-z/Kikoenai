@@ -36,7 +36,6 @@ class LyricsController extends Notifier<LyricsState> {
     final isLocked = setting.get(StorageKeys.overlayLyricsIsLocked, defaultValue: false);
     final fontSize = setting.get(StorageKeys.overlayLyricsFontSize, defaultValue: 24.0);
     final fontColorInt = setting.get(StorageKeys.overlayLyricsFontColor, defaultValue: 0xFFFFFFFF);
-
     if (isDesktopModeEnabled) {
       Future.microtask(() async {
         await show();
@@ -82,19 +81,29 @@ class LyricsController extends Notifier<LyricsState> {
 
   SubtitleManager get _manager => ref.read(subtitleManagerProvider);
 
+  void saveCurrentPosition() async {
+    final offset = await _manager.getOverlayPosition();
+    _manager.sendCommand('CMD_SAVE_POSITION', {
+      'x': offset.dx,
+      'y': offset.dy,
+    });
+  }
+
   Future<void> show() async {
     if (state.isDesktopModeEnabled && state.isWindowVisible) return;
     final isLocked = setting.get(StorageKeys.overlayLyricsIsLocked, defaultValue: false);
-    await _manager.showOverlay(isLocked: isLocked);
+    final posX = setting.get(StorageKeys.overlayLyricsPositionX, defaultValue: 0.0);
+    final posY = setting.get(StorageKeys.overlayLyricsPositionY, defaultValue: 0.0);
+    await _manager.showOverlay(isLocked: isLocked,posX: posX,posY: posY);
     state = state.copyWith(isDesktopModeEnabled: true, isWindowVisible: true);
-    setting.put(StorageKeys.desktopLyricsEnabled, true);
+    await setting.put(StorageKeys.desktopLyricsEnabled, true);
     ref.read(overlayLyricSyncProvider).startSync();
   }
 
   Future<void> hide({bool isUserAction = false}) async {
     if (isUserAction) {
       state = state.copyWith(isDesktopModeEnabled: false);
-      setting.put(StorageKeys.desktopLyricsEnabled, false);
+      await setting.put(StorageKeys.desktopLyricsEnabled, false);
       ref.read(overlayLyricSyncProvider).stopSync();
     }
     state = state.copyWith(isWindowVisible: false);
@@ -110,15 +119,12 @@ class LyricsController extends Notifier<LyricsState> {
     await _manager.resizeOverlay(width, height);
   }
 
-  Future<void> toggleLock({bool isMain = false}) async {
-    if (state.isLocked) {
-      updateLockState(false);
-      await _manager.unlock(isMain: isMain);
-      setting.put(StorageKeys.overlayLyricsIsLocked, false);
-    } else {
-      updateLockState(true);
+  Future<void> toggleLock(bool isLock,{bool isMain = false}) async {
+    updateLockState(isLock);
+    if(isLock){
       await _manager.lock(isMain: isMain);
-      setting.put(StorageKeys.overlayLyricsIsLocked, true);
+    }else{
+      await _manager.unlock(isMain: isMain);
     }
   }
 
@@ -144,8 +150,9 @@ class LyricsController extends Notifier<LyricsState> {
 
   void updateFontSize(double size) {
     state = state.copyWith(fontSize: size);
-    setting.put(StorageKeys.overlayLyricsFontSize, size);
-    debugPrint('updateFontSize: ${setting.get(StorageKeys.overlayLyricsFontSize, defaultValue: 24.0)}');
+    _manager.sendCommand('CMD_UPDATE_FONT_SIZE', {
+      'size': size,
+    });
   }
 
   void toggleOrientation() {
@@ -155,6 +162,8 @@ class LyricsController extends Notifier<LyricsState> {
 
   void setTextColor(Color color) {
     state = state.copyWith(textColor: color);
-    setting.put(StorageKeys.overlayLyricsFontColor, color.value);
+    _manager.sendCommand('CMD_COLOR', {
+      'color': color.toARGB32(),
+    });
   }
 }

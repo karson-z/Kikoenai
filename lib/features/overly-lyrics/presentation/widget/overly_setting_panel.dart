@@ -52,7 +52,7 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
             title: const Text('物理穿透锁定'),
             subtitle: const Text('锁定后鼠标/手势将穿透字幕'),
             value: state.isLocked,
-            onChanged: (val) => controller.toggleLock(isMain: true),
+            onChanged: (val) => controller.toggleLock(val,isMain: true),
           ),
         ],
       ),

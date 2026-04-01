@@ -10,6 +10,7 @@ import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/presentation/page/overly_lyrics_panel.dart';
+import 'features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
@@ -43,5 +44,13 @@ void main() async {
   await EnvironmentConfig.selectBestServer();
   debugPrint('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
   setupDesktopWindow();
-  runApp(const ProviderScope(child: MyApp()));
+  final container = ProviderContainer();
+
+  container.read(lyricsControllerProvider);
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MyApp(),
+    ),
+  );
 }

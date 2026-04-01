@@ -85,6 +85,12 @@ class StorageKeys {
   /// 悬浮窗字体颜色
   static const String overlayLyricsFontColor = 'overlay_lyrics_font_color';
 
+
+  static const String overlayLyricsPositionX = 'overlay_lyrics_positionX';
+
+
+  static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
+
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key
