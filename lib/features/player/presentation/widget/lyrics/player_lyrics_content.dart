@@ -1,8 +1,8 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_controls.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_lyrics_panel.dart';
+import 'package:kikoenai/features/player/presentation/widget/audio/player_controls.dart';
+import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_panel.dart';
 
 
 class MobileLyricsContent extends ConsumerWidget {

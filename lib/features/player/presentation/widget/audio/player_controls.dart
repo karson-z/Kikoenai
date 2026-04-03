@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_list_sheet.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_mode_button.dart';
-import '../provider/player_controller_provider.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_list_sheet.dart';
+import 'package:kikoenai/features/player/presentation/widget/audio/player_mode_button.dart';
+import '../../provider/player_controller_provider.dart';
 
 class PlayerControls extends ConsumerWidget {
   const PlayerControls({super.key});

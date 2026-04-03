@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 
-import '../../../../core/widgets/common/kikoenai_dialog.dart';
+import '../../../../../core/widgets/common/kikoenai_dialog.dart';
 
 class LyricsMappingSheet extends StatefulWidget {
   final List<MediaItem> playlist;

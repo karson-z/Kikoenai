@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_progress_modify.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_progress_modify.dart';
 
-import '../provider/player_controller_provider.dart';
+import '../../provider/player_controller_provider.dart';
 
 class PlayerProgressBar extends ConsumerWidget {
   const PlayerProgressBar({super.key});

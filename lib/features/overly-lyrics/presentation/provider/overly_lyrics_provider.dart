@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import '../../../../core/constants/app_player.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../data/model/lyrics_state.dart';
 import '../../data/service/overly_lyrics_manager.dart';
@@ -58,7 +59,7 @@ class LyricsController extends Notifier<LyricsState> {
       final payload = event['payload'];
 
       switch (action) {
-        case 'SYNC_BUSINESS_STATE':
+        case PlayerConstants.syncBusinessState:
           if (payload is Map) {
             state = state.copyWith(
               isPlaying: payload['isPlaying'] ?? state.isPlaying,
@@ -67,11 +68,11 @@ class LyricsController extends Notifier<LyricsState> {
             );
           }
           break;
-        case 'LOCK_OVERLAY':
+        case PlayerConstants.lockOverlay:
           state = state.copyWith(isLocked: true);
           _manager.lock();
           break;
-        case 'UNLOCK_OVERLAY':
+        case PlayerConstants.unlockOverlay:
           state = state.copyWith(isLocked: false);
           _manager.unlock();
           break;
@@ -83,7 +84,7 @@ class LyricsController extends Notifier<LyricsState> {
 
   void saveCurrentPosition() async {
     final offset = await _manager.getOverlayPosition();
-    _manager.sendCommand('CMD_SAVE_POSITION', {
+    _manager.sendCommand(PlayerConstants.savePosition, {
       'x': offset.dx,
       'y': offset.dy,
     });
@@ -129,28 +130,28 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   Future<void> hideFromOverly() async {
-    await _manager.sendCommand('CMD_CLOSE_OVERLAY');
+    await _manager.sendCommand(PlayerConstants.closeOverlay);
   }
 
   Future<void> sendToggleLock() async {
-    await _manager.sendCommand('CMD_TOGGLE_LOCK');
+    await _manager.sendCommand(PlayerConstants.toggleLock);
   }
 
   void sendPlayToggle() {
-    _manager.sendCommand(state.isPlaying ? 'CMD_PAUSE' : 'CMD_PLAY');
+    _manager.sendCommand(state.isPlaying ? PlayerConstants.pause : PlayerConstants.play);
   }
 
   void sendNext() {
-    _manager.sendCommand('CMD_NEXT');
+    _manager.sendCommand(PlayerConstants.next);
   }
 
   void sendPrevious() {
-    _manager.sendCommand('CMD_PREVIOUS');
+    _manager.sendCommand(PlayerConstants.previous);
   }
 
   void updateFontSize(double size) {
     state = state.copyWith(fontSize: size);
-    _manager.sendCommand('CMD_UPDATE_FONT_SIZE', {
+    _manager.sendCommand(PlayerConstants.updateFontSize, {
       'size': size,
     });
   }
@@ -162,8 +163,9 @@ class LyricsController extends Notifier<LyricsState> {
 
   void setTextColor(Color color) {
     state = state.copyWith(textColor: color);
-    _manager.sendCommand('CMD_COLOR', {
+    _manager.sendCommand(PlayerConstants.color, {
       'color': color.toARGB32(),
     });
   }
+
 }

@@ -6,14 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/slider/sllding_up_panel_modify.dart';
 import '../../data/service/player_view_controller.dart';
 import '../provider/player_controller_provider.dart';
-import '../widget/player_background.dart';
-import '../widget/player_content.dart';
-import '../widget/player_hero_cover.dart';
+import '../widget/audio/player_background.dart';
+import '../widget/audio/player_content.dart';
+import '../widget/audio/player_hero_cover.dart';
 import '../widget/player_layout.dart';
-import '../widget/player_lyrics_content.dart';
-import '../widget/player_mini_bar.dart';
-import '../widget/player_top_bar.dart';
-import '../widget/player_video_content.dart';
+import '../widget/lyrics/player_lyrics_content.dart';
+import '../widget/audio/player_mini_bar.dart';
+import '../widget/other/player_top_bar.dart';
+import '../widget/video/player_video_content.dart';
 
 class PlayerView extends ConsumerStatefulWidget {
   final PanelController? panelController;

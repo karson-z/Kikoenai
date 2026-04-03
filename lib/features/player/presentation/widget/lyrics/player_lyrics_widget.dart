@@ -6,7 +6,7 @@ import 'package:flutter_lyric/widgets/lyric_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_lyrics_provider.dart';
 
-import '../../../../core/service/lyrics/lyrics_parse_service.dart';
+import '../../../../../core/service/lyrics/lyrics_parse_service.dart';
 
 class ShowLyric extends ConsumerStatefulWidget {
   const ShowLyric({

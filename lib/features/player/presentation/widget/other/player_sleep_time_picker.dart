@@ -2,8 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/data/other.dart';
-import '../provider/player_sleep_time_provider.dart';
+import '../../../../../core/utils/data/other.dart';
+import '../../provider/player_sleep_time_provider.dart';
 
 class SleepTimerBottomSheet extends ConsumerStatefulWidget {
   const SleepTimerBottomSheet({super.key});
