@@ -651,7 +651,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> removeMediaItemInQueue(int index) async {
     await _handler.removeQueueItemAt(index);
     if (state.playlist.isEmpty) {
-      state = AppPlayerState();
+      state = const AppPlayerState();
     }
     _saveState();
   }
