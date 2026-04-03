@@ -189,7 +189,7 @@ class AndroidSubtitleManager implements SubtitleManager {
     }
   }
 }
-
+/// 等待Flutter 官方支持多窗口， 不强行实现该功能
 class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
   static final DesktopSubtitleManager _instance = DesktopSubtitleManager._internal();
   factory DesktopSubtitleManager() => _instance;
