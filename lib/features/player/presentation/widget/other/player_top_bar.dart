@@ -10,20 +10,20 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/common/manage_playlist_dialog.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_more_widget.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_widget.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_more_widget.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_sleep_time_widget.dart';
 
-import '../../../../core/model/file_node.dart';
-import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/audio/audio_service_ctrl.dart';
-import '../../../../core/service/download/download_service.dart';
-import '../../../../core/storage/hive_storage.dart';
-import '../../../../core/widgets/common/back_button_interceptor.dart';
-import '../../../../core/widgets/layout/app_toast.dart';
-import '../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
-import '../../../download/presentation/provider/download_provider.dart';
-import '../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
-import '../provider/player_controller_provider.dart';
+import '../../../../../core/model/file_node.dart';
+import '../../../../../core/routes/app_routes.dart';
+import '../../../../../core/service/audio/audio_service_ctrl.dart';
+import '../../../../../core/service/download/download_service.dart';
+import '../../../../../core/storage/hive_storage.dart';
+import '../../../../../core/widgets/common/back_button_interceptor.dart';
+import '../../../../../core/widgets/layout/app_toast.dart';
+import '../../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
+import '../../../../download/presentation/provider/download_provider.dart';
+import '../../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
+import '../../provider/player_controller_provider.dart';
 
 
 

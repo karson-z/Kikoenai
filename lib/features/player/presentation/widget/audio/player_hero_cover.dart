@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/widgets/image_box/simple_extended_image.dart';
+import '../../../../../core/widgets/image_box/simple_extended_image.dart';
 
 class FloatingCoverImage extends StatelessWidget {
   final String? url;

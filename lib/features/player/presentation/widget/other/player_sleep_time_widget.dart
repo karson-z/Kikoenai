@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/common/back_button_interceptor.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_sleep_time_picker.dart';
-import '../provider/player_sleep_time_provider.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_sleep_time_picker.dart';
+import '../../provider/player_sleep_time_provider.dart';
 // 记得 import 上面定义的 provider 文件
 
 class SleepTimerButton extends ConsumerWidget {

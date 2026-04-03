@@ -15,7 +15,6 @@ import 'features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart
 @pragma("vm:entry-point")
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppStorage.init();
   runApp(
     const ProviderScope(
       child: MaterialApp(

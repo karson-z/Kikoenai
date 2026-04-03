@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_lyric/flutter_lyric.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_lyrics_widget.dart';
+import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_widget.dart';
 
-import '../provider/player_controller_provider.dart';
-import '../provider/player_lyrics_provider.dart';
+import '../../provider/player_controller_provider.dart';
+import '../../provider/player_lyrics_provider.dart';
 
 class LyricsPanel extends ConsumerStatefulWidget {
   const LyricsPanel({

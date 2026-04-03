@@ -1,7 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/features/player/presentation/widget/player_controls.dart';
+import 'package:kikoenai/features/player/presentation/widget/audio/player_controls.dart';
 
 class CollapsedMinibar extends ConsumerWidget {
   final MediaItem? track;

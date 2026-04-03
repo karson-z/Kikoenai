@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 
-import '../provider/player_controller_provider.dart';
+import '../../provider/player_controller_provider.dart';
 
 class PlayModeButton extends ConsumerWidget {
   final double size;

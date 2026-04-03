@@ -11,16 +11,19 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
+import 'package:media_kit/media_kit.dart';
+import '../../../../core/constants/app_player.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
+import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
-import '../widget/player_lyrics_mapping_sheet.dart';
+import '../widget/lyrics/player_lyrics_mapping_sheet.dart';
 
 
 final playerControllerProvider =
@@ -32,6 +35,8 @@ class PlayerController extends Notifier<AppPlayerState> {
   ReceivePort? _overlayReceivePort;
 
   AudioHandler get _handler => AudioServiceSingleton.instance;
+
+  Player get _player => PlayerService.instance.player;
 
   CacheService get _cacheService => CacheService.instance;
 
@@ -45,7 +50,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     ref.onDispose(() {
       _closeOverlayPort();
     });
-    return AppPlayerState();
+    return const AppPlayerState();
   }
 
   /// 从缓存恢复播放器状态
@@ -128,6 +133,37 @@ class PlayerController extends Notifier<AppPlayerState> {
     _overlayReceivePort = null;
   }
 
+  void _listenToPlayer () {
+    _player.stream.videoParams.listen((params) {
+      final width = params.dw ?? params.w ?? 0;
+      final height = params.dh ?? params.h ?? 0;
+      final rotate = params.rotate ?? 0;
+
+      if (width > 0 && height > 0) {
+        if (state.videoWidth != width ||
+            state.videoHeight != height ||
+            state.videoRotate != rotate) {
+          state = state.copyWith(
+            videoWidth: width,
+            videoHeight: height,
+            videoRotate: rotate,
+          );
+        }
+      }
+    });
+    _player.stream.tracks.listen((tracks) {
+      state = state.copyWith(
+        availableAudioTracks: tracks.audio,
+        availableSubtitleTracks: tracks.subtitle,
+      );
+    });
+    _player.stream.audioParams.listen((params) {
+        state = state.copyWith(
+            audioParams: params.toString()
+        );
+    });
+  }
+
   void _listenToOverlayCommands() {
     debugPrint('AudioController: 准备连接悬浮窗事件总线 (IsolateNameServer)...');
 
@@ -163,33 +199,33 @@ class PlayerController extends Notifier<AppPlayerState> {
         final setting = AppStorage.settingsBox;
 
         switch (action) {
-          case 'CMD_PLAY':
+          case PlayerConstants.play:
             play();
             break;
-          case 'CMD_PAUSE':
+          case PlayerConstants.pause:
             pause();
             break;
-          case 'CMD_NEXT':
+          case PlayerConstants.next:
             next();
             break;
-          case 'CMD_PREVIOUS':
+          case PlayerConstants.previous:
             previous();
             break;
-          case 'CMD_CLOSE_OVERLAY':
+          case PlayerConstants.closeOverlay:
           // 由主应用统一执行隐藏，这会同时销毁窗口并休眠字幕同步服务
             lyricsNotifier.hide(isUserAction: true);
             break;
-          case 'CMD_TOGGLE_LOCK':
+          case PlayerConstants.toggleLock:
             final isLocked = ref.read(lyricsControllerProvider).isLocked;
             lyricsNotifier.updateLockState(!isLocked);
             break;
-          case 'CMD_COLOR':
+          case PlayerConstants.color:
             final colorValue = payload?['color'] as int?;
             if (colorValue != null) {
               setting.put(StorageKeys.overlayLyricsFontColor, colorValue);
             }
             break;
-          case 'CMD_SAVE_POSITION':
+          case PlayerConstants.savePosition:
             final x = payload?['x'] as double?;
             final y = payload?['y'] as double?;
             if (x != null && y != null) {
@@ -197,7 +233,7 @@ class PlayerController extends Notifier<AppPlayerState> {
               setting.put(StorageKeys.overlayLyricsPositionY, y);
             }
             break;
-          case 'CMD_UPDATE_FONT_SIZE':
+          case PlayerConstants.updateFontSize:
             final size = payload?['size'] as double?;
             if (size != null) {
               setting.put(StorageKeys.overlayLyricsFontSize, size);
@@ -339,8 +375,6 @@ class PlayerController extends Notifier<AppPlayerState> {
       debugPrint('保存历史记录失败: $e');
     }
   }
-
-  // --- 控制方法 ---
   Future<void> play() async => _handler.play();
 
   Future<void> pause() async => _handler.pause();
@@ -358,7 +392,48 @@ class PlayerController extends Notifier<AppPlayerState> {
       await (_handler as MyAudioHandler).setVolume(v);
     }
   }
+  Future<void> loadExternalSubtitle(String uri, {String? title, String? language}) async {
+    final externalTrack = SubtitleTrack.uri(
+      uri,
+      title: title ?? 'External Subtitle',
+      language: language,
+    );
 
+    state = state.copyWith(
+      externalSubtitleTracks: [...state.externalSubtitleTracks, externalTrack],
+    );
+
+    await setSubtitleTrack(externalTrack);
+  }
+
+  Future<void> loadExternalAudioTrack(String uri, {String? title, String? language}) async {
+    final externalTrack = AudioTrack.uri(
+      uri,
+      title: title ?? 'External Audio',
+      language: language,
+    );
+
+    state = state.copyWith(
+      externalAudioTracks: [...state.externalAudioTracks, externalTrack],
+    );
+
+    await setAudioTrack(externalTrack);
+  }
+  Future<void> setAudioTrack(AudioTrack track) async {
+    try {
+      await _player.setAudioTrack(track);
+    } catch (e) {
+      debugPrint("切换音频轨道失败: $e");
+    }
+  }
+
+  Future<void> setSubtitleTrack(SubtitleTrack track) async {
+    try {
+      await _player.setSubtitleTrack(track);
+    } catch (e) {
+      debugPrint("切换字幕轨道失败: $e");
+    }
+  }
   /// 切换纯音频模式
   Future<void> toggleAudioOnlyMode(bool isAudioOnly) async {
     state = state.copyWith(isAudioOnly: isAudioOnly);

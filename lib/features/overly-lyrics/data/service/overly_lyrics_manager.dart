@@ -7,6 +7,8 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 
+import '../../../../core/constants/app_player.dart';
+
 abstract class SubtitleManager {
   factory SubtitleManager() {
     if (Platform.isWindows || Platform.isLinux) {
@@ -116,14 +118,13 @@ class AndroidSubtitleManager implements SubtitleManager {
     // enableDrag 传 true 保持窗口的可拖拽属性
     await FlutterOverlayWindow.resizeOverlay(width.toInt(), height.toInt(), true);
   }
-
   @override
   Future<void> lock({bool isMain = false}) async {
     if (!isMain) {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
     } else {
       await FlutterOverlayWindow.shareData({
-        'action': 'LOCK_OVERLAY',
+        'action': PlayerConstants.lockOverlay,
       });
     }
   }
@@ -134,7 +135,7 @@ class AndroidSubtitleManager implements SubtitleManager {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
     } else {
       await FlutterOverlayWindow.shareData({
-        'action': 'UNLOCK_OVERLAY',
+        'action': PlayerConstants.unlockOverlay,
       });
     }
   }
@@ -142,7 +143,7 @@ class AndroidSubtitleManager implements SubtitleManager {
   @override
   Future<void> syncBusinessState(Map<String, dynamic> state) async {
     await FlutterOverlayWindow.shareData({
-      'action': 'SYNC_BUSINESS_STATE',
+      'action': PlayerConstants.syncBusinessState,
       'payload': state,
     });
   }
