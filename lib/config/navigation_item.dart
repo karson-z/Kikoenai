@@ -35,7 +35,6 @@ const List<NavigationItem> appNavigationItems = [
   ),
   NavigationItem(
     label: '我的',
-    // 完美符合：带外圆的用户图标
     icon: Icon(Icons.account_circle_outlined),
     routePath: AppRoutes.user,
   ),

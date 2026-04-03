@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -12,21 +11,20 @@ import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
-import 'package:kikoenai/features/player/presentation/provider/player_lyrics_provider.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
-import '../../../overly-lyrics/data/service/overly_lyrics_sync_service.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 import '../widget/player_lyrics_mapping_sheet.dart';
 
+
 final playerControllerProvider =
-    NotifierProvider<PlayerController, AppPlayerState>(() {
+NotifierProvider<PlayerController, AppPlayerState>(() {
   return PlayerController();
 });
 
@@ -54,19 +52,17 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> _loadPlayerState() async {
     final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
+
     // 1. 恢复播放列表
     final playList = savedState.playlist;
+
     // 2. 恢复当前索引
-    // 加上空判断，防止 crash
+    // 加入空值判断，避免程序崩溃
     final progress = savedState.progressBarState.current;
     if (savedState.currentTrack != null) {
       final currentIndex = playList.indexWhere(
-        (item) => item.id == savedState.currentTrack!.id,
+            (item) => item.id == savedState.currentTrack!.id,
       );
-      // await (_handler as MyAudioHandler).skipToQueueItem(currentIndex,position: progress,play: false);
-      //  // if (currentIndex >= 0 && _handler is MyAudioHandler) {
-      //  //   await (_handler as MyAudioHandler).setCurrentIndex(currentIndex);
-      //  // }
       await (_handler as MyAudioHandler).initPlayback(
         initialPlaylist: playList,
         initialIndex: currentIndex,
@@ -76,7 +72,19 @@ class PlayerController extends Notifier<AppPlayerState> {
         shuffleEnabled: savedState.shuffleEnabled,
       );
     }
-    state = state.copyWith(subtitleMapping: savedState.subtitleMapping);
+
+    // 恢复仅音频模式到底层播放引擎
+    if (savedState.isAudioOnly) {
+      _handler.customAction(
+        'toggleVideoDecoding',
+        {'enable': !savedState.isAudioOnly},
+      );
+    }
+
+    state = state.copyWith(
+      subtitleMapping: savedState.subtitleMapping,
+      isAudioOnly: savedState.isAudioOnly,
+    );
   }
 
   void _updateTrackerStatus({
@@ -98,7 +106,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       if (workDataStr != null) {
         // 兼容 String 和 Map 两种格式
         final workJson =
-            workDataStr is String ? jsonDecode(workDataStr) : workDataStr;
+        workDataStr is String ? jsonDecode(workDataStr) : workDataStr;
         workId = workJson['id']?.toString();
       }
     } catch (e) {
@@ -108,20 +116,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     // 4. 通知 Provider
     if (workId != null && workId.isNotEmpty) {
       ref.read(playbackTrackerProvider.notifier).updatePlaybackStatus(
-            workId: workId,
-            isPlaying: finalIsPlaying,
-          );
+        workId: workId,
+        isPlaying: finalIsPlaying,
+      );
     }
   }
 
-// 4. 新增清理端口的方法
   void _closeOverlayPort() {
     IsolateNameServer.removePortNameMapping('overlay_playback_port');
     _overlayReceivePort?.close();
     _overlayReceivePort = null;
   }
 
-  // 5. 重写 _listenToOverlayCommands 方法
   void _listenToOverlayCommands() {
     debugPrint('AudioController: 准备连接悬浮窗事件总线 (IsolateNameServer)...');
 
@@ -236,7 +242,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         .map((p) => p.playing)
         .distinct()
         .listen((isPlaying) {
-
       state = state.copyWith(playing: isPlaying);
 
       _updateTrackerStatus(isPlaying: isPlaying, isCompleted: false);
@@ -354,6 +359,16 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
+  /// 切换纯音频模式
+  Future<void> toggleAudioOnlyMode(bool isAudioOnly) async {
+    state = state.copyWith(isAudioOnly: isAudioOnly);
+    await _handler.customAction(
+      'toggleVideoDecoding',
+      {'enable': !isAudioOnly},
+    );
+    _saveState();
+  }
+
   Future<void> toggleShuffle() async {
     final enabled = !state.shuffleEnabled;
     state = state.copyWith(shuffleEnabled: enabled);
@@ -419,36 +434,36 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       // 处理过滤后的播放列表数据
       final playListProcessed =
-          LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
+      LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
 
       // 处理字幕数据
       final lyricListProcessed =
-          LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
+      LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
       // 匹配字幕并处理手动匹配回调
       final matches = MatchLyrics.match(playListProcessed, lyricListProcessed,
           onShowManualMatchDialog:
               (playlist, availableSubtitles, currentMapping) async {
-        final manualResult = await LyricsMappingSheet.show(
-          playlist: playlist,
-          initialMapping: currentMapping,
-          availableSubtitles: availableSubtitles,
-        );
-        if (manualResult != null) {
-          final validManualMapping = <String, FileNode>{};
-          manualResult.forEach((key, value) {
-            if (value != null) {
-              validManualMapping[key] = value;
-            } else {
-              AppStorage.lyricMatchBox.delete(key);
+            final manualResult = await LyricsMappingSheet.show(
+              playlist: playlist,
+              initialMapping: currentMapping,
+              availableSubtitles: availableSubtitles,
+            );
+            if (manualResult != null) {
+              final validManualMapping = <String, FileNode>{};
+              manualResult.forEach((key, value) {
+                if (value != null) {
+                  validManualMapping[key] = value;
+                } else {
+                  AppStorage.lyricMatchBox.delete(key);
+                }
+              });
+
+              MatchLyrics.persistMatchResults(validManualMapping);
+
+              state = state.copyWith(subtitleMapping: validManualMapping);
             }
           });
-
-          MatchLyrics.persistMatchResults(validManualMapping);
-
-          state = state.copyWith(subtitleMapping: validManualMapping);
-        }
-      });
 
       state = state.copyWith(
           lyricsList: targetSubtitleList, subtitleMapping: matches);
@@ -486,7 +501,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       {HistoryEntry? history, Work? work}) async {
     if (node.isAudio || node.isVideo) {
       final audioFiles =
-          currentNodes.where((n) => n.isAudio || n.isVideo).toList();
+      currentNodes.where((n) => n.isAudio || n.isVideo).toList();
       final mediaList = audioFiles.map((n) {
         return _fileNodeToMediaItem(n, work ?? Work());
       }).toList();
@@ -521,7 +536,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final historyList = CacheService.instance.getHistoryList();
     try {
       final history = historyList.firstWhere(
-        (h) => h.work.id == work.id,
+            (h) => h.work.id == work.id,
       );
       return history;
     } catch (e) {
@@ -585,18 +600,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     // 2. 如果当前不是随机模式，检查循环状态
     switch (state.repeatMode) {
       case AudioServiceRepeatMode.all:
-        // 当前是列表循环 -> 切换到单曲循环
+      // 当前是列表循环 -> 切换到单曲循环
         await setRepeat(AudioServiceRepeatMode.one);
         break;
 
       case AudioServiceRepeatMode.one:
-        // 当前是单曲循环 -> 切换到不循环 (新增逻辑)
+      // 当前是单曲循环 -> 切换到不循环
         await setRepeat(AudioServiceRepeatMode.none);
         break;
 
       case AudioServiceRepeatMode.none:
-        // 当前是不循环 -> 切换到随机播放
-        // 开启随机时，通常将循环模式设为 all (意味着随机播放整个列表直到手动停止，或者你想随机播完一轮停止也可以设为 none)
+      // 当前是不循环 -> 切换到随机播放
+      // 开启随机时，通常将循环模式设为 all (意味着随机播放整个列表直到手动停止，或者你想随机播完一轮停止也可以设为 none)
         await setRepeat(AudioServiceRepeatMode.all);
         await toggleShuffle();
         break;
@@ -626,7 +641,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         'mainCoverUrl': work.mainCoverUrl ?? imagePath,
         'samCorverUrl': work.samCoverUrl ?? imagePath,
         'workData': jsonEncode(work),
-        'isVideo': isVideo, // 【新增】将视频标记存入 extras
+        'isVideo': isVideo, // 将视频标记存入 extras
       },
     );
   }
@@ -645,29 +660,3 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 }
-
-class AudioOnlyModeNotifier extends Notifier<bool> {
-  @override
-  bool build() {
-    // 初始状态：默认不开启仅音频模式 (画面正常解码)
-    return false;
-  }
-
-  /// 暴露给 UI 调用的唯一方法，屏蔽底层通信细节
-  Future<void> toggleMode(bool isAudioOnly) async {
-    // 1. 更新内部状态，触发 UI 重绘
-    state = isAudioOnly;
-
-    // 2. 状态变更的副作用：统一下发指令给音频服务
-    // 仅音频 (isAudioOnly = true) 时，关闭视频解码 (enable = false)
-    await AudioServiceSingleton.instance.customAction(
-      'toggleVideoDecoding',
-      {'enable': !isAudioOnly},
-    );
-  }
-}
-
-// 暴露 Provider
-final audioOnlyModeProvider = NotifierProvider<AudioOnlyModeNotifier, bool>(() {
-  return AudioOnlyModeNotifier();
-});
