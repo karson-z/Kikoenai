@@ -60,7 +60,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
     final isVideoTrack = currentTrack?.extras?['isVideo'] == true;
-    final isAudioOnlyMode = ref.watch(audioOnlyModeProvider);
+    final isAudioOnlyMode = ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
     final shouldRenderVideo = isVideoTrack && !isAudioOnlyMode;
 
     return AnimatedBuilder(
@@ -89,7 +89,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             if (!shouldRenderVideo)
             LayoutId(
               id: PlayerLayoutId.background,
-              // 【核心优化】：背景（尤其是包含高斯模糊时）是非常昂贵的，将其作为独立图层缓存。
               child: RepaintBoundary(
                 child: PlayerBackground(expandedOpacity: expandedOpacity),
               ),

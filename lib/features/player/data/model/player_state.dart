@@ -45,9 +45,11 @@ class AppPlayerState {
   @HiveField(11)
   final List<FileNode?> lyricsList;
 
+  @HiveField(12)
+  final bool isAudioOnly;
+
   FileNode? get currentSubtitle =>
       currentTrack != null ? subtitleMapping[currentTrack!.id] : null;
-
 
   AppPlayerState({
     this.playing = false,
@@ -62,6 +64,7 @@ class AppPlayerState {
     this.repeatMode = AudioServiceRepeatMode.none,
     this.volume = 1.0,
     this.subtitleMapping = const {},
+    this.isAudioOnly = false,
   }) : progressBarState = progressBarState ??
       const ProgressBarState(
         current: Duration.zero,
@@ -82,6 +85,7 @@ class AppPlayerState {
     AudioServiceRepeatMode? repeatMode,
     double? volume,
     Map<String, FileNode?>? subtitleMapping,
+    bool? isAudioOnly,
   }) {
     return AppPlayerState(
       playing: playing ?? this.playing,
@@ -96,6 +100,7 @@ class AppPlayerState {
       repeatMode: repeatMode ?? this.repeatMode,
       volume: volume ?? this.volume,
       subtitleMapping: subtitleMapping ?? this.subtitleMapping,
+      isAudioOnly: isAudioOnly ?? this.isAudioOnly,
     );
   }
 }

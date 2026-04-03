@@ -34,7 +34,10 @@ class TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+
     final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+
+
 
 
     return Padding(
@@ -75,6 +78,8 @@ class TopBar extends ConsumerWidget {
   }
 
   void _showMoreOptions(BuildContext context, MediaItem? track, WidgetRef ref) {
+
+    final isAudioOnly = ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
     if (track == null) {
       KikoenaiToast.warning('当前没有播放中的歌曲');
       return;
@@ -103,21 +108,16 @@ class TopBar extends ConsumerWidget {
 
     // 如果是视频源，动态插入“仅音频模式”
     if (isVideoTrack) {
-      // 从 Riverpod 读取当前内存中的开关状态
-      final bool currentAudioOnlyState = ref.read(audioOnlyModeProvider);
-
       dynamicListActions.add(
         ListActionItem(
           icon: Icons.videocam_off_outlined,
           title: '仅音频模式',
           subtitle: '关闭视频画面以省电',
           hasSwitch: true,
-          initialSwitchValue: currentAudioOnlyState,
+          initialSwitchValue: isAudioOnly,
           onSwitchChanged: (bool value) async {
-            // 1. 更新 Riverpod 内存状态，保证重开弹窗时状态一致
-            ref.read(audioOnlyModeProvider.notifier).toggleMode(value);
-
-            // 2. 下发指令给底层：开启仅音频(value=true) 时关闭视频解码(enable=false)
+            ref.read(playerControllerProvider.notifier).toggleAudioOnlyMode(value);
+            // 下发指令给底层：开启仅音频(value=true) 时关闭视频解码(enable=false)
             await AudioServiceSingleton.instance.customAction(
               'toggleVideoDecoding',
               {'enable': !value},
