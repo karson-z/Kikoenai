@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
@@ -35,6 +36,8 @@ NotifierProvider<PlayerController, AppPlayerState>(() {
 class PlayerController extends Notifier<AppPlayerState> {
   ReceivePort? _overlayReceivePort;
 
+  Timer? _controlsHideTimer;
+
   AudioHandler get _handler => AudioServiceSingleton.instance;
 
   Player get _player => PlayerService.instance.player;
@@ -48,12 +51,38 @@ class PlayerController extends Notifier<AppPlayerState> {
     Future.microtask(() {
       _loadPlayerState();
     });
+    startControlsHideTimer();
+
     ref.onDispose(() {
       _closeOverlayPort();
+      _controlsHideTimer?.cancel();
     });
     return const AppPlayerState();
   }
 
+  void startControlsHideTimer() {
+    _controlsHideTimer?.cancel();
+    _controlsHideTimer = Timer(const Duration(seconds: 4), () {
+      state = state.copyWith(isVideoControlsVisible: false);
+    });
+  }
+
+  // 翻转控制面板显隐状态
+  void toggleControlsVisibility() {
+    final isVisible = !state.isVideoControlsVisible;
+    state = state.copyWith(isVideoControlsVisible: isVisible);
+    if (isVisible) {
+      startControlsHideTimer();
+    } else {
+      _controlsHideTimer?.cancel();
+    }
+  }
+  void showControlsAndResetTimer() {
+    if (!state.isVideoControlsVisible) {
+      state = state.copyWith(isVideoControlsVisible: true);
+    }
+    startControlsHideTimer();
+  }
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
     final savedState = _cacheService.getPlayerState();

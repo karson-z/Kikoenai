@@ -100,10 +100,13 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             LayoutId(
               id: PlayerLayoutId.videoContainer,
               child: shouldRenderVideo
-                  ? IgnorePointer(
-                ignoring: expandVal < 0.5,
-                child: const RepaintBoundary(
-                  child: PlayerVideoContent(),
+                  ? Opacity(
+                opacity: expandVal.clamp(0.0, 1.0),
+                child: IgnorePointer(
+                  ignoring: expandVal < 0.5,
+                  child: const RepaintBoundary(
+                    child: PlayerVideoContent(),
+                  ),
                 ),
               )
                   : const SizedBox.shrink(),

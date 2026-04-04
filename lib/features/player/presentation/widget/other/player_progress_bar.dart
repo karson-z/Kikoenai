@@ -5,7 +5,12 @@ import 'package:kikoenai/features/player/presentation/widget/other/player_progre
 import '../../provider/player_controller_provider.dart';
 
 class PlayerProgressBar extends ConsumerWidget {
-  const PlayerProgressBar({super.key});
+  final bool showTimeLabel;
+
+  const PlayerProgressBar({
+    super.key,
+    this.showTimeLabel = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,7 +29,9 @@ class PlayerProgressBar extends ConsumerWidget {
               isLoading: isBuffering,
               barHeight: barHeight,
               baseBarColor: const Color.fromARGB(197, 255, 255, 255),
-              timeLabelLocation: TimeLabelLocation.below,
+              timeLabelLocation: showTimeLabel
+                  ? TimeLabelLocation.below
+                  : TimeLabelLocation.none,
               timeLabelTextStyle: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,

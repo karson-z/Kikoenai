@@ -37,9 +37,6 @@ class TopBar extends ConsumerWidget {
 
     final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
-
-
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Stack(

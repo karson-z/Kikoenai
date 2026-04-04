@@ -73,13 +73,9 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
 
     // [Background] 背景层
     if (hasChild(PlayerLayoutId.background)) {
-      if (isVideo) {
-        layoutChild(PlayerLayoutId.background, BoxConstraints.tight(Size.zero));
-        positionChild(PlayerLayoutId.background, Offset.zero);
-      } else {
-        layoutChild(PlayerLayoutId.background, BoxConstraints.tight(size));
-        positionChild(PlayerLayoutId.background, Offset.zero);
-      }
+      // 无论音频还是视频，背景层都始终铺满整个可用区域
+      layoutChild(PlayerLayoutId.background, BoxConstraints.tight(size));
+      positionChild(PlayerLayoutId.background, Offset.zero);
     }
 
     // [Minibar] 始终位于顶部 (0,0)
@@ -93,7 +89,7 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
       if (isVideo) {
         final Size videoSize = Size(size.width, size.height);
         layoutChild(PlayerLayoutId.videoContainer, BoxConstraints.tight(videoSize));
-        positionChild(PlayerLayoutId.videoContainer, Offset(0,(1 - expandProgress) * size.height));
+        positionChild(PlayerLayoutId.videoContainer, Offset.zero);
       } else {
         layoutChild(PlayerLayoutId.videoContainer, BoxConstraints.tight(Size.zero));
         positionChild(PlayerLayoutId.videoContainer, Offset.zero);
