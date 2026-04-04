@@ -11,7 +11,7 @@ import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
 import '../slider/sllding_up_panel_modify.dart';
 import 'app_player_slider.dart';
 
-final panelController = Provider((ref) => PanelController());
+final panelControllerProvider = Provider((ref) => PanelController());
 
 class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({
@@ -45,8 +45,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final scaffoldState = ref.watch(mainScaffoldProvider);
-    final playController = ref.watch(panelController);
-
     //  直接从 shell 获取当前索引，不再需要根据 path 解析
     final int selectedIndex = widget.navigationShell.currentIndex;
 
@@ -77,7 +75,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
           body: widget.navigationShell,
-          controller: playController,
         ),
       );
     } else {
@@ -114,7 +111,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
           body: desktopLayoutRow,
-          controller: playController,
         ),
       );
     }

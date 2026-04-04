@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -651,7 +652,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> removeMediaItemInQueue(int index) async {
     await _handler.removeQueueItemAt(index);
     if (state.playlist.isEmpty) {
-      state = AppPlayerState();
+      state = const AppPlayerState();
     }
     _saveState();
   }
@@ -662,7 +663,27 @@ class PlayerController extends Notifier<AppPlayerState> {
     }).toList();
     await addAll(mediaList);
   }
+  Future<void> toggleVideoFullScreen() async {
+    final isFull = !state.isVideoFullScreen;
+    state = state.copyWith(isVideoFullScreen: isFull);
 
+    if (isFull) {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  void resetVideoFullScreenState() {
+    if (state.isVideoFullScreen) {
+      state = state.copyWith(isVideoFullScreen: false);
+    }
+  }
   Future<void> cyclePlayMode() async {
     // 1. 如果当前是随机模式
     if (state.shuffleEnabled) {
