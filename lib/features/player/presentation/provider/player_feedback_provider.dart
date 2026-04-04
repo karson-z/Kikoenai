@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playback_enum.dart';
+import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
 import '../../data/model/playback_track_state.dart';
 
@@ -56,7 +58,8 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
   }
 
   void _checkAndReportStart() {
-    if (!state.hasReportedStart && state.currentWorkId != null) {
+    final isLocal = ref.read(playerControllerProvider).currentTrack?.isLocal;
+    if (!state.hasReportedStart && state.currentWorkId != null && !isLocal!  ) {
       final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
@@ -77,7 +80,8 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
   }
 
   void _checkAndReport5Mins() {
-    if (!state.hasReported5Mins && state.currentWorkId != null) {
+    final isLocal = ref.read(playerControllerProvider).currentTrack?.isLocal;
+    if (!state.hasReported5Mins && state.currentWorkId != null  && !isLocal!) {
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
       if (currentUser == null) return;
