@@ -3,6 +3,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// 注意：请确保此处导入了你定义 panelControllerProvider 的文件
+// import 'path_to_your_panel_controller_provider.dart';
+
+import '../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../../../core/widgets/slider/sllding_up_panel_modify.dart';
 import '../../data/service/player_view_controller.dart';
 import '../provider/player_controller_provider.dart';
@@ -16,13 +21,11 @@ import '../widget/other/player_top_bar.dart';
 import '../widget/video/player_video_content.dart';
 
 class PlayerView extends ConsumerStatefulWidget {
-  final PanelController? panelController;
   final ValueListenable<double>? dragProgressNotifier;
   final double minHeight;
 
   const PlayerView({
     super.key,
-    this.panelController,
     this.dragProgressNotifier,
     this.minHeight = 80.0,
   });
@@ -60,7 +63,8 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
     final isVideoTrack = currentTrack?.extras?['isVideo'] == true;
-    final isAudioOnlyMode = ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
+    final isAudioOnlyMode =
+    ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
     final shouldRenderVideo = isVideoTrack && !isAudioOnlyMode;
 
     return AnimatedBuilder(
@@ -85,29 +89,30 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             isVideo: shouldRenderVideo,
           ),
           children: [
-            // 1. 背景层
             LayoutId(
               id: PlayerLayoutId.background,
-              child: RepaintBoundary(
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : RepaintBoundary(
                 child: PlayerBackground(expandedOpacity: expandedOpacity),
               ),
             ),
-
-            // 2. 视频内容层
             LayoutId(
               id: PlayerLayoutId.videoContainer,
-              child: IgnorePointer(
+              child: shouldRenderVideo
+                  ? IgnorePointer(
                 ignoring: expandVal < 0.5,
                 child: const RepaintBoundary(
                   child: PlayerVideoContent(),
                 ),
-              ),
+              )
+                  : const SizedBox.shrink(),
             ),
-
-            // 3. 专辑内容层
             LayoutId(
               id: PlayerLayoutId.bodyAlbum,
-              child: Opacity(
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : Opacity(
                 opacity: expandedOpacity * currentAlbumAlpha,
                 child: IgnorePointer(
                   ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
@@ -117,11 +122,11 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 ),
               ),
             ),
-
-            // 4. 歌词内容层
             LayoutId(
               id: PlayerLayoutId.bodyLyrics,
-              child: Opacity(
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : Opacity(
                 opacity: expandedOpacity * currentLyricsAlpha,
                 child: IgnorePointer(
                   ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
@@ -136,8 +141,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 ),
               ),
             ),
-
-            // 5. 底部 Minibar
             LayoutId(
               id: PlayerLayoutId.minibar,
               child: Opacity(
@@ -146,27 +149,27 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                   ignoring: collapsedOpacity < 0.05,
                   child: CollapsedMinibar(
                     track: currentTrack,
-                    onTap: () => widget.panelController?.open(),
+                    onTap: () => ref.read(panelControllerProvider).open(),
                   ),
                 ),
               ),
             ),
-
-            // 6. 顶部 TopBar
             LayoutId(
               id: PlayerLayoutId.topBar,
-              child: Opacity(
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : Opacity(
                 opacity: expandedOpacity,
                 child: IgnorePointer(
                   ignoring: expandedOpacity == 0,
                   child: RepaintBoundary(
-                    child: TopBar(onClose: () => widget.panelController?.close()),
+                    child: TopBar(
+                      onClose: () => ref.read(panelControllerProvider).close(),
+                    ),
                   ),
                 ),
               ),
             ),
-
-            // 7. 浮动封面
             LayoutId(
               id: PlayerLayoutId.coverHero,
               child: Opacity(
@@ -174,14 +177,15 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 child: GestureDetector(
                   onTap: () {
                     if (expandVal < 0.5) {
-                      widget.panelController?.open();
+                      ref.read(panelControllerProvider).open();
                     } else if (!isWide && !shouldRenderVideo) {
                       _controller.toggleLyrics();
                     }
                   },
                   child: FloatingCoverImage(
                     url: currentTrack?.extras?['mainCoverUrl'],
-                    radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                    radiusValue:
+                    isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
                   ),
                 ),
               ),

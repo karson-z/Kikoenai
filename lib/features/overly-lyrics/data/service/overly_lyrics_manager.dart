@@ -4,8 +4,6 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:tray_manager/tray_manager.dart';
 
 import '../../../../core/constants/app_player.dart';
 
@@ -189,104 +187,55 @@ class AndroidSubtitleManager implements SubtitleManager {
     }
   }
 }
-
-class DesktopSubtitleManager extends WindowListener implements SubtitleManager {
+/// 等待Flutter 官方支持多窗口， 不强行实现该功能
+class DesktopSubtitleManager implements SubtitleManager {
   static final DesktopSubtitleManager _instance = DesktopSubtitleManager._internal();
   factory DesktopSubtitleManager() => _instance;
 
   final StreamController<Map<String, dynamic>> _eventController = StreamController<Map<String, dynamic>>.broadcast();
 
-  DesktopSubtitleManager._internal() {
-    windowManager.addListener(this);
-  }
+  DesktopSubtitleManager._internal();
 
   @override
   Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
 
-  // 桌面端窗口移动事件回调
   @override
-  void onWindowMoved() async {
-    final position = await windowManager.getPosition();
-    _eventController.add({
-      'action': 'UPDATE_POSITION',
-      'payload': position,
-    });
-  }
+  Future<void> init() async {}
 
   @override
-  Future<void> init() async {
-    await windowManager.ensureInitialized();
-    WindowOptions windowOptions = const WindowOptions(
-      size: Size(800, 150),
-      center: true,
-      backgroundColor: Color(0x00000000),
-      skipTaskbar: true,
-      titleBarStyle: TitleBarStyle.hidden,
-      alwaysOnTop: true,
-    );
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.setHasShadow(false);
-    });
-
-    await trayManager.setIcon('assets/icons/tray_icon.ico');
-  }
+  Future<void> showOverlay({
+    bool isLocked = false,
+    double width = -1,
+    double height = 350,
+    double posX = 0,
+    double posY = 0,
+  }) async {}
 
   @override
-  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 350,double posX = 0 , double posY = 0}) async {
-    await windowManager.setSize(Size(width, height));
-    await windowManager.setIgnoreMouseEvents(isLocked);
-    await windowManager.show();
-  }
+  Future<void> hideOverlay() async {}
 
   @override
-  Future<void> hideOverlay() async {
-    await windowManager.hide();
-  }
+  Future<void> resizeOverlay(double width, double height) async {}
 
   @override
-  Future<void> resizeOverlay(double width, double height) async {
-    // 如果传入的 width 是 matchParent (-1)，桌面端需要特殊处理或者给个固定默认值
-    final w = width < 0 ? 800.0 : width;
-    await windowManager.setSize(Size(w, height));
-  }
+  Future<void> lock({bool isMain = false}) async {}
 
   @override
-  Future<void> lock({bool isMain = false}) async {
-    await windowManager.setIgnoreMouseEvents(true);
-    _eventController.add({'action': 'LOCK_OVERLAY'});
-  }
+  Future<void> unlock({bool isMain = false}) async {}
 
   @override
-  Future<void> unlock({bool isMain = false}) async {
-    await windowManager.setIgnoreMouseEvents(false);
-    _eventController.add({'action': 'UNLOCK_OVERLAY'});
-  }
+  Future<void> syncBusinessState(Map<String, dynamic> state) async {}
 
   @override
-  Future<void> syncBusinessState(Map<String, dynamic> state) async {
-    _eventController.add({
-      'action': 'SYNC_BUSINESS_STATE',
-      'payload': state,
-    });
-  }
-
-  @override
-  Future<void> sendCommand(String command, [dynamic payload]) async {
-    _eventController.add({
-      'action': command,
-      'payload': payload,
-    });
-  }
+  Future<void> sendCommand(String command, [dynamic payload]) async {}
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
     _eventController.close();
   }
 
   @override
-  Future<Offset> getOverlayPosition() {
-    // TODO: implement getOverlayPosition
-    throw UnimplementedError();
+  Future<Offset> getOverlayPosition() async {
+    return Offset.zero;
   }
 }

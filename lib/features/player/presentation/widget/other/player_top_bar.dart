@@ -139,7 +139,7 @@ class TopBar extends ConsumerWidget {
           } else {
             final workDataJson = track.extras?['workData'];
             if (workDataJson != null) {
-              final panelCtrl = ref.read(panelController);
+              final panelCtrl = ref.read(panelControllerProvider);
               if (panelCtrl.isPanelOpen) panelCtrl.close();
 
               // 这里的 work 依然建议传解析后的对象，方便详情页使用

@@ -3,12 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/player/presentation/page/player_view.dart';
+import '../../../features/player/presentation/provider/player_controller_provider.dart';
 import '../../service/audio/audio_service_ctrl.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/sllding_up_panel_modify.dart';
+
 
 class SlidingPlayerPanel extends ConsumerStatefulWidget {
   final double minHeight;
@@ -16,9 +19,7 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
   final bool isDraggable;
   final Widget body;
   final Widget? collapsed;
-
   final VoidCallback? onQueuePressed;
-  final PanelController? controller;
 
   const SlidingPlayerPanel({
     super.key,
@@ -28,7 +29,6 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
     this.collapsed,
     this.isDraggable = true,
     this.onQueuePressed,
-    this.controller,
   });
 
   @override
@@ -36,28 +36,13 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
 }
 
 class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
-  late final PanelController _panelController;
-
-  //状态记录标志位：假设初始状态是收起的，所以默认为 false
-
   bool _isPanelOpen = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _panelController = widget.controller ?? PanelController();
-  }
-
-  //  统一的状态拦截与分发方法
-  // 任何在展开/收起时需要执行的逻辑都集中在这里处理
   void _handlePanelStateChange(bool isOpen, dynamic mainController) {
-    // 核心拦截逻辑：如果新传入的状态与当前记录的状态相同，说明是无效的重复触发，直接丢弃
     if (_isPanelOpen == isOpen) return;
 
-    // 状态发生了实质性改变，更新记录
     _isPanelOpen = isOpen;
 
-    // 根据真实的新状态执行对应的业务逻辑
     if (isOpen) {
       mainController.expandPlayer();
       mainController.setBottomNav(false);
@@ -74,6 +59,9 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
+
+    final panelController = ref.watch(panelControllerProvider);
+
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
 
     final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location)
@@ -87,7 +75,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
       onBack: () {
         if (mainState.isPlayerExpanded) {
           debugPrint("PriorityWrapper: 收起播放器，拦截事件");
-          _panelController.close();
+          panelController.close();
           return true;
         }
 
@@ -95,7 +83,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
         return false;
       },
       child: SlidingUpPanel(
-        controller: _panelController,
+        controller: panelController,
         minHeight: widget.minHeight,
         maxHeight: widget.maxHeight,
         isDraggable: widget.isDraggable,
@@ -103,7 +91,6 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
         panelBuilder: (ScrollController sc, AnimationController controller) {
           return PlayerView(
             dragProgressNotifier: controller,
-            panelController: _panelController,
             minHeight: widget.minHeight,
           );
         },
@@ -111,7 +98,6 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
           padding: EdgeInsets.only(bottom: safePadding),
           child: widget.body,
         ),
-        // 【修改】将原本的散装逻辑替换为指向带有状态拦截的方法
         onPanelOpened: () => _handlePanelStateChange(true, mainController),
         onPanelClosed: () => _handlePanelStateChange(false, mainController),
       ),
