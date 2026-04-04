@@ -52,6 +52,7 @@ class PlayerPlaylistSheet {
           SliverWoltModalSheetPage(
             backgroundColor: bgColor,
             isTopBarLayerAlwaysVisible: true,
+            hasSabGradient: false,
             topBarTitle: Text(
               '当前播放队列',
               style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
@@ -70,18 +71,16 @@ class PlayerPlaylistSheet {
                     final playList = state.playlist;
 
                     if (playList.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: minSheetHeight,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.queue_music, size: 64, color: subtitleColor.withOpacity(0.3)),
-                                const SizedBox(height: 16),
-                                Text("播放队列为空", style: TextStyle(color: subtitleColor, fontSize: 16)),
-                              ],
-                            ),
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.queue_music, size: 64, color: subtitleColor.withOpacity(0.3)),
+                              const SizedBox(height: 16),
+                              Text("播放队列为空", style: TextStyle(color: subtitleColor, fontSize: 16)),
+                            ],
                           ),
                         ),
                       );
@@ -121,8 +120,7 @@ class PlayerPlaylistSheet {
                                       },
                                       backgroundColor: Colors.red,
                                       foregroundColor: Colors.white,
-                                      icon: Icons.delete,
-                                      // label: '删除', // 可选：如果空间足够可以加上文字
+                                      icon: Icons.delete
                                     ),
                                   ],
                                 ),
@@ -156,14 +154,9 @@ class PlayerPlaylistSheet {
                             );
                           },
                         ),
-                        SliverLayoutBuilder(
-                          builder: (context, constraints) {
-                            final paintedHeight = constraints.precedingScrollExtent;
-                            final remainingHeight = minSheetHeight - paintedHeight;
-                            return SliverToBoxAdapter(
-                              child: SizedBox(height: math.max(0, remainingHeight)),
-                            );
-                          },
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: SizedBox.shrink(), // 不需要显示内容，只负责占位
                         ),
                       ],
                     );

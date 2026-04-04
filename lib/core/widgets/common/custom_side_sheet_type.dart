@@ -22,13 +22,14 @@ class CustomSideSheetType extends WoltModalType {
   @override
   BoxConstraints layoutModal(Size availableSize) {
     const maxWidth = 320.0;
-    final maxHeight = availableSize.height * 0.8;
+
+    final fixedHeight = availableSize.height * 0.8;
 
     return BoxConstraints(
       minWidth: maxWidth,
       maxWidth: maxWidth,
-      minHeight: 0,
-      maxHeight: maxHeight,
+      minHeight: 0, // 🌟 关键：把最小高度和最大高度设为一样，强制固定
+      maxHeight: fixedHeight,
     );
   }
 

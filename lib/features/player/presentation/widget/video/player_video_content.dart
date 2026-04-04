@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/player/presentation/widget/video/player_video_controls_overlay.dart';
+import 'package:kikoenai/features/player/presentation/widget/video/player_video_gesture_layer.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import '../../provider/player_controller_provider.dart';
 import '../../../../../core/service/player/player_service.dart';
 
-class PlayerVideoContent extends StatefulWidget {
+class PlayerVideoContent extends ConsumerStatefulWidget {
   const PlayerVideoContent({super.key});
 
   @override
-  State<PlayerVideoContent> createState() => _PlayerVideoContentState();
+  ConsumerState<PlayerVideoContent> createState() => _PlayerVideoContentState();
 }
 
-class _PlayerVideoContentState extends State<PlayerVideoContent> {
+class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
   late final VideoController _videoController;
-  final playerService = PlayerService.instance;
 
   @override
   void initState() {
@@ -21,24 +23,28 @@ class _PlayerVideoContentState extends State<PlayerVideoContent> {
   }
 
   @override
-  void dispose() {
-    super.dispose();
-    playerService.toggleVideoDecoding(false);
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final controller = ref.read(playerControllerProvider.notifier);
+
     return Container(
       color: Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: [
           Center(
-            child: Video(
-              controller: _videoController,
-              controls: NoVideoControls,
-              fit: BoxFit.contain,
-              fill: Colors.transparent,
+            child: VideoGestureLayer(
+              onSingleTap: () {
+                controller.toggleControlsVisibility();
+              },
+              onHover: () {
+                controller.showControlsAndResetTimer();
+              },
+              child: Video(
+                controller: _videoController,
+                controls: NoVideoControls,
+                fit: BoxFit.contain,
+                fill: Colors.transparent,
+              ),
             ),
           ),
           const PlayerVideoControlsOverlay(),
