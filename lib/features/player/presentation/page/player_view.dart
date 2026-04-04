@@ -86,7 +86,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
           ),
           children: [
             // 1. 背景层
-            if (!shouldRenderVideo)
             LayoutId(
               id: PlayerLayoutId.background,
               child: RepaintBoundary(
@@ -95,51 +94,48 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
 
             // 2. 视频内容层
-            if (shouldRenderVideo)
-              LayoutId(
-                id: PlayerLayoutId.videoContainer,
-                child: IgnorePointer(
-                  ignoring: expandVal < 0.5,
-                  child: const RepaintBoundary(
-                    child: PlayerVideoContent(),
-                  ),
+            LayoutId(
+              id: PlayerLayoutId.videoContainer,
+              child: IgnorePointer(
+                ignoring: expandVal < 0.5,
+                child: const RepaintBoundary(
+                  child: PlayerVideoContent(),
                 ),
               ),
+            ),
 
             // 3. 专辑内容层
-            if (!shouldRenderVideo)
-              LayoutId(
-                id: PlayerLayoutId.bodyAlbum,
-                child: Opacity(
-                  opacity: expandedOpacity * currentAlbumAlpha,
-                  child: IgnorePointer(
-                    ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
-                    child: RepaintBoundary(
-                      child: PlayerAlbumContent(track: currentTrack),
-                    ),
+            LayoutId(
+              id: PlayerLayoutId.bodyAlbum,
+              child: Opacity(
+                opacity: expandedOpacity * currentAlbumAlpha,
+                child: IgnorePointer(
+                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
+                  child: RepaintBoundary(
+                    child: PlayerAlbumContent(track: currentTrack),
                   ),
                 ),
               ),
+            ),
 
             // 4. 歌词内容层
-            if (!shouldRenderVideo)
-              LayoutId(
-                id: PlayerLayoutId.bodyLyrics,
-                child: Opacity(
-                  opacity: expandedOpacity * currentLyricsAlpha,
-                  child: IgnorePointer(
-                    ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
-                    child: RepaintBoundary(
-                      child: MobileLyricsContent(
-                        isWideScreen: isWide,
-                        track: currentTrack,
-                        onTapHeader: isWide ? null : _controller.toggleLyrics,
-                        padding: padding,
-                      ),
+            LayoutId(
+              id: PlayerLayoutId.bodyLyrics,
+              child: Opacity(
+                opacity: expandedOpacity * currentLyricsAlpha,
+                child: IgnorePointer(
+                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
+                  child: RepaintBoundary(
+                    child: MobileLyricsContent(
+                      isWideScreen: isWide,
+                      track: currentTrack,
+                      onTapHeader: isWide ? null : _controller.toggleLyrics,
+                      padding: padding,
                     ),
                   ),
                 ),
               ),
+            ),
 
             // 5. 底部 Minibar
             LayoutId(
@@ -163,7 +159,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 opacity: expandedOpacity,
                 child: IgnorePointer(
                   ignoring: expandedOpacity == 0,
-                  // 顶部工具栏通常不会频繁重绘内部元素，加入隔离。
                   child: RepaintBoundary(
                     child: TopBar(onClose: () => widget.panelController?.close()),
                   ),
@@ -171,7 +166,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               ),
             ),
 
-            // 7. 浮动封面 (故意不使用 RepaintBoundary)
+            // 7. 浮动封面
             LayoutId(
               id: PlayerLayoutId.coverHero,
               child: Opacity(
