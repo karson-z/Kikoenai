@@ -49,6 +49,8 @@ class PlayerController extends Notifier<AppPlayerState> {
   AppPlayerState build() {
     _listen();
 
+    _listenToPlayer();
+
     Future.microtask(() {
       _loadPlayerState();
     });
@@ -85,6 +87,10 @@ class PlayerController extends Notifier<AppPlayerState> {
       state = state.copyWith(isVideoControlsVisible: true);
     }
     startControlsHideTimer();
+  }
+  /// 改变字幕匹配状态
+  void changeSubtitleMapping(Map<String, FileNode?> mapping) {
+    state = state.copyWith(subtitleMapping: mapping);
   }
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
@@ -566,9 +572,7 @@ class PlayerController extends Notifier<AppPlayerState> {
                   AppStorage.lyricMatchBox.delete(key);
                 }
               });
-
               MatchLyrics.persistMatchResults(validManualMapping);
-
               state = state.copyWith(subtitleMapping: validManualMapping);
             }
           });
@@ -702,7 +706,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     ref.read(mainScaffoldProvider.notifier).setFullScreen(targetIsFull);
 
     if (targetIsFull) {
-      await DisplayUtils.enterFullScreen();
+      debugPrint('currentPortrait: ${state.isVideoPortrait} dw: ${state.videoWidth} dh: ${state.videoHeight} rotate: ${state.videoRotate}');
+      await DisplayUtils.enterFullScreen(state.isVideoPortrait);
     } else {
       await DisplayUtils.exitFullScreen();
     }

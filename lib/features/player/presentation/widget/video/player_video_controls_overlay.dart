@@ -244,16 +244,41 @@ class VideoBottomBar extends ConsumerWidget {
                     },
                   ),
                   IconButton(
-                    icon: Icon(
-                      isFullScreen
-                          ? Icons.fullscreen_exit_rounded
-                          : Icons.fullscreen_rounded,
-                      color: Colors.white,
-                    ),
                     onPressed: () {
                       controller.startControlsHideTimer();
                       controller.toggleVideoFullScreen();
                     },
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          isFullScreen
+                              ? Icons.fullscreen_exit_rounded
+                              : Icons.fullscreen_rounded,
+                          color: Colors.white,
+                        ),
+                        Positioned(
+                          right: -6,
+                          bottom: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.black54, // 半透明背景以适应不同视频画面
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: isFullScreen ? null : Text(
+                              state.isVideoPortrait ? '竖' : '横',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

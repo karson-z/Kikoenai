@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,8 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
   void _handlePanelStateChange(bool isOpen, dynamic mainController) {
     if (_isPanelOpen == isOpen) return;
     final isPlaying = ref.read(playerControllerProvider.select((p) => p.playing));
+    final portrait = ref.read(playerControllerProvider.select((p) => p.isVideoPortrait));
+    final isFullScreen = ref.read(mainScaffoldProvider.select((p) => p.isFullScreen));
     _isPanelOpen = isOpen;
 
     if (isOpen) {
@@ -48,11 +51,17 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
       if(isPlaying){
         AudioServiceSingleton.instance.toggleVideoDecoding(true);
       }
+      if(isFullScreen){
+        DisplayUtils.enterFullScreen(portrait);
+      }
     } else {
       mainController.collapsePlayer();
       mainController.setBottomNav(true);
       if(isPlaying){
         AudioServiceSingleton.instance.toggleVideoDecoding(false);
+      }
+      if(isFullScreen){
+        DisplayUtils.exitFullScreen();
       }
     }
   }

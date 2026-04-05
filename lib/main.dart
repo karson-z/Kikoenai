@@ -43,13 +43,9 @@ void main() async {
   await EnvironmentConfig.selectBestServer();
   debugPrint('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
   setupDesktopWindow();
-  final container = ProviderContainer();
-
-  container.read(lyricsControllerProvider);
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const MyApp(),
+    const ProviderScope(
+      child: MyApp(),
     ),
   );
 }
