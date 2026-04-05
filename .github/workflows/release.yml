@@ -38,6 +38,16 @@ jobs:
       - name: Install Fastforge
         run: dart pub global activate fastforge
 
+      - name: Setup Android Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+          cat <<EOF > android/key.properties
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
       - name: Build and Publish with Fastforge
         run: fastforge release --name release
         env:
