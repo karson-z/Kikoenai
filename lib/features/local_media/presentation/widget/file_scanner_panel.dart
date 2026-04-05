@@ -85,7 +85,7 @@ class FileBrowserPanel extends ConsumerWidget {
       title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         subtitleText,
-        style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
