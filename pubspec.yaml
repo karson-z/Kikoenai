@@ -19,7 +19,6 @@ dependencies:
   path_provider: ^2.1.2
   cupertino_icons: ^1.0.2
   flutter_riverpod: ^3.0.3
-  shared_preferences: ^2.2.2
   flutter_colorpicker: ^1.0.3
   palette_generator: ^0.3.3
   extended_image: ^10.0.1

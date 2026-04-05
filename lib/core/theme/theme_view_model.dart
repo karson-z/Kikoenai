@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 
-/// Theme state
 class ThemeState {
   final ThemeMode mode;
   final Color seedColor;
@@ -28,71 +28,55 @@ class ThemeState {
   }
 }
 
-/// Notifier，同步版本
 class ThemeNotifier extends Notifier<ThemeState> {
   static const _keyMode = 'theme_mode';
   static const _keySeed = 'theme_seed_color';
   static const _keyRecent = 'theme_recent_seeds';
 
-  late SharedPreferences _prefs;
+  Box<dynamic> get settingBox => AppStorage.settingsBox;
 
   @override
   ThemeState build() {
-    // 默认返回一个同步可用的初始 state
-    _load(); // 异步加载并覆盖 state，不影响同步使用
-    return const ThemeState();
-  }
-
-  Future<void> _load() async {
-    _prefs = await SharedPreferences.getInstance();
-
-    final modeStr = _prefs.getString(_keyMode);
-    final seed = _prefs.getInt(_keySeed);
-    final recent = _prefs.getStringList(_keyRecent) ?? [];
+    final modeStr = settingBox.get(_keyMode) as String?;
+    final seed = settingBox.get(_keySeed) as int?;
+    final recent = settingBox.get(_keyRecent) as List<dynamic>? ?? [];
 
     final mode = _parseMode(modeStr);
     final seedColor = seed != null ? Color(seed) : Colors.blue;
-
     final recentSeeds = recent
-        .map((s) => int.tryParse(s))
         .whereType<int>()
         .map((v) => Color(v))
         .toList(growable: false);
 
-    state = ThemeState(
+    return ThemeState(
       mode: mode,
       seedColor: seedColor,
       recentSeeds: recentSeeds,
     );
   }
 
-  /// 持久化
-  Future<void> _persist(ThemeState s) async {
-    await _prefs.setString(_keyMode, s.mode.name);
-    await _prefs.setInt(_keySeed, s.seedColor.value);
-    await _prefs.setStringList(
-      _keyRecent,
-      s.recentSeeds.map((c) => c.value.toString()).toList(),
-    );
+  void _persist(ThemeState s) {
+    settingBox.put(_keyMode, s.mode.name);
+    settingBox.put(_keySeed, s.seedColor.value);
+    settingBox.put(_keyRecent, s.recentSeeds.map((c) => c.value).toList());
   }
 
-  // 切换模式
-  Future<void> setMode(ThemeMode mode) async {
+  void setMode(ThemeMode mode) {
     state = state.copyWith(mode: mode);
-    await _persist(state);
+    _persist(state);
   }
 
-  Future<void> toggleLightDark() async {
+  void toggleLightDark() {
     final newMode =
     state.mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-    await setMode(newMode);
+    setMode(newMode);
   }
 
-  Future<void> useSystem() async {
-    await setMode(ThemeMode.system);
+  void useSystem() {
+    setMode(ThemeMode.system);
   }
 
-  Future<void> setSeedColor(Color color, {bool preview = false}) async {
+  void setSeedColor(Color color, {bool preview = false}) {
     var recent = state.recentSeeds;
 
     if (!preview) {
@@ -104,7 +88,7 @@ class ThemeNotifier extends Notifier<ThemeState> {
 
     state = state.copyWith(seedColor: color, recentSeeds: recent);
 
-    if (!preview) await _persist(state);
+    if (!preview) _persist(state);
   }
 
   ThemeMode _parseMode(String? s) {
@@ -119,12 +103,13 @@ class ThemeNotifier extends Notifier<ThemeState> {
   }
 }
 
-/// Provider（同步 Notifier）
 final themeNotifierProvider =
 NotifierProvider<ThemeNotifier, ThemeState>(ThemeNotifier.new);
+
 final platformBrightnessProvider = Provider<Brightness>((ref) {
   return MediaQuery.platformBrightnessOf(AppConstants.rootNavigatorKey.currentContext!);
 });
+
 final explicitDarkModeProvider = Provider<bool>((ref) {
   final theme = ref.watch(themeNotifierProvider);
   final systemBrightness = ref.watch(platformBrightnessProvider);
