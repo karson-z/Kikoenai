@@ -21,16 +21,3 @@ releases:
           args:
             repo-owner: ${GITHUB_REPO_OWNER}
             repo-name: ${GITHUB_REPO_NAME}
-#      - name: release-windows
-#        package:
-#          platform: windows
-#          target: exe
-#          build_args:
-#            release: true
-#            obfuscate: true
-#            split-debug-info: ./symbols
-#        publish:
-#          target: github
-#          args:
-#            repo-owner: ${GITHUB_REPO_OWNER}
-#            repo-name: ${GITHUB_REPO_NAME}
