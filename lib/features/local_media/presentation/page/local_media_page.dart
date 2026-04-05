@@ -60,7 +60,7 @@ class ScannerPage extends ConsumerWidget {
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: isScanning
                       ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outline,
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

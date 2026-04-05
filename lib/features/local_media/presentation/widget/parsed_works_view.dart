@@ -95,7 +95,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
           Text(
             "共 ${_localWorks.length} 个作品",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           Row(
