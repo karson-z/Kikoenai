@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
-import 'dart:math' as math;
 import 'dart:ui';
 import '../../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../../core/widgets/common/custom_bottom_type.dart';
