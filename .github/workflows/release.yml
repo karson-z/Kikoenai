@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release with Fastforge
 
 on:
   push:
@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -30,12 +32,56 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Install Fastforge
         run: dart pub global activate fastforge
 
-      - name: Build and Release
+      - name: Build and Publish with Fastforge
         run: fastforge release --name release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+
+  update-release-notes:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n\n## 📦 下载\n\n### Android\n请根据你的设备架构选择对应的 APK 文件：\n- `app-armeabi-v7a-release.apk` - 32位设备\n- `app-arm64-v8a-release.apk` - 64位设备（推荐）\n\n### Windows\n- `kikoenai.exe` - Windows 可执行文件",
+              "categories": [
+                {
+                  "title": "## ✨ 新功能",
+                  "labels": ["feat", "feature", "enhancement"]
+                },
+                {
+                  "title": "## 🐛 修复",
+                  "labels": ["bug", "fix"]
+                },
+                {
+                  "title": "## 🔧 其他",
+                  "labels": ["*"]
+                }
+              ]
+            }
+
+      - name: Update Release Notes
+        uses: tubone24/update-release@v1.4.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.changelog }}
