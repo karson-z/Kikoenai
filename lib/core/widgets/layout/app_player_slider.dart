@@ -37,20 +37,23 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
 
 class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
   bool _isPanelOpen = false;
-
   void _handlePanelStateChange(bool isOpen, dynamic mainController) {
     if (_isPanelOpen == isOpen) return;
-
+    final isPlaying = ref.read(playerControllerProvider.select((p) => p.playing));
     _isPanelOpen = isOpen;
 
     if (isOpen) {
       mainController.expandPlayer();
       mainController.setBottomNav(false);
-      AudioServiceSingleton.instance.toggleVideoDecoding(true);
+      if(isPlaying){
+        AudioServiceSingleton.instance.toggleVideoDecoding(true);
+      }
     } else {
       mainController.collapsePlayer();
       mainController.setBottomNav(true);
-      AudioServiceSingleton.instance.toggleVideoDecoding(false);
+      if(isPlaying){
+        AudioServiceSingleton.instance.toggleVideoDecoding(false);
+      }
     }
   }
 
