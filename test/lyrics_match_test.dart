@@ -190,7 +190,7 @@ void main() {
     });
 
     test('边界测试：特殊符号与转义字符', () {
-      final title = 'Song\nName\t⭐[Cover]';
+      const title = 'Song\nName\t⭐[Cover]';
       final audio = buildMediaItem(id: 'a1', title: title);
       final lyric = buildLyricNode(title: title);
       final result = strategy.matchLyrics([audio], [lyric]);

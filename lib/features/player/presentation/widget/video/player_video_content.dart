@@ -33,12 +33,6 @@ class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
         children: [
           Center(
             child: VideoGestureLayer(
-              onSingleTap: () {
-                controller.toggleControlsVisibility();
-              },
-              onHover: () {
-                controller.showControlsAndResetTimer();
-              },
               child: Video(
                 controller: _videoController,
                 controls: NoVideoControls,

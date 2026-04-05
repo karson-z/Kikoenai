@@ -96,7 +96,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: minHeight),
-                    // 修改 5: 传入 navigationShell
                     child: widget.navigationShell,
                   ),
                 ),

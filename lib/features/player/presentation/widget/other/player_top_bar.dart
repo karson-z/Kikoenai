@@ -1,31 +1,8 @@
-import 'dart:convert';
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/service/audio/audio_extension.dart';
-import 'package:kikoenai/core/storage/hive_key.dart';
-import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
-import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:kikoenai/core/widgets/common/manage_playlist_dialog.dart';
-import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
-import 'package:kikoenai/features/album/data/model/work.dart';
-import 'package:kikoenai/features/player/presentation/widget/other/player_more_widget.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_more_options_sheet.dart';
 import 'package:kikoenai/features/player/presentation/widget/other/player_sleep_time_widget.dart';
-
-import '../../../../../core/model/file_node.dart';
-import '../../../../../core/routes/app_routes.dart';
-import '../../../../../core/service/audio/audio_service_ctrl.dart';
-import '../../../../../core/service/download/download_service.dart';
-import '../../../../../core/storage/hive_storage.dart';
-import '../../../../../core/widgets/common/back_button_interceptor.dart';
-import '../../../../../core/widgets/layout/app_toast.dart';
-import '../../../../album/presentation/viewmodel/provider/audio_file_provider.dart';
-import '../../../../download/presentation/provider/download_provider.dart';
-import '../../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
 import '../../provider/player_controller_provider.dart';
-
-
 
 class TopBar extends ConsumerWidget {
   final VoidCallback onClose;
@@ -34,8 +11,8 @@ class TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-
-    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final currentTrack =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -63,7 +40,7 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    _showMoreOptions(context, currentTrack, ref);
+                    showMoreOptions(context, currentTrack);
                   },
                 ),
               ],
@@ -71,186 +48,6 @@ class TopBar extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _showMoreOptions(BuildContext context, MediaItem? track, WidgetRef ref) {
-
-    final isAudioOnly = ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
-    if (track == null) {
-      KikoenaiToast.warning('当前没有播放中的歌曲');
-      return;
-    }
-    final workJson = track.extras?['workData'];
-    final work = workJson != null ? Work.fromJson(jsonDecode(workJson)) : null;
-    final rjCode = work?.id;
-    // 判断当前音源是否包含视频 (需确保你存入了正确的 key)
-    final bool isVideoTrack = track.extras?['isVideo'] == true;
-    // 构建基础菜单列表
-    final List<ListActionItem> dynamicListActions = [
-      ListActionItem(
-        icon: Icons.multitrack_audio_outlined,
-        title: '忽略音频焦点',
-        hasSwitch: true,
-        initialSwitchValue: AppStorage.settingsBox.get(
-            StorageKeys.ignoreAudioFocus, defaultValue: false),
-        onSwitchChanged: (bool value) async {
-          await AudioServiceSingleton.instance.customAction(
-            'setIgnoreAudioFocus',
-            {'ignore': value},
-          );
-        },
-      ),
-    ];
-
-    // 如果是视频源，动态插入“仅音频模式”
-    if (isVideoTrack) {
-      dynamicListActions.add(
-        ListActionItem(
-          icon: Icons.videocam_off_outlined,
-          title: '仅音频模式',
-          subtitle: '关闭视频画面以省电',
-          hasSwitch: true,
-          initialSwitchValue: isAudioOnly,
-          onSwitchChanged: (bool value) async {
-            ref.read(playerControllerProvider.notifier).toggleAudioOnlyMode(value);
-            // 下发指令给底层：开启仅音频(value=true) 时关闭视频解码(enable=false)
-            await AudioServiceSingleton.instance.customAction(
-              'toggleVideoDecoding',
-              {'enable': !value},
-            );
-          },
-        ),
-      );
-    }
-
-    dynamicListActions.addAll([
-      ListActionItem(
-        icon: Icons.album_outlined,
-        title: "专辑",
-        subtitle: track.album,
-        onTap: () {
-          Navigator.pop(context);
-          if (track.isLocal) {
-            KikoenaiLogger().i("本地轨道，跳转至文件目录或本地索引");
-          } else {
-            final workDataJson = track.extras?['workData'];
-            if (workDataJson != null) {
-              final panelCtrl = ref.read(panelControllerProvider);
-              if (panelCtrl.isPanelOpen) panelCtrl.close();
-
-              // 这里的 work 依然建议传解析后的对象，方便详情页使用
-              context.push(AppRoutes.detail, extra: {
-                'work': jsonDecode(workDataJson)
-              });
-            }
-          }
-        },
-      ),
-      ListActionItem(
-        icon: Icons.person_outline_rounded,
-        title: "歌手",
-        subtitle: track.artist,
-      ),
-    ]);
-
-    // 渲染 BottomSheet
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return BackButtonPriorityWrapper(
-          zIndex: 100,
-          name: 'PlayerMoreOptionsBottomSheet', // 给予一个明确的名称标识
-          child: MoreOptionsBottomSheet(
-            track: track,
-            quickActions: [
-              QuickActionItem(
-                icon: Icons.favorite_border,
-                label: "收藏",
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              QuickActionItem(
-                icon: Icons.folder_open_outlined,
-                label: "文件管理",
-                onTap: () async {
-                  // 1. 优先关闭当前的 BottomSheet，避免弹窗层叠冲突
-                  Navigator.pop(context);
-
-                  if (rjCode != null) {
-                    try {
-                      // 2. 异步事件中必须使用 ref.read 读取 future 状态
-                      final roots = await ref.read(
-                          trackFileNodeProvider(rjCode).future);
-
-                      // 3. 读取已下载记录，用于在树状图中禁用已存在的文件
-                      final downloadedTasks = ref.read(completedTasksProvider);
-                      final downloadedIds = downloadedTasks.map((t) =>
-                      t.task.taskId).toSet();
-
-                      // 4. 异步操作后的 context 挂载检查
-                      if (!context.mounted) return;
-
-                      // 5. 调用文件树对话框并补全业务逻辑
-                      FileTreeDialogExtension.showFileTree(
-                        context: context,
-                        roots: roots,
-                        disabledIds: downloadedIds,
-                        onDownload: (List<FileNode> selectedFiles) {
-                          DownloadService.instance.enqueueBatch(
-                            selectedFiles: selectedFiles,
-                            rootNodes: roots,
-                            title: work?.title ?? '未知作品',
-                            metaData: work?.toJson(),
-                          );
-                          KikoenaiToast.success("已加入下载队列");
-                        },
-                        onAddToQueue: (List<FileNode> selectedFiles) {
-                          final audioFiles = selectedFiles.where((f) =>
-                          f.isAudio).toList();
-                          if (audioFiles.isNotEmpty && work != null) {
-                            ref.read(playerControllerProvider.notifier)
-                                .addMultiInQueue(audioFiles, work);
-                            KikoenaiToast.success("成功添加该列表");
-                          }
-                          KikoenaiDialog.dismiss();
-                        },
-                      );
-                    } catch (e) {
-                      if (context.mounted) {
-                        KikoenaiToast.error("获取文件列表失败");
-                      }
-                    }
-                  }
-                },
-              ),
-              QuickActionItem(
-                icon: Icons.picture_in_picture_alt,
-                label: "桌面字幕",
-                onTap: () {
-                  Navigator.pop(context);
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (context) {
-                      return const BackButtonPriorityWrapper(
-                        zIndex: 101, // 确保层级高于之前的面板
-                        name: 'SubtitleConfigBottomSheet',
-                        child: SubtitleConfigBottomSheet(),
-                      );
-                    },
-                  );
-                },
-              ),
-            ],
-            listActions: dynamicListActions,
-          ),
-        );
-      },
     );
   }
 }

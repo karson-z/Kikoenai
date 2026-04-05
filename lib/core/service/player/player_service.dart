@@ -28,7 +28,7 @@ class PlayerService {
   /// 初始化视频播放控制器
   VideoControllerConfiguration initVideoController () {
     // TODO 初始化逻辑
-    return VideoControllerConfiguration();
+    return const VideoControllerConfiguration();
   }
 
 

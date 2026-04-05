@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -22,6 +21,8 @@ import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
+import '../../../../core/utils/window/display_util.dart';
+import '../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
@@ -61,12 +62,14 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void startControlsHideTimer() {
-    _controlsHideTimer?.cancel();
+    cancelControlsHideTimer();
     _controlsHideTimer = Timer(const Duration(seconds: 4), () {
       state = state.copyWith(isVideoControlsVisible: false);
     });
   }
-
+  void cancelControlsHideTimer() {
+    _controlsHideTimer?.cancel();
+  }
   // 翻转控制面板显隐状态
   void toggleControlsVisibility() {
     final isVisible = !state.isVideoControlsVisible;
@@ -693,26 +696,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     await addAll(mediaList);
   }
   Future<void> toggleVideoFullScreen() async {
-    final isFull = !state.isVideoFullScreen;
-    state = state.copyWith(isVideoFullScreen: isFull);
+    final currentIsFull = ref.read(mainScaffoldProvider).isFullScreen;
+    final targetIsFull = !currentIsFull;
 
-    if (isFull) {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    ref.read(mainScaffoldProvider.notifier).setFullScreen(targetIsFull);
+
+    if (targetIsFull) {
+      await DisplayUtils.enterFullScreen();
     } else {
-      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      await DisplayUtils.exitFullScreen();
     }
   }
 
-  void resetVideoFullScreenState() {
-    if (state.isVideoFullScreen) {
-      state = state.copyWith(isVideoFullScreen: false);
-    }
-  }
   Future<void> cyclePlayMode() async {
     // 1. 如果当前是随机模式
     if (state.shuffleEnabled) {

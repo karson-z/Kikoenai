@@ -35,7 +35,6 @@ abstract class AppPlayerState with _$AppPlayerState {
     @HiveField(10) @Default({}) Map<String, FileNode?> subtitleMapping,
     @HiveField(11) @Default([]) List<FileNode?> lyricsList,
     @HiveField(12) @Default(false) bool isAudioOnly,
-    @Default(false) bool isVideoFullScreen,
     @Default(true) bool isVideoControlsVisible,
     @Default(0) int videoWidth,
     @Default(0) int videoHeight,

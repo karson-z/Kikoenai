@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'path_to_your_panel_controller_provider.dart';
 
 import '../../../../core/widgets/layout/app_main_scaffold.dart';
-import '../../../../core/widgets/slider/sllding_up_panel_modify.dart';
 import '../../data/service/player_view_controller.dart';
 import '../provider/player_controller_provider.dart';
 import '../widget/audio/player_background.dart';
