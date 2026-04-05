@@ -9,7 +9,7 @@ import 'package:kikoenai/features/player/presentation/widget/other/player_more_w
 
 import '../../../../../core/model/file_node.dart';
 import '../../../../../core/routes/app_routes.dart';
-import '../../../../../core/service/audio/audio_service_ctrl.dart';
+import '../../../../../core/service/audio/audio_service.dart';
 import '../../../../../core/service/download/download_service.dart';
 import '../../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../../core/storage/hive_key.dart';
