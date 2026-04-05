@@ -55,6 +55,17 @@ jobs:
         run: flutter pub get
         shell: bash
 
+      - name: Setup Android Keystore
+        run: |
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+            cat <<EOF > android/key.properties
+            storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+            keyPassword=${{ secrets.KEY_PASSWORD }}
+            keyAlias=${{ secrets.KEY_ALIAS }}
+            storeFile=upload-keystore.jks
+            EOF
+        shell: bash
+
       - name: Build Flutter for Android
         run: flutter build apk --release  --split-per-abi  --obfuscate  --split-debug-info=./symbols
         shell: bash
