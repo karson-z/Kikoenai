@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
+import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_mapping_sheet.dart';
 import 'package:kikoenai/features/player/presentation/widget/other/player_more_widget.dart';
 
 import '../../../../../core/model/file_node.dart';
 import '../../../../../core/routes/app_routes.dart';
 import '../../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../../core/service/download/download_service.dart';
+import '../../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/log/kikoenai_log.dart';
@@ -61,6 +63,9 @@ class PlayerMoreOptionsSheet extends ConsumerWidget {
     final isAudioOnly = ref.watch(
       playerControllerProvider.select((s) => s.isAudioOnly),
     );
+    final state = ref.watch(playerControllerProvider);
+    final controller = ref.read(playerControllerProvider.notifier);
+
 
     final workJson = track!.extras?['workData'];
     final work = workJson != null ? Work.fromJson(jsonDecode(workJson)) : null;
@@ -84,6 +89,24 @@ class PlayerMoreOptionsSheet extends ConsumerWidget {
           );
         },
       ),
+      ListActionItem(
+        icon: Icons.subtitles,
+        title: '字幕匹配',
+        onTap: () async {
+        final manualResult = await LyricsMappingSheet.show(playlist: state.playlist , initialMapping: state.subtitleMapping, availableSubtitles: state.lyricsList);
+        if (manualResult != null) {
+          final validManualMapping = <String, FileNode>{};
+          manualResult.forEach((key, value) {
+            if (value != null) {
+              validManualMapping[key] = value;
+            } else {
+              AppStorage.lyricMatchBox.delete(key);
+            }
+          });
+          MatchLyrics.persistMatchResults(validManualMapping);
+          controller.changeSubtitleMapping(manualResult);
+        }
+    }),
     ];
 
     if (isVideoTrack) {

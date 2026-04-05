@@ -21,7 +21,7 @@ abstract class MatchLyrics {
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
       List<FileNode> lyricList, [
-        Map<String, FileNode>? currentMatches,
+        Map<String, FileNode> currentMatches = const {}
       ]);
 
   /// 统一入口：按顺序执行策略链
@@ -49,7 +49,6 @@ abstract class MatchLyrics {
     for (final strategy in runStrategies) {
       if (strategy.isMatch(playList, lyricList)) {
         var newMatches = strategy.matchLyrics(playList, lyricList, finalResults);
-
         newMatches.forEach((audioId, lyricNode) {
           if (!finalResults.containsKey(audioId)) {
             finalResults[audioId] = lyricNode;
@@ -75,7 +74,7 @@ abstract class MatchLyrics {
         onShowManualMatchDialog(
           playList,
           lyricList,
-          Map<String, FileNode>.from(finalResults), // 传递副本避免 UI 直接修改内部状态
+          Map<String, FileNode>.from(finalResults),
         );
       }
     }
@@ -118,22 +117,16 @@ class CacheMatch extends MatchLyrics {
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
       List<FileNode> lyricList, [
-        Map<String, FileNode>? currentMatches,
+        Map<String, FileNode> currentMatches = const {}
       ]) {
     final results = <String, FileNode>{};
 
-    // 构建哈希表以 O(1) 复杂度校验缓存节点的有效性
-    final lyricMap = {
-      for (var node in lyricList) node.hash: node
-    };
-
     for (var audio in playList) {
-      if (currentMatches?.containsKey(audio.id) ?? false) continue;
+      if (currentMatches.containsKey(audio.id)) continue;
 
       final cachedLyricNode = matchBox.get(audio.id);
-      if (cachedLyricNode != null && lyricMap.containsKey(cachedLyricNode.hash)) {
-        // 使用当前列表中的节点实例，确保状态最新
-        results[audio.id] = lyricMap[cachedLyricNode.hash]!;
+      if (cachedLyricNode != null) {
+        results[audio.id] = cachedLyricNode;
       }
     }
     return results;

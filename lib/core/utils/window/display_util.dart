@@ -9,25 +9,23 @@ class DisplayUtils {
   DisplayUtils._();
 
   /// 进入全屏显示
+  /// [isPortraitUp] 是否竖屏
   /// [lockOrientation] 移动端是否强制横屏
-  static Future<void> enterFullScreen({bool lockOrientation = true}) async {
+  static Future<void> enterFullScreen(bool isPortraitUp,{bool lockOrientation = true}) async {
     try {
       // 1. 桌面端处理
       if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
         await windowManager.setFullScreen(true);
         return;
       }
+
       // 2. 移动端 UI 模式处理
       await SystemChrome.setEnabledSystemUIMode(
         SystemUiMode.immersiveSticky,
       );
       if (!lockOrientation) return;
-      // 3. 移动端方向处理
-      if (Platform.isAndroid) {
-        //TODO
-      }
-
-      await setLandscape();
+      // 当前视频比例是否是9：16 且rotate 90° 是就是竖屏不是就是横屏
+      isPortraitUp ? await setVertical() : await setLandscape();
     } catch (e) {
       KikoenaiLogger().e('DisplayUtils: failed to enter full screen. Error: $e');
     }
@@ -52,15 +50,11 @@ class DisplayUtils {
             mode = SystemUiMode.manual;
           }
         }
-
         await SystemChrome.setEnabledSystemUIMode(
           mode,
           overlays: SystemUiOverlay.values,
         );
-
-        if (lockOrientation) {
-          await setVertical();
-        }
+        await setVertical();
       }
     } catch (e) {
       debugPrint('DisplayUtils: failed to exit full screen. Error: $e');

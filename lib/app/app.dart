@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/config/app_version_config.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
@@ -13,7 +15,8 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(lyricsControllerProvider, (_, __) {});
+    // 当用户开启桌面字幕的时候再挂起监听
+    AppStorage.settingsBox.get(StorageKeys.desktopLyricsEnabled,defaultValue: false) ? ref.listen(lyricsControllerProvider, (_, __) {}) : null;
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
     final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);
