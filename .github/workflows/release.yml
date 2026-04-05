@@ -47,12 +47,16 @@ jobs:
           channel: stable
           flutter-version-file: pubspec.yaml
 
+      - name: Flutter Build Code
+        run: dart run build_runner build --delete-conflicting-outputs
+        shell: bash
+
       - name: Get Flutter dependencies
         run: flutter pub get
         shell: bash
 
       - name: Build Flutter for Android
-        run: flutter build apk --split-per-abi
+        run: flutter build apk --release  --split-per-abi  --obfuscate  --split-debug-info=./symbols
         shell: bash
 
       - name: Prepare unsigned APK
