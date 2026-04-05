@@ -1,97 +1,84 @@
-name: Build and Release with Fastforge
+name: Android Build and Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "1.*"
+      - "*"
   workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-
+  build-and-release-android:
+    name: "Release for Android"
+    runs-on: "ubuntu-latest"
+    permissions: write-all
     steps:
-      - name: Checkout code
+      - name: Clone repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Java
+      - name: Extract tag name
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Echo build progress
+        run: echo "Kikoenai_android_${{ env.tag }}.apk build progress"
+        shell: bash
+
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Android build tools
+        run: sdkmanager "build-tools;34.0.0"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.16.0
         with:
-          flutter-version: '3.35.7'
-          channel: 'stable'
-          cache: true
+          channel: stable
+          flutter-version-file: pubspec.yaml
 
-      - name: Get dependencies
+      - name: Get Flutter dependencies
         run: flutter pub get
+        shell: bash
 
-      - name: Run code generation
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Build Flutter for Android
+        run: flutter build apk --split-per-abi
+        shell: bash
 
-      - name: Install Fastforge
-        run: dart pub global activate fastforge
-
-      - name: Setup Android Keystore
+      - name: Prepare unsigned APK
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
-          cat <<EOF > android/key.properties
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=upload-keystore.jks
-          EOF
+          mkdir -p build/unsigned
+          mkdir -p build/signed
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/unsigned/Kikoenai_android_${{ env.tag }}.apk
+        shell: bash
 
-      - name: Build and Publish with Fastforge
-        run: fastforge release --name release
+      - name: Sign APK
+        id: sign_app
+        uses: filippoLeporati93/android-release-signer@v1
+        with:
+          releaseDirectory: build/unsigned
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+          BUILD_TOOLS_VERSION: "34.0.0"
 
-  update-release-notes:
-    needs: build-and-release
-    runs-on: ubuntu-latest
+      - name: Copy Signed android build file
+        run: cp ${{ steps.sign_app.outputs.signedReleaseFile }} build/signed/Kikoenai_android_${{ env.tag }}.apk
+        shell: bash
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Create release
+        uses: softprops/action-gh-release@v2
         with:
-          fetch-depth: 0
-
-      - name: Generate Changelog
-        id: changelog
-        uses: mikepenz/release-changelog-builder-action@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}\n\n## 📦 下载\n\n### Android\n请根据你的设备架构选择对应的 APK 文件：\n- `app-armeabi-v7a-release.apk` - 32位设备\n- `app-arm64-v8a-release.apk` - 64位设备（推荐）\n\n### Windows\n- `kikoenai.exe` - Windows 可执行文件",
-              "categories": [
-                {
-                  "title": "## ✨ 新功能",
-                  "labels": ["feat", "feature", "enhancement"]
-                },
-                {
-                  "title": "## 🐛 修复",
-                  "labels": ["bug", "fix"]
-                },
-                {
-                  "title": "## 🔧 其他",
-                  "labels": ["*"]
-                }
-              ]
-            }
-
-      - name: Update Release Notes
-        uses: tubone24/update-release@v1.4.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.changelog }}
+          files: build/signed/*.apk
