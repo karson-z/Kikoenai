@@ -21,7 +21,7 @@ class SearchTag {
   static String buildTagQueryPath(
       List<SearchTag> tags, {
         String? keyword,
-        bool encode = true, // ✨ 新增开关，默认开启
+        bool encode = true,
       }) {
     final tagPath = tags.map((tag) {
       final prefix = tag.isExclude ? "-${tag.type}" : tag.type;

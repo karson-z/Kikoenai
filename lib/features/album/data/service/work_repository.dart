@@ -8,6 +8,7 @@ import '../../../../core/utils/network/api_client.dart';
 abstract class WorkRepository {
   Future<Result<Map<String,dynamic>>> getWorks({
     int page = 1,
+    String? keyword,
     String? order,
     String? sort,
     int? subtitle,
@@ -42,13 +43,14 @@ class WorkRepositoryImpl implements WorkRepository {
   Future<Result<Map<String, dynamic>>> getWorks({
     int page = 1,
     int pageSize = 20,
+    String? keyword,
     String? order,
     String? sort,
     int? subtitle,
     int? seed,
   }) async {
     final response = await api.get<Map<String, dynamic>>(
-      "/works",
+      "/search/$keyword",
       queryParameters: {
         "page": page,
         "pageSize": pageSize,
@@ -96,7 +98,7 @@ class WorkRepositoryImpl implements WorkRepository {
   }) async {
     final data = {
       'keyword': keyword ?? ' ',
-      'recommenderUuid': recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
+      'recommenderUuid': recommenderUuid ?? "",
       'page': page,
       'pageSize': pageSize,
       'subtitle': subtitle ?? 0,
