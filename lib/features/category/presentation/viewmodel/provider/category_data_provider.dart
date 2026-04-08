@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../core/enums/age_rating.dart';
 import '../../../../../core/enums/sort_options.dart';
+import '../../../../../core/enums/tag_enum.dart';
+import '../../../../../core/storage/hive_key.dart';
+import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/data/other.dart';
 import '../../../../../core/model/search_tag.dart';
 import '../../../data/service/category_repository.dart';
@@ -148,8 +152,12 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final prev = state.value ?? const CategoryState();
     final page = reset ? 1 : prev.currentPage + 1;
 
-    var queryParams = SearchTag.buildTagQueryPath(ui.selected, keyword: ui.keyword);
-
+    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
+    final List<SearchTag> mergedTags = List.from(ui.selected);
+    if (isNSFW) {
+      mergedTags.add(SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false));
+    }
+    var queryParams = SearchTag.buildTagQueryPath(mergedTags, keyword: ui.keyword);
     final result = await _repo.searchWorks(
       page: page,
       order: _currentSortOrder.value,

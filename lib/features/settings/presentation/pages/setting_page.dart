@@ -120,6 +120,11 @@ class SettingsPage extends ConsumerWidget {
                   // TODO: 弹出选择逻辑
                 },
               ),
+              const HiveSwitchTile(
+                title: '是否NSFW',
+                storageKey: StorageKeys.nsfwKey,
+                defaultValue: false,
+              ),
             ],
           ),
           const SizedBox(height: 24),
