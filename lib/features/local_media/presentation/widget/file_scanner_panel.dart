@@ -119,39 +119,47 @@ class FileBrowserPanel extends ConsumerWidget {
     IconData icon;
     Color iconColor;
 
-    switch (scanMode) {
-      case ScanMode.audio:
+    final fileType = FileExtensions.getFileType(node.title);
+
+    switch (fileType) {
+      case FileType.audio:
         icon = Icons.audiotrack;
         iconColor = Colors.blue;
         break;
-      case ScanMode.video:
+      case FileType.video:
         icon = Icons.videocam;
         iconColor = Colors.orange;
         break;
-      case ScanMode.subtitles:
+      case FileType.subtitle:
         icon = Icons.subtitles;
         iconColor = Colors.teal;
         break;
+      case FileType.image:
+        icon = Icons.image;
+        iconColor = Colors.purple;
+        break;
+      case FileType.archive:
+        icon = Icons.folder_zip;
+        iconColor = Colors.brown;
+        break;
+      case FileType.document:
+        icon = Icons.description;
+        iconColor = Colors.blueGrey;
+        break;
+      case FileType.unknown:
+        icon = Icons.insert_drive_file;
+        iconColor = Colors.grey;
+        break;
     }
-
-    Widget? subtitleWidget;
-    if (scanMode != ScanMode.subtitles) {
-      if (node.duration != null && node.duration! > 0) {
-        subtitleWidget = Text(_formatDuration(node.duration!));
-      }
-    } else {
-      subtitleWidget = Text(
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
         node.mediaStreamUrl ?? "",
         style: const TextStyle(fontSize: 10, color: Colors.grey),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: subtitleWidget,
+      ),
       onLongPress: () => RenameFileDialog.show(context, node),
       onTap: () {
         if (scanMode == ScanMode.subtitles) {
@@ -169,15 +177,15 @@ class FileBrowserPanel extends ConsumerWidget {
           for (final bNode in breadcrumbs) {
             if (bNode.rjCode != null && bNode.rjCode!.isNotEmpty) {
               targetRootNode = bNode;
-              break; // 找到了就跳出循环
+              break;
             }
           }
           final rjCode = targetRootNode?.rjCode;
           Work? work;
           if(rjCode != null){
-           work = ScraperStorage().getWork(rjCode.toUpperCase());
+            work = ScraperStorage().getWork(rjCode.toUpperCase());
           }
-          // 调用播放
+
           ref.read(playerControllerProvider.notifier).handleFileTap(node,contextNodes,work: work);
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -189,12 +197,5 @@ class FileBrowserPanel extends ConsumerWidget {
         }
       },
     );
-  }
-
-  String _formatDuration(double seconds) {
-    if (seconds <= 0) return "";
-    final int min = seconds ~/ 60;
-    final int sec = (seconds % 60).toInt();
-    return "$min:${sec.toString().padLeft(2, '0')}";
   }
 }
