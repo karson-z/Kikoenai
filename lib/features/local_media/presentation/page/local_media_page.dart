@@ -35,7 +35,7 @@ class ScannerPage extends ConsumerWidget {
       final isNowIdle = next.status == WorkerState.idle || next.status == WorkerState.done;
       if (wasScanning && isNowIdle) {
         final pendingNodes = _extractPendingNodes(next.roots);
-        if (pendingNodes.isNotEmpty) {
+        if (pendingNodes.isNotEmpty && scannerState.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
       }

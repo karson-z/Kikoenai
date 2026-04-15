@@ -31,18 +31,12 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
         _showSettings = false;
       }
     });
-    final lyricsCtrl = ref.read(lyricsControllerProvider.notifier);
-    double targetSize = _showControls ? 200 : 120;
-    await lyricsCtrl.resizeOverlay(-1, targetSize.toDouble());
   }
 
-  void _toggleSettings() async {
+  void _toggleSettings() {
     setState(() {
       _showSettings = !_showSettings;
     });
-    final lyricsCtrl = ref.read(lyricsControllerProvider.notifier);
-    double targetSize = _showSettings ? 250 : 200;
-    await lyricsCtrl.resizeOverlay(-1, targetSize.toDouble());
   }
 
   @override
@@ -188,8 +182,12 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
             ],
           ),
         ),
-        if (_showSettings)
-          GestureDetector(
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _showSettings
+              ? GestureDetector(
             onTap: () {},
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -232,7 +230,9 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                 ],
               ),
             ),
-          ),
+          )
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
       ],
     );
   }
