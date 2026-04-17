@@ -26,6 +26,7 @@ class AppRoutes {
   static String get settingsCache => '$settings/cache';
   static String get settingsAccount => '$settings/account';
   static String get settingsComment => '$settings/comment';
+  static String get settingsLog => '$settings/log';
 
   static String toRelative(String path) {
     // 比如把 '/settings/permission' 变成 'permission'
