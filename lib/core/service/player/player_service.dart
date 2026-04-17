@@ -14,7 +14,11 @@ class PlayerService {
 
   static PlayerService get instance => _instance;
 
-  final Player player = Player();
+  final Player player = Player(
+    configuration: const PlayerConfiguration(
+      logLevel: MPVLogLevel.debug
+    )
+  );
 
   VideoController? _videoController;
 

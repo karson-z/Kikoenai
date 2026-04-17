@@ -153,6 +153,10 @@ class SettingsPage extends ConsumerWidget {
                 title: '系统权限',
                 onTap: () => context.push(AppRoutes.settingsPermission),
               ),
+              _ChevronTile(
+                title: '系统日志',
+                onTap: () => context.push(AppRoutes.settingsLog),
+              ),
             ],
           ),
           const SizedBox(height: 48),

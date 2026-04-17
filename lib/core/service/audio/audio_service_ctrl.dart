@@ -8,6 +8,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import '../../constants/app_constants.dart';
@@ -78,6 +79,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
+    _listenErrorStream();
   }
 
   Future<void> _initPlayerConfig() async {
@@ -132,7 +134,13 @@ class MyAudioHandler extends BaseAudioHandler {
       await _audioSession!.configure(const AudioSessionConfiguration.music());
     }
   }
-
+  void _listenErrorStream() {
+    _player.stream.error.listen((error){
+      KikoenaiToast.error(
+        '播放错误: $error'
+      );
+    });
+  }
   void _listenMpvLogs() {
     _player.stream.log.listen((event) {
       final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
@@ -141,7 +149,7 @@ class MyAudioHandler extends BaseAudioHandler {
       } else if (event.level.contains('warn')) {
         KikoenaiLogger().w(logMessage);
       } else {
-        debugPrint(logMessage);
+        KikoenaiLogger().i(logMessage);
       }
     });
   }
