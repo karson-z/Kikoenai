@@ -88,8 +88,13 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
       try {
+        // 向 FFmpeg 的解复用器 (lavf) 注入 fastseek 标志
+        // 这会强制 FFmpeg 放弃构建完整索引，对于缺乏索引的文件直接基于比特率进行估算 Range 跳转
+        await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
+        KikoenaiLogger().i("当前缓存路径:$cacheDir"); 
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
+        await nativePlayer.setProperty('demuxer-max-bytes', '500000000');
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {
@@ -293,11 +298,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
     final media = _buildMedia(item, startPosition: position);
 
-    await _player.open(media, play: false);
-
-    if (autoPlay) {
-      await play();
-    }
+    await _player.open(media, play: autoPlay);
   }
 
   Future<void> initPlayback({

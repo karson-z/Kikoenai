@@ -91,7 +91,7 @@ class VideoTopBar extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.more_horiz, color: Colors.white, size: 28),
                 onPressed: () {
-                  showMoreOptions(context, state.currentTrack);
+                  showMoreOptions(context, ref, state.currentTrack);
                 },
               ),
             ],

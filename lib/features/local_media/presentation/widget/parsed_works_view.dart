@@ -8,12 +8,10 @@ import '../../../../core/utils/scraper/scraper_storage.dart';
 
 class ParseWorksView extends StatefulWidget {
   final List<Work> work;
-  final List<FileNode>? nodes;
 
   const ParseWorksView({
     super.key,
     required this.work,
-    this.nodes
   });
 
   @override

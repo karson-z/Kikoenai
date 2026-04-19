@@ -332,9 +332,9 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 72;
+  double get maxExtent => 54;
   @override
-  double get minExtent => 72;
+  double get minExtent => 54;
   @override
   bool shouldRebuild(covariant BreadcrumbHeaderDelegate oldDelegate) => true;
 }
@@ -359,10 +359,8 @@ class _BreadcrumbHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
-    final DownloadService downloadService = DownloadService.instance;
-
     return Container(
-      height: 72,
+      height: 54,
       color: Theme.of(context).scaffoldBackgroundColor,
       // 调整外层 padding，配合 BreadcrumbBar 内部的 padding
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -387,26 +385,10 @@ class _BreadcrumbHeader extends ConsumerWidget {
             icon: Icon(Icons.library_music,
                 color: isDark ? Colors.white70 : Colors.grey),
             onPressed: () {
-              FileTreeDialogExtension.showFileTree(
+              FileTreeWoltSheet.show(
                 context: context,
                 roots: rootNodes,
-                disabledIds: downloadedIds,
-                onAddToQueue: (List<FileNode> selectedFiles) {
-                  final audioFiles =
-                  selectedFiles.where((f) => f.isAudio).toList();
-                  ref
-                      .read(playerControllerProvider.notifier)
-                      .addMultiInQueue(audioFiles, work);
-                  KikoenaiToast.success("成功添加该列表");
-                  KikoenaiDialog.dismiss();
-                },
-                onDownload: (List<FileNode> selectedFiles) {
-                  downloadService.enqueueBatch(
-                      selectedFiles: selectedFiles,
-                      rootNodes: rootNodes,
-                      title: work.title ?? '未知作品',
-                      metaData: work.toJson());
-                },
+                work: work
               );
             },
           ),

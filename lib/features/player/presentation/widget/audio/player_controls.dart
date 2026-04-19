@@ -46,7 +46,7 @@ class PlayerControls extends ConsumerWidget {
                     color: Colors.white, size: 36)),
             const SizedBox(width: 24),
             IconButton(
-                onPressed: () => PlayerPlaylistSheet.show(context, isDark: Theme.brightnessOf(context) == Brightness.dark),
+                onPressed: () => PlayerPlaylistSheet.show(context),
                 icon: const Icon(Icons.queue_music_sharp, color: Colors.white)),
           ],
         ),
