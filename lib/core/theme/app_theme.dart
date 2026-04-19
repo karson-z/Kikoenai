@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart'; // 引入 Cupertino 以支持 override
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import '../constants/app_constants.dart';
 import 'app_color.dart';
 
@@ -10,7 +11,14 @@ class AppTheme {
     brightness: Brightness.light,
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.lightBackground,
-
+    extensions: const <ThemeExtension<dynamic>>[
+      WoltModalSheetThemeData(
+        topBarElevation: 0, // 去除标题栏的高光/阴影
+        modalBarrierColor: Colors.black54,
+        mainContentScrollPhysics: ClampingScrollPhysics(),
+        surfaceTintColor: AppColors.lightBackground,
+      ),
+    ],
     // 1. 颜色方案
     colorScheme: ColorScheme.fromSeed(
       seedColor: seed,
@@ -119,7 +127,14 @@ class AppTheme {
     brightness: Brightness.dark,
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.darkBackground,
-
+    extensions: const <ThemeExtension<dynamic>>[
+      WoltModalSheetThemeData(
+        topBarElevation: 0, // 去除标题栏的高光/阴影
+        modalBarrierColor: Colors.white12,
+        surfaceTintColor:AppColors.darkBackground ,
+        mainContentScrollPhysics: ClampingScrollPhysics(),
+      ),
+    ],
     // 1. 颜色方案
     colorScheme: ColorScheme.fromSeed(
       seedColor: seed,

@@ -40,7 +40,7 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    showMoreOptions(context, currentTrack);
+                    showMoreOptions(context,ref,currentTrack);
                   },
                 ),
               ],

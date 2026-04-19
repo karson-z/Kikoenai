@@ -25,7 +25,7 @@ class FileBrowserPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final breadcrumbs = ref.watch(breadcrumbProvider);
+    final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
 
     final List<FileNode> currentNodes = breadcrumbs.isEmpty
         ? rootNodes
@@ -35,7 +35,7 @@ class FileBrowserPanel extends ConsumerWidget {
       canPop: breadcrumbs.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        ref.read(breadcrumbProvider.notifier).navigateBack();
+        ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).navigateBack();
       },
       child: _buildFileList(context, ref, currentNodes, scanMode),
     );
@@ -110,7 +110,7 @@ class FileBrowserPanel extends ConsumerWidget {
         );
       },
       onTap: () {
-        ref.read(breadcrumbProvider.notifier).enterFolder(node);
+        ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).enterFolder(node);
       },
     );
   }
@@ -172,7 +172,7 @@ class FileBrowserPanel extends ConsumerWidget {
               )
           );
         } else {
-          final breadcrumbs = ref.read(breadcrumbProvider);
+          final breadcrumbs = ref.read(breadcrumbProvider(BreadCrumbBarType.local));
           FileNode? targetRootNode;
           for (final bNode in breadcrumbs) {
             if (bNode.rjCode != null && bNode.rjCode!.isNotEmpty) {

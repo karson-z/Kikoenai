@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/model/file_node.dart';
-
+enum BreadCrumbBarType {local,detail,player}
 // 面包屑状态管理 Notifier
 class BreadcrumbNotifier extends Notifier<List<FileNode>> {
+  BreadcrumbNotifier(this.type);
+  /// 拿这个type 来做不同界面的面包屑导航的区分。
+  final BreadCrumbBarType type;
   @override
   List<FileNode> build() => [];
 
@@ -29,6 +32,4 @@ class BreadcrumbNotifier extends Notifier<List<FileNode>> {
 }
 
 // 暴露给 UI 的 Provider
-final breadcrumbProvider = NotifierProvider.autoDispose<BreadcrumbNotifier, List<FileNode>>(() {
-  return BreadcrumbNotifier();
-});
+final breadcrumbProvider = NotifierProvider.family.autoDispose<BreadcrumbNotifier,List<FileNode>,BreadCrumbBarType>(BreadcrumbNotifier.new);

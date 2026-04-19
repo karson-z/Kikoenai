@@ -227,7 +227,7 @@ class PathManagerSheet extends ConsumerWidget {
           ),
           subtitle: Text(parentPath, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: () {
-            ref.read(breadcrumbProvider.notifier).jumpTo(-1);
+            ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).jumpTo(-1);
             notifier.startScan(path);
             Navigator.pop(context);
           },
