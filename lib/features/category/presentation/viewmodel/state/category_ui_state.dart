@@ -7,7 +7,6 @@ class CategoryUiState {
   final SortOrder sortOption;
   final SortDirection sortDirection;
   final int subtitleFilter; // 0: 全部, 1: 仅字幕
-
   final bool isFilterOpen;       // 筛选面板是否打开
   final int selectedFilterIndex; // 左侧分类索引 (0:标签, 1:社团...)
   final String localSearchKeyword; // 筛选面板内的本地搜索词
