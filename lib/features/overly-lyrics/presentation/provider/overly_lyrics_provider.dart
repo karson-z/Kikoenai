@@ -32,7 +32,6 @@ class LyricsController extends Notifier<LyricsState> {
     ref.onDispose(() {
       _eventSubscription?.cancel();
     });
-
     final isDesktopModeEnabled = setting.get(StorageKeys.desktopLyricsEnabled, defaultValue: false);
     final isLocked = setting.get(StorageKeys.overlayLyricsIsLocked, defaultValue: false);
     final fontSize = setting.get(StorageKeys.overlayLyricsFontSize, defaultValue: 24.0);

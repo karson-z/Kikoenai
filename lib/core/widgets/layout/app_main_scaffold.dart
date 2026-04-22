@@ -8,6 +8,7 @@ import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dar
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 import '../slider/sllding_up_panel_modify.dart';
 import 'app_player_slider.dart';
 
@@ -47,18 +48,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final scaffoldState = ref.watch(mainScaffoldProvider);
     //  直接从 shell 获取当前索引，不再需要根据 path 解析
     final int selectedIndex = widget.navigationShell.currentIndex;
-
     final String title = appNavigationItems.length > selectedIndex
         ? appNavigationItems[selectedIndex].label
         : '';
-
     final String location = GoRouterState.of(context).uri.path;
-
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final bool showBottomNav = scaffoldState.showBottomNav && !OtherUtil.isFullScreenPage(location);
     const double minHeight = 70;
     final double bottomNavHeight = AppConstants.kAppBottomNavHeight;
-
+    final isCurrentVideoView = ref.read(playerControllerProvider.select((p) => p.isCurrentVideoView));
     if (isMobile) {
       return Scaffold(
         bottomNavigationBar: showBottomNav
@@ -75,6 +73,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
           body: widget.navigationShell,
+          isDraggable: !isCurrentVideoView, // 当当前播放节目为视频的时候禁用SlidingPanel的拖动手势
         ),
       );
     } else {

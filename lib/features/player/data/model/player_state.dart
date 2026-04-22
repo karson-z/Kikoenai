@@ -65,4 +65,11 @@ abstract class AppPlayerState with _$AppPlayerState {
 
   List<AudioTrack> get allAudioTracks =>
       [...availableAudioTracks, ...externalAudioTracks];
+
+  // 当前是否是视频播放页面
+  bool get isCurrentVideoView {
+    if (currentTrack == null) return false;
+    // 当视频宽高都大于0 且 !isAudioOnly 的时候必然是视频
+    return videoWidth > 0 && videoHeight > 0 && !isAudioOnly;
+  }
 }
