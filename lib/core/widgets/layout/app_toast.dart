@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../common/kikoenai_dialog.dart';
-// ⚠️ 必须引入你之前定义的 KikoenaiDialog 文件，因为我们需要访问 observer
-// import 'package:kikoenai/core/widgets/dialog/kikoenai_dialog.dart';
 
 class KikoenaiToast {
   // 私有构造，防止实例化
