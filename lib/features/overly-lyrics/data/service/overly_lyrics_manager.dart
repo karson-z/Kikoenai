@@ -21,6 +21,7 @@ abstract class SubtitleManager {
   Stream<Map<String, dynamic>> get eventStream;
 
   // 初始化底层环境与权限
+  /// 这里由主应用初始化
   Future<void> init();
 
   // 显示字幕悬浮窗
