@@ -5,6 +5,7 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/presentation/page/auth_page.dart';
 import 'package:kikoenai/features/local_media/presentation/page/local_media_page.dart';
+import 'package:kikoenai/features/log/logger_view.dart';
 import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
@@ -128,6 +129,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               pageBuilder: (context, state) => SlideRightTransitionPage(
                 key: state.pageKey,
                 child: const PermissionSettingsPage(),
+              ),
+            ),
+            GoRoute(
+              path: AppRoutes.toRelative(AppRoutes.settingsLog),
+              pageBuilder: (context, state) => SlideRightTransitionPage(
+                key: state.pageKey,
+                child: const LogViewerPage(),
               ),
             ),
 

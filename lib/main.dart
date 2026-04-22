@@ -10,11 +10,11 @@ import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/presentation/page/overly_lyrics_panel.dart';
-import 'features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppStorage.init();
   runApp(
     const ProviderScope(
       child: MaterialApp(

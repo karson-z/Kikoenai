@@ -25,8 +25,8 @@ class ScannerPage extends ConsumerWidget {
     final isScanning = scannerState.status == WorkerState.scanning;
     final currentMode = scannerState.scanMode;
     // 1. 获取全局的面包屑数据和控制器
-    final breadcrumbs = ref.watch(breadcrumbProvider);
-    final breadcrumbNotifier = ref.read(breadcrumbProvider.notifier);
+    final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
+    final breadcrumbNotifier = ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier);
 
     final queueCount = queueState.pending.length + queueState.processing.length;
 
@@ -35,7 +35,7 @@ class ScannerPage extends ConsumerWidget {
       final isNowIdle = next.status == WorkerState.idle || next.status == WorkerState.done;
       if (wasScanning && isNowIdle) {
         final pendingNodes = _extractPendingNodes(next.roots);
-        if (pendingNodes.isNotEmpty) {
+        if (pendingNodes.isNotEmpty && scannerState.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
       }

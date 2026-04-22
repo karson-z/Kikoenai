@@ -24,21 +24,18 @@ class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.read(playerControllerProvider.notifier);
 
     return Container(
       color: Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Center(
-            child: VideoGestureLayer(
-              child: Video(
-                controller: _videoController,
-                controls: NoVideoControls,
-                fit: BoxFit.contain,
-                fill: Colors.transparent,
-              ),
+          VideoGestureLayer(
+            child: Video(
+              controller: _videoController,
+              controls: NoVideoControls,
+              fit: BoxFit.contain,
+              fill: Colors.transparent,
             ),
           ),
           const PlayerVideoControlsOverlay(),
