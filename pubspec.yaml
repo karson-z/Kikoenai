@@ -1,10 +1,10 @@
 name: kikoenai
 description: A new Flutter project.
 
-version: 1.0.2+1
+version: 1.0.3+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '3.11.5'
 flutter:
   uses-material-design: true
   assets:
@@ -24,6 +24,7 @@ dependencies:
   extended_image: ^10.0.1
   dio: ^5.9.0
   dio_smart_retry: ^7.0.1
+  text_scroll: ^0.2.0
 #  bitsdojo_window: ^0.1.6
   google_fonts: ^6.3.2
   json_annotation: ^4.9.0
@@ -37,9 +38,6 @@ dependencies:
   shimmer: ^3.0.0
   skeletonizer: ^2.1.0
   wolt_modal_sheet: ^0.11.0
-  media_kit: ^1.2.6 # Primary package.
-  media_kit_video: ^2.0.1 # For video rendering.
-  media_kit_libs_video: ^1.0.7 # Native video dependencies.
   audio_service: ^0.18.12
   audio_session: ^0.2.2
   rxdart: ^0.28.0
@@ -70,6 +68,53 @@ dependencies:
   flutter_overlay_window: ^0.5.0
   window_manager: ^0.4.3
   tray_manager: ^0.2.2
+  media_kit:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./media_kit
+  media_kit_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./media_kit_video
+  media_kit_libs_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/universal/media_kit_libs_video
+
+dependency_overrides:
+  media_kit_libs_linux:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/linux/media_kit_libs_linux
+  media_kit_libs_ios_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/ios/media_kit_libs_ios_video
+  media_kit_libs_android_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/android/media_kit_libs_android_video
+  media_kit_libs_windows_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/windows/media_kit_libs_windows_video
+  media_kit_libs_macos_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/macos/media_kit_libs_macos_video
+  media_kit_libs_ohos:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: f228407de30278da4109bdc090fffedf1986f769
+      path: ./libs/ohos/media_kit_libs_ohos
 dev_dependencies:
   flutter_test:
     sdk: flutter

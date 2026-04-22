@@ -22,6 +22,7 @@ import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/utils/window/display_util.dart';
+import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
 import '../../data/model/player_state.dart';
@@ -694,10 +695,15 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> addMultiInQueue(List<FileNode> nodes, Work work) async {
-    final mediaList = nodes.map((node) {
-      return _fileNodeToMediaItem(node, work);
-    }).toList();
-    await addAll(mediaList);
+    try {
+      final mediaList = nodes.map((node) {
+            return _fileNodeToMediaItem(node, work);
+          }).toList();
+      await addAll(mediaList);
+      KikoenaiToast.success("已加入播放队列");
+    } catch (e) {
+      KikoenaiLogger().e("加入播放队列失败");
+    }
   }
   Future<void> toggleVideoFullScreen() async {
     final currentIsFull = ref.read(mainScaffoldProvider).isFullScreen;

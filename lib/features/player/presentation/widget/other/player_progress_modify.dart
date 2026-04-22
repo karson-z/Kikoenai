@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 /// 进度条组件
-/// 支持 [isLoading] 状态，显示跑马灯动画
+/// 支持拖动时平滑放大，并自动保持垂直居中不影响外部布局
 class ProgressBar extends StatefulWidget {
   const ProgressBar({
     super.key,
@@ -16,21 +16,24 @@ class ProgressBar extends StatefulWidget {
     this.onDragStart,
     this.onDragUpdate,
     this.onDragEnd,
+    this.height = 24.0, // 新增：组件的固定占位高度（防止动画挤压外部布局）
     this.barHeight = 5.0,
+    this.draggingBarHeight = 8.0, // 新增：拖动时的高度
     this.baseBarColor,
     this.progressBarColor,
     this.bufferedBarColor,
     this.barCapShape = BarCapShape.round,
-    this.thumbRadius = 10.0,
+    this.thumbRadius = 6.0,
+    this.draggingThumbRadius = 9.0, // 新增：拖动时的滑块半径
     this.thumbColor,
     this.thumbGlowColor,
-    this.thumbGlowRadius = 30.0,
+    this.thumbGlowRadius = 16.0,
     this.thumbCanPaintOutsideBar = true,
     this.timeLabelLocation,
     this.timeLabelType,
     this.timeLabelTextStyle,
     this.timeLabelPadding = 0.0,
-    this.isLoading = false, // 是否处于加载状态
+    this.isLoading = false,
   });
 
   final Duration progress;
@@ -40,12 +43,19 @@ class ProgressBar extends StatefulWidget {
   final ThumbDragStartCallback? onDragStart;
   final ThumbDragUpdateCallback? onDragUpdate;
   final VoidCallback? onDragEnd;
+
+  final double? height;
   final double barHeight;
+  final double draggingBarHeight;
+
   final Color? baseBarColor;
   final Color? progressBarColor;
   final Color? bufferedBarColor;
   final BarCapShape barCapShape;
+
   final double thumbRadius;
+  final double draggingThumbRadius;
+
   final Color? thumbColor;
   final Color? thumbGlowColor;
   final double thumbGlowRadius;
@@ -54,8 +64,6 @@ class ProgressBar extends StatefulWidget {
   final TimeLabelType? timeLabelType;
   final TextStyle? timeLabelTextStyle;
   final double timeLabelPadding;
-
-  /// If true, a marquee loading animation will be shown on the bar.
   final bool isLoading;
 
   @override
@@ -65,16 +73,15 @@ class ProgressBar extends StatefulWidget {
 class _ProgressBarState extends State<ProgressBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool _isDragging = false; // 在组件内部维护拖动状态
 
   @override
   void initState() {
     super.initState();
-    // 创建一个循环动画控制器，时长可以根据需要调整跑马灯速度
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
     );
-
     if (widget.isLoading) {
       _controller.repeat();
     }
@@ -101,38 +108,73 @@ class _ProgressBarState extends State<ProgressBar>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return _ProgressBarRenderObjectWidget(
-          progress: widget.progress,
-          total: widget.total,
-          buffered: widget.buffered,
-          onSeek: widget.onSeek,
-          onDragStart: widget.onDragStart,
-          onDragUpdate: widget.onDragUpdate,
-          onDragEnd: widget.onDragEnd,
-          barHeight: widget.barHeight,
-          baseBarColor: widget.isLoading ? Colors.transparent : widget.baseBarColor,
-          progressBarColor: widget.progressBarColor,
-          bufferedBarColor: widget.bufferedBarColor,
-          barCapShape: widget.barCapShape,
-          thumbRadius: widget.thumbRadius,
-          thumbColor: widget.thumbColor,
-          thumbGlowColor: widget.thumbGlowColor,
-          thumbGlowRadius: widget.thumbGlowRadius,
-          thumbCanPaintOutsideBar: widget.thumbCanPaintOutsideBar,
-          timeLabelLocation: widget.timeLabelLocation,
-          timeLabelType: widget.timeLabelType,
-          timeLabelTextStyle: widget.timeLabelTextStyle,
-          timeLabelPadding: widget.timeLabelPadding,
-          isLoading: widget.isLoading,
-          loadingAnimationValue: _controller.value, // 传递动画值 (0.0 - 1.0)
+    // 核心实现：包裹平滑过渡动画
+    Widget content = TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: _isDragging ? 1.0 : 0.0),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        // 动态插值计算
+        final currentBarHeight = widget.barHeight +
+            ((widget.draggingBarHeight - widget.barHeight) * animValue);
+        final currentThumbRadius = widget.thumbRadius +
+            ((widget.draggingThumbRadius - widget.thumbRadius) * animValue);
+        final currentGlowRadius = widget.thumbGlowRadius + (4.0 * animValue);
+
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            // 使用 Center 保证高度变大时，是向上下均匀扩张的
+            return Center(
+              child: _ProgressBarRenderObjectWidget(
+                progress: widget.progress,
+                total: widget.total,
+                buffered: widget.buffered,
+                onSeek: widget.onSeek,
+                // 拦截回调，更新内部动画状态，并将事件透传给外部
+                onDragStart: (details) {
+                  setState(() => _isDragging = true);
+                  widget.onDragStart?.call(details);
+                },
+                onDragUpdate: widget.onDragUpdate,
+                onDragEnd: () {
+                  setState(() => _isDragging = false);
+                  widget.onDragEnd?.call();
+                },
+                barHeight: currentBarHeight,
+                baseBarColor: widget.baseBarColor,
+                progressBarColor: widget.progressBarColor,
+                bufferedBarColor: widget.bufferedBarColor,
+                barCapShape: widget.barCapShape,
+                thumbRadius: currentThumbRadius,
+                thumbColor: widget.thumbColor,
+                thumbGlowColor: widget.thumbGlowColor,
+                thumbGlowRadius: currentGlowRadius,
+                thumbCanPaintOutsideBar: widget.thumbCanPaintOutsideBar,
+                timeLabelLocation: widget.timeLabelLocation,
+                timeLabelType: widget.timeLabelType,
+                timeLabelTextStyle: widget.timeLabelTextStyle,
+                timeLabelPadding: widget.timeLabelPadding,
+                isLoading: widget.isLoading,
+                loadingAnimationValue: _controller.value,
+              ),
+            );
+          },
         );
       },
     );
+
+    // 用固定高度保护外部布局不被挤压
+    if (widget.height != null) {
+      return SizedBox(height: widget.height, child: content);
+    }
+    return content;
   }
 }
+
+// --------------------------------------------------------------------------
+// 下方的底层渲染代码几乎保持原样，只修复了手势取消的 Bug
+// --------------------------------------------------------------------------
 
 class _ProgressBarRenderObjectWidget extends LeafRenderObjectWidget {
   const _ProgressBarRenderObjectWidget({
@@ -143,20 +185,20 @@ class _ProgressBarRenderObjectWidget extends LeafRenderObjectWidget {
     this.onDragStart,
     this.onDragUpdate,
     this.onDragEnd,
-    this.barHeight = 5.0,
+    required this.barHeight,
     this.baseBarColor,
     this.progressBarColor,
     this.bufferedBarColor,
-    this.barCapShape = BarCapShape.round,
-    this.thumbRadius = 10.0,
+    required this.barCapShape,
+    required this.thumbRadius,
     this.thumbColor,
     this.thumbGlowColor,
-    this.thumbGlowRadius = 30.0,
-    this.thumbCanPaintOutsideBar = true,
+    required this.thumbGlowRadius,
+    required this.thumbCanPaintOutsideBar,
     this.timeLabelLocation,
     this.timeLabelType,
     this.timeLabelTextStyle,
-    this.timeLabelPadding = 0.0,
+    required this.timeLabelPadding,
     required this.isLoading,
     required this.loadingAnimationValue,
   });
@@ -206,8 +248,7 @@ class _ProgressBarRenderObjectWidget extends LeafRenderObjectWidget {
       barCapShape: barCapShape,
       thumbRadius: thumbRadius,
       thumbColor: thumbColor ?? primaryColor,
-      thumbGlowColor:
-      thumbGlowColor ?? (thumbColor ?? primaryColor).withAlpha(80),
+      thumbGlowColor: thumbGlowColor ?? (thumbColor ?? primaryColor).withAlpha(80),
       thumbGlowRadius: thumbGlowRadius,
       thumbCanPaintOutsideBar: thumbCanPaintOutsideBar,
       timeLabelLocation: timeLabelLocation ?? TimeLabelLocation.below,
@@ -241,8 +282,7 @@ class _ProgressBarRenderObjectWidget extends LeafRenderObjectWidget {
       ..barCapShape = barCapShape
       ..thumbRadius = thumbRadius
       ..thumbColor = thumbColor ?? primaryColor
-      ..thumbGlowColor =
-          thumbGlowColor ?? (thumbColor ?? primaryColor).withAlpha(80)
+      ..thumbGlowColor = thumbGlowColor ?? (thumbColor ?? primaryColor).withAlpha(80)
       ..thumbGlowRadius = thumbGlowRadius
       ..thumbCanPaintOutsideBar = thumbCanPaintOutsideBar
       ..timeLabelLocation = timeLabelLocation ?? TimeLabelLocation.below
@@ -298,15 +338,15 @@ class _RenderProgressBar extends RenderBox {
     required Color progressBarColor,
     required Color bufferedBarColor,
     required BarCapShape barCapShape,
-    double thumbRadius = 20.0,
+    required double thumbRadius,
     required Color thumbColor,
     required Color thumbGlowColor,
-    double thumbGlowRadius = 30.0,
-    bool thumbCanPaintOutsideBar = true,
+    required double thumbGlowRadius,
+    required bool thumbCanPaintOutsideBar,
     required TimeLabelLocation timeLabelLocation,
     required TimeLabelType timeLabelType,
     TextStyle? timeLabelTextStyle,
-    double timeLabelPadding = 0.0,
+    required double timeLabelPadding,
     required TextScaler textScaler,
     required bool isLoading,
     required double loadingAnimationValue,
@@ -337,7 +377,7 @@ class _RenderProgressBar extends RenderBox {
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd
-      ..onCancel = _finishDrag;
+      ..onCancel = _onDragCancel; // 修复：绑定取消事件
     if (!_userIsDraggingThumb) {
       _progress = progress;
       _thumbValue = _proportionOfTotal(_progress);
@@ -391,6 +431,12 @@ class _RenderProgressBar extends RenderBox {
   void _onDragEnd(DragEndDetails details) {
     onDragEnd?.call();
     onSeek?.call(_currentThumbDuration());
+    _finishDrag();
+  }
+
+  // 修复：手势被外部打断时（如列表滚动），必须回调通知 State 恢复 UI 状态
+  void _onDragCancel() {
+    onDragEnd?.call();
     _finishDrag();
   }
 
@@ -570,105 +616,101 @@ class _RenderProgressBar extends RenderBox {
 
   void _drawProgressBarWithLabelsAboveOrBelow(Canvas canvas) {
     final barWidth = size.width;
-    final barHeight = _heightWhenNoLabels();
+    // 获取左右文字的最大高度
+    final textHeight = max(_leftLabelSize.height, _rightLabelSize.height);
     final isLabelBelow = _timeLabelLocation == TimeLabelLocation.below;
-    final labelDy = (isLabelBelow) ? barHeight + _timeLabelPadding : 0.0;
-    final leftLabelOffset = Offset(0, labelDy);
-    _leftTimeLabel().paint(canvas, leftLabelOffset);
-    final rightLabelDx = size.width - _rightLabelSize.width;
-    final rightLabelOffset = Offset(rightLabelDx, labelDy);
-    _rightTimeLabel().paint(canvas, rightLabelOffset);
-    final barDy = (isLabelBelow) ? 0.0 : _leftLabelSize.height + _timeLabelPadding;
-    _drawProgressBar(canvas, Offset(0, barDy), Size(barWidth, barHeight));
+    final labelDy = isLabelBelow ? size.height - textHeight : 0.0;
+
+    _leftTimeLabel().paint(canvas, Offset(0, labelDy));
+    _rightTimeLabel().paint(canvas, Offset(size.width - _rightLabelSize.width, labelDy));
+    final barAreaHeight = size.height - textHeight - _timeLabelPadding;
+    final barDy = isLabelBelow ? 0.0 : textHeight + _timeLabelPadding;
+    _drawProgressBar(canvas, Offset(0, barDy), Size(barWidth, barAreaHeight));
   }
 
   void _drawProgressBarWithLabelsOnSides(Canvas canvas) {
     final leftLabelSize = _leftLabelSize;
-    final verticalOffset = size.height / 2 - leftLabelSize.height / 2;
-    final leftLabelOffset = Offset(0, verticalOffset);
-    _leftTimeLabel().paint(canvas, leftLabelOffset);
     final rightLabelSize = _rightLabelSize;
-    final rightLabelWidth = rightLabelSize.width;
-    final totalLabelDx = size.width - rightLabelWidth;
-    final totalLabelOffset = Offset(totalLabelDx, verticalOffset);
-    _rightTimeLabel().paint(canvas, totalLabelOffset);
-    final leftLabelWidth = leftLabelSize.width;
-    final barHeight = _heightWhenNoLabels();
-    final barWidth = size.width - 2 * _defaultSidePadding - 2 * _timeLabelPadding - leftLabelWidth - rightLabelWidth;
-    final barDy = size.height / 2 - barHeight / 2;
-    final barDx = leftLabelWidth + _defaultSidePadding + _timeLabelPadding;
-    _drawProgressBar(canvas, Offset(barDx, barDy), Size(barWidth, barHeight));
+
+    // 侧边文字垂直居中
+    final verticalOffset = size.height / 2 - leftLabelSize.height / 2;
+    _leftTimeLabel().paint(canvas, Offset(0, verticalOffset));
+    _rightTimeLabel().paint(canvas, Offset(size.width - rightLabelSize.width, verticalOffset));
+
+    final barWidth = size.width - 2 * _defaultSidePadding - 2 * _timeLabelPadding - leftLabelSize.width - rightLabelSize.width;
+    final barDx = leftLabelSize.width + _defaultSidePadding + _timeLabelPadding;
+
+    // 直接传入画布的完整高度 size.height，由底层控制绝对垂直居中
+    _drawProgressBar(canvas, Offset(barDx, 0.0), Size(barWidth, size.height));
   }
 
   void _drawProgressBarWithoutLabels(Canvas canvas) {
-    final barWidth = size.width;
-    final barHeight = _heightWhenNoLabels();
-    _drawProgressBar(canvas, Offset.zero, Size(barWidth, barHeight));
+    // 无文字时，也是占据整个固定画板，让中心线绝对静止
+    _drawProgressBar(canvas, Offset.zero, size);
   }
 
   void _drawProgressBar(Canvas canvas, Offset offset, Size localSize) {
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
 
-    // 1. 绘制底色条
     _drawBaseBar(canvas, localSize);
+    _drawBufferedBar(canvas, localSize);
+    _drawCurrentProgressBar(canvas, localSize);
 
     if (isLoading) {
-      // 2. 如果是加载状态，绘制跑马灯（Marquee）动画条
-      // 此时不绘制 buffered, currentProgress 和 thumb
-      _drawMarqueeBar(canvas, localSize);
-    } else {
-      // 3. 正常状态：绘制缓冲、当前进度和滑块
-      _drawBufferedBar(canvas, localSize);
-      _drawCurrentProgressBar(canvas, localSize);
-      _drawThumb(canvas, localSize);
+      _drawMarqueeOverlay(canvas, localSize);
     }
+
+    _drawThumb(canvas, localSize);
 
     canvas.restore();
   }
 
-  void _drawBaseBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: 1.0, color: baseBarColor); }
-  void _drawBufferedBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: _proportionOfTotal(_buffered), color: bufferedBarColor); }
-  void _drawCurrentProgressBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: _proportionOfTotal(_progress), color: progressBarColor); }
+  void _drawMarqueeOverlay(Canvas canvas, Size localSize) {
+    final capRadius = _barHeight / 2;
+    final adjustedWidth = localSize.width - _barHeight;
+    final progressProportion = _proportionOfTotal(_progress);
 
-  /// 绘制跑马灯动画条
-  void _drawMarqueeBar(Canvas canvas, Size localSize) {
-    final double barWidth = localSize.width;
-    // 跑马灯条的宽度（例如总宽度的 30%）
-    final double marqueeWidth = barWidth * 0.3;
-    final double totalAnimationDistance = barWidth + marqueeWidth;
+    double clipWidth;
+    if (progressProportion > 0) {
+      clipWidth = progressProportion * adjustedWidth + _barHeight;
+    } else {
+      clipWidth = localSize.width;
+    }
 
-    // 计算当前位置：从最左边 (-marqueeWidth) 移动到最右边 (barWidth)
+    final double marqueeWidth = localSize.width * 0.5;
+    final double totalAnimationDistance = localSize.width + marqueeWidth;
     final double startX = (totalAnimationDistance * loadingAnimationValue) - marqueeWidth;
 
-    final strokeCap = (_barCapShape == BarCapShape.round) ? StrokeCap.round : StrokeCap.square;
-    final capRadius = _barHeight / 2;
+    final radius = (_barCapShape == BarCapShape.round) ? Radius.circular(capRadius) : Radius.zero;
 
-    // 限制绘制区域在 BaseBar 内部，防止跑出圆角
-    final double availableWidth = localSize.width - barHeight; // 减去两端的圆角占用
     final RRect clipRRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(capRadius, localSize.height / 2 - capRadius, availableWidth, _barHeight),
-      Radius.circular(capRadius),
+      Rect.fromLTWH(0, localSize.height / 2 - capRadius, clipWidth, _barHeight),
+      radius,
     );
 
     canvas.save();
-    // 裁剪画布，确保跑马灯不画出进度条的圆角边界
     canvas.clipRRect(clipRRect);
 
-    // 渐变色画笔：两端透明，中间实色，模拟光效
+    final double luminance = progressBarColor.computeLuminance();
+    final Color highlightColor = luminance > 0.5
+        ? Colors.black.withOpacity(0.4)
+        : Colors.white.withOpacity(0.8);
+
     final Paint marqueePaint = Paint()
       ..shader = LinearGradient(
         colors: [
-          progressBarColor.withOpacity(0.0),
-          progressBarColor,
-          progressBarColor.withOpacity(0.0),
+          highlightColor.withOpacity(0.0),
+          highlightColor,
+          highlightColor.withOpacity(0.0),
         ],
         stops: const [0.0, 0.5, 1.0],
       ).createShader(Rect.fromLTWH(startX, 0, marqueeWidth, localSize.height))
       ..strokeWidth = _barHeight
-      ..strokeCap = strokeCap;
+      ..strokeCap = (_barCapShape == BarCapShape.round) ? StrokeCap.round : StrokeCap.square;
 
-    // 绘制线条
+    marqueePaint.blendMode = BlendMode.srcATop;
+
     canvas.drawLine(
       Offset(startX, localSize.height / 2),
       Offset(startX + marqueeWidth, localSize.height / 2),
@@ -677,6 +719,10 @@ class _RenderProgressBar extends RenderBox {
 
     canvas.restore();
   }
+
+  void _drawBaseBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: 1.0, color: baseBarColor); }
+  void _drawBufferedBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: _proportionOfTotal(_buffered), color: bufferedBarColor); }
+  void _drawCurrentProgressBar(Canvas canvas, Size localSize) { _drawBar(canvas: canvas, availableSize: localSize, widthProportion: _proportionOfTotal(_progress), color: progressBarColor); }
 
   void _drawBar({required Canvas canvas, required Size availableSize, required double widthProportion, required Color color}) {
     final strokeCap = (_barCapShape == BarCapShape.round) ? StrokeCap.round : StrokeCap.square;

@@ -108,9 +108,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     // 2. 更新 UI 状态：加载新模式的保存路径，清空当前正在扫描的路径 (currentPath) 和结果
     state = state.copyWith(
       scanMode: newMode,
-      roots: [],
-      currentPath: null, // 置空当前路径，等待用户手动点击列表中的路径
-      scannedCount: 0,
       status: WorkerState.idle,
       errorMessage: null,
       savedPaths: _cacheService.getScanRootPaths(mode: newMode),

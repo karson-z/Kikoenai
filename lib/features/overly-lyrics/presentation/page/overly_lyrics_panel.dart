@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:text_scroll/text_scroll.dart';
 import '../provider/overly_lyrics_provider.dart';
 
 class LyricsOverlayContent extends ConsumerStatefulWidget {
@@ -31,18 +31,12 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
         _showSettings = false;
       }
     });
-    final lyricsCtrl = ref.read(lyricsControllerProvider.notifier);
-    double targetSize = _showControls ? 200 : 120;
-    await lyricsCtrl.resizeOverlay(-1, targetSize.toDouble());
   }
 
-  void _toggleSettings() async {
+  void _toggleSettings() {
     setState(() {
       _showSettings = !_showSettings;
     });
-    final lyricsCtrl = ref.read(lyricsControllerProvider.notifier);
-    double targetSize = _showSettings ? 250 : 200;
-    await lyricsCtrl.resizeOverlay(-1, targetSize.toDouble());
   }
 
   @override
@@ -76,8 +70,12 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      child: AutoScrollText(
-                        text: text,
+                      child: TextScroll(
+                        text,
+                        mode: TextScrollMode.endless,
+                        velocity: const Velocity(pixelsPerSecond: Offset(40, 0)),
+                        delayBefore: const Duration(seconds: 2),
+                        pauseBetween: const Duration(seconds: 2),
                         style: TextStyle(
                           fontSize: fontSize,
                           color: textColor,
@@ -188,8 +186,12 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
             ],
           ),
         ),
-        if (_showSettings)
-          GestureDetector(
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _showSettings
+              ? GestureDetector(
             onTap: () {},
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -232,109 +234,10 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                 ],
               ),
             ),
-          ),
+          )
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
       ],
-    );
-  }
-}
-
-class AutoScrollText extends StatefulWidget {
-  final String text;
-  final TextStyle style;
-
-  const AutoScrollText({
-    super.key,
-    required this.text,
-    required this.style,
-  });
-
-  @override
-  State<AutoScrollText> createState() => _AutoScrollTextState();
-}
-
-class _AutoScrollTextState extends State<AutoScrollText> {
-  late ScrollController _scrollController;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    _startAutoScroll();
-  }
-
-  @override
-  void didUpdateWidget(covariant AutoScrollText oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text) {
-      _timer?.cancel();
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-      _startAutoScroll();
-    }
-  }
-
-  void _startAutoScroll() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _timer = Timer(const Duration(seconds: 2), _scroll);
-    });
-  }
-
-  void _scroll() async {
-    if (!mounted || !_scrollController.hasClients) return;
-    final maxScrollExtent = _scrollController.position.maxScrollExtent;
-
-    if (maxScrollExtent > 0) {
-      final duration = Duration(milliseconds: (maxScrollExtent * 25).toInt());
-
-      await _scrollController.animateTo(
-        maxScrollExtent,
-        duration: duration,
-        curve: Curves.linear,
-      );
-
-      if (!mounted) return;
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (!mounted) return;
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-
-      _startAutoScroll();
-    } else {
-      _timer = Timer(const Duration(seconds: 1), _scroll);
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textWidget = Text(
-      widget.text,
-      style: widget.style,
-      maxLines: 1,
-      softWrap: false,
-      overflow: TextOverflow.visible,
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          physics: const NeverScrollableScrollPhysics(),
-          child: textWidget,
-        );
-      },
     );
   }
 }

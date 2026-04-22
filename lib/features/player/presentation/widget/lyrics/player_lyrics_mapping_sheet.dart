@@ -186,30 +186,28 @@ class _LyricsMappingSheetState extends State<LyricsMappingSheet> {
               ),
             ),
           ),
-          SizedBox(
-            width: 90,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: hasNode
-                  ? [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                  tooltip: '更换字幕',
-                  onPressed: () => _handleSelectSubtitle(track.id),
-                ),
-                IconButton(
-                  icon: Icon(Icons.link_off, size: 20, color: theme.colorScheme.error),
-                  tooltip: '取消关联',
-                  onPressed: () => _clearMapping(track.id),
-                ),
-              ]
-                  : [
-                TextButton(
-                  onPressed: () => _handleSelectSubtitle(track.id),
-                  child: const Text('选择'),
-                ),
-              ],
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: hasNode
+                ? [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: '更换字幕',
+                onPressed: () => _handleSelectSubtitle(track.id),
+              ),
+              IconButton(
+                icon: Icon(Icons.link_off, size: 20, color: theme.colorScheme.error),
+                tooltip: '取消关联',
+                onPressed: () => _clearMapping(track.id),
+              ),
+            ]
+                : [
+              TextButton(
+                onPressed: () => _handleSelectSubtitle(track.id),
+                child: const Text('选择'),
+              ),
+            ],
           ),
         ],
       ),
