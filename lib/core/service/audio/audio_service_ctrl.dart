@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
@@ -18,7 +19,6 @@ class AudioServiceSingleton {
   AudioServiceSingleton._();
 
   static late final AudioHandler _instance;
-
   static AudioHandler get instance {
     return _instance;
   }
@@ -39,10 +39,10 @@ class AudioServiceSingleton {
 }
 
 /// 自定义音频处理器，连接系统服务状态与底层播放引擎。
-class MyAudioHandler extends BaseAudioHandler {
+class MyAudioHandler extends BaseAudioHandler  {
   /// 引用全局的媒体播放引擎
   final Player _player = PlayerService.instance.player;
-
+  late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
   final List<MediaItem> _playlist = [];
@@ -58,6 +58,7 @@ class MyAudioHandler extends BaseAudioHandler {
   MyAudioHandler() {
     _listenMpvLogs();
     _initPlayerConfig();
+    _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
@@ -95,6 +96,42 @@ class MyAudioHandler extends BaseAudioHandler {
         KikoenaiLogger().e("底层 mpv 参数配置注入失败: $e");
       }
     }
+  }
+  // 自定义音频焦点初始化
+  Future<void> _setupAudioSession() async {
+    _audioSession = await AudioSession.instance;
+    // 配置为标准的“音乐播放器”模式
+    await _audioSession.configure(const AudioSessionConfiguration.music());
+
+    // 监听系统焦点被抢占（如来电、其他软件播放音乐）
+    _audioSession.interruptionEventStream.listen((event) {
+      if (event.begin) {
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            _player.setVolume(30.0); // 压低音量
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+            _player.pause(); // 强制暂停
+            break;
+        }
+      } else {
+        switch (event.type) {
+          case AudioInterruptionType.duck:
+            _player.setVolume(100.0); // 恢复音量
+            break;
+          case AudioInterruptionType.pause:
+          case AudioInterruptionType.unknown:
+            play(); // 别人播完了，我们恢复播放
+            break;
+        }
+      }
+    });
+
+    // 监听耳机拔出事件（必须暂停）
+    _audioSession.becomingNoisyEventStream.listen((_) {
+      pause();
+    });
   }
 
   void _listenErrorStream() {
