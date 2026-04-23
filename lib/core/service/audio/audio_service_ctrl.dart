@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:audio_service/audio_service.dart';
-import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
@@ -54,28 +53,11 @@ class MyAudioHandler extends BaseAudioHandler {
 
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
 
-  AudioSession? _audioSession;
-
-  bool _playInterrupted = false;
-
-  bool _pausedByDeviceDisconnect = false;
-
-  DateTime? _lastDisconnectTime;
-
-  Timer? _debounceTimer;
-
-  StreamSubscription? _noisySubscription;
-  StreamSubscription? _deviceSubscription;
-
   double _normalVolume = 100.0;
-
-  bool get _ignoreAudioFocus =>
-      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
 
   MyAudioHandler() {
     _listenMpvLogs();
     _initPlayerConfig();
-    _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
@@ -92,7 +74,7 @@ class MyAudioHandler extends BaseAudioHandler {
         // 这会强制 FFmpeg 放弃构建完整索引，对于缺乏索引的文件直接基于比特率进行估算 Range 跳转
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
-        KikoenaiLogger().i("当前缓存路径:$cacheDir"); 
+        KikoenaiLogger().i("当前缓存路径:$cacheDir");
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty('demuxer-max-bytes', '500000000');
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
@@ -115,37 +97,14 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  Future<void> _applyAudioSessionConfiguration() async {
-    if (_audioSession == null) return;
-
-    if (_ignoreAudioFocus) {
-      await _audioSession!.configure(const AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionCategoryOptions:
-        AVAudioSessionCategoryOptions.mixWithOthers,
-        avAudioSessionMode: AVAudioSessionMode.defaultMode,
-        avAudioSessionRouteSharingPolicy:
-        AVAudioSessionRouteSharingPolicy.defaultPolicy,
-        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          usage: AndroidAudioUsage.media,
-        ),
-        androidAudioFocusGainType:
-        AndroidAudioFocusGainType.gainTransientMayDuck,
-        androidWillPauseWhenDucked: false,
-      ));
-    } else {
-      await _audioSession!.configure(const AudioSessionConfiguration.music());
-    }
-  }
   void _listenErrorStream() {
     _player.stream.error.listen((error){
       KikoenaiToast.error(
-        '播放错误: $error'
+          '播放错误: $error'
       );
     });
   }
+
   void _listenMpvLogs() {
     _player.stream.log.listen((event) {
       final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
@@ -159,132 +118,24 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
-  Future<void> _setIgnoreAudioFocus(bool ignore) async {
-    await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
-    await _applyAudioSessionConfiguration();
-  }
-
-  Future<void> _setupAudioSession() async {
-    _audioSession = await AudioSession.instance;
-    await _applyAudioSessionConfiguration();
-
-    _audioSession!.interruptionEventStream.listen((event) {
-      if (_ignoreAudioFocus) return;
-
-      if (event.begin) {
-        switch (event.type) {
-          case AudioInterruptionType.duck:
-            _player.setVolume(_normalVolume * 0.3);
-            break;
-          case AudioInterruptionType.pause:
-          case AudioInterruptionType.unknown:
-            if (_player.state.playing) {
-              _player.pause();
-              _playInterrupted = true;
-            }
-            break;
-        }
-      } else {
-        switch (event.type) {
-          case AudioInterruptionType.duck:
-            _player.setVolume(_normalVolume);
-            break;
-          case AudioInterruptionType.pause:
-          case AudioInterruptionType.unknown:
-            if (_playInterrupted) {
-              play();
-              _playInterrupted = false;
-            }
-            break;
-        }
-      }
-    });
-
-    _noisySubscription = _audioSession!.becomingNoisyEventStream.listen((_) {
-      if (_player.state.playing) {
-        _player.pause();
-        _pausedByDeviceDisconnect = true;
-        _lastDisconnectTime = DateTime.now();
-      }
-    });
-
-    _deviceSubscription = _audioSession!.devicesChangedEventStream.listen((event) {
-      if (event.devicesAdded.isEmpty || !_pausedByDeviceDisconnect) return;
-
-      final isRealHeadset = event.devicesAdded.any((d) =>
-      d.isOutput && (
-          d.type == AudioDeviceType.bluetoothA2dp ||
-              d.type == AudioDeviceType.wiredHeadset ||
-              d.type == AudioDeviceType.wiredHeadphones ||
-              d.type == AudioDeviceType.bluetoothLe ||
-              d.type == AudioDeviceType.usbAudio
-      )
-      );
-
-      if (isRealHeadset) {
-        final now = DateTime.now();
-        final timeSinceDisconnect = _lastDisconnectTime != null
-            ? now.difference(_lastDisconnectTime!).inMilliseconds
-            : 0;
-
-        if (timeSinceDisconnect < 1500) {
-          _pausedByDeviceDisconnect = false;
-          return;
-        }
-
-        _debounceTimer?.cancel();
-        _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-          if (_pausedByDeviceDisconnect) {
-            play();
-            _pausedByDeviceDisconnect = false;
-          }
-        });
-      }
-    });
-  }
-
   @override
   Future<void> play() async {
-    _pausedByDeviceDisconnect = false;
-
-    if (_ignoreAudioFocus) {
-      await _audioSession?.setActive(true);
-      await _player.play();
-      return;
-    }
-
-    if (_audioSession != null) {
-      final success = await _audioSession!.setActive(true);
-      if (success) {
-        await _player.play();
-      } else {
-        KikoenaiLogger().e("获取音频焦点失败，无法播放");
-      }
-    } else {
-      await _player.play();
-    }
+    await _player.play();
   }
 
   @override
   Future<void> pause() async {
-    _playInterrupted = false;
-    _pausedByDeviceDisconnect = false;
     await _player.pause();
   }
 
   @override
   Future<void> stop() async {
-    _playInterrupted = false;
-    _pausedByDeviceDisconnect = false;
     await _player.stop();
-    await _audioSession?.setActive(false);
     return super.stop();
   }
 
   Future<void> dispose() async {
-    _debounceTimer?.cancel();
-    _noisySubscription?.cancel();
-    _deviceSubscription?.cancel();
+    // 之前用于焦点和耳机拔出的定时器/订阅已被移除
   }
 
   Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
@@ -530,11 +381,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
-    if (name == 'setIgnoreAudioFocus') {
-      final bool ignore = extras?['ignore'] ?? false;
-      await _setIgnoreAudioFocus(ignore);
-      return;
-    }
+    // 移除了与音频焦点相关的 customAction ('setIgnoreAudioFocus')
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);
