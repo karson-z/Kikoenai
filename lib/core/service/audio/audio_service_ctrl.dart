@@ -55,6 +55,11 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   double _normalVolume = 100.0;
 
+  bool get isIgnoreAudioFocus =>
+      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
+
+  bool _isInterrupted = false;
+
   MyAudioHandler() {
     _listenMpvLogs();
     _initPlayerConfig();
@@ -105,6 +110,9 @@ class MyAudioHandler extends BaseAudioHandler  {
 
     // 监听系统焦点被抢占（如来电、其他软件播放音乐）
     _audioSession.interruptionEventStream.listen((event) {
+      // 依赖类级别的 getter 确保状态实时同步
+      if (isIgnoreAudioFocus) return;
+
       if (event.begin) {
         switch (event.type) {
           case AudioInterruptionType.duck:
@@ -112,7 +120,11 @@ class MyAudioHandler extends BaseAudioHandler  {
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-            _player.pause(); // 强制暂停
+          // 如果当前确实在播放，才标记为被系统打断
+            if (_player.state.playing) {
+              _player.pause(); // 强制暂停
+              _isInterrupted = true;
+            }
             break;
         }
       } else {
@@ -122,7 +134,11 @@ class MyAudioHandler extends BaseAudioHandler  {
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-            play(); // 别人播完了，我们恢复播放
+          // 只有确实是被系统打断的，系统恢复时我们才恢复播放
+            if (_isInterrupted) {
+              play();
+              _isInterrupted = false;
+            }
             break;
         }
       }
@@ -131,6 +147,7 @@ class MyAudioHandler extends BaseAudioHandler  {
     // 监听耳机拔出事件（必须暂停）
     _audioSession.becomingNoisyEventStream.listen((_) {
       pause();
+      _isInterrupted = false;
     });
   }
 
@@ -157,6 +174,12 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   @override
   Future<void> play() async {
+    if (!isIgnoreAudioFocus) {
+      final success = await _audioSession.setActive(true);
+      if (!success) {
+        KikoenaiLogger().w("无法获取音频焦点，播放可能会被系统静音或中断");
+      }
+    }
     await _player.play();
   }
 
@@ -168,11 +191,8 @@ class MyAudioHandler extends BaseAudioHandler  {
   @override
   Future<void> stop() async {
     await _player.stop();
+    await _audioSession.setActive(false);
     return super.stop();
-  }
-
-  Future<void> dispose() async {
-    // 之前用于焦点和耳机拔出的定时器/订阅已被移除
   }
 
   Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
@@ -185,6 +205,13 @@ class MyAudioHandler extends BaseAudioHandler  {
     playbackState.add(playbackState.value.copyWith(queueIndex: index));
 
     final media = _buildMedia(item, startPosition: position);
+    if (autoPlay && !isIgnoreAudioFocus) {
+      final success = await _audioSession.setActive(true);
+      if (!success) {
+        autoPlay = false;
+        KikoenaiLogger().w("获取音频焦点失败，已降级为只加载不播放");
+      }
+    }
 
     await _player.open(media, play: autoPlay);
   }
