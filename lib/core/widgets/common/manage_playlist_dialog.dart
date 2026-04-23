@@ -54,7 +54,12 @@ class FileTreeWoltSheet {
       stickyActionBar: _buildInternalActionBar(roots, work),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
-        _SliverFileTreeContent(roots: roots, work: work),
+        SliverToBoxAdapter(
+          child: BackButtonPriorityWrapper(
+            zIndex: 100,
+            child: _SliverFileTreeContent(roots: roots, work: work),
+          )
+        ),
 
         const SliverPadding(padding: EdgeInsets.only(bottom: 90)),
       ],
@@ -234,9 +239,9 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
                       ),
                       if (isDownloaded) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.check_circle, size: 14, color: Theme.of(context).primaryColor.withOpacity(0.7)),
+                        Icon(Icons.check_circle, size: 14, color: Theme.of(context).primaryColor.withAlpha(70)),
                         const SizedBox(width: 2),
-                        Text("已下载", style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withOpacity(0.7))),
+                        Text("已下载", style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withAlpha(70))),
                       ],
                     ],
                   ),

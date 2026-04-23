@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 enum CategoryType {
   tag,
-  group,
+  circle,
   va,
   special,
 }
@@ -11,7 +11,7 @@ extension CategoryTypeExtension on CategoryType {
     switch (this) {
       case CategoryType.tag:
         return '标签';
-      case CategoryType.group:
+      case CategoryType.circle:
         return '社团';
       case CategoryType.va:
         return '声优';
