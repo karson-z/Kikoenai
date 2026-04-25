@@ -445,7 +445,6 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   @override
   Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
-    // 移除了与音频焦点相关的 customAction ('setIgnoreAudioFocus')
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);
