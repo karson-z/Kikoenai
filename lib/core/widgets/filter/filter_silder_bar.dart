@@ -34,10 +34,13 @@ class SidebarCategoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       width: 90,
       color: const Color(0xFFF9FAFB),
       child: ListView.builder(
+        primary: false,
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
@@ -51,7 +54,7 @@ class SidebarCategoryList extends StatelessWidget {
                 color: isActive ? Colors.white : Colors.transparent,
                 border: Border(
                   left: BorderSide(
-                      color: isActive ? Colors.blue : Colors.transparent,
+                      color: isActive ? primaryColor : Colors.transparent,
                       width: 4
                   ),
                 ),
@@ -62,7 +65,7 @@ class SidebarCategoryList extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive ? Colors.blue : const Color(0xFF6B7280),
+                  color: isActive ? primaryColor : const Color(0xFF6B7280),
                 ),
               ),
             ),

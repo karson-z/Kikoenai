@@ -5,7 +5,8 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
-import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
+import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
+import '../../../features/category/presentation/viewmodel/provider/filter_search_notifier.dart';
 import '../../enums/age_rating.dart';
 import '../../enums/tag_enum.dart';
 
@@ -102,19 +103,17 @@ class WorkCard extends ConsumerWidget {
                     ),
 
                     const SizedBox(height: 4),
-
-                    // 社团名称 (使用 MouseRegion 包裹 GestureDetector)
                     MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
                         // 直接使用 build 方法传入的 ref
                         onTap: () {
                           if (work.name != null) {
-                            ref.read(categoryUiProvider.notifier).toggleTag(
+                            ref.read(searchFilterProvider(FilterModule.category).notifier).toggleTag(
                                 TagType.circle.stringValue,
                                 work.name!,
-                                refreshData: true
                             );
+                            ref.invalidate(categoryProvider);
                             context.go(AppRoutes.category);
                           }
                         },

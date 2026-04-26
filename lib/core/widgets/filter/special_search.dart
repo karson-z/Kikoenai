@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/enums/age_rating.dart';
-import '../../../core/enums/duration_enum.dart';
-import '../../../core/enums/lang_enum.dart';
-import '../../../core/enums/price_enum.dart';
-import '../../../core/enums/rate_enum.dart';
-import '../../../core/enums/sell_enum.dart';
-import '../../../core/enums/tag_enum.dart';
-import '../../../core/model/filter_option_item.dart';
-import '../../../core/model/search_tag.dart';
+import '../../enums/age_rating.dart';
+import '../../enums/duration_enum.dart';
+import '../../enums/lang_enum.dart';
+import '../../enums/price_enum.dart';
+import '../../enums/rate_enum.dart';
+import '../../enums/sell_enum.dart';
+import '../../enums/tag_enum.dart';
+import '../../model/filter_option_item.dart';
+import '../../model/search_tag.dart';
 
 class AdvancedFilterPanel extends StatelessWidget {
   final List<SearchTag> selectedTags;

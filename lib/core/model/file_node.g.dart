@@ -27,8 +27,9 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       workTitle: fields[7] as String?,
       artist: fields[8] as String?,
       lastModified: fields[9] == null ? 0 : (fields[9] as num).toInt(),
-      nodeStatus:
-          fields[10] == null ? NodeStatus.normal : fields[10] as NodeStatus,
+      nodeStatus: fields[10] == null
+          ? NodeStatus.normal
+          : fields[10] as NodeStatus,
       rjCode: fields[11] as String?,
     );
   }
@@ -181,40 +182,40 @@ class NodeStatusAdapter extends TypeAdapter<NodeStatus> {
 // **************************************************************************
 
 FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
-      type: $enumDecode(_$NodeTypeEnumMap, json['type']),
-      title: json['title'] as String,
-      children: (json['children'] as List<dynamic>?)
-          ?.map((e) => FileNode.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      hash: json['hash'] as String?,
-      mediaStreamUrl: json['mediaStreamUrl'] as String?,
-      mediaDownloadUrl: json['mediaDownloadUrl'] as String?,
-      duration: (json['duration'] as num?)?.toDouble(),
-      size: (json['size'] as num?)?.toInt(),
-      workTitle: json['workTitle'] as String?,
-      artist: json['artist'] as String?,
-      lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
-      nodeStatus:
-          $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
-              NodeStatus.normal,
-      rjCode: json['rjCode'] as String?,
-    );
+  type: $enumDecode(_$NodeTypeEnumMap, json['type']),
+  title: json['title'] as String,
+  children: (json['children'] as List<dynamic>?)
+      ?.map((e) => FileNode.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  hash: json['hash'] as String?,
+  mediaStreamUrl: json['mediaStreamUrl'] as String?,
+  mediaDownloadUrl: json['mediaDownloadUrl'] as String?,
+  duration: (json['duration'] as num?)?.toDouble(),
+  size: (json['size'] as num?)?.toInt(),
+  workTitle: json['workTitle'] as String?,
+  artist: json['artist'] as String?,
+  lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
+  nodeStatus:
+      $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
+      NodeStatus.normal,
+  rjCode: json['rjCode'] as String?,
+);
 
 Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
-      'type': _$NodeTypeEnumMap[instance.type]!,
-      'title': instance.title,
-      'children': instance.children,
-      'hash': instance.hash,
-      'mediaStreamUrl': instance.mediaStreamUrl,
-      'mediaDownloadUrl': instance.mediaDownloadUrl,
-      'duration': instance.duration,
-      'size': instance.size,
-      'workTitle': instance.workTitle,
-      'artist': instance.artist,
-      'lastModified': instance.lastModified,
-      'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
-      'rjCode': instance.rjCode,
-    };
+  'type': _$NodeTypeEnumMap[instance.type]!,
+  'title': instance.title,
+  'children': instance.children,
+  'hash': instance.hash,
+  'mediaStreamUrl': instance.mediaStreamUrl,
+  'mediaDownloadUrl': instance.mediaDownloadUrl,
+  'duration': instance.duration,
+  'size': instance.size,
+  'workTitle': instance.workTitle,
+  'artist': instance.artist,
+  'lastModified': instance.lastModified,
+  'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
+  'rjCode': instance.rjCode,
+};
 
 const _$NodeTypeEnumMap = {
   NodeType.folder: 'folder',

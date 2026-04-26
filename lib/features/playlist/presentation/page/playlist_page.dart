@@ -4,12 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
+import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../../../../core/service/cache/cache_service.dart';
-import '../../../category/presentation/viewmodel/provider/category_option_provider.dart';
-import '../../../category/widget/filter_drawer_panel.dart';
+import '../../../category/presentation/viewmodel/provider/filter_search_notifier.dart';
 import '../../../category/widget/filter_row_panel.dart';
-import '../../../category/widget/special_search.dart';
 import '../../../settings/presentation/provider/setting_provider.dart';
 import '../provider/playlist_filter_provider.dart';
 import '../provider/playlist_provider.dart';
@@ -74,24 +73,18 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       );
     }
 
-    final uiState = ref.watch(playlistUiProvider);
-    final uiNotifier = ref.read(playlistUiProvider.notifier);
-
-    // 检查 ID 是否同步，不同步则更新
-    if (uiState.request.id != targetPlaylist.id) {
-      // 使用 microtask 避免构建时 setState
-      Future.microtask(() => uiNotifier.initId(targetPlaylist.id));
-    }
+    final uiState = ref.watch(searchFilterProvider(FilterModule.playlist));
+    final uiNotifier = ref.read(searchFilterProvider(FilterModule.playlist).notifier);
 
     final worksAsync = ref.watch(playlistWorksProvider(targetPlaylist.id));
 
-    // 同步 AppBar 搜索框文字 (当外部重置搜索时)
-    if (uiState.request.textKeyword.isEmpty && _appBarSearchController.text.isNotEmpty) {
-      // 避免死循环
-      if (_appBarSearchController.text != "") {
-        _appBarSearchController.clear();
-      }
-    }
+    // // 同步 AppBar 搜索框文字 (当外部重置搜索时)
+    // if (uiState.request.textKeyword.isEmpty && _appBarSearchController.text.isNotEmpty) {
+    //   // 避免死循环
+    //   if (_appBarSearchController.text != "") {
+    //     _appBarSearchController.clear();
+    //   }
+    // }
 
     // 主题色配置 (传给组件用)
     final theme = Theme.of(context);
@@ -107,7 +100,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       appBar: _buildSearchAppBar(
           context,
           targetPlaylist.name,
-          uiNotifier,
+          ref,
           theme
       ),
       floatingActionButton: FloatingActionButton(
@@ -123,24 +116,21 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
               FilterRowPanel(
                 // 状态
                 isFilterOpen: uiState.isFilterOpen,
-                keyword: uiState.request.textKeyword, // 显示当前搜索词
-                selectedTags: uiState.request.tags,
+                keyword: uiState.localSearchKeyword, // 显示当前搜索词
+                selectedTags: uiState.selectedTags,
                 totalCount: worksAsync.value?.pagination.totalCount ?? 0,
                 // 回调
                 onToggleFilter: () {
-                  _filterSearchFocusNode.unfocus();
-                  uiNotifier.toggleFilterDrawer();
+                  showFilterBottomSheet(context,ref,FilterModule.playlist);
                 },
                 onClearKeyword: () {
-                  uiNotifier.updateKeyword("", refreshData: true);
+                  uiNotifier.updateKeyword("");
                   setState(() {
                     _isAppBarSearching = false;
                     _appBarSearchController.clear();
                   });
                 },
-                onRemoveTag: (tag) => uiNotifier.removeTag(tag.type, tag.name, refreshData: true),
-
-                // 样式
+                onRemoveTag: (tag) => uiNotifier.removeTag(tag.type, tag.name),
                 scrollController: _autoScrollController,
                 bgColor: bgColor,
                 textColor: textColor,
@@ -202,61 +192,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
               ),
             ],
           ),
-
-          // 2. 遮罩层 (点击关闭筛选面板)
-          if (uiState.isFilterOpen)
-            Positioned.fill(
-              // top: 0, // 覆盖整个 body
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _filterSearchFocusNode.unfocus();
-                  uiNotifier.toggleFilterDrawer();
-                },
-                child: Container(color: Colors.black12), // 稍微给点颜色
-              ),
-            ),
-
-          // 3. 筛选抽屉组件 (FilterDrawerPanel)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            top: 0, // 从 body 顶部开始展示
-            left: 0,
-            right: 0,
-            child: FilterDrawerPanel(
-              searchFocusNode: _filterSearchFocusNode,
-              isOpen: uiState.isFilterOpen,
-              selectedFilterIndex: uiState.selectedFilterIndex,
-              localSearchKeyword: uiState.localSearchKeyword,
-              selectedTags: uiState.request.tags,
-              tagsAsync: ref.watch(tagsProvider),
-              circlesAsync: ref.watch(circlesProvider),
-              vasAsync: ref.watch(vasProvider),
-              onFilterIndexChanged: (index) => uiNotifier.setFilterIndex(index),
-              onLocalSearchChanged: (val) => uiNotifier.setLocalSearchKeyword(val),
-              onReset: () => uiNotifier.resetSelected(),
-              onApply: () {
-                uiNotifier.toggleFilterDrawer();
-                uiNotifier.searchImmediately(); // 触发搜索
-              },
-              onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
-              getLoadingMessage: (type) => uiNotifier.getLoadingMessage(type),
-
-              // --- 特殊筛选构建器 ---
-              specialFilterBuilder: (ctx) {
-                // 如果 AdvancedFilterPanel 还没重构，暂时这么传，或者你需要根据 AdvancedFilterPanel 的 API 调整
-                return AdvancedFilterPanel(
-                  // 直接传 uiState 中的 tags
-                  selectedTags: uiState.request.tags,
-                  // 直接传 uiNotifier 的方法
-                  onToggleTag: (type, name) => uiNotifier.toggleTag(type, name, refreshData: false),
-                  fillColor: fillColor,
-                  textColor: textColor,
-                );
-              },
-            ),
-          ),
         ],
       ),
     );
@@ -264,12 +199,12 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   PreferredSizeWidget _buildSearchAppBar(
       BuildContext context,
       String titleName,
-      PlaylistNotifier uiNotifier,
+      WidgetRef ref,
       ThemeData theme,
       ) {
     final foregroundColor = theme.appBarTheme.foregroundColor ?? Colors.white;
     final searchBarFillColor = foregroundColor.withOpacity(0.15);
-
+    final uiNotifier = ref.read(searchFilterProvider(FilterModule.playlist).notifier);
     return AppBar(
       title: _isAppBarSearching
           ? Container(
@@ -305,8 +240,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
               size: 20,
               color: foregroundColor.withOpacity(0.6),
             ),
-            // 3. ✨ 核心修复：使用 ValueListenableBuilder 局部监听
-            // 只有当文字长度变化时，才刷新这个 suffixIcon，而不是刷新整个 TextField
             suffixIcon: ValueListenableBuilder<TextEditingValue>(
               valueListenable: _appBarSearchController,
               builder: (context, value, child) {
@@ -319,14 +252,15 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                   onPressed: () {
                     // 清空内容，不使用 setState，直接操作 controller
                     _appBarSearchController.clear();
-                    uiNotifier.updateKeyword("", refreshData: true);
+                    uiNotifier.updateKeyword("");
                   },
                 );
               },
             ),
           ),
           onSubmitted: (value) {
-            uiNotifier.updateKeyword(value, refreshData: true);
+            uiNotifier.updateKeyword(value);
+            ref.invalidate(playlistWorksMutationProvider);
           },
         ),
       )
@@ -342,7 +276,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 _isAppBarSearching = false;
                 _appBarSearchController.clear();
               });
-              uiNotifier.updateKeyword("", refreshData: true);
+              uiNotifier.updateKeyword("");
             },
             child: Text(
               "取消",
