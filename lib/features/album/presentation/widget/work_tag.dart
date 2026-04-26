@@ -5,6 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
 import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/theme/theme_view_model.dart';
+import '../../../category/presentation/viewmodel/provider/filter_search_notifier.dart';
 
 class TagRow extends ConsumerWidget {
   final List<dynamic> tags;
@@ -90,10 +91,9 @@ class _TagItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         // 在回调时读取 notifier，这是最安全的做法
-        ref.read(categoryUiProvider.notifier).toggleTag(
+        ref.read(searchFilterProvider(FilterModule.category).notifier).toggleTag(
             type.stringValue,
             tag.name,
-            refreshData: true
         );
         context.go(AppRoutes.category);
       },

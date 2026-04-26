@@ -34,7 +34,7 @@ class BottomActionPanel extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onComplete,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

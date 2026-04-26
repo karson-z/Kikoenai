@@ -7,6 +7,7 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
+import 'package:kikoenai/features/category/presentation/viewmodel/provider/filter_search_notifier.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/enums/work_progress.dart';
@@ -152,9 +153,8 @@ class AlbumDetailPage extends ConsumerWidget {
                 GestureDetector(
                   onTap: () {
                     // 即使是本地模式，标签跳转功能一般也可以保留（如果分类页支持全局浏览的话）
-                    ref.read(categoryUiProvider.notifier).toggleTag(
-                        TagType.circle.stringValue, work.name!,
-                        refreshData: true);
+                    ref.read(searchFilterProvider(FilterModule.category).notifier).toggleTag(
+                        TagType.circle.stringValue, work.name!);
                     context.go(AppRoutes.category);
                   },
                   child: Text(work.name!,

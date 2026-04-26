@@ -5,6 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/search/presentation/provider/search_provider.dart';
 import '../../../../core/widgets/layout/app_search_app_bar.dart';
 import '../../../category/presentation/viewmodel/provider/category_data_provider.dart';
+import '../../../category/presentation/viewmodel/provider/filter_search_notifier.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -19,7 +20,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   void initState() {
     super.initState();
-    final initialKeyword = ref.read(categoryUiProvider).keyword ?? '';
+    final initialKeyword = ref.read(searchFilterProvider(FilterModule.category)).keyword ?? '';
     _controller = TextEditingController(text: initialKeyword);
   }
 
@@ -38,9 +39,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     ref.read(searchHistoryProvider.notifier).add(val);
 
     // 2. 更新分类页面的关键字状态
-    ref.read(categoryUiProvider.notifier).updateKeyword(val);
-    ref.read(categoryUiProvider.notifier).searchImmediately();
-
+    ref.read(searchFilterProvider(FilterModule.category).notifier).updateKeyword(val);
+    ref.invalidate(categoryProvider);
     // 3. 跳转到结果展示页 (CategoryPage)
     context.go(AppRoutes.category);
   }

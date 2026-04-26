@@ -7,160 +7,38 @@ import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/data/other.dart';
 import '../../../../../core/model/search_tag.dart';
+import '../../../data/model/filter_data_state.dart';
 import '../../../data/service/category_repository.dart';
-import '../state/category_data_state.dart';
-import '../state/category_ui_state.dart';
+import 'filter_search_notifier.dart';
 
-class CategoryUiNotifier extends Notifier<CategoryUiState> {
-  Timer? _debounceTimer;
+class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
+  CategoryDataNotifier(this.sortOrder);
+  final SortOrder sortOrder;
 
-  @override
-  CategoryUiState build() {
-    ref.onDispose(() {
-      _debounceTimer?.cancel();
-    });
-    return const CategoryUiState();
-  }
-
-  void toggleFilterDrawer() {
-    state = state.copyWith(isFilterOpen: !state.isFilterOpen);
-  }
-
-  void closeFilterDrawer() {
-    state = state.copyWith(isFilterOpen: false);
-  }
-
-  void setFilterIndex(int index) {
-    if (state.selectedFilterIndex != index) {
-      state = state.copyWith(
-        selectedFilterIndex: index,
-        localSearchKeyword: "",
-      );
-    }
-  }
-
-  void setLocalSearchKeyword(String val) {
-    state = state.copyWith(localSearchKeyword: val);
-  }
-
-  void updateKeyword(String? keyword, {bool refreshData = false}) {
-    state = state.copyWith(keyword: keyword);
-    if (refreshData) {
-      _debounceRefresh();
-    }
-  }
-
-  void searchImmediately() {
-    _debounceTimer?.cancel();
-    ref.invalidate(categoryProvider);
-  }
-
-  void resetSelected() {
-    state = state.copyWith(selected: []);
-  }
-
-  void setSort({SortOrder? sortOption, SortDirection? sortDec, bool refreshData = false}) {
-    state = state.copyWith(sortOption: sortOption, sortDirection: sortDec);
-    if (refreshData) {
-      _debounceRefresh();
-    }
-  }
-
-  void setSubtitleFilter(int filter, {bool refreshData = false}) {
-    state = state.copyWith(subtitleFilter: filter);
-    if (refreshData) {
-      _debounceRefresh();
-    }
-  }
-
-  void removeTag(String type, String name, {bool refreshData = false}) {
-    final tags = [...state.selected];
-    final idx = tags.indexWhere((t) => t.type == type && t.name == name);
-    if (idx != -1) {
-      tags.removeAt(idx);
-      state = state.copyWith(selected: tags);
-
-      if (refreshData && !state.isFilterOpen) {
-        _debounceRefresh();
-      }
-    }
-  }
-
-  void toggleTag(String type, String name, {bool refreshData = false}) {
-    final tags = [...state.selected];
-    final idx = tags.indexWhere((t) => t.type == type && t.name == name);
-
-    if (idx == -1) {
-      tags.add(SearchTag(type, name, false));
-    } else {
-      final old = tags[idx];
-      if (!old.isExclude) {
-        tags[idx] = SearchTag(type, name, true);
-      } else {
-        tags.removeAt(idx);
-      }
-    }
-
-    state = state.copyWith(selected: tags);
-
-    if (refreshData) {
-      _debounceRefresh();
-    }
-  }
-
-  String getLoadingMessage(String type) {
-    switch (type) {
-      case 'tag':
-        return "正在获取标签...";
-      case 'circle':
-        return "正在获取社团...";
-      case 'author':
-      case 'va':
-        return "正在获取声优/作者...";
-      case 'age':
-        return "正在获取分级信息...";
-      default:
-        return "正在努力加载中...";
-    }
-  }
-
-  void _debounceRefresh({Duration duration = const Duration(milliseconds: 800)}) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(duration, () {
-      ref.invalidate(categoryProvider);
-    });
-  }
-}
-
-final categoryUiProvider =
-NotifierProvider<CategoryUiNotifier, CategoryUiState>(
-        () => CategoryUiNotifier());
-
-
-class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   CategoryRepository get _repo => ref.read(categoryRepositoryProvider);
-  CategoryDataNotifier(this._currentSortOrder);
-  final SortOrder _currentSortOrder;
 
   @override
-  Future<CategoryState> build() async {
+  Future<FilterDataState> build() async {
+    // 首次进入页面时执行加载
     return await _load(reset: true);
   }
-
-  Future<CategoryState> _load({required bool reset}) async {
-    final ui = ref.read(categoryUiProvider); // 读取全局筛选条件 (Tag, Keyword)
-    final prev = state.value ?? const CategoryState();
+  Future<FilterDataState> _load({required bool reset}) async {
+    final ui = ref.read(searchFilterProvider(FilterModule.category));
+    final prev = state.value ?? const FilterDataState();
     final page = reset ? 1 : prev.currentPage + 1;
 
     final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
-    final List<SearchTag> mergedTags = List.from(ui.selected);
+    final List<SearchTag> mergedTags = List.from(ui.selectedTags);
     if (isNSFW) {
       mergedTags.add(SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false));
     }
+
     var queryParams = SearchTag.buildTagQueryPath(mergedTags, keyword: ui.keyword);
+
+    // 发起网络请求
     final result = await _repo.searchWorks(
       page: page,
-      order: _currentSortOrder.value,
+      order: sortOrder.value, // 使用传入的参数
       sort: ui.sortDirection.value,
       subtitle: ui.subtitleFilter,
       query: queryParams,
@@ -172,9 +50,7 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
     final pagination = result.data?['pagination'];
     final totalCount = pagination?['totalCount'] ?? 0;
     final currentPage = pagination?['currentPage'] ?? page;
-
     final list = reset ? newWorks : [...prev.works, ...newWorks];
-
     return prev.copyWith(
       works: list,
       currentPage: currentPage,
@@ -182,9 +58,13 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
       hasMore: list.length < totalCount,
     );
   }
+
   Future<void> loadMore() async {
-    if (state.isLoading) return;
+    // 防抖保护：如果正在加载中，且没有更多数据，则直接返回
+    if (state.isLoading || state.value?.hasMore == false) return;
+
     try {
+      if(state.isLoading) return;
       final nextState = await _load(reset: false);
       state = AsyncData(nextState);
     } catch (e, st) {
@@ -193,5 +73,7 @@ class CategoryDataNotifier extends AsyncNotifier<CategoryState> {
   }
 }
 
-final categoryProvider =
-AsyncNotifierProvider.family.autoDispose<CategoryDataNotifier, CategoryState, SortOrder>(CategoryDataNotifier.new);
+// 暴露 Provider
+final categoryProvider = AsyncNotifierProvider.family.autoDispose<CategoryDataNotifier, FilterDataState, SortOrder>(
+  CategoryDataNotifier.new,
+);
