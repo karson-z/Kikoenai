@@ -15,7 +15,7 @@ abstract class FileScannerService {
   ScanMode get scanMode;
 
   /// 输出完整的文件列表流
-  Stream<List<FileNode>> get result;
+  Stream<FileScanBatch> get result;
 
   /// 暴露状态流给 UI (扫描中/空闲/完成)
   Stream<WorkerState> get stateStream;
@@ -43,7 +43,7 @@ abstract class _BaseFileScanner implements FileScannerService {
   final _worker = FileScanWorker();
 
   // 结果流控制器
-  final _resultController = StreamController<List<FileNode>>.broadcast();
+  final _resultController = StreamController<FileScanBatch>.broadcast();
 
   // 内存树构建器
   final _treeBuilder = IncrementalTreeBuilder();
@@ -54,8 +54,10 @@ abstract class _BaseFileScanner implements FileScannerService {
   // 记录本次扫描访问过的路径 (用于标记清除算法检测删除的文件)
   final Set<String> _visitedPaths = {};
 
+  int _baselineScannedCount = 0;
+
   @override
-  Stream<List<FileNode>> get result => _resultController.stream;
+  Stream<FileScanBatch> get result => _resultController.stream;
 
   @override
   Stream<WorkerState> get stateStream => _worker.stateStream;
@@ -88,12 +90,13 @@ abstract class _BaseFileScanner implements FileScannerService {
 
     // 直接通过 Storage 获取该路径下对应模式的所有缓存节点
     final cachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
+    _baselineScannedCount = _countFlatFiles(cachedNodes);
 
     if (cachedNodes.isNotEmpty) {
       // 构建内存树
       _treeBuilder.mergeChunk(cachedNodes);
       // 推送给 UI
-      _resultController.add(List.of(_treeBuilder.roots));
+      _emitCurrentResult(_baselineScannedCount);
     }
   }
 
@@ -122,7 +125,8 @@ abstract class _BaseFileScanner implements FileScannerService {
     /// 只要文件夹里还有一个有效文件，文件夹的路径就会被 _markPathAndParentsAsVisited 保护，其状态（已解析/待解析）安全无恙。
     /// 如果用户删除了整个作品文件夹，里面没有任何文件了，该文件夹路径不会进入白名单，最终会被 _handleDeletedFiles 连带业务状态一起从 Hive 中干净地抹除。
     /// 采用 await for 保证其顺序执行，避免竞态的产生
-    await for (final flatChunk in chunkStream) {
+    await for (final batch in chunkStream) {
+      final flatChunk = batch.nodes;
       final List<FileNode> filesToUpdate = [];
 
       for (var node in flatChunk) {
@@ -144,8 +148,12 @@ abstract class _BaseFileScanner implements FileScannerService {
 
         // 保存指定模式的节点至 DB
         await _storage.saveNodes(scanMode, nodesToSaveToDb); // 等待落盘完成
-        _resultController.add(List.of(_treeBuilder.roots));
       }
+      _emitCurrentResult(
+        batch.scannedCount > _baselineScannedCount
+            ? batch.scannedCount
+            : _baselineScannedCount,
+      );
     }
 
     // 当流真正结束（所有 await 都执行完毕）后，才会走到这里
@@ -176,8 +184,9 @@ abstract class _BaseFileScanner implements FileScannerService {
 
       // 重新拉取最新的指定模式节点并重建内存树
       final remainingNodes = _storage.getNodesByRootPath(scanMode, rootPath);
+      _baselineScannedCount = _countFlatFiles(remainingNodes);
       _treeBuilder.rebuild(remainingNodes);
-      _resultController.add(List.of(_treeBuilder.roots));
+      _emitCurrentResult(_baselineScannedCount);
     }
   }
 
@@ -196,6 +205,17 @@ abstract class _BaseFileScanner implements FileScannerService {
       // 核心替换：直接用 p.dirname 安全获取上一级目录，告别 substring 和 lastIndexOf
       currentPath = p.dirname(currentPath);
     }
+  }
+
+  void _emitCurrentResult(int scannedCount) {
+    _resultController.add(FileScanBatch(
+      nodes: List.of(_treeBuilder.roots),
+      scannedCount: scannedCount,
+    ));
+  }
+
+  int _countFlatFiles(List<FileNode> nodes) {
+    return nodes.where((node) => !node.isFolder).length;
   }
 }
 
