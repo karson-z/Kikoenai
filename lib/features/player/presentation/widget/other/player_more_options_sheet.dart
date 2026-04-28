@@ -96,10 +96,7 @@ class _MoreOptionsContent extends ConsumerWidget {
           defaultValue: false,
         ),
         onSwitchChanged: (bool value) async {
-          await AudioServiceSingleton.instance.customAction(
-            'setIgnoreAudioFocus',
-            {'ignore': value},
-          );
+          AppStorage.settingsBox.put(StorageKeys.ignoreAudioFocus, value);
         },
       ),
       ListActionItem(

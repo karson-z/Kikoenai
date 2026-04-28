@@ -41,25 +41,29 @@ class FileTreeWoltSheet {
   }
 
   static SliverWoltModalSheetPage buildPage(
-    BuildContext context, {
-    required List<FileNode> roots,
-    required Work? work,
-  }) {
+      BuildContext context, {
+        required List<FileNode> roots,
+        required Work? work,
+      }) {
     return SliverWoltModalSheetPage(
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
       leadingNavBarWidget: FileTreeStickyHeader(roots: roots, work: work),
-      // topBar:
       stickyActionBar: _buildInternalActionBar(roots, work),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
-        SliverToBoxAdapter(
+
+        // 1. 在这里放置拦截器，作为一个不可见的“空壳”挂载在树上
+        const SliverToBoxAdapter(
           child: BackButtonPriorityWrapper(
             zIndex: 100,
-            child: _SliverFileTreeContent(roots: roots, work: work),
-          )
+            child: SizedBox.shrink(), // 不包裹任何实际 UI
+          ),
         ),
+
+        // 2. 真正的 Sliver 内容直接放在数组里，不要套 BoxAdapter
+        _SliverFileTreeContent(roots: roots, work: work),
 
         const SliverPadding(padding: EdgeInsets.only(bottom: 90)),
       ],
