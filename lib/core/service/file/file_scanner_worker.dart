@@ -219,7 +219,7 @@ class FileScanWorker {
               final entries = ArchiveService.scanZip(entity, allowedExts: config.extensions);
               bool hasValidArchiveEntry = false;
 
-              for (var entry in entries) {
+              for (var entry in await entries) {
                 // 【核心修改】：把压缩包本身的路径 entity.path 也传进去，用于匹配 RJ 号
                 final zipNode = _processArchiveEntry(entity.path, entry.virtualPath, archiveLastMod, config);
                 if(zipNode != null) {

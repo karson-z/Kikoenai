@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_lyric/core/lyric_model.dart';
 import 'package:flutter_lyric/core/lyric_parse.dart';
+import 'package:flutter_lyric/core/lyric_scroll_behavior.dart';
 import 'package:flutter_lyric/core/lyric_style.dart';
 
 import '../../model/lyric_model.dart';
@@ -138,21 +139,21 @@ class LyricStyleFactory {
       contentPadding: const EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 20),
       // --- 锚点 ---
       selectionAnchorPosition: 0.5,
-      activeAnchorPosition: 100,
+      activeAnchorPosition: 200,
       selectionAlignment: MainAxisAlignment.end,
       activeAlignment: MainAxisAlignment.start,
 
+      scrollBehavior: SpringScrollConfig(
+        springDescription: SpringDescription.withDampingRatio(
+          mass: 1.0,
+          stiffness: 100.0,
+          ratio: 1.0,
+        ),
+      ),
       // --- 渐隐效果 ---
       fadeRange: FadeRange(top: 0.1, bottom: 0.3),
 
-      // 滚动动画：要有“惯性”感
-      scrollDuration: const Duration(milliseconds: 240),
-      scrollDurations: {
-        500: const Duration(milliseconds: 500),
-        1000: const Duration(milliseconds: 1000),
-      },
       enableSwitchAnimation: true,
-      // enableScaleAnimation: false,
       switchEnterDuration: const Duration(milliseconds: 400),
       switchExitDuration: const Duration(milliseconds: 400),
 

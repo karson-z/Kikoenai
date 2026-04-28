@@ -1,24 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:fast_gbk/fast_gbk.dart'; // 引入 gbk
+import 'package:charset_converter/charset_converter.dart'; // 引入系统级字符转换
 
 class CharsetCover {
-  static String fixEncoding(String original) {
+  /// 修复原代码中的同步方法（转为异步）
+  static Future<String> fixEncoding(String original) async {
     try {
-      // 1. 尝试检测是否已经是正常的 UTF-8 (防止把本来正常的英文或UTF-8中文搞乱)
-      // 这一步是经验性的，如果本来就是 UTF-8，通常不需要处理
-      // 但因为 archive 包内部逻辑，有时我们需要先回退到字节
-
-      // 核心逻辑：
-      // archive 包如果没有识别出 UTF-8，通常会保留原始字节映射在 Latin-1 范围内
-      // 我们将其还原为字节
+      // 1. 回退到 Latin-1 字节
       final List<int> bytes = latin1.encode(original);
 
-      // 2. 尝试使用 GBK 解码
-      return gbk.decode(bytes);
+      // 2. 尝试使用系统底层的 GBK 解码
+      final decoded = await CharsetConverter.decode("GBK", Uint8List.fromList(bytes));
+      return decoded;
     } catch (e) {
-      // 如果转换失败（例如它确实是 UTF-8 或者其他情况），返回原字符串
       return original;
     }
   }
@@ -27,7 +22,7 @@ class CharsetCover {
 /// 解码结果封装
 class FileDecodingResult {
   final String content;
-  final String encoding; // 'UTF-8', 'GBK', 'Shift-JIS', 'UTF-16LE', etc.
+  final String encoding;
 
   FileDecodingResult(this.content, this.encoding);
 
@@ -37,7 +32,6 @@ class FileDecodingResult {
 
 /// 文件编码处理工具类
 class FileEncodingHelper {
-  // 私有构造函数，防止实例化
   FileEncodingHelper._();
 
   /// 智能读取文件并检测编码
@@ -47,51 +41,61 @@ class FileEncodingHelper {
         throw FileSystemException("文件不存在", file.path);
       }
       final bytes = await file.readAsBytes();
-      return decodeBytes(bytes);
+      return await decodeBytes(bytes); // 变更为 await
     } catch (e) {
       print('[FileEncodingHelper] 读取文件失败: $e');
       rethrow;
     }
   }
 
-  /// 核心解码逻辑：将字节流转换为字符串
-  static FileDecodingResult decodeBytes(List<int> bytes) {
+  /// 核心解码逻辑：将字节流转换为字符串 (现在是异步的)
+  static Future<FileDecodingResult> decodeBytes(List<int> bytes) async {
+    final uint8Bytes = Uint8List.fromList(bytes);
+
     // 1. 检查 BOM (Byte Order Mark)
     if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
       return FileDecodingResult(utf8.decode(bytes.sublist(3)), 'UTF-8');
     }
 
     if (bytes.length >= 2) {
-      // UTF-16LE (FF FE)
+      // UTF-16LE
       if (bytes[0] == 0xFF && bytes[1] == 0xFE) {
-        final data = ByteData.sublistView(Uint8List.fromList(bytes.sublist(2)));
+        final data = ByteData.sublistView(uint8Bytes.sublist(2));
         final codeUnits = List.generate(data.lengthInBytes ~/ 2, (i) => data.getUint16(i * 2, Endian.little));
         return FileDecodingResult(String.fromCharCodes(codeUnits), 'UTF-16LE');
       }
-      // UTF-16BE (FE FF)
+      // UTF-16BE
       if (bytes[0] == 0xFE && bytes[1] == 0xFF) {
-        final data = ByteData.sublistView(Uint8List.fromList(bytes.sublist(2)));
+        final data = ByteData.sublistView(uint8Bytes.sublist(2));
         final codeUnits = List.generate(data.lengthInBytes ~/ 2, (i) => data.getUint16(i * 2, Endian.big));
         return FileDecodingResult(String.fromCharCodes(codeUnits), 'UTF-16BE');
       }
     }
 
-    // 2. 尝试 UTF-8 (最严格，优先尝试)
+    // 2. 尝试 UTF-8
     try {
       final decoded = utf8.decode(bytes, allowMalformed: false);
       return FileDecodingResult(decoded, 'UTF-8');
     } catch (_) {}
-    // B. 尝试 GBK
-    String? gbkResult;
-    bool gbkSuccess = false;
-    try {
-      gbkResult = gbk.decode(bytes);
-      // fast_gbk 可能会把无法识别的字节转为空或问号，需根据实际情况判断
-      gbkSuccess = !gbkResult.contains('');
-    } catch (_) {}
-    if (gbkSuccess && gbkResult != null) return FileDecodingResult(gbkResult, 'GBK');
 
-    // 4. 降级到 Latin1 (原样输出)
+    // 3. 尝试 GBK (甚至也可以尝试 Shift-JIS)
+    try {
+      final gbkResult = await CharsetConverter.decode("GBK", uint8Bytes);
+      // 简单校验一下转换结果是不是乱码 (包含特殊的替换符说明失败了)
+      if (gbkResult.isNotEmpty && !gbkResult.contains('')) {
+        return FileDecodingResult(gbkResult, 'GBK');
+      }
+    } catch (_) {}
+
+    // 如果你有解析日文乱码的需求，顺便还可以加上 Shift-JIS！
+    try {
+      final sjisResult = await CharsetConverter.decode("Shift_JIS", uint8Bytes);
+      if (sjisResult.isNotEmpty && !sjisResult.contains('')) {
+        return FileDecodingResult(sjisResult, 'Shift-JIS');
+      }
+    } catch (_) {}
+
+    // 4. 降级到 Latin1
     return FileDecodingResult(latin1.decode(bytes), 'Latin1');
   }
 
@@ -107,13 +111,13 @@ class FileEncodingHelper {
           bytes = _encodeUtf16(content, Endian.big);
           break;
         case 'GBK':
-          bytes = gbk.encode(content);
+        // 使用系统 API 编码
+          final encodedBytes = await CharsetConverter.encode("GBK", content);
+          bytes = encodedBytes.toList();
           break;
         case 'Shift-JIS':
-        // bytes = ShiftJis().encode(content);
-        // 暂时回退到 UTF-8，直到引入 Shift-JIS 库
-          print('[FileEncodingHelper] Shift-JIS 库未集成，回退到 UTF-8');
-          bytes = utf8.encode(content);
+          final encodedBytes = await CharsetConverter.encode("Shift_JIS", content);
+          bytes = encodedBytes.toList();
           break;
         case 'Latin1':
           bytes = latin1.encode(content);
@@ -130,14 +134,11 @@ class FileEncodingHelper {
     await file.writeAsBytes(bytes);
   }
 
-  /// 内部辅助：处理 UTF-16 编码逻辑
   static List<int> _encodeUtf16(String content, Endian endian) {
+    // ... 原逻辑保持不变 ...
     final codeUnits = content.codeUnits;
-    // 2 bytes per char + 2 bytes BOM
     final buffer = Uint8List(2 + codeUnits.length * 2);
     final data = ByteData.sublistView(buffer);
-
-    // 设置 BOM
     if (endian == Endian.little) {
       data.setUint8(0, 0xFF);
       data.setUint8(1, 0xFE);
@@ -145,12 +146,9 @@ class FileEncodingHelper {
       data.setUint8(0, 0xFE);
       data.setUint8(1, 0xFF);
     }
-
-    // 填充内容
     for (int i = 0; i < codeUnits.length; i++) {
-      // 偏移量 2 (BOM) + index * 2
       data.setUint16(2 + i * 2, codeUnits[i], endian);
     }
-    return buffer;
+    return buffer.toList();
   }
 }

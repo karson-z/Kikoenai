@@ -39,7 +39,7 @@ final textContentProvider = FutureProvider.family<String, String>((ref, inputPat
 
       fileBytes = await file.readAsBytes();
     }
-    final fileEncode = FileEncodingHelper.decodeBytes(fileBytes);
+    final fileEncode = await FileEncodingHelper.decodeBytes(fileBytes);
     // 3. 调用智能解码函数
     return fileEncode.content;
 
