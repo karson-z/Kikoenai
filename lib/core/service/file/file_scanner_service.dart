@@ -2,27 +2,58 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:path/path.dart' as p;
 import '../../utils/scraper/scraper_storage.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
 import 'file_tree_builder.dart';
-import 'package:path/path.dart' as p;
 
 enum ScanMode { audio, video, subtitles }
 
+enum SyncRunStatus {
+  success,
+  cancelled,
+  error,
+}
+
+class CachedScanSnapshot {
+  final List<FileNode> nodes;
+  final RootScanMeta? meta;
+  final int scannedCount;
+  final bool hasCachedData;
+
+  const CachedScanSnapshot({
+    required this.nodes,
+    required this.meta,
+    required this.scannedCount,
+    required this.hasCachedData,
+  });
+}
+
+class SyncScanResult {
+  final SyncRunStatus status;
+  final String rootPath;
+  final int runId;
+  final int scannedCount;
+  final String? errorMessage;
+
+  const SyncScanResult({
+    required this.status,
+    required this.rootPath,
+    required this.runId,
+    required this.scannedCount,
+    this.errorMessage,
+  });
+}
+
 abstract class FileScannerService {
-  /// 扫描模式
   ScanMode get scanMode;
-
-  /// 输出完整的文件列表流
   Stream<FileScanBatch> get result;
-
-  /// 暴露状态流给 UI (扫描中/空闲/完成)
   Stream<WorkerState> get stateStream;
 
-  /// 启动扫描（包含加载缓存和后台同步）
-  Future<void> startScan(String path);
-
+  Future<CachedScanSnapshot> loadCached(String path);
+  Future<SyncScanResult> sync(String path, {required int runId});
+  Future<void> cancel();
   void dispose();
 
   factory FileScannerService(ScanMode scanMode) {
@@ -37,24 +68,19 @@ abstract class FileScannerService {
   }
 }
 
-/// 基类，固定一整套扫描流程
 abstract class _BaseFileScanner implements FileScannerService {
-  // 组合 Worker
   final _worker = FileScanWorker();
-
-  // 结果流控制器
   final _resultController = StreamController<FileScanBatch>.broadcast();
-
-  // 内存树构建器
   final _treeBuilder = IncrementalTreeBuilder();
-
-  // 数据存储层：获取单例
   late final _storage = FileScannerStorage();
-
-  // 记录本次扫描访问过的路径 (用于标记清除算法检测删除的文件)
   final Set<String> _visitedPaths = {};
 
   int _baselineScannedCount = 0;
+  int _currentRunId = 0;
+  bool _cancelRequested = false;
+
+  Set<String> get extensions;
+  bool get scanArchives;
 
   @override
   Stream<FileScanBatch> get result => _resultController.stream;
@@ -63,53 +89,156 @@ abstract class _BaseFileScanner implements FileScannerService {
   Stream<WorkerState> get stateStream => _worker.stateStream;
 
   @override
+  Future<CachedScanSnapshot> loadCached(String rootPath) async {
+    _treeBuilder.clear(keepRootPath: false);
+    _treeBuilder.setRootPath(rootPath);
+
+    final meta = _storage.getRootMeta(scanMode, rootPath);
+    final hasIndex = _storage.hasRootIndex(scanMode, rootPath);
+    final cachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
+    final cachedCount = meta?.cachedFileCount ?? _countFlatFiles(cachedNodes);
+    final hasCachedData =
+        cachedNodes.isNotEmpty || hasIndex || meta?.lastSuccessfulScanAt != null;
+
+    _baselineScannedCount = cachedCount;
+
+    if (cachedNodes.isNotEmpty) {
+      _treeBuilder.mergeChunk(cachedNodes);
+    }
+
+    if (cachedNodes.isNotEmpty && meta == null) {
+      unawaited(
+        _storage.saveRootMeta(
+          scanMode,
+          rootPath,
+          RootScanMeta(cachedFileCount: cachedCount),
+        ),
+      );
+    }
+
+    return CachedScanSnapshot(
+      nodes: List<FileNode>.from(_treeBuilder.roots),
+      meta: meta,
+      scannedCount: cachedCount,
+      hasCachedData: hasCachedData,
+    );
+  }
+
+  @override
+  Future<SyncScanResult> sync(String path, {required int runId}) async {
+    await cancel();
+
+    _currentRunId = runId;
+    _cancelRequested = false;
+
+    final previousMeta = _storage.getRootMeta(scanMode, path);
+    final previousNodes = _storage.getNodesByRootPath(scanMode, path);
+    final hadStableSnapshot = previousNodes.isNotEmpty ||
+        _storage.hasRootIndex(scanMode, path) ||
+        previousMeta?.lastSuccessfulScanAt != null;
+
+    final startedAt = DateTime.now();
+    await _storage.saveRootMeta(
+      scanMode,
+      path,
+      (previousMeta ?? const RootScanMeta()).copyWith(
+        lastAttemptAt: startedAt,
+        cachedFileCount: previousMeta?.cachedFileCount ?? _baselineScannedCount,
+      ),
+    );
+
+    try {
+      final finalNodes = await _performSync(path, runId);
+      if (_isRunStale(runId)) {
+        return _restoreStableSnapshot(
+          path: path,
+          runId: runId,
+          previousMeta: previousMeta,
+          previousNodes: previousNodes,
+          hadStableSnapshot: hadStableSnapshot,
+          status: RootScanStatus.cancelled,
+        );
+      }
+
+      final completedAt = DateTime.now();
+      final finalCount = _countFlatFiles(finalNodes);
+      _baselineScannedCount = finalCount;
+
+      await _storage.replaceRootIndex(scanMode, path, finalNodes);
+      await _storage.saveRootMeta(
+        scanMode,
+        path,
+        (previousMeta ?? const RootScanMeta()).copyWith(
+          lastSuccessfulScanAt: completedAt,
+          lastAttemptAt: completedAt,
+          lastScanStatus: RootScanStatus.success,
+          cachedFileCount: finalCount,
+          isDirty: false,
+        ),
+      );
+
+      return SyncScanResult(
+        status: SyncRunStatus.success,
+        rootPath: path,
+        runId: runId,
+        scannedCount: finalCount,
+      );
+    } catch (error) {
+      if (_isRunStale(runId)) {
+        return _restoreStableSnapshot(
+          path: path,
+          runId: runId,
+          previousMeta: previousMeta,
+          previousNodes: previousNodes,
+          hadStableSnapshot: hadStableSnapshot,
+          status: RootScanStatus.cancelled,
+        );
+      }
+
+      return _restoreStableSnapshot(
+        path: path,
+        runId: runId,
+        previousMeta: previousMeta,
+        previousNodes: previousNodes,
+        hadStableSnapshot: hadStableSnapshot,
+        status: RootScanStatus.error,
+        errorMessage: error.toString(),
+      );
+    }
+  }
+
+  @override
+  Future<void> cancel() async {
+    _cancelRequested = true;
+    if (_worker.currentState == WorkerState.scanning) {
+      _worker.dispose();
+      await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  @override
   @mustCallSuper
   void dispose() {
+    _cancelRequested = true;
     _worker.dispose();
     _resultController.close();
   }
 
-  /// 通用的扫描入口
-  @protected
-  Future<void> performScan(String path, Set<String> extensions, {bool scanArchives = true}) async {
-    // 1.先加载缓存，让用户立马看到界面
-    // 当用户从未扫描过（缓存没有数据）则自然而然的进入静默后台扫描。
-    // await 确保 UI 在后台扫描开始前先显示旧数据
-    await _initAndLoadCache(path);
-
-    // 2. 开启后台 Worker 进行“纠错” (增量同步)
-    // 静默扫描开启
-    await _performSilentSync(path, extensions, scanArchives: scanArchives);
+  bool _isRunStale(int runId) {
+    return _cancelRequested || runId != _currentRunId;
   }
 
-  /// 步骤 1: 从 DB 加载缓存并构建 UI 树
-  Future<void> _initAndLoadCache(String rootPath) async {
-    // 重置 Builder 状态
-    _treeBuilder.clear(keepRootPath: false);
-    _treeBuilder.setRootPath(rootPath);
-
-    // 直接通过 Storage 获取该路径下对应模式的所有缓存节点
-    final cachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-    _baselineScannedCount = _countFlatFiles(cachedNodes);
-
-    if (cachedNodes.isNotEmpty) {
-      // 构建内存树
-      _treeBuilder.mergeChunk(cachedNodes);
-      // 推送给 UI
-      _emitCurrentResult(_baselineScannedCount);
-    }
-  }
-
-  /// 步骤 2: 后台执行扫描并同步差异
-  Future<void> _performSilentSync(String path, Set<String> extensions, {required bool scanArchives}) async {
+  Future<List<FileNode>> _performSync(String path, int runId) async {
     _visitedPaths.clear();
-    final allParsedWorks = ScraperStorage().getAllWorks();
-    final parsedRjCodes = allParsedWorks.expand((w) => [
-      'RJ${w.id}'.toUpperCase(),
-      'RJ0${w.id}'.toUpperCase()
-    ]).toSet();
 
-    // 启动 Worker
+    final allParsedWorks = ScraperStorage().getAllWorks();
+    final parsedRjCodes = allParsedWorks
+        .expand((work) => [
+              'RJ${work.id}'.toUpperCase(),
+              'RJ0${work.id}'.toUpperCase(),
+            ])
+        .toSet();
+
     final chunkStream = _worker.start(
       parsedRjCodes: parsedRjCodes,
       path: path,
@@ -118,23 +247,18 @@ abstract class _BaseFileScanner implements FileScannerService {
       scanArchives: scanArchives,
     );
 
-    /// 监听 Worker 发回来的实时文件流
-    /// 由于Worker 中扫描后传递回来的数据是裸数据（单纯的扫描文件）,那么添加至扫描白名单[_visitedPaths]这里的数据永远只有文件
-    /// 如果只把文件添加至白名单就会出现扫描完成后，清除不存在数据时把构建好或解析完成的文件夹目录删除
-    /// 所以必须使用_markPathAndParentsAsVisited 将其父级目录一并添加至白名单中。
-    /// 只要文件夹里还有一个有效文件，文件夹的路径就会被 _markPathAndParentsAsVisited 保护，其状态（已解析/待解析）安全无恙。
-    /// 如果用户删除了整个作品文件夹，里面没有任何文件了，该文件夹路径不会进入白名单，最终会被 _handleDeletedFiles 连带业务状态一起从 Hive 中干净地抹除。
-    /// 采用 await for 保证其顺序执行，避免竞态的产生
     await for (final batch in chunkStream) {
-      final flatChunk = batch.nodes;
-      final List<FileNode> filesToUpdate = [];
+      if (_isRunStale(runId)) {
+        break;
+      }
 
-      for (var node in flatChunk) {
+      final flatChunk = batch.nodes;
+      final filesToUpdate = <FileNode>[];
+
+      for (final node in flatChunk) {
         _markPathAndParentsAsVisited(node.keyId, path);
 
-        // 获取指定模式的缓存节点
         final cachedNode = _storage.getNode(scanMode, node.keyId);
-
         if (cachedNode == null ||
             cachedNode.lastModified != node.lastModified ||
             cachedNode.nodeStatus != node.nodeStatus ||
@@ -142,76 +266,156 @@ abstract class _BaseFileScanner implements FileScannerService {
           filesToUpdate.add(node);
         }
       }
+
       if (filesToUpdate.isNotEmpty) {
         _treeBuilder.mergeChunk(filesToUpdate);
-        final nodesToSaveToDb = _treeBuilder.consumeTouchedNodes();
-
-        // 保存指定模式的节点至 DB
-        await _storage.saveNodes(scanMode, nodesToSaveToDb); // 等待落盘完成
+        final nodesToSave = _treeBuilder.consumeTouchedNodes();
+        await _storage.saveNodes(scanMode, nodesToSave);
       }
+
       _emitCurrentResult(
         batch.scannedCount > _baselineScannedCount
             ? batch.scannedCount
             : _baselineScannedCount,
+        rootPath: path,
+        runId: runId,
       );
     }
 
-    // 当流真正结束（所有 await 都执行完毕）后，才会走到这里
-    // D. 清除 ：处理被删除的文件
-    await _handleDeletedFiles(path);
+    if (_isRunStale(runId)) {
+      return previousNodesFromTree(path);
+    }
+
+    await _handleDeletedFiles(path, runId);
+    if (_isRunStale(runId)) {
+      return previousNodesFromTree(path);
+    }
+
+    return _storage.getNodesByRootPath(
+      scanMode,
+      path,
+      preferIndex: false,
+    );
   }
 
-  /// 步骤 3: 处理删除逻辑 (Mark & Sweep 的 Sweep 阶段)
-  Future<void> _handleDeletedFiles(String rootPath) async {
-    // 获取指定模式下的所有缓存节点
-    final allCachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-    final List<String> keysToDelete = [];
+  List<FileNode> previousNodesFromTree(String rootPath) {
+    _treeBuilder.clear(keepRootPath: false);
+    _treeBuilder.setRootPath(rootPath);
+    return const [];
+  }
 
-    for (var node in allCachedNodes) {
-      // 同样使用 p.normalize 进行结构化对齐
+  Future<void> _handleDeletedFiles(String rootPath, int runId) async {
+    final allCachedNodes = _storage.getNodesByRootPath(
+      scanMode,
+      rootPath,
+      preferIndex: false,
+    );
+    final keysToDelete = <String>[];
+
+    for (final node in allCachedNodes) {
       final normalizedKey = p.normalize(node.keyId).toLowerCase();
-
       if (!_visitedPaths.contains(normalizedKey)) {
-        keysToDelete.add(node.keyId); // 删除依然用原始 key
+        keysToDelete.add(node.keyId);
       }
     }
 
     if (keysToDelete.isNotEmpty) {
-      debugPrint("Scanner: Detected ${keysToDelete.length} deleted files. Cleaning up...");
-
-      // 删除指定模式的失效节点
+      debugPrint(
+        'Scanner: Detected ${keysToDelete.length} deleted files. Cleaning up...',
+      );
       await _storage.deleteNodes(scanMode, keysToDelete);
-
-      // 重新拉取最新的指定模式节点并重建内存树
-      final remainingNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-      _baselineScannedCount = _countFlatFiles(remainingNodes);
-      _treeBuilder.rebuild(remainingNodes);
-      _emitCurrentResult(_baselineScannedCount);
     }
+
+    final remainingNodes = _storage.getNodesByRootPath(
+      scanMode,
+      rootPath,
+      preferIndex: false,
+    );
+    _baselineScannedCount = _countFlatFiles(remainingNodes);
+    _treeBuilder.rebuild(remainingNodes);
+    _emitCurrentResult(
+      _baselineScannedCount,
+      rootPath: rootPath,
+      runId: runId,
+    );
   }
 
-  // 递归获取所有父级路径，加入白名单
+  Future<SyncScanResult> _restoreStableSnapshot({
+    required String path,
+    required int runId,
+    required RootScanMeta? previousMeta,
+    required List<FileNode> previousNodes,
+    required bool hadStableSnapshot,
+    required RootScanStatus status,
+    String? errorMessage,
+  }) async {
+    await _storage.clearByRootPath(scanMode, path, preferIndex: false);
+
+    if (hadStableSnapshot) {
+      if (previousNodes.isNotEmpty) {
+        await _storage.saveNodes(scanMode, previousNodes);
+      }
+      await _storage.replaceRootIndex(scanMode, path, previousNodes);
+    }
+
+    final restoredCount = previousMeta?.cachedFileCount ?? _countFlatFiles(previousNodes);
+    final restoredMeta = (previousMeta ?? const RootScanMeta()).copyWith(
+      lastAttemptAt: DateTime.now(),
+      lastScanStatus: status,
+      cachedFileCount: restoredCount,
+    );
+    await _storage.saveRootMeta(scanMode, path, restoredMeta);
+
+    _baselineScannedCount = restoredCount;
+    _treeBuilder.clear(keepRootPath: false);
+    _treeBuilder.setRootPath(path);
+    if (previousNodes.isNotEmpty) {
+      _treeBuilder.mergeChunk(previousNodes);
+    }
+    _emitCurrentResult(
+      restoredCount,
+      rootPath: path,
+      runId: runId,
+    );
+
+    return SyncScanResult(
+      status: status == RootScanStatus.error
+          ? SyncRunStatus.error
+          : SyncRunStatus.cancelled,
+      rootPath: path,
+      runId: runId,
+      scannedCount: restoredCount,
+      errorMessage: errorMessage,
+    );
+  }
+
   void _markPathAndParentsAsVisited(String fullPath, String rootPath) {
     String currentPath = p.normalize(fullPath).toLowerCase();
-    final String lowerRoot = p.normalize(rootPath).toLowerCase();
+    final lowerRoot = p.normalize(rootPath).toLowerCase();
 
     while (true) {
       _visitedPaths.add(currentPath);
-      // 退出条件 1: 退到了你指定的扫描根目录
-      // 退出条件 2: 退到了系统的顶级目录 (例如 p.dirname("C:\") 依然是 "C:\")，防止死循环
       if (currentPath == lowerRoot || currentPath == p.dirname(currentPath)) {
         break;
       }
-      // 核心替换：直接用 p.dirname 安全获取上一级目录，告别 substring 和 lastIndexOf
       currentPath = p.dirname(currentPath);
     }
   }
 
-  void _emitCurrentResult(int scannedCount) {
-    _resultController.add(FileScanBatch(
-      nodes: List.of(_treeBuilder.roots),
-      scannedCount: scannedCount,
-    ));
+  void _emitCurrentResult(
+    int scannedCount, {
+    required String rootPath,
+    required int runId,
+  }) {
+    if (_resultController.isClosed) return;
+    _resultController.add(
+      FileScanBatch(
+        nodes: List<FileNode>.from(_treeBuilder.roots),
+        scannedCount: scannedCount,
+        rootPath: rootPath,
+        runId: runId,
+      ),
+    );
   }
 
   int _countFlatFiles(List<FileNode> nodes) {
@@ -219,15 +423,15 @@ abstract class _BaseFileScanner implements FileScannerService {
   }
 }
 
-/// 下方三个文件为不同策略，根据模式的不同选择的模式就不同
 class _AudioFileScannerServiceImpl extends _BaseFileScanner {
   @override
   ScanMode get scanMode => ScanMode.audio;
 
   @override
-  Future<void> startScan(String path) async {
-    await performScan(path, FileExtensions.audio, scanArchives: false);
-  }
+  Set<String> get extensions => FileExtensions.audio;
+
+  @override
+  bool get scanArchives => false;
 }
 
 class _VideoFileScannerServiceImpl extends _BaseFileScanner {
@@ -235,9 +439,10 @@ class _VideoFileScannerServiceImpl extends _BaseFileScanner {
   ScanMode get scanMode => ScanMode.video;
 
   @override
-  Future<void> startScan(String path) async {
-    await performScan(path, FileExtensions.video, scanArchives: false);
-  }
+  Set<String> get extensions => FileExtensions.video;
+
+  @override
+  bool get scanArchives => false;
 }
 
 class _LyricFileScannerServiceImpl extends _BaseFileScanner {
@@ -245,8 +450,8 @@ class _LyricFileScannerServiceImpl extends _BaseFileScanner {
   ScanMode get scanMode => ScanMode.subtitles;
 
   @override
-  Future<void> startScan(String path) async {
-    // 字幕通常允许扫描压缩包
-    await performScan(path, FileExtensions.subtitles, scanArchives: true);
-  }
+  Set<String> get extensions => FileExtensions.subtitles;
+
+  @override
+  bool get scanArchives => true;
 }

@@ -181,7 +181,7 @@ class CacheService {
     // 否则，基于 allModes 范围进行合并
     final allPaths = <String>{};
     for (var m in allModes) {
-      final list = AppStorage.scannerBox.get(_getScanKey(m, true));
+      final list = AppStorage.settingsBox.get(_getScanKey(m, true));
       if (list != null) {
         allPaths.addAll((list as List).cast<String>());
       }

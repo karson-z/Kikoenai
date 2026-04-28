@@ -34,10 +34,14 @@ class _WorkerConfig {
 class FileScanBatch {
   final List<FileNode> nodes;
   final int scannedCount;
+  final String rootPath;
+  final int runId;
 
   const FileScanBatch({
     required this.nodes,
     required this.scannedCount,
+    this.rootPath = '',
+    this.runId = 0,
   });
 }
 

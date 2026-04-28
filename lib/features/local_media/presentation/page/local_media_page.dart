@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_worker.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import '../../../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
@@ -22,7 +21,7 @@ class ScannerPage extends ConsumerWidget {
     final scannerState = ref.watch(fileScannerProvider);
     final queueState = ref.watch(scraperQueueProvider);
 
-    final isScanning = scannerState.status == WorkerState.scanning;
+    final isRefreshing = scannerState.syncStatus == ScanSyncStatus.refreshing;
     final currentMode = scannerState.scanMode;
     // 1. 获取全局的面包屑数据和控制器
     final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
@@ -31,11 +30,11 @@ class ScannerPage extends ConsumerWidget {
     final queueCount = queueState.pending.length + queueState.processing.length;
 
     ref.listen<FileScannerState>(fileScannerProvider, (previous, next) {
-      final wasScanning = previous?.status == WorkerState.scanning;
-      final isNowIdle = next.status == WorkerState.idle || next.status == WorkerState.done;
-      if (wasScanning && isNowIdle) {
+      final completedRefresh = previous?.syncStatus == ScanSyncStatus.refreshing &&
+          next.syncStatus == ScanSyncStatus.fresh;
+      if (completedRefresh) {
         final pendingNodes = _extractPendingNodes(next.roots);
-        if (pendingNodes.isNotEmpty && scannerState.scanMode != ScanMode.subtitles) {
+        if (pendingNodes.isNotEmpty && next.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
       }
@@ -56,9 +55,9 @@ class ScannerPage extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _getStatusText(scannerState.status, scannerState.scannedCount),
+                _getStatusText(scannerState),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isScanning
+                  color: isRefreshing
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -66,9 +65,24 @@ class ScannerPage extends ConsumerWidget {
             ],
           ),
           actions: [
+            IconButton(
+              tooltip: isRefreshing ? '停止刷新' : '刷新当前路径',
+              onPressed: scannerState.currentPath == null
+                  ? null
+                  : () {
+                      final notifier = ref.read(fileScannerProvider.notifier);
+                      if (isRefreshing) {
+                        notifier.stopRefresh();
+                      } else {
+                        notifier.refreshCurrentPath(force: true);
+                      }
+                    },
+              icon: Icon(isRefreshing ? Icons.stop_circle_outlined : Icons.refresh),
+            ),
             Builder(
               builder: (context) {
-                return  Padding(padding: const EdgeInsets.only(right: 12),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
                   child: IconButton(
                     tooltip: '解析队列',
                     icon: Badge(
@@ -150,7 +164,7 @@ class ScannerPage extends ConsumerWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildPendingView(context, scannerState, currentMode),
+                  _buildPendingView(context, ref, scannerState, currentMode),
                   ParseWorksView(work: ScraperStorage().getAllWorks()),
                 ],
               ),
@@ -170,9 +184,25 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildPendingView(BuildContext context, scannerState, ScanMode currentMode) {
-    if (scannerState.roots.isEmpty) {
+  Widget _buildPendingView(
+    BuildContext context,
+    WidgetRef ref,
+    scannerState,
+    ScanMode currentMode,
+  ) {
+    if (scannerState.roots.isEmpty &&
+        scannerState.syncStatus == ScanSyncStatus.empty) {
       return _buildEmptyStateView(context);
+    }
+    if (scannerState.roots.isEmpty &&
+        scannerState.syncStatus == ScanSyncStatus.refreshing &&
+        !scannerState.hasCachedData) {
+      return _buildFirstScanView(context);
+    }
+    if (scannerState.roots.isEmpty &&
+        scannerState.syncStatus == ScanSyncStatus.error &&
+        !scannerState.hasCachedData) {
+      return _buildScanErrorView(context, ref);
     }
     return FileBrowserPanel(
       rootNodes: scannerState.roots,
@@ -180,16 +210,24 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  String _getStatusText(WorkerState status, int count) {
-    switch (status) {
-      case WorkerState.idle:
-        return count > 0 ? '共 $count 个文件' : '准备就绪';
-      case WorkerState.scanning:
-        return '正在扫描中... ($count)';
-      case WorkerState.done:
-        return '扫描完成，共 $count 个文件';
-      case WorkerState.error:
-        return '扫描出错，请重试';
+  String _getStatusText(FileScannerState state) {
+    switch (state.syncStatus) {
+      case ScanSyncStatus.empty:
+        return '准备就绪';
+      case ScanSyncStatus.fresh:
+        return '已同步，共 ${state.scannedCount} 个文件';
+      case ScanSyncStatus.stale:
+        return '显示缓存，共 ${state.scannedCount} 个文件';
+      case ScanSyncStatus.refreshing:
+        if (!state.hasCachedData) {
+          return '首次扫描中... (${state.scannedCount})';
+        }
+        return '正在校验更新... (${state.scannedCount})';
+      case ScanSyncStatus.error:
+        if (!state.hasCachedData) {
+          return '扫描失败，请重试';
+        }
+        return '刷新失败，显示缓存数据';
     }
   }
 
@@ -222,6 +260,71 @@ class ScannerPage extends ConsumerWidget {
             },
             icon: const Icon(Icons.add),
             label: const Text("添加文件夹"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFirstScanView(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '首次扫描中',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '正在建立本地媒体缓存',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanErrorView(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 56,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '扫描失败',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '请稍后重试或重新选择目录',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () {
+              ref.read(fileScannerProvider.notifier).refreshCurrentPath(force: true);
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('重试'),
           ),
         ],
       ),

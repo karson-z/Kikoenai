@@ -1,11 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/service/file/file_scanner_worker.dart';
-import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import '../../data/model/file_scanner_state.dart';
 import '../provider/file_scanner_notifier.dart';
 
@@ -33,7 +30,6 @@ class PathManagerSheet extends ConsumerWidget {
     final paths = state.savedPaths;
     final currentPath = state.currentPath;
     final currentMode = state.scanMode;
-    final isScanning = state.status == WorkerState.scanning;
 
     // 计算初始 Tab 索引
     final initialIndex = switch (currentMode) {
@@ -53,6 +49,7 @@ class PathManagerSheet extends ConsumerWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: DefaultTabController(
+        key: ValueKey(currentMode),
         length: 3,
         initialIndex: initialIndex,
         child: Column(
@@ -65,7 +62,7 @@ class PathManagerSheet extends ConsumerWidget {
             _buildHeader(context, notifier, paths),
 
             // 3. 药丸型 TabBar
-            _buildPillTabBar(context, notifier, isScanning),
+            _buildPillTabBar(context, notifier),
 
             const SizedBox(height: 8),
 
@@ -135,7 +132,7 @@ class PathManagerSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildPillTabBar(BuildContext context, FileScannerNotifier notifier, bool isScanning) {
+  Widget _buildPillTabBar(BuildContext context, FileScannerNotifier notifier) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Container(
@@ -163,7 +160,6 @@ class PathManagerSheet extends ConsumerWidget {
               ],
             ),
             onTap: (index) {
-              if (isScanning) return;
               final targetMode = switch (index) {
                 0 => ScanMode.audio,
                 1 => ScanMode.video,
@@ -226,10 +222,11 @@ class PathManagerSheet extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(parentPath, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () {
-            ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).jumpTo(-1);
-            notifier.startScan(path);
-            Navigator.pop(context);
+          onTap: () async {
+            await notifier.openPath(path);
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
           },
           trailing: IconButton(
             icon: const Icon(Icons.remove_circle_outline),
@@ -237,7 +234,6 @@ class PathManagerSheet extends ConsumerWidget {
             tooltip: "移除此路径",
             onPressed: () async {
               await notifier.removeDirectory(path);
-              await FileScannerStorage().clearByRootPath(state.scanMode, path);
             },
           ),
         );
