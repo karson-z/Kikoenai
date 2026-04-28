@@ -4,7 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../../../core/service/file/file_scanner_worker.dart';
 import '../../../../core/service/permission/permission_service.dart';
@@ -74,10 +76,10 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     });
 
     _resultSub = _service!.result.listen(
-          (roots) {
+          (batch) {
         state = state.copyWith(
-          roots: roots,
-          scannedCount: _countNodes(roots),
+          roots: batch.nodes,
+          scannedCount: batch.scannedCount,
         );
       },
       onError: (e) => state = state.copyWith(
@@ -129,6 +131,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     if (_service == null) {
       _initializeService(state.scanMode, targetPath: null);
     }
+    ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).jumpTo(-1);
     await _box.put(_getLastPathKey(state.scanMode), path);
     state = state.copyWith(
       currentPath: path,
@@ -187,9 +190,14 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
 
   /// 清空所有目录
   Future<void> clearAllDirectories() async {
+    final currentMode = state.scanMode;
     stopScan(); // 先停止服务
 
-    await _box.delete(_getLastPathKey(state.scanMode));
+    await Future.wait([
+      _box.delete(_getLastPathKey(currentMode)),
+      _cacheService.saveScanRootPaths([], mode: currentMode),
+      FileScannerStorage().clearByMode(currentMode),
+    ]);
 
     state = state.copyWith(
       savedPaths: [],
@@ -199,8 +207,6 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
       status: WorkerState.idle,
       errorMessage: null,
     );
-
-    await _cacheService.saveScanRootPaths([], mode: state.scanMode);
   }
 
   void _cleanupService() {
@@ -210,15 +216,5 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     _resultSub = null;
     _service?.dispose();
     _service = null;
-  }
-
-  /// 递归统计 (注意：如果未来性能卡顿，建议将此逻辑移交给 Worker 在 Isolate 中处理)
-  int _countNodes(List<FileNode> nodes) {
-    int count = 0;
-    for (var node in nodes) {
-      if (!node.isFolder) count++;
-      if (node.children != null) count += _countNodes(node.children!);
-    }
-    return count;
   }
 }
