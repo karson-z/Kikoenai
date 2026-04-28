@@ -31,10 +31,20 @@ class _WorkerConfig {
   });
 }
 
+class FileScanBatch {
+  final List<FileNode> nodes;
+  final int scannedCount;
+
+  const FileScanBatch({
+    required this.nodes,
+    required this.scannedCount,
+  });
+}
+
 class FileScanWorker {
   Isolate? _isolate;
   ReceivePort? _receivePort;
-  StreamController<List<FileNode>>? _resultController;
+  StreamController<FileScanBatch>? _resultController;
 
   final _stateController = StreamController<WorkerState>.broadcast();
   WorkerState _currentState = WorkerState.idle;
@@ -43,7 +53,7 @@ class FileScanWorker {
   Stream<WorkerState> get stateStream => _stateController.stream;
 
   /// 开始扫描
-  Stream<List<FileNode>> start({
+  Stream<FileScanBatch> start({
     required String path,
     required Set<String> extensions,
     required ScanMode scanMode,
@@ -53,7 +63,7 @@ class FileScanWorker {
     _releaseResources();
     _updateState(WorkerState.scanning);
 
-    _resultController = StreamController<List<FileNode>>();
+    _resultController = StreamController<FileScanBatch>();
     _receivePort = ReceivePort();
 
     final config = _WorkerConfig(
@@ -97,7 +107,7 @@ class FileScanWorker {
       _isolate = await Isolate.spawn(_entryPoint, config);
 
       _receivePort!.listen((message) {
-        if (message is List<FileNode>) {
+        if (message is FileScanBatch) {
           _resultController?.add(message);
         } else if (message == 'DONE') {
           _resultController?.close();
@@ -138,6 +148,7 @@ class FileScanWorker {
 
   static void _entryPoint(_WorkerConfig config) async {
     final buffer = <FileNode>[];
+    var scannedCount = 0;
 
     final pendingDirectories = <String, FileNode>{};
     final emittedDirectories = <String>{};
@@ -149,7 +160,10 @@ class FileScanWorker {
 
     void flush() {
       if (buffer.isNotEmpty) {
-        config.sendPort.send(List<FileNode>.from(buffer));
+        config.sendPort.send(FileScanBatch(
+          nodes: List<FileNode>.from(buffer),
+          scannedCount: scannedCount,
+        ));
         buffer.clear();
         lastSendTime = DateTime.now().millisecondsSinceEpoch;
       }
@@ -194,6 +208,7 @@ class FileScanWorker {
           final node = _processFile(entity, config);
           if (node != null) {
             buffer.add(node);
+            scannedCount++;
             flushAncestors(node.mediaStreamUrl!);
           }
           else if (config.scanArchives && ArchiveService.isArchive(entity.path)) {
@@ -209,6 +224,7 @@ class FileScanWorker {
                 final zipNode = _processArchiveEntry(entity.path, entry.virtualPath, archiveLastMod, config);
                 if(zipNode != null) {
                   buffer.add(zipNode);
+                  scannedCount++;
                   hasValidArchiveEntry = true;
                 }
               }
