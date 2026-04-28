@@ -43,6 +43,7 @@ void main() {
 
       final stopwatch = Stopwatch();
       int receivedChunks = 0;
+      int lastScannedCount = 0;
 
       // [Act] 启动全链路计时
       stopwatch.start();
@@ -56,9 +57,10 @@ void main() {
       );
 
       // 实时消费 Worker 传回的批次数据，并交由 Builder 构建树
-      await for (final chunk in resultStream) {
+      await for (final batch in resultStream) {
         receivedChunks++;
-        treeBuilder.mergeChunk(chunk);
+        lastScannedCount = batch.scannedCount;
+        treeBuilder.mergeChunk(batch.nodes);
       }
 
       stopwatch.stop();
@@ -72,6 +74,7 @@ void main() {
       final sampleFolder = treeBuilder.roots.first;
       expect(sampleFolder.isFolder, isTrue);
       expect(sampleFolder.children?.length, filesPerFolder);
+      expect(lastScannedCount, expectedFiles);
 
       // 输出性能报告
       print('--- 全链路性能基准测试报告 ---');
