@@ -10,6 +10,29 @@ import 'file_tree_builder.dart';
 
 enum ScanMode { audio, video, subtitles }
 
+extension ScanModeConfig on ScanMode {
+  Set<String> get extensions {
+    switch (this) {
+      case ScanMode.audio:
+        return FileExtensions.audio;
+      case ScanMode.video:
+        return FileExtensions.video;
+      case ScanMode.subtitles:
+        return FileExtensions.subtitles;
+    }
+  }
+
+  bool get scanArchives {
+    switch (this) {
+      case ScanMode.audio:
+      case ScanMode.video:
+        return false;
+      case ScanMode.subtitles:
+        return true;
+    }
+  }
+}
+
 enum SyncRunStatus {
   success,
   cancelled,
@@ -57,18 +80,16 @@ abstract class FileScannerService {
   void dispose();
 
   factory FileScannerService(ScanMode scanMode) {
-    switch (scanMode) {
-      case ScanMode.audio:
-        return _AudioFileScannerServiceImpl();
-      case ScanMode.video:
-        return _VideoFileScannerServiceImpl();
-      case ScanMode.subtitles:
-        return _LyricFileScannerServiceImpl();
-    }
+    return _FileScannerServiceImpl(scanMode);
   }
 }
 
-abstract class _BaseFileScanner implements FileScannerService {
+class _FileScannerServiceImpl implements FileScannerService {
+  @override
+  final ScanMode scanMode;
+
+  _FileScannerServiceImpl(this.scanMode);
+
   final _worker = FileScanWorker();
   final _resultController = StreamController<FileScanBatch>.broadcast();
   final _treeBuilder = IncrementalTreeBuilder();
@@ -78,9 +99,6 @@ abstract class _BaseFileScanner implements FileScannerService {
   int _baselineScannedCount = 0;
   int _currentRunId = 0;
   bool _cancelRequested = false;
-
-  Set<String> get extensions;
-  bool get scanArchives;
 
   @override
   Stream<FileScanBatch> get result => _resultController.stream;
@@ -242,9 +260,9 @@ abstract class _BaseFileScanner implements FileScannerService {
     final chunkStream = _worker.start(
       parsedRjCodes: parsedRjCodes,
       path: path,
-      extensions: extensions,
+      extensions: scanMode.extensions,
       scanMode: scanMode,
-      scanArchives: scanArchives,
+      scanArchives: scanMode.scanArchives,
     );
 
     await for (final batch in chunkStream) {
@@ -421,37 +439,4 @@ abstract class _BaseFileScanner implements FileScannerService {
   int _countFlatFiles(List<FileNode> nodes) {
     return nodes.where((node) => !node.isFolder).length;
   }
-}
-
-class _AudioFileScannerServiceImpl extends _BaseFileScanner {
-  @override
-  ScanMode get scanMode => ScanMode.audio;
-
-  @override
-  Set<String> get extensions => FileExtensions.audio;
-
-  @override
-  bool get scanArchives => false;
-}
-
-class _VideoFileScannerServiceImpl extends _BaseFileScanner {
-  @override
-  ScanMode get scanMode => ScanMode.video;
-
-  @override
-  Set<String> get extensions => FileExtensions.video;
-
-  @override
-  bool get scanArchives => false;
-}
-
-class _LyricFileScannerServiceImpl extends _BaseFileScanner {
-  @override
-  ScanMode get scanMode => ScanMode.subtitles;
-
-  @override
-  Set<String> get extensions => FileExtensions.subtitles;
-
-  @override
-  bool get scanArchives => true;
 }
