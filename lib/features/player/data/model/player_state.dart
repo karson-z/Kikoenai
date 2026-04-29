@@ -6,6 +6,8 @@ import 'package:kikoenai/features/player/data/model/progress_state.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../../../core/constants/app_typeIds.dart';
+import '../../../../core/service/audio/audio_extension.dart';
+import '../../../album/data/model/work.dart';
 
 part 'player_state.freezed.dart';
 part 'player_state.g.dart';
@@ -48,6 +50,9 @@ abstract class AppPlayerState with _$AppPlayerState {
     @Default([]) List<AudioTrack> externalAudioTracks,
     @Default([]) List<SubtitleTrack> externalSubtitleTracks,
   }) = _AppPlayerState;
+
+  Work? get currentWork => currentTrack?.workData;
+
 
   FileNode? get currentSubtitle =>
       currentTrack != null ? subtitleMapping[currentTrack!.id] : null;

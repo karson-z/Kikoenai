@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:audio_service/audio_service.dart';
+
+import '../../../features/album/data/model/work.dart';
 
 
 extension KikoenaiAudioHandlerX on AudioHandler {
@@ -25,5 +29,16 @@ extension MediaItemX on MediaItem {
 
     // 3. 兜底检查：如果 id 不含协议头且包含路径分隔符，通常也是本地路径
     return extras?['url'].contains('/');
+  }
+  Work? get workData {
+    final raw = extras?['workData'];
+    if (raw == null) return null;
+
+    try {
+      final json = raw is String ? jsonDecode(raw) : raw;
+      return Work.fromJson(json);
+    } catch (_) {
+      return null;
+    }
   }
 }

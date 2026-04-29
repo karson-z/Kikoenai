@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,8 +80,7 @@ class _MoreOptionsContent extends ConsumerWidget {
     final state = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
 
-    final workJson = track.extras?['workData'];
-    final work = workJson != null ? Work.fromJson(jsonDecode(workJson)) : null;
+    final work = track.workData;
     final rjCode = work?.id;
     final bool isVideoTrack = track.extras?['isVideo'] == true;
 
@@ -231,12 +229,12 @@ class _MoreOptionsContent extends ConsumerWidget {
     if (track.isLocal) {
       KikoenaiLogger().i("本地轨道，跳转至文件目录或本地索引");
     } else {
-      final workDataJson = track.extras?['workData'];
-      if (workDataJson != null) {
+      final work = track.workData;
+      if (work != null) {
         final panelCtrl = ref.read(panelControllerProvider);
         if (panelCtrl.isPanelOpen) panelCtrl.close();
 
-        context.push(AppRoutes.detail, extra: {'work': jsonDecode(workDataJson)});
+        context.push(AppRoutes.detail, extra: {'work': work});
       }
     }
   }
