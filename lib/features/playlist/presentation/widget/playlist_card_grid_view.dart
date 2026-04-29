@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
@@ -30,9 +30,7 @@ class PlaylistCardGridView extends StatelessWidget {
       return _buildEmptyView();
     }
 
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
-    final verticalSpacing = layoutStrategy.getRowSpacing(context);
+    final layout = WorkLayoutConfig.card(context);
 
     // 2. 使用 CustomScrollView 封装，使其成为一个独立的滚动视图
     return CustomScrollView(
@@ -47,8 +45,8 @@ class PlaylistCardGridView extends StatelessWidget {
             itemCount: work.length,
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 240,
-              crossAxisSpacing: horizontalSpacing,
-              mainAxisSpacing: verticalSpacing,
+              crossAxisSpacing: layout.horizontalSpacing,
+              mainAxisSpacing: layout.verticalSpacing,
               childAspectRatio: 0.75,
             ),
             itemBuilder: (context, index) {

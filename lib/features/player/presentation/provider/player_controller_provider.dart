@@ -14,6 +14,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
+import '../../../../core/service/audio/audio_extension.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
@@ -36,9 +37,14 @@ NotifierProvider<PlayerController, AppPlayerState>(() {
 });
 
 class PlayerController extends Notifier<AppPlayerState> {
+  static const _historyProgressSaveThresholdMs = 1000;
+
   ReceivePort? _overlayReceivePort;
 
   Timer? _controlsHideTimer;
+
+  ({String trackId, int progressMs})? _lastSavedHistory;
+
 
   AudioHandler get _handler => AudioServiceSingleton.instance;
 
@@ -144,19 +150,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (item == null) {
       return;
     }
-    // 3. 解析 WorkID
-    String? workId;
-    try {
-      final workDataStr = item.extras?['workData'];
-      if (workDataStr != null) {
-        // 兼容 String 和 Map 两种格式
-        final workJson =
-        workDataStr is String ? jsonDecode(workDataStr) : workDataStr;
-        workId = workJson['id']?.toString();
-      }
-    } catch (e) {
-      debugPrint("埋点解析 WorkID 失败: $e");
-    }
+    final workId = item.workData?.id?.toString();
 
     // 4. 通知 Provider
     if (workId != null && workId.isNotEmpty) {
@@ -393,24 +387,30 @@ class PlayerController extends Notifier<AppPlayerState> {
     final currentItem = state.currentTrack;
     if (currentItem == null) return;
 
-    final workData = currentItem.extras?['workData'];
-    if (workData == null) return;
+    final currentProgressMs = state.progressBarState.current.inMilliseconds;
+    final last = _lastSavedHistory;
+    if (last != null &&
+        last.trackId == currentItem.id &&
+        (currentProgressMs - last.progressMs).abs() <
+            _historyProgressSaveThresholdMs) {
+      return;
+    }
 
     try {
-      final workJson = workData is String ? jsonDecode(workData) : workData;
-      final currentWork = Work.fromJson(workJson);
-
-      if (currentWork.id == null) return;
+      final currentWork = state.currentWork;
+      if (currentWork == null || currentWork.id == null) return;
 
       final history = HistoryEntry(
+        isLocal: currentItem.isLocal,
         work: currentWork,
         lastTrackId: currentItem.id,
         currentTrackTitle: currentItem.title,
-        lastProgressMs: state.progressBarState.current.inMilliseconds,
+        lastProgressMs: currentProgressMs,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
 
       _cacheService.addToHistory(history);
+      _lastSavedHistory = (trackId: currentItem.id, progressMs: currentProgressMs);
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }
@@ -778,16 +778,6 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   int? _getWorkIdFromItem(MediaItem? item) {
-    if (item == null) return null;
-    final workData = item.extras?['workData'];
-    if (workData == null) return null;
-    try {
-      // 兼容 JSON String 和 Map
-      final workJson = workData is String ? jsonDecode(workData) : workData;
-      return workJson['id'];
-    } catch (e) {
-      debugPrint("解析 WorkID 异常: $e");
-      return null;
-    }
+    return item?.workData?.id;
   }
 }

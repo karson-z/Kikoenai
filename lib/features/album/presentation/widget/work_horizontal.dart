@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_vertical_colum.dart';
 
@@ -67,8 +67,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final visibleColumns = const WorkListLayout(layoutType: WorkListLayoutType.list)
-            .getColumnsCount(context);
+        final visibleColumns = WorkLayoutConfig.list(context).columns;
 
         // 计算单列宽度
         final columnWidth =
@@ -135,7 +134,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
                     icon: const Icon(Icons.arrow_back_ios, size: 18),
                     color: Colors.black87,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.8),
+                      backgroundColor: Colors.white.withValues(alpha: 0.8),
                       elevation: 2,
                     ),
                   ),
@@ -149,7 +148,7 @@ class _WorkListHorizontalState extends State<WorkListHorizontal> {
                     icon: const Icon(Icons.arrow_forward_ios, size: 18),
                     color: Colors.black87,
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.8),
+                      backgroundColor: Colors.white.withValues(alpha: 0.8),
                       elevation: 2,
                     ),
                   ),
