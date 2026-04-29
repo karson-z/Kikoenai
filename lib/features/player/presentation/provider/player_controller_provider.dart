@@ -401,6 +401,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       if (currentWork == null || currentWork.id == null) return;
 
       final history = HistoryEntry(
+        isLocal: currentItem.isLocal,
         work: currentWork,
         lastTrackId: currentItem.id,
         currentTrackTitle: currentItem.title,

@@ -99,14 +99,13 @@ class _HistoryPageState extends State<HistoryPage> {
             itemBuilder: (context, index) {
               final history = historyList[index];
               return WorkCard(
+                isLocalMedia: history.isLocal,
                 work: history.work,
                 // 如果有进度，可以显示具体进度信息
                 lastTrackTitle: history.currentTrackTitle,
                 lastPlayedAt: DateTime.fromMillisecondsSinceEpoch(
                   history.updatedAt,
                 ),
-                // 可以在这里加点击事件跳转播放
-                // onTap: () => PlayerController.restoreHistory(...)
               );
             },
           );
