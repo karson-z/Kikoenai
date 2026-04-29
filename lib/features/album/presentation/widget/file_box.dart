@@ -1,15 +1,15 @@
+import 'dart:io';
+
 import 'package:background_downloader/background_downloader.dart'; // 必须导入，用于 TaskRecord 和 filePath()
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/download/download_service.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/download/presentation/provider/download_provider.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
-import '../../../../core/widgets/common/kikoenai_dialog.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/menu/menu.dart';
 import '../../../../core/widgets/text_preview/text_preview_page.dart';
@@ -39,6 +39,10 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   void initState() {
     super.initState();
     _checkHistoryOnce();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(allTasksProvider.notifier).refreshTasks();
+    });
   }
 
   Future<void> _checkHistoryOnce() async {
@@ -76,20 +80,41 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   /// [核心逻辑] 批量替换本地路径
   /// 接收原始节点列表和下载记录 Map，返回 URL 已替换为本地路径的新列表
   Future<List<FileNode>> _resolveLocalPathNodes(
-      List<FileNode> nodes, Map<String, TaskRecord> taskMap) async {
+    List<FileNode> nodes,
+    Map<String, TaskRecord> taskMap,
+  ) async {
     if (taskMap.isEmpty) return nodes;
 
-    return await Future.wait(nodes.map((node) async {
+    final resolvedNodes = <FileNode>[];
+    for (final node in nodes) {
       // 检查该节点是否有对应的下载记录 (使用 hash 匹配 taskId)
-      if (taskMap.containsKey(node.hash)) {
-        final task = taskMap[node.hash]!.task;
-        // 获取本地绝对路径 (异步操作)
-        final String localPath = await task.filePath();
+      final record = taskMap[node.hash];
+      if (record != null) {
+        final localPath = await _resolveDownloadedLocalPath(record);
+        if (localPath == null) {
+          resolvedNodes.add(node);
+          continue;
+        }
         // 创建新对象，替换 URL
-        return node.copyWith(mediaStreamUrl: localPath);
+        resolvedNodes.add(node.copyWith(mediaStreamUrl: localPath));
+        continue;
       }
-      return node;
-    }));
+      resolvedNodes.add(node);
+    }
+
+    return resolvedNodes;
+  }
+
+  Future<String?> _resolveDownloadedLocalPath(TaskRecord record) async {
+    final task = record.task;
+    final localPath = await task.filePath();
+
+    if (await File(localPath).exists()) {
+      return localPath;
+    }
+
+    await ref.read(allTasksProvider.notifier).deleteRecordOnly(task.taskId);
+    return null;
   }
 
   @override
@@ -104,7 +129,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     final isCompleteDownloadFileList = ref.watch(completedTasksProvider);
     final taskList = isCompleteDownloadFileList;
     final Map<String, TaskRecord> downloadedTaskMap = {
-      for (var record in taskList) record.task.taskId: record
+      for (var record in taskList) record.task.taskId: record,
     };
 
     return PopScope(
@@ -144,8 +169,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
               itemBuilder: (_, index) {
                 final node = currentNodes[index];
                 // 判断是否已下载
-                final bool isDownloaded =
-                downloadedTaskMap.containsKey(node.hash);
+                final bool isDownloaded = downloadedTaskMap.containsKey(
+                  node.hash,
+                );
                 return _buildFileTile(
                   context,
                   node,
@@ -164,13 +190,13 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   Widget _buildFileTile(
-      BuildContext context,
-      FileNode node,
-      List<FileNode> currentNodes,
-      FileBrowserNotifier notifier,
-      bool isDownloaded,
-      Map<String, TaskRecord> downloadedTaskMap,
-      ) {
+    BuildContext context,
+    FileNode node,
+    List<FileNode> currentNodes,
+    FileBrowserNotifier notifier,
+    bool isDownloaded,
+    Map<String, TaskRecord> downloadedTaskMap,
+  ) {
     final tile = ListTile(
       leading: Icon(_iconByType(node)),
       title: Text(
@@ -183,30 +209,33 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
       ),
       subtitle: Text(
         "${node.isAudio ? "时长:" : "类型："}"
-            "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
+        "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
       ),
       // --- UI 标识：本地标签 ---
       trailing: isDownloaded
           ? Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check, size: 12, color: Color(0xFF16A34A)),
-            SizedBox(width: 4),
-            Text("本地",
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF16A34A),
-                    fontWeight: FontWeight.bold)),
-          ],
-        ),
-      )
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check, size: 12, color: Color(0xFF16A34A)),
+                  SizedBox(width: 4),
+                  Text(
+                    "本地",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF16A34A),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : null,
       onTap: () async {
         // [关键] onTap 变成 async
@@ -219,17 +248,22 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         } else {
           // --- 播放逻辑：自动替换本地路径 ---
           final playerController = ref.read(playerControllerProvider.notifier);
-          final List<FileNode> processedList =
-          await _resolveLocalPathNodes(currentNodes, downloadedTaskMap);
+          final List<FileNode> processedList = await _resolveLocalPathNodes(
+            currentNodes,
+            downloadedTaskMap,
+          );
           // 2. 找到当前点击的目标节点（使用处理后的列表，因为它包含本地路径）
           final FileNode targetNode = processedList.firstWhere(
-                (n) => n.hash == node.hash,
+            (n) => n.hash == node.hash,
             orElse: () => node,
           );
 
           // 3. 传递给播放器
-          playerController.handleFileTap(targetNode, processedList,
-              work: widget.work);
+          playerController.handleFileTap(
+            targetNode,
+            processedList,
+            work: widget.work,
+          );
         }
       },
     );
@@ -243,7 +277,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
               children: [
                 Icon(Icons.edit, size: 18),
                 SizedBox(width: 8),
-                Text('添加到播放列表')
+                Text('添加到播放列表'),
               ],
             ),
           ),
@@ -251,9 +285,12 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         onSelected: (value) async {
           if (value == 'add') {
             FileNode nodeToAdd = node;
-            if (downloadedTaskMap.containsKey(node.hash)) {
-              final localPath = await downloadedTaskMap[node.hash]!.task.filePath();
-              nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
+            final record = downloadedTaskMap[node.hash];
+            if (record != null) {
+              final localPath = await _resolveDownloadedLocalPath(record);
+              if (localPath != null) {
+                nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
+              }
             }
             ref
                 .read(playerControllerProvider.notifier)
@@ -268,7 +305,10 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   void _handleImagePreview(
-      BuildContext context, FileNode node, List<FileNode> currentNodes) {
+    BuildContext context,
+    FileNode node,
+    List<FileNode> currentNodes,
+  ) {
     final imageNodes = currentNodes.where((n) => n.isImage).toList();
     final imageUrls = imageNodes
         .map((n) => n.mediaStreamUrl ?? "")
@@ -286,10 +326,8 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   void _handleTextPreview(BuildContext context, FileNode node) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => TextPreviewPage(
-          url: node.mediaStreamUrl ?? "",
-          title: node.title,
-        ),
+        builder: (context) =>
+            TextPreviewPage(url: node.mediaStreamUrl ?? "", title: node.title),
       ),
     );
   }
@@ -320,7 +358,11 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
   });
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return _BreadcrumbHeader(
       work: work,
       breadcrumb: breadcrumb,
@@ -382,13 +424,15 @@ class _BreadcrumbHeader extends ConsumerWidget {
             iconSize: 18,
             splashRadius: 20,
             padding: const EdgeInsets.all(8),
-            icon: Icon(Icons.library_music,
-                color: isDark ? Colors.white70 : Colors.grey),
+            icon: Icon(
+              Icons.library_music,
+              color: isDark ? Colors.white70 : Colors.grey,
+            ),
             onPressed: () {
               FileTreeWoltSheet.show(
                 context: context,
                 roots: rootNodes,
-                work: work
+                work: work,
               );
             },
           ),

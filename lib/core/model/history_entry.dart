@@ -1,53 +1,38 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive_ce/hive.dart';
+
 import '../../features/album/data/model/work.dart';
+import '../constants/app_typeIds.dart';
 
-class HistoryEntry {
-  final Work work;
-  final int updatedAt; // 最后播放时间戳
-  final String? lastTrackId; // 当前播放的曲目 ID
-  final String? currentTrackTitle; // 曲目标题
-  final int? lastProgressMs; // 播放进度（毫秒）
+part 'history_entry.freezed.dart';
+part 'history_entry.g.dart';
 
-  const HistoryEntry({
-    required this.work,
-    required this.updatedAt,
-    this.lastTrackId,
-    this.currentTrackTitle,
-    this.lastProgressMs,
-  });
+@freezed
+@HiveType(typeId: TypeIds.historyEntry, adapterName: 'HistoryEntryAdapter')
+abstract class HistoryEntry with _$HistoryEntry {
+  const HistoryEntry._();
 
-  HistoryEntry copyWith({
-    Work? work,
-    int? updatedAt,
-    String? lastTrackId,
-    String? currentTrackTitle,
-    int? lastProgressMs,
-  }) {
-    return HistoryEntry(
-      work: work ?? this.work,
-      updatedAt: updatedAt ?? this.updatedAt,
-      lastTrackId: lastTrackId ?? this.lastTrackId,
-      currentTrackTitle: currentTrackTitle ?? this.currentTrackTitle,
-      lastProgressMs: lastProgressMs ?? this.lastProgressMs,
-    );
-  }
+  const factory HistoryEntry({
+    @HiveField(0)
+    // ignore: invalid_annotation_target
+    @JsonKey(fromJson: _workFromJson, toJson: _workToJson)
+    required Work work,
+    @HiveField(1) required int updatedAt,
+    @HiveField(2) String? lastTrackId,
+    @HiveField(3) String? currentTrackTitle,
+    @HiveField(4) int? lastProgressMs,
+    @HiveField(5) @Default(false) bool isLocal,
+  }) = _HistoryEntry;
 
-  Map<String, dynamic> toMap() {
-    return {
-      'work': work.toJson(),
-      'updatedAt': updatedAt,
-      'lastTrackId': lastTrackId,
-      'currentTrackTitle': currentTrackTitle,
-      'lastProgressMs': lastProgressMs,
-    };
-  }
+  factory HistoryEntry.fromJson(Map<String, dynamic> json) =>
+      _$HistoryEntryFromJson(json);
 
-  factory HistoryEntry.fromMap(Map<String, dynamic> map) {
-    return HistoryEntry(
-      work: Work.fromJson(map['work']),
-      updatedAt: map['updatedAt'],
-      lastTrackId: map['lastTrackId'],
-      currentTrackTitle: map['currentTrackTitle'],
-      lastProgressMs: map['lastProgressMs'],
-    );
-  }
+  Map<String, dynamic> toMap() => toJson();
+
+  factory HistoryEntry.fromMap(Map<String, dynamic> map) =>
+      HistoryEntry.fromJson(map);
 }
+
+Work _workFromJson(Map<String, dynamic> json) => Work.fromJson(json);
+
+Map<String, dynamic> _workToJson(Work work) => work.toJson();
