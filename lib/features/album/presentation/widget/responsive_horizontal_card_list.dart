@@ -46,7 +46,6 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
           physics: isDesktop
               ? const BouncingScrollPhysics()
               : const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
           itemCount: items.length, // 仅渲染真实数据长度
           itemBuilder: (context, index) {
             // --- 渲染正常卡片 ---

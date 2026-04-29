@@ -77,7 +77,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
 
     final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location)
-        ? widget.minHeight + AppConstants.kAppBarHeight + 15
+        ? widget.minHeight + AppConstants.kAppBottomNavHeight
         : widget.minHeight;
     final safePadding = isMobile ? paddingHeight : 0.0;
 

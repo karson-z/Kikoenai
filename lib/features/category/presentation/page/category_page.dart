@@ -77,6 +77,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final filterHeight = MediaQuery.of(context).size.height * 0.4;
 
     // 4. 定义主题色
     final Color bgColor = isDark ? Colors.black : Colors.white;
@@ -224,13 +225,13 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                 top: pinnedHeaderHeight,
                 left: 0,
                 right: 0,
-                height: query.isFilterOpen ? 450.0 : 0.0,
+                height: query.isFilterOpen ? filterHeight: 0.0,
                 child: ClipRect(
                   child: OverflowBox(
                     alignment: Alignment.topCenter,
-                    maxHeight: 450.0,
+                    maxHeight: filterHeight,
                     child: SizedBox(
-                      height: 450.0,
+                      height: filterHeight,
                       child: Material(
                         color: bgColor,
                         elevation: 8.0,
