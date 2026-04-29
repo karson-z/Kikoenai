@@ -14,9 +14,8 @@ class PlayerProgressBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(playerControllerProvider);
-    final progressBarState = state.progressBarState;
-    final bool isBuffering = state.loading;
+    final progressBarState = ref.watch(playerControllerProvider.select((p) => p.progressBarState));
+    final bool isBuffering = ref.watch(playerControllerProvider.select((p) => p.loading));
     const double barHeight = 3.0;
     const double thumbRadius = 6.0;
 
