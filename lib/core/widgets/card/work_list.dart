@@ -21,7 +21,7 @@ class WorkListItem extends StatelessWidget {
           context.push(AppRoutes.detail, extra: {'work': workInfo});
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: 1),
           child: Card(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -32,8 +32,8 @@ class WorkListItem extends StatelessWidget {
                     bottomLeft: Radius.circular(6),
                   ),
                   child: SimpleExtendedImage(
-                    workInfo.samCoverUrl!,
-                    width: 55,
+                    workInfo.mainCoverUrl!,
+                    width: 58,
                     fit: BoxFit.cover,
                     loadingSize: 55.0,
                   ),
