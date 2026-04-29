@@ -14,7 +14,6 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import '../../constants/app_constants.dart';
 import '../../utils/data/other.dart';
 
-/// 全局单例的 AudioService 管理器
 class AudioServiceSingleton {
   AudioServiceSingleton._();
 
@@ -38,27 +37,21 @@ class AudioServiceSingleton {
   }
 }
 
-/// 自定义音频处理器，连接系统服务状态与底层播放引擎。
 class MyAudioHandler extends BaseAudioHandler  {
-  /// 引用全局的媒体播放引擎
   final Player _player = PlayerService.instance.player;
   late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
   final List<MediaItem> _playlist = [];
-
   int _currentIndex = -1;
-
   AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
-
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
-
   double _normalVolume = 100.0;
+  bool _isInterrupted = false;
+  Timer? _heartbeatTimer;
 
   bool get isIgnoreAudioFocus =>
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
-
-  bool _isInterrupted = false;
 
   MyAudioHandler() {
     _listenMpvLogs();
@@ -68,6 +61,36 @@ class MyAudioHandler extends BaseAudioHandler  {
     _listenForDurationChanges();
     _listenForPositionChanges();
     _listenErrorStream();
+    _initHeartbeatTracker();
+  }
+
+  void _initHeartbeatTracker() {
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      final state = playbackState.value;
+      final position = _player.state.position;
+      final isPlaying = state.playing;
+      final processingState = state.processingState.name;
+
+      KikoenaiLogger().i(
+          "[Heartbeat] Alive | Play: $isPlaying | State: $processingState | Pos: $position"
+      );
+    });
+  }
+
+  @override
+  Future<void> onTaskRemoved() async {
+    KikoenaiLogger().w("[Lifecycle] onTaskRemoved 触发，进程即将在后台被强杀");
+    _heartbeatTimer?.cancel();
+    await super.onTaskRemoved();
+  }
+
+  @override
+  Future<void> stop() async {
+    KikoenaiLogger().e("[Lifecycle] Stop 方法被调用，正常释放资源");
+    _heartbeatTimer?.cancel();
+    await _player.stop();
+    await _audioSession.setActive(false);
+    return super.stop();
   }
 
   Future<void> _initPlayerConfig() async {
@@ -76,13 +99,11 @@ class MyAudioHandler extends BaseAudioHandler  {
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
       try {
-        // 向 FFmpeg 的解复用器 (lavf) 注入 fastseek 标志
-        // 这会强制 FFmpeg 放弃构建完整索引，对于缺乏索引的文件直接基于比特率进行估算 Range 跳转
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         KikoenaiLogger().i("当前缓存路径:$cacheDir");
-        await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
-        await nativePlayer.setProperty('demuxer-max-bytes', '500000000');
+        // await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
+        await nativePlayer.setProperty("demuxer-readahead-secs", "120");
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {
@@ -102,27 +123,23 @@ class MyAudioHandler extends BaseAudioHandler  {
       }
     }
   }
-  // 自定义音频焦点初始化
+
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
-    // 配置为标准的“音乐播放器”模式
     await _audioSession.configure(const AudioSessionConfiguration.music());
 
-    // 监听系统焦点被抢占（如来电、其他软件播放音乐）
     _audioSession.interruptionEventStream.listen((event) {
-      // 依赖类级别的 getter 确保状态实时同步
       if (isIgnoreAudioFocus) return;
 
       if (event.begin) {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            _player.setVolume(30.0); // 压低音量
+            _player.setVolume(30.0);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-          // 如果当前确实在播放，才标记为被系统打断
             if (_player.state.playing) {
-              _player.pause(); // 强制暂停
+              _player.pause();
               _isInterrupted = true;
             }
             break;
@@ -130,11 +147,10 @@ class MyAudioHandler extends BaseAudioHandler  {
       } else {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            _player.setVolume(100.0); // 恢复音量
+            _player.setVolume(100.0);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-          // 只有确实是被系统打断的，系统恢复时我们才恢复播放
             if (_isInterrupted) {
               play();
               _isInterrupted = false;
@@ -144,7 +160,6 @@ class MyAudioHandler extends BaseAudioHandler  {
       }
     });
 
-    // 监听耳机拔出事件（必须暂停）
     _audioSession.becomingNoisyEventStream.listen((_) {
       pause();
       _isInterrupted = false;
@@ -153,9 +168,7 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   void _listenErrorStream() {
     _player.stream.error.listen((error){
-      KikoenaiToast.error(
-          '播放错误: $error'
-      );
+      KikoenaiToast.error('播放错误: $error');
     });
   }
 
@@ -186,13 +199,6 @@ class MyAudioHandler extends BaseAudioHandler  {
   @override
   Future<void> pause() async {
     await _player.pause();
-  }
-
-  @override
-  Future<void> stop() async {
-    await _player.stop();
-    await _audioSession.setActive(false);
-    return super.stop();
   }
 
   Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
