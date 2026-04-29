@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
-import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
@@ -20,8 +19,7 @@ class AlbumPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card)
-        .getDeviceType(context);
+    final deviceType = context.deviceType;
 
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
