@@ -26,7 +26,8 @@ class PlayerService {
 
   final Player player = Player(
     configuration: const PlayerConfiguration(
-      logLevel: MPVLogLevel.trace,
+      logLevel: MPVLogLevel.debug,
+      bufferSize: 32 * 1024 * 1024,
     ),
   );
 
