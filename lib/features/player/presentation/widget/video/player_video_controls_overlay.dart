@@ -14,7 +14,7 @@ class PlayerVideoControlsOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isVisible = ref.watch(playerControllerProvider).isVideoControlsVisible;
+    final isVisible = ref.watch(playerControllerProvider.select((p) => p.isVideoControlsVisible));
     const duration = Duration(milliseconds: 250);
     const curve = Curves.easeOutCubic;
 

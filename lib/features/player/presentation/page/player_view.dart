@@ -61,10 +61,8 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
     final currentTrack =
     ref.watch(playerControllerProvider.select((s) => s.currentTrack));
 
-    final isVideoTrack = currentTrack?.extras?['isVideo'] == true;
-    final isAudioOnlyMode =
-    ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
-    final shouldRenderVideo = isVideoTrack && !isAudioOnlyMode;
+    final shouldRenderVideo =
+    ref.watch(playerControllerProvider.select((s) => s.isCurrentVideoView));
 
     return AnimatedBuilder(
       animation: _controller,
