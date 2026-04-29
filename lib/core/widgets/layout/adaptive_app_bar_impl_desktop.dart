@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:kikoenai/config/work_layout_strategy.dart';
 import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
 import 'package:kikoenai/core/widgets/common/win_control_button.dart';
@@ -16,7 +15,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
       double? height = kToolbarHeight,
     }) {
   final theme = Theme.of(context);
-  final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card).getDeviceType(context);
+  final deviceType = context.deviceType;
 
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
     return PreferredSize(

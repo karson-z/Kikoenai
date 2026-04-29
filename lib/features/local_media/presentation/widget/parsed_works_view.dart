@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/config/work_layout_strategy.dart';
-import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
@@ -53,9 +52,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
       );
     }
 
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
-    final verticalSpacing = layoutStrategy.getRowSpacing(context);
+    final layout = WorkLayoutConfig.card(context);
 
     return CustomScrollView(
       slivers: [
@@ -67,7 +64,10 @@ class _ParseWorksViewState extends State<ParseWorksView> {
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
           sliver: SliverGrid.builder(
             itemCount: _localWorks.length,
-            gridDelegate: _getGridDelegate(horizontalSpacing, verticalSpacing),
+            gridDelegate: _getGridDelegate(
+              layout.horizontalSpacing,
+              layout.verticalSpacing,
+            ),
             itemBuilder: (context, index) {
               final currentWork = _localWorks[index];
               return _buildEditableCard(currentWork);
@@ -140,7 +140,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
             top: 6,
             right: 6,
             child: Material(
-              color: Colors.black.withOpacity(0.6), // 半透明黑色背景让白色图标更清晰
+              color: Colors.black.withValues(alpha: 0.6), // 半透明黑色背景让白色图标更清晰
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
               child: InkWell(

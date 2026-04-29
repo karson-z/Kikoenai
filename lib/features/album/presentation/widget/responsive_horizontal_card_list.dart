@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/smart_color_card.dart';
@@ -17,10 +17,10 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
     // 判空保护，避免空数组导致的计算错误
     if (items.isEmpty) return const SizedBox();
 
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    var columns = layoutStrategy.getColumnsCount(context);
-    final spacing = layoutStrategy.getColumnSpacing(context) + 2;
-    final deviceType = layoutStrategy.getDeviceType(context);
+    final layout = WorkLayoutConfig.card(context);
+    var columns = layout.columns;
+    final spacing = layout.horizontalSpacing + 2;
+    final deviceType = context.deviceType;
 
     if (deviceType != DeviceType.mobile) {
       columns += 2;

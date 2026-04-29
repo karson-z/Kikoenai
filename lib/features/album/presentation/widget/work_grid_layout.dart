@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart'; // 引入三方库
 
-import 'package:kikoenai/config/work_layout_strategy.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import '../../../../core/widgets/loading/lottie_loading.dart';
@@ -28,9 +28,7 @@ class ResponsiveCardGrid extends StatelessWidget {
       );
     }
 
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
-    final verticalSpacing = layoutStrategy.getRowSpacing(context);
+    final layout = WorkLayoutConfig.card(context);
 
     return SliverMainAxisGroup(
       slivers: [
@@ -39,8 +37,8 @@ class ResponsiveCardGrid extends StatelessWidget {
           itemCount: work.length,
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 240,
-            crossAxisSpacing: horizontalSpacing,
-            mainAxisSpacing: verticalSpacing,
+            crossAxisSpacing: layout.horizontalSpacing,
+            mainAxisSpacing: layout.verticalSpacing,
             childAspectRatio: 0.75,
           ),
           itemBuilder: (context, index) {
