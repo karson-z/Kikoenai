@@ -36,9 +36,8 @@ class SidebarCategoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    return Container(
+    return SizedBox(
       width: 90,
-      color: const Color(0xFFF9FAFB),
       child: ListView.builder(
         primary: false,
         itemCount: categories.length,

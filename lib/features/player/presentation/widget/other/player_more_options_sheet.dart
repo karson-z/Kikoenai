@@ -51,7 +51,7 @@ SliverWoltModalSheetPage _buildWoltPage(BuildContext context, MediaItem track) {
     hasSabGradient: false,
     navBarHeight: 0,
     mainContentSliversBuilder: (context) => [
-      const SliverPadding(padding: .only(top: 16)),
+       const SliverPadding(padding:EdgeInsets.only(top: 16) ),
       SliverToBoxAdapter(
         child: BackButtonPriorityWrapper(
           zIndex: 100,

@@ -5,7 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/search/presentation/provider/search_provider.dart';
 import '../../../../core/widgets/layout/app_search_app_bar.dart';
 import '../../../category/presentation/viewmodel/provider/category_data_provider.dart';
-import '../../../category/presentation/viewmodel/provider/filter_search_notifier.dart';
+import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});

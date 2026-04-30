@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import '../../../album/data/model/work.dart';
+import '../../../../features/album/data/model/work.dart';
 
 part 'filter_data_state.freezed.dart';
 
