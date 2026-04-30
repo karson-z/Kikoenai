@@ -7,9 +7,9 @@ import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/data/other.dart';
 import '../../../../../core/model/search_tag.dart';
-import '../../../data/model/filter_data_state.dart';
+import '../../../../../core/widgets/filter/model/filter_data_state.dart';
 import '../../../data/service/category_repository.dart';
-import 'filter_search_notifier.dart';
+import '../../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
 class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
   CategoryDataNotifier(this.sortOrder);

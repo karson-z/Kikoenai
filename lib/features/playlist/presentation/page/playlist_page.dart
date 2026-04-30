@@ -7,7 +7,7 @@ import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
 import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../../../../core/service/cache/cache_service.dart';
-import '../../../category/presentation/viewmodel/provider/filter_search_notifier.dart';
+import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 import '../../../category/widget/filter_row_panel.dart';
 import '../../../settings/presentation/provider/setting_provider.dart';
 import '../provider/playlist_filter_provider.dart';

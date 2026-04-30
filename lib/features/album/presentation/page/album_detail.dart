@@ -7,7 +7,7 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
-import 'package:kikoenai/features/category/presentation/viewmodel/provider/filter_search_notifier.dart';
+import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import '../../../../core/common/global_exception.dart';
 import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/enums/work_progress.dart';

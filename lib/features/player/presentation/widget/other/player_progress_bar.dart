@@ -20,7 +20,7 @@ class PlayerProgressBar extends ConsumerWidget {
     const double thumbRadius = 6.0;
 
     return Padding(
-        padding: const .symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: ProgressBar(
           barCapShape: BarCapShape.round,
           isLoading: isBuffering,

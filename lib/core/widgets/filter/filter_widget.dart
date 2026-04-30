@@ -5,7 +5,7 @@ import 'package:kikoenai/features/category/presentation/viewmodel/provider/categ
 import 'package:kikoenai/core/widgets/filter/special_search.dart';
 import '../../../features/category/data/model/selector_item.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_option_provider.dart';
-import '../../../features/category/presentation/viewmodel/provider/filter_search_notifier.dart';
+import 'provider/filter_search_notifier.dart';
 import '../common/kikoenai_dialog.dart';
 import 'filter_bottom_panel.dart';
 import 'filter_grid_content.dart';

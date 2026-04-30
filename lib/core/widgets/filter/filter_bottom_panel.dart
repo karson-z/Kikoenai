@@ -11,7 +11,6 @@ class BottomActionPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: const BoxDecoration(
-        color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFF3F4F6), width: 1)),
       ),
       child: Row(
