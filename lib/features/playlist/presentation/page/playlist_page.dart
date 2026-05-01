@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -8,9 +9,8 @@ import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
-import '../../../category/widget/filter_row_panel.dart';
+import '../../../../core/widgets/menu/float_menu_button.dart';
 import '../../../settings/presentation/provider/setting_provider.dart';
-import '../provider/playlist_filter_provider.dart';
 import '../provider/playlist_provider.dart';
 import '../widget/playlist_card_grid_view.dart';
 import '../widget/playlist_sheet.dart';
@@ -28,6 +28,8 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   late AutoScrollController _autoScrollController;
 
   late FocusNode _filterSearchFocusNode;
+
+  late bool isFabOpen = true;
   // AppBar 搜索框控制器
   final TextEditingController _appBarSearchController = TextEditingController();
 
@@ -54,6 +56,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     // 1. 获取当前目标歌单
     final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
     final isLogin = CacheService.instance.getAuthSession() == null ? false : true;
+
     if (!isLogin) {
       return Scaffold(
         body: GuestPlaceholderView(onLoginTap: (){
@@ -61,8 +64,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
         }),
       );
     }
-
-
     if (targetPlaylist == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(defaultMarkTargetPlaylistProvider.notifier).fetchAndCacheDefault();
@@ -73,27 +74,11 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       );
     }
 
-    final uiState = ref.watch(searchFilterProvider(FilterModule.playlist));
-    final uiNotifier = ref.read(searchFilterProvider(FilterModule.playlist).notifier);
-
     final worksAsync = ref.watch(playlistWorksProvider(targetPlaylist.id));
-
-    // // 同步 AppBar 搜索框文字 (当外部重置搜索时)
-    // if (uiState.request.textKeyword.isEmpty && _appBarSearchController.text.isNotEmpty) {
-    //   // 避免死循环
-    //   if (_appBarSearchController.text != "") {
-    //     _appBarSearchController.clear();
-    //   }
-    // }
-
     // 主题色配置 (传给组件用)
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark ? Colors.black : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black45;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final fillColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
-    final primaryColor = theme.colorScheme.primary;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -103,96 +88,79 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
           ref,
           theme
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'playlist_change',
-        onPressed: () => PlaylistSheet.show(context),
-        tooltip: "切换播放列表",
-        child: const Icon(Icons.queue_music),
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              FilterRowPanel(
-                // 状态
-                isFilterOpen: uiState.isFilterOpen,
-                keyword: uiState.localSearchKeyword, // 显示当前搜索词
-                selectedTags: uiState.selectedTags,
-                totalCount: worksAsync.value?.pagination.totalCount ?? 0,
-                // 回调
-                onToggleFilter: () {
-                  showFilterBottomSheet(context,ref,FilterModule.playlist);
-                },
-                onClearKeyword: () {
-                  uiNotifier.updateKeyword("");
-                  setState(() {
-                    _isAppBarSearching = false;
-                    _appBarSearchController.clear();
-                  });
-                },
-                onRemoveTag: (tag) => uiNotifier.removeTag(tag.type, tag.name),
-                scrollController: _autoScrollController,
-                bgColor: bgColor,
-                textColor: textColor,
-                subTextColor: subTextColor,
-                fillColor: fillColor,
-                primaryColor: primaryColor,
-              ),
-              Expanded(
-                child: worksAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('加载失败: $err'),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () => ref.invalidate(playlistWorksProvider(targetPlaylist.id)),
-                          child: const Text('重试'),
-                        )
-                      ],
-                    ),
-                  ),
-                  data: (response) {
-                    final works = response.works;
-
-                    final hasMore = works.length < response.pagination.totalCount;
-
-                    if (works.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
-                            const SizedBox(height: 16),
-                            const Text('没有找到相关作品', style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      );
-                    }
-
-                    // 使用 RefreshIndicator 包裹列表支持下拉刷新
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        return ref.refresh(playlistWorksProvider(targetPlaylist.id).future);
-                      },
-                      child: PlaylistCardGridView(
-                        work: works,
-                        padding: const EdgeInsets.all(12),
-                        hasMore: hasMore,
-                        onLoadMore: () {
-                          // 调用数据 Provider 的 loadMore
-                          ref.read(playlistWorksProvider(targetPlaylist.id).notifier).loadMore();
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
+      floatingActionButton: MorphingCapsuleFab(
+        isExpanded: isFabOpen,
+        fabSize: 52,
+        expandedHeight: 52,
+        direction: AxisDirection.left,
+        fabIcon: Icons.add,
+        actions: [
+          MorphingAction(
+            icon: Icons.tune,
+            label: '筛选',
+            onTap: () {
+              showFilterBottomSheet(context, ref, FilterModule.playlist,onComplete: () {
+                ref.invalidate(playlistWorksProvider);
+              });
+            },
+          ),
+          MorphingAction(
+            icon: Icons.menu,
+            label: '播放列表',
+            onTap: () {
+              PlaylistSheet.show(context);
+            },
           ),
         ],
+      ),
+      body: SizedBox(
+        child: worksAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('加载失败: $err'),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(playlistWorksProvider(targetPlaylist.id)),
+                  child: const Text('重试'),
+                )
+              ],
+            ),
+          ),
+          data: (response) {
+            final works = response.works;
+
+            final hasMore = works.length < response.pagination.totalCount;
+
+            if (works.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
+                    const SizedBox(height: 16),
+                    const Text('没有找到相关作品', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: () async {
+                return ref.refresh(playlistWorksProvider(targetPlaylist.id).future);
+              },
+              child: PlaylistCardGridView(
+                work: works,
+                padding: const EdgeInsets.all(12),
+                hasMore: hasMore,
+                onLoadMore: () {
+                  ref.read(playlistWorksProvider(targetPlaylist.id).notifier).loadMore();
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
