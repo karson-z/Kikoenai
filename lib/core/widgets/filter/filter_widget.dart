@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
 import 'package:kikoenai/core/widgets/filter/special_search.dart';
 import '../../../features/category/data/model/selector_item.dart';
 import '../../../features/category/presentation/viewmodel/provider/category_option_provider.dart';
@@ -10,37 +8,45 @@ import '../common/kikoenai_dialog.dart';
 import 'filter_bottom_panel.dart';
 import 'filter_grid_content.dart';
 import 'filter_silder_bar.dart';
-void showFilterBottomSheet(BuildContext context,WidgetRef ref,FilterModule type) {
-  // 假设你的工具类名为 KikoenaiDialog
+void showFilterBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+    FilterModule type, {
+      VoidCallback? onComplete,
+    }) {
   KikoenaiDialog.showBottomSheet(
     context: context,
-    isScrollControlled: true, // 关键：允许面板高度超过屏幕一半
-    useSafeArea: true,        // 适配顶部刘海和底部指示条
+    isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
     ),
-    builder: (ctx) {
-      // 给底部弹窗设置一个合适的高度，例如屏幕高度的 70%
-      return SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
+    builder: (modalContext) { // 使用弹窗自身的 context
+      return FractionallySizedBox(
+        heightFactor: 0.75, // 使用比例适配，比 MediaQuery 更简洁
         child: Column(
           children: [
+            // 顶部 Handle 条
             Container(
               margin: const EdgeInsets.symmetric(vertical: 12),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[400],
+                color: Theme.of(modalContext).dividerColor.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            // 内容区域
             Expanded(
               child: FilterWidget(
                 type: type,
                 onComplete: () {
-                  context.pop();
-                  final notifier = ref.read(searchFilterProvider(type).notifier);
+                  // 建议：先检查 context 是否挂载，避免异步操作导致的错误
+                  if (modalContext.mounted) {
+                    Navigator.of(modalContext).pop();
+                  }
+                  onComplete?.call();
                 },
               ),
             ),

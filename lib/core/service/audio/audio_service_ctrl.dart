@@ -84,14 +84,14 @@ class MyAudioHandler extends BaseAudioHandler  {
     await super.onTaskRemoved();
   }
 
-  @override
-  Future<void> stop() async {
-    KikoenaiLogger().e("[Lifecycle] Stop 方法被调用，正常释放资源");
-    _heartbeatTimer?.cancel();
-    await _player.stop();
-    await _audioSession.setActive(false);
-    return super.stop();
-  }
+  // @override
+  // Future<void> stop() async {
+  //   KikoenaiLogger().e("[Lifecycle] Stop 方法被调用，正常释放资源");
+  //   _heartbeatTimer?.cancel();
+  //   await _player.stop();
+  //   await _audioSession.setActive(false);
+  //   return super.stop();
+  // }
 
   Future<void> _initPlayerConfig() async {
     await _player.setPlaylistMode(PlaylistMode.none);
@@ -296,7 +296,7 @@ class MyAudioHandler extends BaseAudioHandler  {
 
     if (index == _currentIndex) {
       if (_playlist.isEmpty) {
-        await stop();
+        // await stop();
       } else {
         final nextPlayIndex = index >= _playlist.length ? 0 : index;
         await _playIndex(nextPlayIndex);
@@ -330,7 +330,7 @@ class MyAudioHandler extends BaseAudioHandler  {
         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
           nextIndex = 0;
         } else {
-          await stop();
+          // await stop();
           return;
         }
       }

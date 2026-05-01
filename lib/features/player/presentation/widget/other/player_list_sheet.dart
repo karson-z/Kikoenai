@@ -94,31 +94,33 @@ class PlayerPlaylistSheet {
                                     ),
                                   ],
                                 ),
-                                child: ListTile(
-                                  leading: isCurrentTrack
-                                      ? Icon(Icons.volume_up_rounded, color: colorScheme.primary)
-                                      : Text('${index + 1}'),
-                                  title: Text(
-                                    item.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: isCurrentTrack ? colorScheme.primary : null,
-                                      fontWeight: isCurrentTrack ? FontWeight.bold : null,
+                                child: Material(
+                                  child: ListTile(
+                                    leading: isCurrentTrack
+                                        ? Icon(Icons.volume_up_rounded, color: colorScheme.primary)
+                                        : Text('${index + 1}'),
+                                    title: Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isCurrentTrack ? colorScheme.primary : null,
+                                        fontWeight: isCurrentTrack ? FontWeight.bold : null,
+                                      ),
                                     ),
-                                  ),
-                                  subtitle: Text(
-                                    item.artist ?? '未知艺术家',
-                                    style: TextStyle(
-                                      color: isCurrentTrack ? colorScheme.primary.withAlpha(200) : null,
+                                    subtitle: Text(
+                                      item.artist ?? '未知艺术家',
+                                      style: TextStyle(
+                                        color: isCurrentTrack ? colorScheme.primary.withAlpha(200) : null,
+                                      ),
                                     ),
+                                    onTap: () {
+                                      if (isCurrentTrack) return;
+                                      notifier.skipTo(index);
+                                      Navigator.of(context).pop();
+                                    },
                                   ),
-                                  onTap: () {
-                                    if (isCurrentTrack) return;
-                                    notifier.skipTo(index);
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
+                                )
                               ),
                             );
                           },

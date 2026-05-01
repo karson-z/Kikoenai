@@ -7,6 +7,7 @@ import 'package:kikoenai/features/auth/presentation/page/auth_page.dart';
 import 'package:kikoenai/features/local_media/presentation/page/local_media_page.dart';
 import 'package:kikoenai/features/log/logger_view.dart';
 import 'package:kikoenai/features/settings/presentation/pages/setting_cache_page.dart';
+import 'package:kikoenai/features/test/test.dart';
 import 'package:kikoenai/features/user/presentation/pages/user_page.dart';
 import '../../features/album/presentation/page/album_detail.dart';
 import '../../features/album/presentation/page/category_works_page.dart';
@@ -95,6 +96,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.user,
                 pageBuilder: (context, state) => const MaterialPage(
                   child: UserPage(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.test,
+                pageBuilder: (context, state) => const MaterialPage(
+                  child: MorphingFabApp(),
                 ),
               ),
             ],
