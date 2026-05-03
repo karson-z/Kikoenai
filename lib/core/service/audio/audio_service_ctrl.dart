@@ -48,7 +48,6 @@ class MyAudioHandler extends BaseAudioHandler  {
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
   double _normalVolume = 100.0;
   bool _isInterrupted = false;
-  Timer? _heartbeatTimer;
 
   bool get isIgnoreAudioFocus =>
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
@@ -61,37 +60,15 @@ class MyAudioHandler extends BaseAudioHandler  {
     _listenForDurationChanges();
     _listenForPositionChanges();
     _listenErrorStream();
-    _initHeartbeatTracker();
   }
 
-  void _initHeartbeatTracker() {
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      final state = playbackState.value;
-      final position = _player.state.position;
-      final isPlaying = state.playing;
-      final processingState = state.processingState.name;
-
-      KikoenaiLogger().i(
-          "[Heartbeat] Alive | Play: $isPlaying | State: $processingState | Pos: $position"
-      );
-    });
-  }
 
   @override
-  Future<void> onTaskRemoved() async {
-    KikoenaiLogger().w("[Lifecycle] onTaskRemoved 触发，进程即将在后台被强杀");
-    _heartbeatTimer?.cancel();
-    await super.onTaskRemoved();
+  Future<void> stop() async {
+    await _player.stop();
+    await _audioSession.setActive(false);
+    return super.stop();
   }
-
-  // @override
-  // Future<void> stop() async {
-  //   KikoenaiLogger().e("[Lifecycle] Stop 方法被调用，正常释放资源");
-  //   _heartbeatTimer?.cancel();
-  //   await _player.stop();
-  //   await _audioSession.setActive(false);
-  //   return super.stop();
-  // }
 
   Future<void> _initPlayerConfig() async {
     await _player.setPlaylistMode(PlaylistMode.none);
@@ -296,7 +273,7 @@ class MyAudioHandler extends BaseAudioHandler  {
 
     if (index == _currentIndex) {
       if (_playlist.isEmpty) {
-        // await stop();
+        await stop();
       } else {
         final nextPlayIndex = index >= _playlist.length ? 0 : index;
         await _playIndex(nextPlayIndex);

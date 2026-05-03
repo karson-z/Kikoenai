@@ -12,6 +12,7 @@ void showFilterBottomSheet(
     BuildContext context,
     WidgetRef ref,
     FilterModule type, {
+      bool isShowAction = true,
       VoidCallback? onComplete,
     }) {
   KikoenaiDialog.showBottomSheet(
@@ -41,6 +42,7 @@ void showFilterBottomSheet(
             Expanded(
               child: FilterWidget(
                 type: type,
+                isShowAction: isShowAction,
                 onComplete: () {
                   // 建议：先检查 context 是否挂载，避免异步操作导致的错误
                   if (modalContext.mounted) {
@@ -59,9 +61,11 @@ void showFilterBottomSheet(
 class FilterWidget extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
   final FilterModule type;
+  final bool isShowAction;
 
   const FilterWidget({
     super.key,
+    this.isShowAction = true,
     required this.onComplete,
     required this.type
   });
@@ -164,6 +168,7 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             ],
           ),
         ),
+        if(widget.isShowAction)
         BottomActionPanel(
           onReset: () {
             controller.resetSelected();

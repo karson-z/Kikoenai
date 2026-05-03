@@ -5,6 +5,7 @@ class TypeIds {
   static const int workInfo = 12;
   static const int nodeType = 13;
   static const int nodeStatus = 14;
+  static const int searchTag = 15;
 
   // --- 认证与用户 (30-49) ---
   static const int authResponse = 30;
