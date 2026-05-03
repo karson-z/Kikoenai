@@ -71,12 +71,6 @@ PreferredSizeWidget buildAdaptiveAppBar(
                         child: title,
                       ),
                     const Spacer(),
-                    const SizedBox(
-                      width: 250,
-                      child: GlobalSearchInput(
-                        hintText: '搜索作品、作者或标签…',
-                      ),
-                    ),
                     if (actions != null) ...actions,
                   ],
                 ),

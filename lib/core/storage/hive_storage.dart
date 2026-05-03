@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'package:kikoenai/core/model/search_tag.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
@@ -26,6 +27,7 @@ class AppStorage {
   static late Box<FileNode> scannerBox;        // 扫描结果
   static late Box<Work> scraperWorkBox;        // 爬取作品元数据
   static late Box<FileNode> lyricMatchBox;     // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<SearchTag> filterTagsBox;    // 全局筛选
 
   static late final String _hiveRootPath;
   /// 初始化 Hive 和所有 Box
@@ -49,6 +51,7 @@ class AppStorage {
     Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
+    Hive.registerAdapter(SearchTagAdapter());
     // 3. 并行打开 Box
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
@@ -58,6 +61,7 @@ class AppStorage {
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
       _openBox<FileNode>(BoxNames.lyricsMatch).then((val) => lyricMatchBox = val),
+      _openBox<SearchTag>(BoxNames.globalFilterTags).then((val) => filterTagsBox = val),
     ]);
   }
 

@@ -16,6 +16,7 @@ import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
 import '../../../../core/service/audio/audio_extension.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
+import '../../../../core/service/audio/audio_service_media_kit.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
@@ -66,6 +67,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     ref.onDispose(() {
       _closeOverlayPort();
       _controlsHideTimer?.cancel();
+      stop();
     });
     return const AppPlayerState();
   }

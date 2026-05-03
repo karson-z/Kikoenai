@@ -1,23 +1,28 @@
+import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
+
+part 'search_tag.g.dart';
+
+@HiveType(typeId: TypeIds.searchTag)
 class SearchTag {
+  @HiveField(0)
   final String type;
+
+  @HiveField(1)
   final String name;
+
   /// 是否排除
+  @HiveField(2)
   final bool isExclude;
 
   const SearchTag(this.type, this.name, this.isExclude);
 
   @override
   String toString() {
-    // 排除模式下形如 $-type:name$，非排除模式 $type:name$
     final prefix = isExclude ? "-$type" : type;
-    return "\$$prefix:$name\$"; // 注意这里没有 {}
+    return "\$$prefix:$name\$";
   }
-  /// 构建标签查询字符串
-  /// [tags] 标签列表
-  /// [keyword] 搜索关键词
-  /// [encode] 是否进行 Uri.encodeComponent 编码。
-  ///          - GET 请求放在 URL 中时通常需要 true (默认)。
-  ///          - POST 请求放在 JSON Body 中时通常需要 false。
+
   static String buildTagQueryPath(
       List<SearchTag> tags, {
         String? keyword,
@@ -31,14 +36,21 @@ class SearchTag {
 
     if (keyword != null && keyword.isNotEmpty) {
       final kw = encode ? Uri.encodeComponent(keyword) : keyword;
-
-      // 注意：如果 tagPath 不为空，直接拼接可能会导致 "$tag:xx$keyword" 粘连。
-      // 如果是为了 POST JSON 搜索（"$tag:xx$ keyword"），建议这里加个空格分隔。
-      // 这里根据你之前的逻辑保持直接拼接，如果发现搜不到，请尝试改为:
-      // return tagPath.isEmpty ? kw : '$tagPath $kw';
       return '$tagPath$kw';
     }
 
     return tagPath;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is SearchTag &&
+              runtimeType == other.runtimeType &&
+              type == other.type &&
+              name == other.name &&
+              isExclude == other.isExclude;
+
+  @override
+  int get hashCode => type.hashCode ^ name.hashCode ^ isExclude.hashCode;
 }

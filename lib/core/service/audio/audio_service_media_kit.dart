@@ -1,19 +1,20 @@
 // import 'dart:async';
 // import 'dart:io';
+// import 'dart:math';
 // import 'package:audio_service/audio_service.dart';
 // import 'package:audio_session/audio_session.dart';
 // import 'package:flutter/cupertino.dart';
 // import 'package:hive_ce/hive.dart';
+// import 'package:kikoenai/core/service/player/player_service.dart';
 // import 'package:kikoenai/core/storage/hive_key.dart';
 // import 'package:kikoenai/core/storage/hive_storage.dart';
-// import 'package:media_kit/media_kit.dart';
-// import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 // import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-// import 'package:media_kit_video/media_kit_video.dart';
-//
+// import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
+// import 'package:media_kit/media_kit.dart';
 // import '../../constants/app_constants.dart';
 // import '../../utils/data/other.dart';
 //
+// /// 全局单例的 AudioService 管理器
 // class AudioServiceSingleton {
 //   AudioServiceSingleton._();
 //
@@ -38,28 +39,36 @@
 //   }
 // }
 //
+// /// 自定义音频处理器，连接系统服务状态与底层播放引擎。
 // class MyAudioHandler extends BaseAudioHandler {
-//   final Player _player = Player();
-//
-//   // 这里不应该直接暴露 _player 实例给到外部调用
-//   VideoController? _videoController;
-//
-//   VideoController get videoController {
-//     _videoController ??= VideoController(_player);
-//     return _videoController!;
-//   }
+//   /// 引用全局的媒体播放引擎
+//   final Player _player = PlayerService.instance.player;
 //
 //   Box<dynamic> get _settingBox => AppStorage.settingsBox;
 //
 //   final List<MediaItem> _playlist = [];
 //
+//   int _currentIndex = -1;
+//
+//   AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
+//
+//   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
+//
 //   AudioSession? _audioSession;
 //
 //   bool _playInterrupted = false;
 //
+//   bool _pausedByDeviceDisconnect = false;
+//
+//   DateTime? _lastDisconnectTime;
+//
+//   Timer? _debounceTimer;
+//
+//   StreamSubscription? _noisySubscription;
+//   StreamSubscription? _deviceSubscription;
+//
 //   double _normalVolume = 100.0;
 //
-//   // 实时读取是否忽略音频焦点的配置
 //   bool get _ignoreAudioFocus =>
 //       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
 //
@@ -70,33 +79,26 @@
 //     _notifyAudioHandlerAboutPlaybackEvents();
 //     _listenForDurationChanges();
 //     _listenForPositionChanges();
-//     _listenForCurrentItemChanges();
-//     // _listenErrorPlayState();
+//     _listenErrorStream();
 //   }
+//
 //   Future<void> _initPlayerConfig() async {
-//     // 强制类型检查：setProperty 仅在原生端（Android/iOS/macOS/Windows/Linux）有效，Web 端调用会崩溃
+//     await _player.setPlaylistMode(PlaylistMode.none);
+//
 //     if (_player.platform is NativePlayer) {
 //       final nativePlayer = _player.platform as NativePlayer;
 //       try {
-//         await nativePlayer.setProperty("terminal", "yes");
-//         await nativePlayer.setProperty("msg-level", "all=v");
-//         // 1. 设置缓存目录
-//         // 请确保已导入你自己的 Utils 类
+//         // 向 FFmpeg 的解复用器 (lavf) 注入 fastseek 标志
+//         // 这会强制 FFmpeg 放弃构建完整索引，对于缺乏索引的文件直接基于比特率进行估算 Range 跳转
+//         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
 //         final cacheDir = await OtherUtil.getPlayerTempPath();
+//         KikoenaiLogger().i("当前缓存路径:$cacheDir");
 //         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
-//         // 2. 音频变速不变调
+//         await nativePlayer.setProperty('demuxer-max-bytes', '500000000');
 //         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
-//         await nativePlayer.setProperty("network-timeout", "60");
-//         // 2. 透传参数给底层的 FFmpeg (libavformat)，开启断线重连
-//         // reconnect=1: 开启普通网络流重连
-//         // reconnect_streamed=1: 强制对非 seekable 的直播/电台流也开启重连
-//         // reconnect_delay_max=5: 每次重试的间隔最大不超过 5 秒，避免过载
-//         await nativePlayer.setProperty("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
-//         // 3. Android 平台专属配置
-//         if (Platform.isAndroid) {
-//           // 锁定软件最大增益，防止破音
-//           await nativePlayer.setProperty("volume-max", "100");
 //
+//         if (Platform.isAndroid) {
+//           await nativePlayer.setProperty("volume-max", "100");
 //           final String audioOutputMode = _settingBox.get(
 //             StorageKeys.audioOutputMode,
 //             defaultValue: AppConstants.defaultAoMode,
@@ -104,8 +106,6 @@
 //           final String safeAoMode = AppConstants.validAoModes.contains(audioOutputMode)
 //               ? audioOutputMode
 //               : AppConstants.defaultAoMode;
-//
-//           // 直接将校验后的模式传给底层 mpv
 //           await nativePlayer.setProperty("ao", safeAoMode);
 //         }
 //         KikoenaiLogger().d("底层 mpv 参数配置注入成功");
@@ -114,12 +114,11 @@
 //       }
 //     }
 //   }
-//   /// 动态应用当前的 AudioSession 配置
+//
 //   Future<void> _applyAudioSessionConfiguration() async {
 //     if (_audioSession == null) return;
 //
 //     if (_ignoreAudioFocus) {
-//       // 开启忽略：允许与其他音频混音播放 (Mix with others)
 //       await _audioSession!.configure(const AudioSessionConfiguration(
 //         avAudioSessionCategory: AVAudioSessionCategory.playback,
 //         avAudioSessionCategoryOptions:
@@ -137,44 +136,39 @@
 //         androidWillPauseWhenDucked: false,
 //       ));
 //     } else {
-//       // 关闭忽略：恢复默认独占播放的音乐模式
 //       await _audioSession!.configure(const AudioSessionConfiguration.music());
 //     }
 //   }
+//   void _listenErrorStream() {
+//     _player.stream.error.listen((error){
+//       KikoenaiToast.error(
+//           '播放错误: $error'
+//       );
+//     });
+//   }
 //   void _listenMpvLogs() {
 //     _player.stream.log.listen((event) {
-//       // event 包含 prefix, level, text
-//       // prefix: 模块名 (如 ffmpeg, demuxer)
-//       // level: 日志级别
-//       // text: 具体内容
 //       final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
-//
-//       // 根据级别对接你的 KikoenaiLogger
 //       if (event.level.contains('error')) {
 //         KikoenaiLogger().e(logMessage);
 //       } else if (event.level.contains('warn')) {
 //         KikoenaiLogger().w(logMessage);
 //       } else {
-//         // 调试阶段建议全部打印输出
-//         debugPrint(logMessage);
+//         KikoenaiLogger().i(logMessage);
 //       }
 //     });
 //   }
-//   /// 供 UI 调用的设置方法，更新 Hive 并刷新配置
+//
 //   Future<void> _setIgnoreAudioFocus(bool ignore) async {
 //     await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
 //     await _applyAudioSessionConfiguration();
 //   }
 //
-//   /// 初始化并监听音频焦点中断事件
 //   Future<void> _setupAudioSession() async {
 //     _audioSession = await AudioSession.instance;
-//
-//     // 初始化时，根据 Hive 中的设置应用对应的音频策略
 //     await _applyAudioSessionConfiguration();
 //
 //     _audioSession!.interruptionEventStream.listen((event) {
-//       // 拦截：如果开启了忽略焦点，跳过系统的中断事件
 //       if (_ignoreAudioFocus) return;
 //
 //       if (event.begin) {
@@ -205,12 +199,55 @@
 //         }
 //       }
 //     });
+//
+//     _noisySubscription = _audioSession!.becomingNoisyEventStream.listen((_) {
+//       if (_player.state.playing) {
+//         _player.pause();
+//         _pausedByDeviceDisconnect = true;
+//         _lastDisconnectTime = DateTime.now();
+//       }
+//     });
+//
+//     _deviceSubscription = _audioSession!.devicesChangedEventStream.listen((event) {
+//       if (event.devicesAdded.isEmpty || !_pausedByDeviceDisconnect) return;
+//
+//       final isRealHeadset = event.devicesAdded.any((d) =>
+//       d.isOutput && (
+//           d.type == AudioDeviceType.bluetoothA2dp ||
+//               d.type == AudioDeviceType.wiredHeadset ||
+//               d.type == AudioDeviceType.wiredHeadphones ||
+//               d.type == AudioDeviceType.bluetoothLe ||
+//               d.type == AudioDeviceType.usbAudio
+//       )
+//       );
+//
+//       if (isRealHeadset) {
+//         final now = DateTime.now();
+//         final timeSinceDisconnect = _lastDisconnectTime != null
+//             ? now.difference(_lastDisconnectTime!).inMilliseconds
+//             : 0;
+//
+//         if (timeSinceDisconnect < 1500) {
+//           _pausedByDeviceDisconnect = false;
+//           return;
+//         }
+//
+//         _debounceTimer?.cancel();
+//         _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+//           if (_pausedByDeviceDisconnect) {
+//             play();
+//             _pausedByDeviceDisconnect = false;
+//           }
+//         });
+//       }
+//     });
 //   }
 //
 //   @override
 //   Future<void> play() async {
+//     _pausedByDeviceDisconnect = false;
+//
 //     if (_ignoreAudioFocus) {
-//       // 忽略焦点模式：不关心是否独占，直接播放
 //       await _audioSession?.setActive(true);
 //       await _player.play();
 //       return;
@@ -231,16 +268,37 @@
 //   @override
 //   Future<void> pause() async {
 //     _playInterrupted = false;
+//     _pausedByDeviceDisconnect = false;
 //     await _player.pause();
 //   }
 //
 //   @override
 //   Future<void> stop() async {
 //     _playInterrupted = false;
+//     _pausedByDeviceDisconnect = false;
 //     await _player.stop();
 //     await _audioSession?.setActive(false);
-//     _videoController = null;
 //     return super.stop();
+//   }
+//
+//   Future<void> dispose() async {
+//     _debounceTimer?.cancel();
+//     _noisySubscription?.cancel();
+//     _deviceSubscription?.cancel();
+//   }
+//
+//   Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
+//     if (index < 0 || index >= _playlist.length) return;
+//
+//     _currentIndex = index;
+//     final item = _playlist[index];
+//
+//     mediaItem.add(item);
+//     playbackState.add(playbackState.value.copyWith(queueIndex: index));
+//
+//     final media = _buildMedia(item, startPosition: position);
+//
+//     await _player.open(media, play: autoPlay);
 //   }
 //
 //   Future<void> initPlayback({
@@ -262,24 +320,7 @@
 //
 //     if (_playlist.isEmpty) return;
 //
-//     final children = _playlist.map(_buildMedia).toList();
-//     final playlist = Playlist(children, index: initialIndex);
-//
-//     await _player.open(playlist, play: false);
-//
-//     if (initialPosition > Duration.zero) {
-//       if (_player.state.duration == Duration.zero) {
-//         StreamSubscription? subscription;
-//         subscription = _player.stream.duration.listen((duration) {
-//           if (duration > Duration.zero) {
-//             _player.seek(initialPosition);
-//             subscription?.cancel();
-//           }
-//         });
-//       } else {
-//         await _player.seek(initialPosition);
-//       }
-//     }
+//     await _playIndex(initialIndex, position: initialPosition, autoPlay: false);
 //   }
 //
 //   Future<void> loadPlaylist(
@@ -292,25 +333,22 @@
 //     _playlist.addAll(items);
 //     queue.add(List.from(_playlist));
 //
-//     final children = items.map(_buildMedia).toList();
-//     final playlist = Playlist(children, index: initialIndex);
+//     if (_playlist.isEmpty) return;
 //
 //     try {
-//       await _player.open(playlist, play: false);
-//       if (initialPosition != null && initialPosition > Duration.zero) {
-//         await _player.seek(initialPosition);
-//       }
-//       if (autoPlay) {
-//         await play(); // 使用重写的 play() 确保走焦点逻辑
-//       }
+//       await _playIndex(initialIndex, position: initialPosition, autoPlay: autoPlay);
 //     } catch (e) {
 //       debugPrint("Error loading playlist: $e");
 //     }
 //   }
 //
-//   Media _buildMedia(MediaItem item) {
+//   Media _buildMedia(MediaItem item, {Duration? startPosition}) {
 //     final url = item.extras!['url'] as String;
-//     return Media(url, extras: {'id': item.id});
+//     return Media(
+//       url,
+//       extras: {'id': item.id},
+//       start: startPosition,
+//     );
 //   }
 //
 //   @override
@@ -318,7 +356,6 @@
 //     if (_playlist.any((item) => item.id == mediaItem.id)) return;
 //     _playlist.add(mediaItem);
 //     queue.add(List.from(_playlist));
-//     await _player.add(_buildMedia(mediaItem));
 //   }
 //
 //   @override
@@ -328,9 +365,6 @@
 //     if (toAdd.isEmpty) return;
 //     _playlist.addAll(toAdd);
 //     queue.add(List.from(_playlist));
-//     for (var item in toAdd) {
-//       await _player.add(_buildMedia(item));
-//     }
 //   }
 //
 //   @override
@@ -338,11 +372,23 @@
 //     if (index < 0 || index >= _playlist.length) return;
 //     _playlist.removeAt(index);
 //     queue.add(List.from(_playlist));
-//     await _player.remove(index);
+//
+//     if (index == _currentIndex) {
+//       if (_playlist.isEmpty) {
+//         await stop();
+//       } else {
+//         final nextPlayIndex = index >= _playlist.length ? 0 : index;
+//         await _playIndex(nextPlayIndex);
+//       }
+//     } else if (index < _currentIndex) {
+//       _currentIndex--;
+//       playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
+//     }
 //   }
 //
 //   Future<void> clearPlaylist() async {
 //     _playlist.clear();
+//     _currentIndex = -1;
 //     queue.add([]);
 //     await _player.open(const Playlist([]));
 //   }
@@ -351,59 +397,70 @@
 //   Future<void> seek(Duration position) => _player.seek(position);
 //
 //   @override
-//   Future<void> skipToNext() => _player.next();
+//   Future<void> skipToNext() async {
+//     if (_playlist.isEmpty) return;
+//
+//     int nextIndex = _currentIndex + 1;
+//
+//     if (_shuffleMode == AudioServiceShuffleMode.all) {
+//       nextIndex = Random().nextInt(_playlist.length);
+//     } else {
+//       if (nextIndex >= _playlist.length) {
+//         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+//           nextIndex = 0;
+//         } else {
+//           await stop();
+//           return;
+//         }
+//       }
+//     }
+//     await _playIndex(nextIndex);
+//   }
 //
 //   @override
-//   Future<void> skipToPrevious() => _player.previous();
+//   Future<void> skipToPrevious() async {
+//     if (_playlist.isEmpty) return;
+//
+//     int prevIndex = _currentIndex - 1;
+//
+//     if (_shuffleMode == AudioServiceShuffleMode.all) {
+//       prevIndex = Random().nextInt(_playlist.length);
+//     } else {
+//       if (prevIndex < 0) {
+//         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+//           prevIndex = _playlist.length - 1;
+//         } else {
+//           prevIndex = 0;
+//         }
+//       }
+//     }
+//     await _playIndex(prevIndex);
+//   }
 //
 //   @override
 //   Future<void> skipToQueueItem(int index) async {
-//     if (index < 0 || index >= _playlist.length) return;
-//     await _player.jump(index);
+//     await _playIndex(index);
 //   }
 //
 //   @override
 //   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+//     _repeatMode = repeatMode;
 //     playbackState.add(playbackState.value.copyWith(repeatMode: repeatMode));
-//     switch (repeatMode) {
-//       case AudioServiceRepeatMode.none:
-//         await _player.setPlaylistMode(PlaylistMode.none);
-//         break;
-//       case AudioServiceRepeatMode.group:
-//       case AudioServiceRepeatMode.all:
-//         await _player.setPlaylistMode(PlaylistMode.loop);
-//         break;
-//       case AudioServiceRepeatMode.one:
-//         await _player.setPlaylistMode(PlaylistMode.single);
-//         break;
-//     }
 //   }
 //
 //   @override
 //   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+//     _shuffleMode = shuffleMode;
 //     playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
-//     await _player.setShuffle(shuffleMode == AudioServiceShuffleMode.all);
-//   }
-//
-//   void _listenForCurrentItemChanges() {
-//     _player.stream.playlist.listen((playlist) {
-//       final index = playlist.index;
-//       if (index >= 0 && index < _playlist.length) {
-//         final item = _playlist[index];
-//         mediaItem.add(item);
-//         playbackState.add(playbackState.value.copyWith(queueIndex: index));
-//       }
-//     });
 //   }
 //
 //   void _listenForDurationChanges() {
 //     _player.stream.duration.listen((duration) {
-//       int currentIndex = _player.state.playlist.index;
-//       if (currentIndex >= 0 && currentIndex < _playlist.length) {
-//         final oldMediaItem = _playlist[currentIndex];
+//       if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+//         final oldMediaItem = _playlist[_currentIndex];
 //         final newMediaItem = oldMediaItem.copyWith(duration: duration);
-//         _playlist[currentIndex] = newMediaItem;
-//         queue.add(_playlist);
+//         _playlist[_currentIndex] = newMediaItem;
+//         queue.add(List.from(_playlist));
 //         mediaItem.add(newMediaItem);
 //       }
 //     });
@@ -437,6 +494,12 @@
 //         playbackState.add(playbackState.value.copyWith(
 //           processingState: AudioProcessingState.completed,
 //         ));
+//
+//         if (_repeatMode == AudioServiceRepeatMode.one) {
+//           _playIndex(_currentIndex);
+//         } else {
+//           skipToNext();
+//         }
 //       }
 //     });
 //
@@ -453,41 +516,6 @@
 //       playbackState.add(
 //           playbackState.value.copyWith(bufferedPosition: bufferedPosition));
 //     });
-//   }
-//
-//   // void _listenErrorPlayState() {
-//   //   _player.stream.error.listen((e) async {
-//   //     KikoenaiLogger().e("播放异常: $e");
-//   //     if (_retryCount >= _maxRetries) {
-//   //       KikoenaiToast.error('播放失败，已停止重试');
-//   //       _retryCount = 0;
-//   //       return;
-//   //     }
-//   //
-//   //     _retryCount++;
-//   //     KikoenaiToast.error('连接断开，正在尝试第 $_retryCount/$_maxRetries 次重连...');
-//   //
-//   //     final currentSource = _player.state.playlist.medias.isNotEmpty;
-//   //     if (currentSource) {
-//   //       await Future.delayed(const Duration(milliseconds: 1500));
-//   //       play();
-//   //     }
-//   //   });
-//   // }
-//   Future<void> toggleVideoDecoding(bool enable) async {
-//     try {
-//       if (enable) {
-//         // 唤醒视频解码器，mpv 会自动将画面同步到当前音频的时间戳
-//         await _player.setVideoTrack(VideoTrack.auto());
-//         KikoenaiLogger().d("视频画面解码已开启");
-//       } else {
-//         // 挂起视频解码器，保留纯音频播放，大幅降低功耗
-//         await _player.setVideoTrack(VideoTrack.no());
-//         KikoenaiLogger().d("视频画面解码已关闭，进入纯音频模式");
-//       }
-//     } catch (e) {
-//       KikoenaiLogger().e("切换视频轨道失败: $e");
-//     }
 //   }
 //
 //   Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
@@ -509,35 +537,32 @@
 //     }
 //     if (name == 'toggleVideoDecoding') {
 //       final bool enable = extras?['enable'] ?? false;
-//       await toggleVideoDecoding(enable);
+//       await PlayerService.instance.toggleVideoDecoding(enable);
 //       return;
 //     }
 //     if (name == 'reorderQueue') {
 //       final int oldIndex = extras!['oldIndex'];
 //       final int newIndex = extras['newIndex'];
 //
-//       int? currentIndex = playbackState.value.queueIndex;
-//
-//       if (currentIndex != null) {
-//         if (oldIndex == currentIndex) {
-//           currentIndex = newIndex;
-//         } else if (oldIndex < currentIndex && newIndex >= currentIndex) {
-//           currentIndex--;
-//         } else if (oldIndex > currentIndex && newIndex <= currentIndex) {
-//           currentIndex++;
-//         }
-//       }
-//
 //       final currentQueue = queue.value;
 //       final item = currentQueue.removeAt(oldIndex);
 //       currentQueue.insert(newIndex, item);
-//       queue.add(currentQueue);
+//
+//       _playlist.clear();
+//       _playlist.addAll(currentQueue);
+//       queue.add(List.from(_playlist));
+//
+//       if (_currentIndex == oldIndex) {
+//         _currentIndex = newIndex;
+//       } else if (oldIndex < _currentIndex && newIndex >= _currentIndex) {
+//         _currentIndex--;
+//       } else if (oldIndex > _currentIndex && newIndex <= _currentIndex) {
+//         _currentIndex++;
+//       }
 //
 //       playbackState.add(playbackState.value.copyWith(
-//         queueIndex: currentIndex,
+//         queueIndex: _currentIndex,
 //       ));
-//
-//       await _player.move(oldIndex, newIndex);
 //     }
 //     return super.customAction(name, extras);
 //   }
