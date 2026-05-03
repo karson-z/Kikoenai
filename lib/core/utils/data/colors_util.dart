@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
@@ -25,11 +26,9 @@ class ColorUtils {
     } else {
       imageProvider = ExtendedFileImageProvider(File(url.split('?').first));
     }
-
     return await PaletteGeneratorMaster.fromImageProvider(
       imageProvider,
-      size: const Size(300, 300),
-      maximumColorCount: 20,
+      maximumColorCount: 12,
     );
   }
 
