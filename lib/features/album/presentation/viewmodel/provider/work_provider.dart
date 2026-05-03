@@ -19,6 +19,27 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
     return _loadPage(1);
   }
 
+  /// 公共的 Keyword 构建方法，组装全局标签和特殊限制
+  String? buildGlobalKeyword({bool isGet = true}) {
+    final tagsToApply = <SearchTag>[];
+
+    // 1. 注入全局筛选标签 (从 Hive 中读取)
+    tagsToApply.addAll(AppStorage.filterTagsBox.values);
+
+    // 2. 注入 NSFW 限制标签
+    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
+    if (isNSFW) {
+      tagsToApply.add(SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false));
+    }
+
+    // 3. 构建并返回查询字符串
+    if (tagsToApply.isNotEmpty) {
+      return SearchTag.buildTagQueryPath(tagsToApply, encode: isGet);
+    }
+
+    return null; // 没有标签时返回 null
+  }
+
   /// 核心的通用加载与解析逻辑
   Future<WorkState> _loadPage(int page) async {
     // 1. 调用子类实现的具体网络请求
@@ -61,19 +82,15 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
 class HotWorksNotifier extends BaseWorksNotifier {
   @override
   Future<Map<String, dynamic>?> fetchWorksData(int page) async {
-    String? keywork;
-    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey,defaultValue: false);
-    if(isNSFW) {
-      keywork = SearchTag.buildTagQueryPath([SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false)],encode: false);
-    }
+    final keyword = buildGlobalKeyword(isGet: false); // 调用基类方法获取组装好的 keyword
     final repo = ref.read(workRepositoryProvider);
-    final result = await repo.getPopularWorks(page: page, keyword: keywork);
+    final result = await repo.getPopularWorks(page: page, keyword: keyword);
     return result.data;
   }
 }
 
 final hotWorksProvider =
-    AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
+AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
   HotWorksNotifier.new,
 );
 
@@ -81,23 +98,19 @@ final hotWorksProvider =
 class NewWorksNotifier extends BaseWorksNotifier {
   @override
   Future<Map<String, dynamic>?> fetchWorksData(int page) async {
-    String? keywork;
-    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey,defaultValue: false);
-    if(isNSFW) {
-      keywork = SearchTag.buildTagQueryPath([SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false)],encode: false);
-    }
+    final keyword = buildGlobalKeyword(); // 调用基类方法获取组装好的 keyword
     final repo = ref.read(workRepositoryProvider);
     const order = 'release';
     final sort = SortDirection.desc.value;
 
     final result = await repo.getWorks(
-        page: page, keyword: keywork, order: order, sort: sort);
+        page: page, keyword: keyword, order: order, sort: sort);
     return result.data;
   }
 }
 
 final newWorksProvider =
-    AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
+AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
   NewWorksNotifier.new,
 );
 
@@ -105,25 +118,21 @@ final newWorksProvider =
 class RecommendedWorksNotifier extends BaseWorksNotifier {
   @override
   Future<Map<String, dynamic>?> fetchWorksData(int page) async {
-    String? keywork;
-    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey,defaultValue: false);
-    if(isNSFW) {
-      keywork = SearchTag.buildTagQueryPath([SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false)],encode: false);
-    }
+    final keyword = buildGlobalKeyword(isGet: false); // 调用基类方法获取组装好的 keyword
     final repo = ref.read(workRepositoryProvider);
 
     final recommendUuid =
-        await CacheService.instance.getOrGenerateRecommendUuid();
+    await CacheService.instance.getOrGenerateRecommendUuid();
     final currentUser = CacheService.instance.getAuthSession();
     final targetUuid = currentUser?.user?.recommenderUuid ?? recommendUuid;
 
     final result = await repo.getRecommendedWorks(
-        recommenderUuid: targetUuid, page: page, keyword: keywork);
+        recommenderUuid: targetUuid, page: page, keyword: keyword);
     return result.data;
   }
 }
 
 final recommendedWorksProvider =
-    AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
+AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
   RecommendedWorksNotifier.new,
 );

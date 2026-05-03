@@ -135,7 +135,7 @@ class SettingsPage extends ConsumerWidget {
                 title: '全局筛选',
                 trailingText: '筛选/屏蔽关键词',
                 onTap: () {
-                  // TODO: 弹出选择逻辑
+                  context.push(AppRoutes.settingsGlobalFilter);
                 },
               ),
             ],
