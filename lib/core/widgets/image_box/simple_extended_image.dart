@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
@@ -77,7 +77,6 @@ class SimpleExtendedImage extends StatelessWidget {
         imageUrl: url,
         width: targetWidth,
         height: targetHeight,
-        filterQuality: FilterQuality.high,
         fit: targetFit,
         useOldImageOnUrlChange: true,
         placeholder: (c, u) => LottieLoadingIndicator(

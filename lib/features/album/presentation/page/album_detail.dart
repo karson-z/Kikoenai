@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
@@ -13,7 +13,6 @@ import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/enums/work_progress.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/utils/data/time_formatter.dart';
-import '../../../category/presentation/viewmodel/provider/category_data_provider.dart';
 import '../../data/model/user_work_status.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
@@ -313,17 +312,6 @@ class AlbumCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget buildThumbnail() {
-      if (thumbnailUrl != null) {
-        return CachedNetworkImage(
-          imageUrl: thumbnailUrl!,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Container(color: Colors.grey.shade300),
-          errorWidget: (context, url, error) => Container(color: Colors.grey.shade300),
-        );
-      }
-      return Container(color: Colors.grey.shade300);
-    }
 
     return Hero(
       tag: heroTag ?? '',
@@ -331,16 +319,10 @@ class AlbumCover extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: AspectRatio(
           aspectRatio: 4 / 3,
-          child: mainUrl != null
-              ? CachedNetworkImage(
-            imageUrl: mainUrl!,
+          child: SimpleExtendedImage(
+            mainUrl ?? thumbnailUrl ?? '',
             fit: BoxFit.cover,
-            placeholder: (context, url) => buildThumbnail(),
-            errorWidget: (context, url, error) => buildThumbnail(),
-            fadeInDuration: const Duration(milliseconds: 400),
-            useOldImageOnUrlChange: true,
-          )
-              : buildThumbnail(),
+          ),
         ),
       ),
     );

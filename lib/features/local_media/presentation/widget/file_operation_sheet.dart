@@ -1,8 +1,7 @@
-// 记得引入你实际的类路径
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 
@@ -122,13 +121,11 @@ class FolderActionBottomSheet extends ConsumerWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: imageUrl != null
-                ? CachedNetworkImage(
-              imageUrl: imageUrl,
+                ? SimpleExtendedImage(
+              imageUrl,
               width: 48,
               height: 48,
               fit: BoxFit.cover,
-              placeholder: (context, url) => _buildFallbackIcon(context),
-              errorWidget: (context, url, error) => _buildFallbackIcon(context),
             )
                 : _buildFallbackIcon(context),
           ),
