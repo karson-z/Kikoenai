@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:palette_generator_master/palette_generator_master.dart';
 
 class ColorUtils {
   /// 从图片 URL 或本地文件获取 Palette
   /// 返回 PaletteGenerator
-  static Future<PaletteGenerator> getImagePalette(String url) async {
+  static Future<PaletteGeneratorMaster> getImagePalette(String url) async {
     ImageProvider imageProvider;
 
     if (url.replaceAll('?param=500y500', '').isEmpty) {
@@ -26,41 +26,23 @@ class ColorUtils {
       imageProvider = ExtendedFileImageProvider(File(url.split('?').first));
     }
 
-    return await PaletteGenerator.fromImageProvider(
+    return await PaletteGeneratorMaster.fromImageProvider(
       imageProvider,
       size: const Size(300, 300),
       maximumColorCount: 20,
     );
   }
 
-  /// 判断颜色是否太白
-  static bool _isTooWhite(Color? color) {
-    if (color == null) return true;
-    // 白色判断阈值，可调
-    const threshold = 240;
-    return color.red > threshold && color.green > threshold && color.blue > threshold;
-  }
 
   /// 获取主色、鲜艳色、柔和色
-  static Future<Map<String, Color>> getMainColors(String url) async {
+  static Future<Color> getMainColors(String url) async {
     final palette = await getImagePalette(url);
 
     Color defaultColor = const Color(0xFF001F3F); // 墨蓝色
 
     Color dominant = palette.dominantColor?.color ?? defaultColor;
-    Color vibrant = palette.vibrantColor?.color ?? defaultColor;
-    Color muted = palette.mutedColor?.color ?? defaultColor;
 
-    // 如果颜色过白就替换成墨蓝色
-    if (_isTooWhite(dominant)) dominant = defaultColor;
-    if (_isTooWhite(vibrant)) vibrant = defaultColor;
-    if (_isTooWhite(muted)) muted = defaultColor;
-
-    return {
-      'dominant': dominant,
-      'vibrant': vibrant,
-      'muted': muted,
-    };
+    return dominant;
   }
 
   /// 根据主色和柔和色生成渐变

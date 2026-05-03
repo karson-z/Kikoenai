@@ -19,20 +19,21 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
 
   @override
   Future<FilterDataState> build() async {
-    // 首次进入页面时执行加载
     return await _load(reset: true);
   }
+
   Future<FilterDataState> _load({required bool reset}) async {
     final ui = ref.read(searchFilterProvider(FilterModule.category));
     final prev = state.value ?? const FilterDataState();
     final page = reset ? 1 : prev.currentPage + 1;
-
-    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
     final List<SearchTag> mergedTags = List.from(ui.selectedTags);
+    mergedTags.addAll(AppStorage.filterTagsBox.values);
+    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
     if (isNSFW) {
       mergedTags.add(SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false));
     }
 
+    // 4. 构建包含所有条件(分类特有 + 全局 + NSFW + 关键词)的查询字符串
     var queryParams = SearchTag.buildTagQueryPath(mergedTags, keyword: ui.keyword);
 
     // 发起网络请求
@@ -51,6 +52,7 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
     final totalCount = pagination?['totalCount'] ?? 0;
     final currentPage = pagination?['currentPage'] ?? page;
     final list = reset ? newWorks : [...prev.works, ...newWorks];
+
     return prev.copyWith(
       works: list,
       currentPage: currentPage,
@@ -64,7 +66,10 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
     if (state.isLoading || state.value?.hasMore == false) return;
 
     try {
-      if(state.isLoading) return;
+      if(state.isLoading) return; // 双重校验防抖
+
+      // 注意这里因为是基于旧状态继续加载，我们暂时置为 loading 态防重复触发，由于使用的是 AsyncNotifier，
+      // 原生的 Riverpod 处理 loadMore 建议直接覆盖 state。
       final nextState = await _load(reset: false);
       state = AsyncData(nextState);
     } catch (e, st) {

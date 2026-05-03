@@ -41,7 +41,6 @@ class MyAudioHandler extends BaseAudioHandler  {
   final Player _player = PlayerService.instance.player;
   late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
-
   final List<MediaItem> _playlist = [];
   int _currentIndex = -1;
   AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
@@ -61,26 +60,17 @@ class MyAudioHandler extends BaseAudioHandler  {
     _listenForPositionChanges();
     _listenErrorStream();
   }
-
-
-  @override
-  Future<void> stop() async {
-    await _player.stop();
-    await _audioSession.setActive(false);
-    return super.stop();
-  }
-
   Future<void> _initPlayerConfig() async {
     await _player.setPlaylistMode(PlaylistMode.none);
 
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
       try {
+        // 避免音视频文件没有对应的索引文件导致无法进行range跳转
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         KikoenaiLogger().i("当前缓存路径:$cacheDir");
         // await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
-        await nativePlayer.setProperty("demuxer-readahead-secs", "120");
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {
@@ -270,14 +260,9 @@ class MyAudioHandler extends BaseAudioHandler  {
     if (index < 0 || index >= _playlist.length) return;
     _playlist.removeAt(index);
     queue.add(List.from(_playlist));
-
     if (index == _currentIndex) {
-      if (_playlist.isEmpty) {
-        await stop();
-      } else {
-        final nextPlayIndex = index >= _playlist.length ? 0 : index;
-        await _playIndex(nextPlayIndex);
-      }
+      final nextPlayIndex = index >= _playlist.length ? 0 : index;
+      await _playIndex(nextPlayIndex);
     } else if (index < _currentIndex) {
       _currentIndex--;
       playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
@@ -307,7 +292,6 @@ class MyAudioHandler extends BaseAudioHandler  {
         if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
           nextIndex = 0;
         } else {
-          // await stop();
           return;
         }
       }
