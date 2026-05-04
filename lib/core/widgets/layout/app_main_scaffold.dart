@@ -56,7 +56,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool showBottomNav = scaffoldState.showBottomNav && !OtherUtil.isFullScreenPage(location);
     const double minHeight = 70;
     final double bottomNavHeight = AppConstants.kAppBottomNavHeight;
-    final isCurrentVideoView = ref.watch(playerControllerProvider.select((p) => p.isCurrentVideoView));
     if (isMobile) {
       return Scaffold(
         bottomNavigationBar: showBottomNav
@@ -73,7 +72,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           minHeight: minHeight,
           maxHeight: MediaQuery.of(context).size.height,
           body: widget.navigationShell,
-          isDraggable: !isCurrentVideoView, // 当当前播放节目为视频的时候禁用SlidingPanel的拖动手势
         ),
       );
     } else {

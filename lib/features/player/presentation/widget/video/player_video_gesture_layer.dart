@@ -101,7 +101,6 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          widget.child,
           Positioned.fill(
             child: Listener(
               onPointerSignal: _handlePointerSignal,
@@ -121,10 +120,6 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     state.playing ? controller.pause() : controller.play();
                   }
                 },
-
-                // ==========================================
-                // 水平拖拽手势 (进度调节)
-                // ==========================================
                 onHorizontalDragStart: isDesktop
                     ? null
                     : (_) {
@@ -137,7 +132,6 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     : (details) {
                   final total = state.progressBarState.total.inSeconds;
                   if (total <= 0) return;
-
                   final deltaSeconds = details.primaryDelta! /
                       (MediaQuery.of(context).size.width / total * 0.5);
                   _dragValue += deltaSeconds;
@@ -154,23 +148,12 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                   }
                 },
 
-                // ==========================================
-                // 垂直拖拽手势 (音量/亮度调节 + 拦截 SlidingUpPanel)
-                // ==========================================
-
-                // 1. 宣告对按下动作感兴趣 (拦截关键)
-                onVerticalDragDown: isDesktop ? null : (_) {},
-
-                // 2. 宣告对开始拖拽动作感兴趣 (拦截关键)
-                onVerticalDragStart: isDesktop ? null : (_) {},
-
                 // 3. 实际的业务逻辑：调节音量和亮度
                 onVerticalDragUpdate: isDesktop
                     ? null
                     : (details) {
                   final screenWidth = MediaQuery.of(context).size.width;
                   final localPosition = details.localPosition.dx;
-                  // 使用 ?? 0 防止 primaryDelta 为 null 导致崩溃
                   final delta = -(details.primaryDelta ?? 0) / 200;
 
                   if (localPosition < screenWidth / 2) {
@@ -189,7 +172,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                 // 5. 宣告对拖拽取消感兴趣 (拦截关键)
                 onVerticalDragCancel: isDesktop ? null : () {},
 
-                child: const SizedBox.expand(),
+                child: widget.child,
               ),
             ),
           ),

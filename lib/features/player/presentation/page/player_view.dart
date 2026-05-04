@@ -112,8 +112,9 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               id: PlayerLayoutId.bodyAlbum,
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
-                  : Opacity(
+                  : AnimatedOpacity(
                 opacity: expandedOpacity * currentAlbumAlpha,
+                duration: const Duration(milliseconds: 50),
                 child: IgnorePointer(
                   ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
                   child: RepaintBoundary(
@@ -126,7 +127,8 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               id: PlayerLayoutId.bodyLyrics,
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
-                  : Opacity(
+                  : AnimatedOpacity(
+                duration: Duration(milliseconds: (expandedOpacity * 100).round()),
                 opacity: expandedOpacity * currentLyricsAlpha,
                 child: IgnorePointer(
                   ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
@@ -143,7 +145,8 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.minibar,
-              child: Opacity(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
                 opacity: collapsedOpacity,
                 child: IgnorePointer(
                   ignoring: collapsedOpacity < 0.05,
@@ -172,20 +175,24 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.coverHero,
-              child: Opacity(
+              child: (shouldRenderVideo && collapsedOpacity <= 0)
+                  ? const SizedBox.shrink()
+                  : Opacity(
                 opacity: shouldRenderVideo ? collapsedOpacity : 1.0,
-                child: GestureDetector(
-                  onTap: () {
-                    if (expandVal < 0.5) {
-                      ref.read(panelControllerProvider).open();
-                    } else if (!isWide && !shouldRenderVideo) {
-                      _controller.toggleLyrics();
-                    }
-                  },
-                  child: FloatingCoverImage(
-                    url: currentTrack?.extras?['mainCoverUrl'],
-                    radiusValue:
-                    isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                child: IgnorePointer(
+                  ignoring: shouldRenderVideo && collapsedOpacity < 0.05,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (expandVal < 0.5) {
+                        ref.read(panelControllerProvider).open();
+                      } else if (!isWide && !shouldRenderVideo) {
+                        _controller.toggleLyrics();
+                      }
+                    },
+                    child: FloatingCoverImage(
+                      url: currentTrack?.extras?['mainCoverUrl'],
+                      radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                    ),
                   ),
                 ),
               ),
