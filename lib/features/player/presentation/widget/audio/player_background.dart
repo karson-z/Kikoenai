@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import '../../provider/player_controller_provider.dart';
 
-class PlayerBackground extends ConsumerStatefulWidget {
+class PlayerBackground extends ConsumerWidget {
   final double expandedOpacity;
 
   const PlayerBackground({
@@ -13,32 +13,10 @@ class PlayerBackground extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PlayerBackground> createState() => _PlayerBackgroundState();
-}
-
-class _PlayerBackgroundState extends ConsumerState<PlayerBackground> {
-  final Color _dominantColor = const Color(0xFF001F3F);
-  final Color _vibrantColor = const Color(0xFF001F3F);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final coverUrl = ref.watch(playerControllerProvider.select(
-            (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?
+          (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?,
     ));
-    final themeBackgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    final double colorProgress = ((widget.expandedOpacity - 0.15) / 0.85).clamp(0.0, 1.0);
-
-    final Color startColor = Color.lerp(
-      themeBackgroundColor,
-      _dominantColor,
-      colorProgress,
-    )!;
-    final Color endColor = Color.lerp(
-      themeBackgroundColor,
-      _vibrantColor.withOpacity(0.6),
-      colorProgress,
-    )!;
-
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -65,19 +43,12 @@ class _PlayerBackgroundState extends ConsumerState<PlayerBackground> {
             ),
           ),
         ),
-
-        // 顶层覆盖纯色遮罩，随着面板展开，遮罩逐渐透明消失
-        // 纯色容器的 Opacity 动画由 GPU 直接完成，不涉及复杂的像素读取
         IgnorePointer(
           child: Opacity(
-            opacity: (1.0 - widget.expandedOpacity).clamp(0.0, 1.0),
+            opacity: (1.0 - expandedOpacity).clamp(0.0, 1.0),
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [startColor, endColor],
-                ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
               ),
             ),
           ),

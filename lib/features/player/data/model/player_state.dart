@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 import 'package:media_kit/media_kit.dart';
@@ -74,7 +75,6 @@ abstract class AppPlayerState with _$AppPlayerState {
   // 当前是否是视频播放页面
   bool get isCurrentVideoView {
     if (currentTrack == null) return false;
-    // 当视频宽高都大于0 且 !isAudioOnly 的时候必然是视频
-    return videoWidth > 0 && videoHeight > 0 && !isAudioOnly;
+    return FileExtensions.isVideo(currentTrack!.extras?['url']) && !isAudioOnly;
   }
 }

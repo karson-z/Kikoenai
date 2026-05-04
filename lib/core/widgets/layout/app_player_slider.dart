@@ -18,7 +18,6 @@ import '../slider/sllding_up_panel_modify.dart';
 class SlidingPlayerPanel extends ConsumerStatefulWidget {
   final double minHeight;
   final double maxHeight;
-  final bool isDraggable;
   final Widget body;
   final Widget? collapsed;
   final VoidCallback? onQueuePressed;
@@ -29,7 +28,6 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
     required this.maxHeight,
     required this.body,
     this.collapsed,
-    this.isDraggable = true,
     this.onQueuePressed,
   });
 
@@ -38,13 +36,13 @@ class SlidingPlayerPanel extends ConsumerStatefulWidget {
 }
 
 class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
-  bool _isPanelOpen = false;
+  bool isPanelOpen = false;
   void _handlePanelStateChange(bool isOpen, dynamic mainController) {
-    if (_isPanelOpen == isOpen) return;
+    if (isPanelOpen == isOpen) return;
     final isPlaying = ref.read(playerControllerProvider.select((p) => p.playing));
     final portrait = ref.read(playerControllerProvider.select((p) => p.isVideoPortrait));
     final isFullScreen = ref.read(mainScaffoldProvider.select((p) => p.isFullScreen));
-    _isPanelOpen = isOpen;
+    isPanelOpen = isOpen;
 
     if (isOpen) {
       mainController.expandPlayer();
@@ -72,7 +70,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
-
+    final isCurrentVideoView = ref.watch(playerControllerProvider.select((p) => p.isCurrentVideoView));
     final panelController = ref.watch(panelControllerProvider);
 
     final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
@@ -99,7 +97,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
         controller: panelController,
         minHeight: widget.minHeight,
         maxHeight: widget.maxHeight,
-        isDraggable: widget.isDraggable,
+        isDraggable: !isCurrentVideoView || !isPanelOpen,
         fadeCollapsed: false,
         panelBuilder: (ScrollController sc, AnimationController controller) {
           return PlayerView(
