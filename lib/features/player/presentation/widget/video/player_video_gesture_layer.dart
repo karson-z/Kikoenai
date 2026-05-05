@@ -73,7 +73,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
     }
 
     if (event.scrollDelta.dy != 0) {
-      final screenWidth = MediaQuery.of(context).size.width;
+      final screenWidth = MediaQuery.sizeOf(context).width;
       final delta = event.scrollDelta.dy < 0 ? 0.05 : -0.05;
 
       if (event.localPosition.dx < screenWidth / 2) {
@@ -133,7 +133,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                   final total = state.progressBarState.total.inSeconds;
                   if (total <= 0) return;
                   final deltaSeconds = details.primaryDelta! /
-                      (MediaQuery.of(context).size.width / total * 0.5);
+                      (MediaQuery.sizeOf(context).width / total * 0.5);
                   _dragValue += deltaSeconds;
                   _dragValue = _dragValue.clamp(0, total.toDouble());
 
@@ -152,7 +152,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                 onVerticalDragUpdate: isDesktop
                     ? null
                     : (details) {
-                  final screenWidth = MediaQuery.of(context).size.width;
+                  final screenWidth = MediaQuery.sizeOf(context).width;
                   final localPosition = details.localPosition.dx;
                   final delta = -(details.primaryDelta ?? 0) / 200;
 

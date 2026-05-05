@@ -46,7 +46,7 @@ class PathManagerSheet extends ConsumerWidget {
       // 模拟原来 DraggableScrollableSheet 的视觉效果，设定固定高度或自适应
       // 这里建议使用约束或固定高度，配合 isScrollControlled: true
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.65,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.65,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,

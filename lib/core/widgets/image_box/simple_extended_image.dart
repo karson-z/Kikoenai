@@ -52,8 +52,8 @@ class SimpleExtendedImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 1. 计算目标显示尺寸
-    final double targetWidth = width ?? MediaQuery.of(context).size.width;
-    final double targetHeight = height ?? MediaQuery.of(context).size.height;
+    final double targetWidth = width ?? MediaQuery.sizeOf(context).width;
+    final double targetHeight = height ?? MediaQuery.sizeOf(context).height;
     final BoxFit targetFit = fit ?? BoxFit.cover;
 
     const Map<String, String> httpHeaders = {

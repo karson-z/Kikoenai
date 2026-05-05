@@ -19,7 +19,7 @@ class PlaylistSheet {
     return WoltModalSheet.show<void>(
       context: context,
       modalTypeBuilder: (_) {
-        final width = MediaQuery.of(context).size.width;
+        final width = MediaQuery.sizeOf(context).width;
         return width < 500 ? const CustomBottomType() : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
@@ -28,7 +28,7 @@ class PlaylistSheet {
         final titleColor = isDarkMode ? Colors.white : Colors.black87;
         final subtitleColor = isDarkMode ? Colors.white70 : Colors.grey;
         final iconColor = isDarkMode ? Colors.white70 : Colors.black54;
-        final minSheetHeight = MediaQuery.of(context).size.height * 0.5;
+        final minSheetHeight = MediaQuery.sizeOf(context).height * 0.5;
 
         return [
           SliverWoltModalSheetPage(

@@ -70,12 +70,9 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     final location = GoRouterState.of(context).uri.path;
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
-    final isCurrentVideoView = ref.watch(playerControllerProvider.select((p) => p.isCurrentVideoView));
     final panelController = ref.watch(panelControllerProvider);
-
-    final isMobile = MediaQuery.of(context).size.width < AppConstants.kMobileBreakpoint;
-
-    final paddingHeight = mainState.showBottomNav && !OtherUtil.isFullScreenPage(location)
+    final isMobile = MediaQuery.sizeOf(context).width < AppConstants.kMobileBreakpoint;
+    final paddingHeight = mainState.showBottomNav
         ? widget.minHeight + AppConstants.kAppBottomNavHeight
         : widget.minHeight;
     final safePadding = isMobile ? paddingHeight : 0.0;

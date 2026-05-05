@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
@@ -33,44 +35,36 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     super.initState();
     debugPrint("init");
   }
-
-  // 使用 navigationShell.goBranch 进行切换
   void _navigateTo(int index) {
     widget.navigationShell.goBranch(
       index,
-      // 支持点击当前 Tab 回到顶部等初始状态（可选）
       initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
-
   @override
   Widget build(BuildContext context) {
-    final scaffoldState = ref.watch(mainScaffoldProvider);
-    //  直接从 shell 获取当前索引，不再需要根据 path 解析
     final int selectedIndex = widget.navigationShell.currentIndex;
     final String title = appNavigationItems.length > selectedIndex
         ? appNavigationItems[selectedIndex].label
         : '';
-    final String location = GoRouterState.of(context).uri.path;
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
-    final bool showBottomNav = scaffoldState.showBottomNav && !OtherUtil.isFullScreenPage(location);
-    const double minHeight = 70;
+    final bool isMobile = context.isMobile;
+    const double minHeight = 75;
     final double bottomNavHeight = AppConstants.kAppBottomNavHeight;
+    final String currentPath = GoRouterState.of(context).uri.path;
+    final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     if (isMobile) {
       return Scaffold(
-        bottomNavigationBar: showBottomNav
-            ? NavigationBar(
+        bottomNavigationBar: showBottomNav ? NavigationBar(
           selectedIndex: selectedIndex,
           onDestinationSelected: (index) => _navigateTo(index),
           height: bottomNavHeight,
           destinations: appNavigationItems
               .map((item) => NavigationDestination(icon: item.icon, label: item.label))
               .toList(),
-        )
-            : null,
+        ) : null,
         body: SlidingPlayerPanel(
           minHeight: minHeight,
-          maxHeight: MediaQuery.of(context).size.height,
+          maxHeight: MediaQuery.sizeOf(context).height,
           body: widget.navigationShell,
         ),
       );
@@ -105,7 +99,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       return Scaffold(
         body: SlidingPlayerPanel(
           minHeight: minHeight,
-          maxHeight: MediaQuery.of(context).size.height,
+          maxHeight: MediaQuery.sizeOf(context).height,
           body: desktopLayoutRow,
         ),
       );
