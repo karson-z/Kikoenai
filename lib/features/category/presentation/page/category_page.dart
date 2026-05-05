@@ -77,7 +77,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final filterHeight = MediaQuery.of(context).size.height * 0.4;
+    final filterHeight = MediaQuery.sizeOf(context).height * 0.4;
 
     // 4. 定义主题色
     final Color bgColor = isDark ? Colors.black : Colors.white;

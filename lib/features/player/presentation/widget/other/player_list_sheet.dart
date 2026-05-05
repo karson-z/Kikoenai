@@ -15,7 +15,7 @@ class PlayerPlaylistSheet {
     return WoltModalSheet.show<void>(
       context: context,
       modalTypeBuilder: (_) {
-        final width = MediaQuery.of(context).size.width;
+        final width = MediaQuery.sizeOf(context).width;
         return width < 500 ? const CustomBottomType() : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
