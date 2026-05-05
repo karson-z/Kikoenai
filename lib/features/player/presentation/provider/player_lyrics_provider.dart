@@ -6,6 +6,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_lyrics_match_provider.dart';
 import '../../../../core/model/lyric_model.dart';
 import '../../../../core/service/file/archive_service.dart';
 import '../../../../core/service/lyrics/lyrics_parse_service.dart';
@@ -13,18 +14,17 @@ import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/utils/log/kikoenai_log.dart';
 /// 字幕提供者
 final lyricsProvider = FutureProvider<String?>((ref) async {
-  // 1. 监听当前字幕源变化
-  final currentSub = ref.watch(playerControllerProvider.select((s) => s.currentSubtitle));
+  final currentTrackId = ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
+  if (currentTrackId == null) return null;
+  final subtitleMapping = ref.watch(lyricsMatchControllerProvider.select((s) => s.subtitleMapping));
+  final currentSub = subtitleMapping[currentTrackId];
   final newUrl = currentSub?.mediaStreamUrl;
-
   if (newUrl == null || newUrl.isEmpty) return null;
-
-  // 2. 读取一次依赖的 API Client
   final api = ref.read(apiClientProvider);
-
-  // 3. 调用抽离的基础方法并返回结果
   return fetchLyricContent(newUrl, api);
 });
+
+// fetchLyricContent 方法保持你原来的不变即可
 Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
   if (url == null || url.isEmpty) return null;
 
@@ -39,7 +39,6 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
       if (await file.exists()) {
         return await file.readAsString();
       } else {
-        // 假设这里 ArchiveService.extractText 也是返回 Future<String?>
         return await ArchiveService.extractText(url);
       }
     }

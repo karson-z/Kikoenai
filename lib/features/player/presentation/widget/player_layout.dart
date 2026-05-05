@@ -38,7 +38,6 @@ class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
         smallSize
     );
 
-    // B. 终点 (Expanded)：根据宽屏/窄屏区分
     Rect expandedTargetRect;
 
     if (isWideScreen) {

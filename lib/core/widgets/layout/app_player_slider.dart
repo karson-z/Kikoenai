@@ -39,7 +39,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
   bool isPanelOpen = false;
   void _handlePanelStateChange(bool isOpen, dynamic mainController) {
     if (isPanelOpen == isOpen) return;
-    final isPlaying = ref.read(playerControllerProvider.select((p) => p.playing));
+    // final isPlaying = ref.read(playerControllerProvider.select((p) => p.playing));
     final portrait = ref.read(playerControllerProvider.select((p) => p.isVideoPortrait));
     final isFullScreen = ref.read(mainScaffoldProvider.select((p) => p.isFullScreen));
     isPanelOpen = isOpen;
@@ -47,18 +47,18 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
     if (isOpen) {
       mainController.expandPlayer();
       mainController.setBottomNav(false);
-      if(isPlaying){
-        AudioServiceSingleton.instance.toggleVideoDecoding(true);
-      }
+      // if(isPlaying){
+      //   AudioServiceSingleton.instance.toggleVideoDecoding(true);
+      // }
       if(isFullScreen){
         DisplayUtils.enterFullScreen(portrait);
       }
     } else {
       mainController.collapsePlayer();
       mainController.setBottomNav(true);
-      if(isPlaying){
-        AudioServiceSingleton.instance.toggleVideoDecoding(false);
-      }
+      // if(isPlaying){
+      //   AudioServiceSingleton.instance.toggleVideoDecoding(false);
+      // }
       if(isFullScreen){
         DisplayUtils.exitFullScreen();
       }
