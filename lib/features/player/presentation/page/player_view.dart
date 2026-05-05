@@ -1,23 +1,20 @@
 import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// 注意：请确保此处导入了你定义 panelControllerProvider 的文件
-// import 'path_to_your_panel_controller_provider.dart';
-
 import '../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../data/service/player_view_controller.dart';
 import '../provider/player_controller_provider.dart';
 import '../widget/audio/player_background.dart';
-import '../widget/audio/player_content.dart';
 import '../widget/audio/player_hero_cover.dart';
 import '../widget/player_layout.dart';
 import '../widget/lyrics/player_lyrics_content.dart';
 import '../widget/audio/player_mini_bar.dart';
 import '../widget/other/player_top_bar.dart';
 import '../widget/video/player_video_content.dart';
+import 'package:kikoenai/features/player/presentation/widget/audio/player_controls.dart';
+import 'package:kikoenai/features/player/presentation/widget/audio/player_info.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_progress_bar.dart';
 
 class PlayerView extends ConsumerStatefulWidget {
   final ValueListenable<double>? dragProgressNotifier;
@@ -71,10 +68,11 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
         final lyricsVal = _controller.lyricsValue;
 
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
+        // debugPrint('collapsedOpacity: $collapsedOpacity');
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
-
-        double currentAlbumAlpha = isWide ? 1.0 : (1 - lyricsVal).clamp(0.0, 1.0);
         double currentLyricsAlpha = isWide ? 1.0 : lyricsVal.clamp(0.0, 1.0);
+
+        final bool ignoreControls = expandVal < 0.5 || (!isWide && lyricsVal > 0.5);
 
         return CustomMultiChildLayout(
           delegate: PlayerLayoutDelegate(
@@ -83,7 +81,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             minHeight: widget.minHeight,
             padding: padding,
             isWideScreen: isWide,
-            isVideo: shouldRenderVideo,
           ),
           children: [
             LayoutId(
@@ -108,21 +105,49 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               )
                   : const SizedBox.shrink(),
             ),
+
             LayoutId(
-              id: PlayerLayoutId.bodyAlbum,
+              id: PlayerLayoutId.playerInfo,
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
-                  : AnimatedOpacity(
-                opacity: expandedOpacity * currentAlbumAlpha,
-                duration: const Duration(milliseconds: 50),
-                child: IgnorePointer(
-                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal > 0.5),
-                  child: RepaintBoundary(
-                    child: PlayerAlbumContent(track: currentTrack),
-                  ),
+                  : IgnorePointer(
+                ignoring: ignoreControls,
+                child: RepaintBoundary(
+                  child: PlayerInfoWidget(track: currentTrack),
                 ),
               ),
             ),
+            LayoutId(
+              id: PlayerLayoutId.progressBar,
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : const RepaintBoundary(
+                child: PlayerProgressBar(),
+              ),
+            ),
+            LayoutId(
+              id: PlayerLayoutId.playerControls,
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : IgnorePointer(
+                ignoring: ignoreControls,
+                child: const RepaintBoundary(
+                  child: PlayerControls(),
+                ),
+              ),
+            ),
+            LayoutId(
+              id: PlayerLayoutId.volumeSlider,
+              child: shouldRenderVideo
+                  ? const SizedBox.shrink()
+                  : IgnorePointer(
+                ignoring: ignoreControls,
+                child: const RepaintBoundary(
+                    child: PlayerVolumeSlider()
+                ),
+              ),
+            ),
+
             LayoutId(
               id: PlayerLayoutId.bodyLyrics,
               child: shouldRenderVideo
@@ -145,17 +170,13 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.minibar,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 500),
-                opacity: collapsedOpacity,
-                child: IgnorePointer(
-                  ignoring: collapsedOpacity < 0.05,
-                  child: CollapsedMinibar(
-                    track: currentTrack,
-                    onTap: () => ref.read(panelControllerProvider).open(),
-                  ),
+              child:Opacity(opacity: collapsedOpacity,child: IgnorePointer(
+                ignoring: collapsedOpacity < 0.05,
+                child: CollapsedMinibar(
+                  track: currentTrack,
+                  onTap: () => ref.read(panelControllerProvider).open(),
                 ),
-              ),
+              ),)
             ),
             LayoutId(
               id: PlayerLayoutId.topBar,
@@ -175,25 +196,19 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.coverHero,
-              child: (shouldRenderVideo && collapsedOpacity <= 0)
+              child: (shouldRenderVideo && expandVal > 0)
                   ? const SizedBox.shrink()
-                  : Opacity(
-                opacity: shouldRenderVideo ? collapsedOpacity : 1.0,
-                child: IgnorePointer(
-                  ignoring: shouldRenderVideo && collapsedOpacity < 0.05,
-                  child: GestureDetector(
-                    onTap: () {
-                      if (expandVal < 0.5) {
-                        ref.read(panelControllerProvider).open();
-                      } else if (!isWide && !shouldRenderVideo) {
-                        _controller.toggleLyrics();
-                      }
-                    },
-                    child: FloatingCoverImage(
-                      url: currentTrack?.extras?['mainCoverUrl'],
-                      radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
-                    ),
-                  ),
+                  :  GestureDetector(
+                onTap: () {
+                  if (expandVal < 0.5) {
+                    ref.read(panelControllerProvider).open();
+                  } else if (!isWide && !shouldRenderVideo) {
+                    _controller.toggleLyrics();
+                  }
+                },
+                child: shouldRenderVideo ? PlayerVideoContent(isMini: expandVal < 0.1,) : FloatingCoverImage(
+                  url: currentTrack?.extras?['mainCoverUrl'],
+                  radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
                 ),
               ),
             ),

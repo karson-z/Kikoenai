@@ -97,7 +97,7 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel> {
         controller: panelController,
         minHeight: widget.minHeight,
         maxHeight: widget.maxHeight,
-        isDraggable: !isCurrentVideoView || !isPanelOpen,
+        // isDraggable: !isCurrentVideoView || !isPanelOpen,
         fadeCollapsed: false,
         panelBuilder: (ScrollController sc, AnimationController controller) {
           return PlayerView(

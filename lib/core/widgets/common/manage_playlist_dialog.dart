@@ -25,6 +25,7 @@ class FileTreeWoltSheet {
     required BuildContext context,
     required List<FileNode> roots,
     Work? work,
+    bool isFirstPage = true,
   }) async {
     await WoltModalSheet.show<void>(
       context: context,
@@ -35,7 +36,7 @@ class FileTreeWoltSheet {
             : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
-        return [buildPage(modalContext, roots: roots, work: work)];
+        return [buildPage(modalContext, roots: roots, work: work,isFirstPage: isFirstPage)];
       },
     );
   }
@@ -44,13 +45,17 @@ class FileTreeWoltSheet {
       BuildContext context, {
         required List<FileNode> roots,
         required Work? work,
+        required bool isFirstPage
       }) {
+    final theme = Theme.of(context);
     return SliverWoltModalSheetPage(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
       leadingNavBarWidget: FileTreeStickyHeader(roots: roots, work: work),
-      stickyActionBar: _buildInternalActionBar(roots, work),
+      stickyActionBar: _buildInternalActionBar(roots, work,isFirstPage),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
 
@@ -71,7 +76,7 @@ class FileTreeWoltSheet {
   }
 
   /// 内部业务逻辑：下载操作
-  static Widget _buildInternalActionBar(List<FileNode> roots, Work? work) {
+  static Widget _buildInternalActionBar(List<FileNode> roots, Work? work, bool isFirstPage) {
     return Consumer(
       builder: (context, ref, _) {
         final theme = Theme.of(context);
@@ -96,8 +101,13 @@ class FileTreeWoltSheet {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('取消'),
+                    onPressed: () {
+                      if(isFirstPage) {
+                        Navigator.pop(context);
+                      }else {
+                        WoltModalSheet.of(context).popPage();
+                      }},
+                    child: const Text('取消')
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -186,8 +196,8 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildNodeItem(currentNodes[index]), // 使用 currentNodes
-              childCount: currentNodes.length, // 使用 currentNodes.length
+                  (context, index) => _buildNodeItem(currentNodes[index]),
+              childCount: currentNodes.length,
             ),
           ),
         const SliverToBoxAdapter(child: Divider(height: 1, thickness: 1)),

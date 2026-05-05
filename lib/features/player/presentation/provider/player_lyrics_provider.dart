@@ -85,6 +85,9 @@ class LyricConfigNotifier extends Notifier<LyricConfigModel> {
 
   void updateTransGap(double val) => _save(state.copyWith(translationGap: val));
 
+  void resetToDefault() {
+    _save(const LyricConfigModel());
+  }
   // 统一保存逻辑
   void _save(LyricConfigModel newConfig) {
     state = newConfig;
