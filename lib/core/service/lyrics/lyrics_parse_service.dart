@@ -161,7 +161,7 @@ class LyricStyleFactory {
 
       // --- 自动恢复逻辑 ---
       selectionAutoResumeMode: SelectionAutoResumeMode.neverResume,
-      selectionAutoResumeDuration: const Duration(milliseconds: 2000),
+      selectionAutoResumeDuration: const Duration(milliseconds: 100),
       activeAutoResumeDuration: const Duration(milliseconds: 2000),
 
       // --- 高亮渐变特效 ---

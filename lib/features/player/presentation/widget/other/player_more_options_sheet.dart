@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/provider/audio_file_provider.dart';
+import 'package:kikoenai/features/player/presentation/widget/other/player_lyrics_edit.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_mapping_sheet.dart';
@@ -160,7 +161,12 @@ class _MoreOptionsContent extends ConsumerWidget {
       QuickActionItem(
         icon: Icons.lyrics_outlined,
         label: "字幕样式",
-        onTap: () => Navigator.pop(context),
+        onTap: () {
+          // 跳转至字幕配置第二页
+          final page = buildLyricsStylePage(context);
+          WoltModalSheet.of(context).addPage(page);
+          WoltModalSheet.of(context).showNext();
+        },
       ),
       QuickActionItem(
         icon: Icons.folder_open_outlined,
@@ -189,6 +195,7 @@ class _MoreOptionsContent extends ConsumerWidget {
               context,
               roots: roots,
               work: work,
+              isFirstPage: false
             );
             WoltModalSheet.of(context).addPage(fileTreePage);
             WoltModalSheet.of(context).showNext();

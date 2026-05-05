@@ -47,8 +47,8 @@ class PlayerBackground extends ConsumerWidget {
           child: Opacity(
             opacity: (1.0 - expandedOpacity).clamp(0.0, 1.0),
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
               ),
             ),
           ),

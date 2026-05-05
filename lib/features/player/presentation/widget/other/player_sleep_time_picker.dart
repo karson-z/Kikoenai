@@ -17,12 +17,7 @@ class _SleepTimerBottomSheetState extends ConsumerState<SleepTimerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // 获取当前是否为深色模式
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // 背景色：浅色用浅灰(iOS风格)，深色用纯黑或极深灰
-    final backgroundColor = isDark ? const Color(0xFF121212) : const Color(0xFFF7F8FA);
-
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,

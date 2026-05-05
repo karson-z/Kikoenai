@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
@@ -360,15 +361,20 @@ class PlayerController extends Notifier<AppPlayerState> {
     final playlist = state.playlist;
     final current = _handler.mediaItem.value;
 
+    final isLooping = state.repeatMode != AudioServiceRepeatMode.none;
+
     if (playlist.isEmpty || current == null) {
       state = state.copyWith(isFirst: true, isLast: true);
       return;
     }
 
     final i = playlist.indexOf(current);
+
     state = state.copyWith(
-      isFirst: i <= 0,
-      isLast: i >= playlist.length - 1,
+      // 处于循环模式时，允许一直点击上一首
+      isFirst: isLooping ? false : i <= 0,
+      // 处于循环模式时，允许一直点击下一首
+      isLast: isLooping ? false : i >= playlist.length - 1,
     );
   }
 
