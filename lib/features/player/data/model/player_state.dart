@@ -35,8 +35,6 @@ abstract class AppPlayerState with _$AppPlayerState {
     @HiveField(7) @Default(false) bool shuffleEnabled,
     @HiveField(8) @Default(AudioServiceRepeatMode.none) AudioServiceRepeatMode repeatMode,
     @HiveField(9) @Default(1.0) double volume,
-    @HiveField(10) @Default({}) Map<String, FileNode?> subtitleMapping,
-    @HiveField(11) @Default([]) List<FileNode?> lyricsList,
     @HiveField(12) @Default(false) bool isAudioOnly,
     @Default(true) bool isVideoControlsVisible,
     @Default(0) int videoWidth,
@@ -53,10 +51,6 @@ abstract class AppPlayerState with _$AppPlayerState {
   }) = _AppPlayerState;
 
   Work? get currentWork => currentTrack?.workData;
-
-
-  FileNode? get currentSubtitle =>
-      currentTrack != null ? subtitleMapping[currentTrack!.id] : null;
 
   bool get isVideoPortrait {
     if (videoWidth == 0 || videoHeight == 0) return false;

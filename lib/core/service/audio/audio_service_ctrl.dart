@@ -67,6 +67,7 @@ class MyAudioHandler extends BaseAudioHandler  {
       final nativePlayer = _player.platform as NativePlayer;
       try {
         // 避免音视频文件没有对应的索引文件导致无法进行range跳转
+        await nativePlayer.setProperty('hr-seek', 'yes');
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         KikoenaiLogger().i("当前缓存路径:$cacheDir");

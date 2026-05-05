@@ -36,7 +36,7 @@ class MobileLyricsContent extends ConsumerWidget {
               children: [
                 // 1. 左侧占位符：给浮动小封面留位置
                 // expandedLyricsRect 的 left 是 24.0，width 是 50.0
-                const SizedBox(width: 24 + 50 + 12),
+                const SizedBox(width: 86),
 
                 // 2. 标题信息
                 Expanded(

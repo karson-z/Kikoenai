@@ -151,22 +151,17 @@ class LyricStyleFactory {
         ),
       ),
       // --- 渐隐效果 ---
-      fadeRange: FadeRange(top: 0.1, bottom: 0.3),
+      fadeRange: FadeRange(top: 0.1, bottom: 0.4),
 
       enableSwitchAnimation: true,
       switchEnterDuration: const Duration(milliseconds: 400),
       switchExitDuration: const Duration(milliseconds: 400),
-
-      // 使用 easeOutBack 或 easeOutQuart
-      // easeOutBack 会让文字变大时稍微“冲”过头一点点再缩回来，产生弹性（慎用，可能太夸张）
-      // easeOutQuart 则是非常平滑且快速的放大，非常接近 iOS 系统动画
-      // 只有开启缩放这两个动画曲线才会生效
-      // switchEnterCurve: Curves.easeOutQuart,
-      // switchExitCurve: Curves.easeInQuad,
+      switchEnterCurve: Curves.easeOutQuart,
+      switchExitCurve: Curves.easeInQuad,
 
       // --- 自动恢复逻辑 ---
       selectionAutoResumeMode: SelectionAutoResumeMode.neverResume,
-      selectionAutoResumeDuration: const Duration(milliseconds: 320),
+      selectionAutoResumeDuration: const Duration(milliseconds: 2000),
       activeAutoResumeDuration: const Duration(milliseconds: 2000),
 
       // --- 高亮渐变特效 ---
