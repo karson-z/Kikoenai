@@ -66,12 +66,10 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
       builder: (context, child) {
         final expandVal = _controller.expandValue;
         final lyricsVal = _controller.lyricsValue;
-
+        debugPrint('lyrics: $lyricsVal');
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
-        // debugPrint('collapsedOpacity: $collapsedOpacity');
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
         double currentLyricsAlpha = isWide ? 1.0 : lyricsVal.clamp(0.0, 1.0);
-
         final bool ignoreControls = expandVal < 0.5 || (!isWide && lyricsVal > 0.5);
 
         return CustomMultiChildLayout(
@@ -108,42 +106,47 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
 
             LayoutId(
               id: PlayerLayoutId.playerInfo,
-              child: shouldRenderVideo
-                  ? const SizedBox.shrink()
-                  : IgnorePointer(
-                ignoring: ignoreControls,
-                child: RepaintBoundary(
-                  child: PlayerInfoWidget(track: currentTrack),
+              child: Offstage(
+                // 当 offstage 为 true 时，瞬间隐藏，且不触发 child 的重建
+                offstage: shouldRenderVideo || lyricsVal > 0,
+                child: IgnorePointer(
+                  ignoring: ignoreControls,
+                  child: RepaintBoundary(
+                    child: PlayerInfoWidget(track: currentTrack),
+                  ),
                 ),
               ),
             ),
             LayoutId(
               id: PlayerLayoutId.progressBar,
-              child: shouldRenderVideo
-                  ? const SizedBox.shrink()
-                  : const RepaintBoundary(
-                child: PlayerProgressBar(),
+              child: Offstage(
+                offstage: shouldRenderVideo || lyricsVal > 0,
+                child: const RepaintBoundary(
+                  child: PlayerProgressBar(),
+                ),
               ),
             ),
             LayoutId(
               id: PlayerLayoutId.playerControls,
-              child: shouldRenderVideo
-                  ? const SizedBox.shrink()
-                  : IgnorePointer(
-                ignoring: ignoreControls,
-                child: const RepaintBoundary(
-                  child: PlayerControls(),
+              child: Offstage(
+                offstage: shouldRenderVideo || lyricsVal > 0,
+                child: IgnorePointer(
+                  ignoring: ignoreControls,
+                  child: const RepaintBoundary(
+                    child: PlayerControls(),
+                  ),
                 ),
               ),
             ),
             LayoutId(
               id: PlayerLayoutId.volumeSlider,
-              child: shouldRenderVideo
-                  ? const SizedBox.shrink()
-                  : IgnorePointer(
-                ignoring: ignoreControls,
-                child: const RepaintBoundary(
-                    child: PlayerVolumeSlider()
+              child: Offstage(
+                offstage: shouldRenderVideo || lyricsVal > 0,
+                child: IgnorePointer(
+                  ignoring: ignoreControls,
+                  child: const RepaintBoundary(
+                    child: PlayerVolumeSlider(),
+                  ),
                 ),
               ),
             ),
