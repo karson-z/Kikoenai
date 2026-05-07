@@ -100,16 +100,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.test,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: GlobalFilterTagsPage(),
-                ),
-              ),
-            ],
-          ),
+          // StatefulShellBranch(
+          //   routes: [
+          //     GoRoute(
+          //       path: AppRoutes.test,
+          //       pageBuilder: (context, state) => const MaterialPage(
+          //         child: GlobalFilterTagsPage(),
+          //       ),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
       GoRoute(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../features/player/presentation/provider/player_controller_provider.dart';
+import '../../../utils/window/display_util.dart';
+
 @immutable
 class MainScaffoldState {
   final bool isPlayerExpanded;
@@ -56,6 +59,35 @@ class MainScaffoldNotifier extends Notifier<MainScaffoldState> {
   void setBottomNav(bool visible) => state = state.copyWith(showBottomNav: visible);
 
   void setFullScreen(bool isFullScreen) => state = state.copyWith(isFullScreen: isFullScreen);
+
+  void handlePanelStateChange(bool isOpen) {
+    if (state.isPlayerExpanded == isOpen) return;
+
+    final isFullScreen = state.isFullScreen;
+
+    final portrait = ref.read(playerControllerProvider).isVideoPortrait;
+
+    if (isOpen) {
+      // 批量更新状态以减少 UI 重建次数
+      state = state.copyWith(
+        isPlayerExpanded: true,
+        showBottomNav: false,
+      );
+
+      if (isFullScreen) {
+        DisplayUtils.enterFullScreen(portrait);
+      }
+    } else {
+      state = state.copyWith(
+        isPlayerExpanded: false,
+        showBottomNav: true,
+      );
+
+      if (isFullScreen) {
+        DisplayUtils.exitFullScreen();
+      }
+    }
+  }
 }
 
 final mainScaffoldProvider =
