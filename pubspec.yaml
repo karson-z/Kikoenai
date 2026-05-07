@@ -24,7 +24,6 @@ dependencies:
   palette_generator_master: ^1.0.1
   extended_image: ^10.0.1
   dio: ^5.9.0
-  dio_smart_retry: ^7.0.1
   text_scroll: ^0.2.0
 #  bitsdojo_window: ^0.1.6
   google_fonts: ^6.3.2

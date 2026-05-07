@@ -21,7 +21,6 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
     final initialWorkId = initialTrack?.workData?.id;
 
     if (initialWorkId != null) {
-      // 通过微任务触发异步请求，避免在 build 阶段直接修改 state 导致断言错误
       Future.microtask(() => _handleWorkChanged(initialWorkId));
 
       // 返回预设了 currentWorkId 的初始状态
@@ -108,7 +107,6 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       MatchLyrics.persistMatchResults(validMapping);
     }
 
-    // 更新 Riverpod 状态
     state = state.copyWith(subtitleMapping: updatedStateMapping);
   }
 }

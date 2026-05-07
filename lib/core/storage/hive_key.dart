@@ -68,7 +68,7 @@ class StorageKeys {
   static const String lyricsStyleConfig = 'lyrics_style_config';
 
   /// 忽略音频焦点
-  static const String  ignoreAudioFocus ='ignore_audio_focus';
+  static const String ignoreAudioFocus = 'ignore_audio_focus';
 
   /// 是否自动跳出字幕匹配弹窗
   static const String autoManualLyricsMatch = 'manual_lyrics_match';
@@ -85,9 +85,10 @@ class StorageKeys {
   /// 悬浮窗字体颜色
   static const String overlayLyricsFontColor = 'overlay_lyrics_font_color';
 
+  /// 全局主题字体预设
+  static const String themeFontPreset = 'theme_font_preset';
 
   static const String overlayLyricsPositionX = 'overlay_lyrics_positionX';
-
 
   static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
 
@@ -102,6 +103,4 @@ class StorageKeys {
   static const String wrapperExpiry = 'exp';
 
   static get audioOutputMode => 'audio_output_mode';
-
-
 }
