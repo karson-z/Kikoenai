@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/drawer/kikoenai_inner_drawer.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
@@ -19,24 +20,166 @@ import '../widget/file_box.dart';
 import '../widget/rating_menu.dart';
 import '../widget/rating_section.dart';
 import '../widget/work_tag.dart';
-// 确保引入 FileNode
-import '../../../../core/service/file/file_scanner_storage.dart'; // 引入你的本地存储类
-
-/// 专辑详情页
-class AlbumDetailPage extends ConsumerWidget {
-  final Map<String, dynamic> extra;
-
+import '../../../../core/service/file/file_scanner_storage.dart'; 
+/// 专辑详情页承接展示组件
+class AlbumDetailPage extends StatefulWidget {
   const AlbumDetailPage({super.key, required this.extra});
+  final Map<String, dynamic> extra;
+  @override
+  State<AlbumDetailPage> createState() => _AlbumDetailPageState();
+}
+class _AlbumDetailPageState extends State<AlbumDetailPage> {
+  late final KikoenaiInnerDrawerController _drawerController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    var work = extra['work'];
+  void initState() {
+    super.initState();
+    _drawerController = KikoenaiInnerDrawerController();
+  }
+
+  @override
+  void dispose() {
+    _drawerController.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    var work = widget.extra['work'];
     if (work is Map) {
       work = Work.fromJson(work as Map<String, dynamic>);
     }
 
     // 1. 提取本地标识，默认为 false
-    final bool isLocal = extra['isLocal'] as bool? ?? false;
+    final bool isLocal = widget.extra['isLocal'] as bool? ?? false;
+    return KikoenaiInnerDrawerScope(
+        controller: _drawerController,
+        child: KikoenaiInnerDrawer(
+            controller: _drawerController,
+            edgeDragWidth: 300,
+            drawer: const AlbumDetailSimilarWorkDrawer(),
+            child: AlbumDetailContent(work: work,isLocal: isLocal)
+        ));
+  }
+
+}
+/// 专辑详情页抽屉内容区--- 相似作品
+class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
+  const AlbumDetailSimilarWorkDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mockList = List.generate(
+      10,
+          (index) => SimilarWorkModel(
+        id: index,
+        title: 'Artwork ${index + 1}',
+        author: 'Author ${index + 1}',
+        cover:
+        'https://picsum.photos/300/300?random=$index',
+        likes: 100 + index * 12,
+      ),
+    );
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: mockList.length,
+      itemBuilder: (context, index) {
+        final item = mockList[index];
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 8,
+                color: Color(0x14000000),
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  item.cover,
+                  width: 72,
+                  height: 72,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.author,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          size: 16,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 4),
+                        Text('${item.likes}'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class SimilarWorkModel {
+  final int id;
+  final String title;
+  final String author;
+  final String cover;
+  final int likes;
+
+  SimilarWorkModel({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.cover,
+    required this.likes,
+  });
+}
+
+/// 专辑详情页内容区
+class AlbumDetailContent extends ConsumerWidget {
+  final Work work;
+  final bool isLocal;
+
+  const AlbumDetailContent({super.key,required this.work,required this.isLocal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
 
     // 2. 如果是本地模式，禁用网络 Provider 监听
     final workStatus = isLocal ? null : ref.watch(workDetailProvider(work.id));
@@ -109,7 +252,7 @@ class AlbumDetailPage extends ConsumerWidget {
                     workStatus!.when(
                       data: (status) {
                         return Text(
-                          WorkProgress.fromString(status.progress).label,
+                          WorkProgress.fromString(status?.progress).label,
                           style: const TextStyle(fontSize: 16),
                         );
                       },
@@ -127,7 +270,12 @@ class AlbumDetailPage extends ConsumerWidget {
                 ),
               ),
             ),
-          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.menu_open),
+            onPressed: () {
+              KikoenaiInnerDrawerScope.of(context).open();
+            },
+          ),
         ],
       ),
       body: LayoutBuilder(

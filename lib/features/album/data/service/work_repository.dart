@@ -6,6 +6,7 @@ import '../../../../core/enums/work_progress.dart';
 import '../../../../core/utils/network/api_client.dart';
 
 abstract class WorkRepository {
+  // 获取最新作品， 按DL发布日期排
   Future<Result<Map<String,dynamic>>> getWorks({
     int page = 1,
     String? keyword,
@@ -14,6 +15,8 @@ abstract class WorkRepository {
     int? subtitle,
     int? seed,
   });
+
+  // 获取热门作品
   Future<Result<Map<String, dynamic>>> getPopularWorks({
     int page = 1,
     int pageSize = 20,
@@ -21,6 +24,8 @@ abstract class WorkRepository {
     int? subtitle,
     List<String>? withPlaylistStatus,
   });
+
+  // 获取个性化推荐作品
   Future<Result<Map<String, dynamic>>> getRecommendedWorks({
     String? recommenderUuid,
     int page = 1,
@@ -29,8 +34,17 @@ abstract class WorkRepository {
     int? subtitle,
     List<String>? withPlaylistStatus,
   });
+
+  // 获取相似作品
+  Future<Result<Map<String, dynamic>>> getSimilarWorks();
+
+  // 获取作品中的音频信息，也就说作品原档
   Future<Result<List<dynamic>>> getWorkTracks(int workId);
+
+  // 获取作品详细信息
   Future<Result<Map<String, dynamic>>>  getWorkDetail(int workId);
+
+  // 获取标记状态
   Future<Result<Map<String, dynamic>>> getReviews(UserWorkStatus workStatus);
 }
 

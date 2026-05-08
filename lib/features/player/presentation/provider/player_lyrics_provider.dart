@@ -23,8 +23,6 @@ final lyricsProvider = FutureProvider<String?>((ref) async {
   final api = ref.read(apiClientProvider);
   return fetchLyricContent(newUrl, api);
 });
-
-// fetchLyricContent 方法保持你原来的不变即可
 Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
   if (url == null || url.isEmpty) return null;
 
@@ -44,7 +42,7 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
     }
   } catch (e, stack) {
     KikoenaiLogger().e("加载字幕失败, URL: $url", error: e, stackTrace: stack);
-    return null;
+    rethrow;
   }
 }
 /// 自定义的加载方法，支持传入解析器列表
@@ -58,7 +56,6 @@ extension LyricControllerExt on LyricController {
       translationLyric: translationLyric,
       parsers: parsers,
     );
-    // 调用原有的 loadLyricModel 处理逻辑
     loadLyricModel(lyricModel);
   }
 }

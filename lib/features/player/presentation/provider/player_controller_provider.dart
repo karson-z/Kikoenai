@@ -542,7 +542,7 @@ class PlayerController extends Notifier<AppPlayerState> {
           .where((n) => n.isAudio || n.isVideo)
           .toList();
       final mediaList = audioFiles.map((n) {
-        return _fileNodeToMediaItem(n, work ?? Work());
+        return _fileNodeToMediaItem(n, work);
       }).toList();
 
       // 2. 计算目标索引
@@ -685,7 +685,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
+  MediaItem _fileNodeToMediaItem(FileNode node, Work? work) {
     String? imagePath;
 
     final url = node.mediaStreamUrl ?? '';
@@ -697,12 +697,12 @@ class PlayerController extends Notifier<AppPlayerState> {
       id: node.hash.toString(),
       album: node.workTitle,
       title: node.title,
-      artist: work.vas == null ? node.artist : OtherUtil.joinVAs(work.vas),
-      artUri: work.mainCoverUrl != null ? Uri.parse(work.mainCoverUrl!) : null,
+      artist: work?.vas == null ? node.artist : OtherUtil.joinVAs(work?.vas),
+      artUri: work?.mainCoverUrl != null ? Uri.parse(work!.mainCoverUrl!) : null,
       extras: {
         'url': url,
-        'mainCoverUrl': work.mainCoverUrl ?? imagePath,
-        'samCorverUrl': work.samCoverUrl ?? imagePath,
+        'mainCoverUrl': work?.mainCoverUrl ?? imagePath,
+        'samCorverUrl': work?.samCoverUrl ?? imagePath,
         'workData': jsonEncode(work),
         'isVideo': isVideo, // 将视频标记存入 extras
       },

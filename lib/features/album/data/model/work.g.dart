@@ -7,7 +7,7 @@ part of 'work.dart';
 // **************************************************************************
 
 Work _$WorkFromJson(Map<String, dynamic> json) => Work(
-  id: (json['id'] as num?)?.toInt(),
+  id: (json['id'] as num).toInt(),
   title: json['title'] as String?,
   circleId: (json['circle_id'] as num?)?.toInt(),
   name: json['name'] as String?,
