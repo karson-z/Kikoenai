@@ -13,13 +13,18 @@ final trackFileNodeProvider = FutureProvider.family<List<FileNode>, int>((ref, w
       .toList();
   return nodes;
 });
-final workDetailProvider = FutureProvider.family.autoDispose<Work,int>((ref,workId) async {
-  final repo = ref.read(workRepositoryProvider);
-  final response = await repo.getWorkDetail(workId);
-  final workJson = response.data;
-  if(workJson == null){
-    return Work();
-  }
-  final work = Work.fromJson(workJson);
-  return work;
-});
+final workDetailProvider =
+FutureProvider.family.autoDispose<Work?, int>(
+      (ref, workId) async {
+    final repo = ref.read(workRepositoryProvider);
+
+    final response = await repo.getWorkDetail(workId);
+
+    final workJson = response.data;
+
+    if (workJson == null) {
+      return null;
+    }
+    return Work.fromJson(workJson);
+  },
+);

@@ -13,7 +13,7 @@ part 'work.g.dart';
 /// Work 主类
 @JsonSerializable(explicitToJson: true)
 class Work {
-  final int? id;
+  final int id;
   final String? title;
   @JsonKey(name: 'circle_id')
   final int? circleId;
@@ -76,7 +76,7 @@ class Work {
   String? heroTag;
 
   Work({
-    this.id,
+    required this.id,
     this.title,
     this.circleId,
     this.name,
