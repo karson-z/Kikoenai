@@ -11,6 +11,7 @@ class GlobalSearchInput extends ConsumerWidget {
   final EdgeInsetsGeometry padding;
   final bool autoFocus;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
 
   const GlobalSearchInput({
     super.key,
@@ -18,6 +19,7 @@ class GlobalSearchInput extends ConsumerWidget {
     this.onChanged,
     this.onTap,
     this.controller,
+    this.focusNode,
     this.hintText = '搜索内容...',
     this.borderRadius = 25,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
@@ -35,7 +37,6 @@ class GlobalSearchInput extends ConsumerWidget {
     final iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
 
     return GestureDetector(
-      // 这里的 onTap 现在可以被正确触发了
       onTap: isButtonMode ? onTap : null,
       behavior: HitTestBehavior.opaque, // 确保点击空白区域也能触发
       child: Container(
@@ -55,6 +56,8 @@ class GlobalSearchInput extends ConsumerWidget {
               onChanged: isButtonMode ? null : onChanged,
               autofocus: autoFocus,
               showCursor: !isButtonMode,
+              focusNode: focusNode,
+              onTapOutside: isButtonMode ? null : (_) => focusNode?.unfocus(),
               style: TextStyle(
                 color: isDark ? Colors.white : Colors.black,
               ),

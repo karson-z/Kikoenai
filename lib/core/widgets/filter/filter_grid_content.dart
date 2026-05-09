@@ -4,7 +4,7 @@ import '../../../features/category/data/model/selector_item.dart';
 import '../../model/search_tag.dart';
 import '../common/global_search_input.dart';
 
-class TagGridContent extends StatelessWidget {
+class TagGridContent extends StatefulWidget {
   final List<SelectorItem> items;
   final List<SearchTag> selectedTags;
   final TextEditingController searchController;
@@ -23,19 +23,39 @@ class TagGridContent extends StatelessWidget {
   });
 
   @override
+  State<TagGridContent> createState() => _TagGridContentState();
+}
+
+class _TagGridContentState extends State<TagGridContent> {
+  late final FocusNode _searchFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: _searchFocusNode.unfocus,
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: GlobalSearchInput(
-                controller: searchController,
-                hintText: hintText,
-                onChanged: onSearchChanged,
+                controller: widget.searchController,
+                focusNode: _searchFocusNode,
+                hintText: widget.hintText,
+                onChanged: widget.onSearchChanged,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
@@ -50,11 +70,12 @@ class TagGridContent extends StatelessWidget {
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
                 ),
-                itemCount: items.length,
+                itemCount: widget.items.length,
                 itemBuilder: (context, index) {
-                  final item = items[index];
-                  final tagIndex = selectedTags.indexWhere((t) => t.name == item.label);
-                  final SearchTag? currentTagState = tagIndex != -1 ? selectedTags[tagIndex] : null;
+                  final item = widget.items[index];
+                  final tagIndex = widget.selectedTags.indexWhere((t) => t.name == item.label);
+                  final SearchTag? currentTagState =
+                      tagIndex != -1 ? widget.selectedTags[tagIndex] : null;
 
                   final bool isIncluded = currentTagState != null && !currentTagState.isExclude;
                   final bool isExcluded = currentTagState != null && currentTagState.isExclude;
@@ -73,7 +94,7 @@ class TagGridContent extends StatelessWidget {
                   }
 
                   return InkWell(
-                    onTap: () => onItemToggled(item),
+                    onTap: () => widget.onItemToggled(item),
                     borderRadius: BorderRadius.circular(4),
                     child: Container(
                       decoration: BoxDecoration(
