@@ -135,7 +135,7 @@ class FileScannerNotifier extends Notifier<FileScannerState> {
     await _box.put(_getLastPathKey(state.scanMode), path);
     state = state.copyWith(
       currentPath: path,
-      roots: [], // 清空上一个路径遗留的数据，准备迎接新数据流
+      roots: [],
       errorMessage: null,
       scannedCount: 0,
     );
