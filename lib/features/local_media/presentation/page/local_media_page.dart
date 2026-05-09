@@ -24,7 +24,6 @@ class ScannerPage extends ConsumerWidget {
 
     final isScanning = scannerState.status == WorkerState.scanning;
     final currentMode = scannerState.scanMode;
-    // 1. 获取全局的面包屑数据和控制器
     final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
     final breadcrumbNotifier = ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier);
 

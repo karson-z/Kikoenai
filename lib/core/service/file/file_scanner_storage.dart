@@ -12,9 +12,8 @@ import 'file_scanner_service.dart';
 /// 负责与 Hive 数据库交互，持久化保存 [FileNode] 数据。
 /// 修改点：使用路径的 MD5 作为存储 Key，并将 MD5 存入 node.hash 字段。
 /// 不再使用原始路径作为HIve 中的Key ， 会导致莫名奇妙的TypeId unknown ，排查原因为Key字符串过长导致
-/// 后续考虑降数据库迁移至Isar 对象数据库
+/// 后续考虑降数据库迁移至Isar 对象数据库 迁移困难且使用体验感觉不如 Hive 不再进行尝试
 class FileScannerStorage {
-  // --- 单例模式实现 ---
   FileScannerStorage._();
   static final FileScannerStorage _instance = FileScannerStorage._();
   factory FileScannerStorage() => _instance;
@@ -22,7 +21,6 @@ class FileScannerStorage {
   /// 获取 Hive Box 引用
   Box<FileNode> get _box => AppStorage.scannerBox;
 
-  // --- 私有辅助方法 ---
 
   /// 新增：计算标准化路径的 MD5 字符串
   String _computeMd5(String path) {
@@ -42,7 +40,6 @@ class FileScannerStorage {
     return key is String && key.startsWith('${mode.name}_');
   }
 
-  // --- 模式特定的操作 (需传入 ScanMode) ---
 
   /// 根据根路径获取指定模式下缓存的所有文件节点
   List<FileNode> getNodesByRootPath(ScanMode mode, String rootPath) {
@@ -57,7 +54,6 @@ class FileScannerStorage {
         .where((node) {
       if (node.mediaStreamUrl == null) return false;
       final nodePath = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
-      // 逻辑不变：依然通过 mediaStreamUrl 判断路径层级
       return nodePath == normalizedRoot || posix.isWithin(normalizedRoot, nodePath);
     }).toList();
   }
@@ -137,14 +133,12 @@ class FileScannerStorage {
     debugPrint('[FileScannerStorage] (${mode.name}) 已清空该模式下的全部 MD5 缓存数据。');
   }
 
-  // --- 全局跨模式操作 ---
-
   /// 获取数据库中所有扫描模式下的全部缓存文件节点
   List<FileNode> getAllAcrossModes() {
     return _box.values.toList();
   }
 
-  /// 危险操作：清空整个扫描器数据库
+  /// 清空整个扫描器数据库
   Future<void> clearAbsolutelyAll() async {
     await _box.clear();
     debugPrint('[FileScannerStorage] 已彻底清空所有模式的 MD5 缓存数据。');
@@ -234,5 +228,10 @@ class FileScannerStorage {
       await _box.putAll(updates);
       debugPrint('[FileScannerStorage] (全局) 已同步更新路径 MD5 节点的状态为 ${newStatus.name}');
     }
+  }
+  /// 提供根据文件夹路径拿到该文件夹下的所有文件
+  /// [FileNode？] 文件夹下可能没有文件，状态已组装的文件🌲
+  FileNode? getFolderFiles(String folderPath){
+
   }
 }
