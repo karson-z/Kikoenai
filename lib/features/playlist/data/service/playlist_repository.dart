@@ -1,6 +1,4 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/common/global_exception.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
 
 import '../../../../core/enums/playlist_filter.dart';
@@ -49,19 +47,15 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     int pageSize = 20,
     PlaylistFilter filterBy = PlaylistFilter.all,
   }) async {
-    try {
-      final response = await api.get(
-        '/playlist/get-playlists',
-        queryParameters: {
-          'page': page,
-          'pageSize': pageSize,
-          'filterBy': filterBy.name,
-        },
-      );
-      return PlaylistListResponse.fromJson(response.data);
-    } on DioException catch (e) {
-      throw GlobalException("${e.message}");
-    }
+    final response = await api.get<Map<String, dynamic>>(
+      '/playlist/get-playlists',
+      queryParameters: {
+        'page': page,
+        'pageSize': pageSize,
+        'filterBy': filterBy.name,
+      },
+    );
+    return PlaylistListResponse.fromJson(response);
   }
 
   @override
@@ -70,65 +64,52 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     required int page,
     int pageSize = 12,
   }) async {
-    try {
-      final response = await api.get(
-        '/playlist/get-playlist-works',
-        queryParameters: {
-          'id': playlistId,
-          'page': page,
-          'pageSize': pageSize,
-        },
-      );
-      return PlaylistWorksResponse.fromJson(response.data);
-    } on DioException catch (e) {
-      throw GlobalException("${e.message}");
-    }
+    final response = await api.get<Map<String, dynamic>>(
+      '/playlist/get-playlist-works',
+      queryParameters: {
+        'id': playlistId,
+        'page': page,
+        'pageSize': pageSize,
+      },
+    );
+    return PlaylistWorksResponse.fromJson(response);
   }
 
   @override
   Future<Playlist> fetchDefaultMarkTargetPlaylist() async {
-    try {
-      final response = await api.get('/playlist/get-default-mark-target-playlist');
-      return Playlist.fromJson(response.data);
-    } on DioException catch (e) {
-      throw GlobalException("${e.message}");
-    }
+    final response =
+        await api.get<Map<String, dynamic>>('/playlist/get-default-mark-target-playlist');
+    return Playlist.fromJson(response);
   }
 
   @override
   Future<PlaylistWorksResponse> fetchPlaylistWorksByKeyword(PlaylistWorksRequest request) async {
-    try {
-      final response = await api.post(
-        '/playlist/get-playlist-works-by-keyword',
-        data: request.toJson(),
-      );
+    final response = await api.post<Map<String, dynamic>>(
+      '/playlist/get-playlist-works-by-keyword',
+      data: request.toJson(),
+    );
 
-      return PlaylistWorksResponse.fromJson(response.data);
-    } on DioException catch (e) {
-      throw GlobalException("${e.message}");
-    }
+    return PlaylistWorksResponse.fromJson(response);
   }
 
   @override
   Future<Map<String, dynamic>> addWorksToPlaylist({required String playlistId, required List<int> workIds}) async {
-    final response = await api.post('/playlist/add-works-to-playlist',
+    return api.post<Map<String, dynamic>>('/playlist/add-works-to-playlist',
       data: {
         'playlistId': playlistId,
         'works': workIds,
       }
     );
-    return response.data;
   }
 
   @override
   Future<Map<String, dynamic>> removeWorksFromPlaylist({required String playlistId, required List<int> workIds}) async {
-    final response = await api.post('/playlist/remove-works-from-playlist',
+    return api.post<Map<String, dynamic>>('/playlist/remove-works-from-playlist',
         data: {
           'playlistId': playlistId,
           'works': workIds,
         }
     );
-    return response.data;
   }
 }
 

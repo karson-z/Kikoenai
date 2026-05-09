@@ -1,10 +1,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/common/result.dart';
 import '../../../../core/utils/network/api_client.dart';
 
 abstract class CategoryRepository {
-  Future<Result<Map<String,dynamic>>> searchWorks({
+  Future<Map<String,dynamic>> searchWorks({
     int page = 1,
     String? order,
     String? sort,
@@ -12,9 +11,9 @@ abstract class CategoryRepository {
     String? query,
     int? seed,
   });
-  Future<Result<List<dynamic>>> getCircles();
-  Future<Result<List<dynamic>>> getTags();
-  Future<Result<List<dynamic>>> getVas();
+  Future<List<dynamic>> getCircles();
+  Future<List<dynamic>> getTags();
+  Future<List<dynamic>> getVas();
 }
 
 class CategoryRepositoryImpl implements CategoryRepository {
@@ -23,7 +22,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
   CategoryRepositoryImpl(this.api);
 
   @override
-  Future<Result<Map<String, dynamic>>> searchWorks({
+  Future<Map<String, dynamic>> searchWorks({
     int page = 1,
     int pageSize = 20,
     String? order,
@@ -34,7 +33,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
     int? seed,
   }) async {
    final searchQuery = query != null ? '/$query' : '';
-    final response = await api.get<Map<String, dynamic>>(
+    return api.get<Map<String, dynamic>>(
       "/search$searchQuery",
       queryParameters: {
         "page": page,
@@ -46,28 +45,24 @@ class CategoryRepositoryImpl implements CategoryRepository {
         "includeTranslationWorks" : includeTranslationWorks,
       },
     );
-    return response;
   }
   @override
-  Future<Result<List>> getCircles() async {
-    final response = await api.get<List<dynamic>>(
+  Future<List> getCircles() async {
+    return api.get<List<dynamic>>(
       "/circles/",
     );
-    return response;
   }
   @override
-  Future<Result<List>> getTags() async {
-    final response = await api.get<List<dynamic>>(
+  Future<List> getTags() async {
+    return api.get<List<dynamic>>(
       "/tags/",
     );
-    return response;
   }
   @override
-  Future<Result<List>> getVas() async {
-    final response = await api.get<List<dynamic>>(
+  Future<List> getVas() async {
+    return api.get<List<dynamic>>(
       "/vas/",
     );
-    return response;
   }
 }
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {

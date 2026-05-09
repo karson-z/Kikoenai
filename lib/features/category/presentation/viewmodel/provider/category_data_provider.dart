@@ -45,10 +45,10 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
       query: queryParams,
     );
 
-    final worksJson = result.data?['works'];
+    final worksJson = result['works'];
     final newWorks = OtherUtil.parseWorks(worksJson);
 
-    final pagination = result.data?['pagination'];
+    final pagination = result['pagination'];
     final totalCount = pagination?['totalCount'] ?? 0;
     final currentPage = pagination?['currentPage'] ?? page;
     final list = reset ? newWorks : [...prev.works, ...newWorks];

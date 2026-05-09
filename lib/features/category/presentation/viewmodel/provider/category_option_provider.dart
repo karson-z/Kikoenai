@@ -3,7 +3,6 @@ import 'package:kikoenai/features/album/data/model/circle.dart';
 import 'package:kikoenai/features/album/data/model/tag.dart';
 import 'package:kikoenai/features/album/data/model/va.dart';
 import 'package:kikoenai/features/category/data/service/category_repository.dart';
-import '../../../../../core/common/result.dart';
 import '../../../../../core/service/cache/cache_service.dart';
 
 
@@ -56,8 +55,8 @@ Future<List<T>> _fetchAndCache<T>({
   required Future<List<Map<String, dynamic>>?> Function() getFromCache,
   // 缓存保存方法
   required Future<void> Function(List<Map<String, dynamic>>) saveToCache,
-  // API 获取方法：这里假设 repo 返回的是 Result<List<dynamic>> 或类似结构
-  required Future<Result<List<dynamic>>> Function(CategoryRepository) getFromApi,
+  // API 获取方法
+  required Future<List<dynamic>> Function(CategoryRepository) getFromApi,
   // 反序列化方法
   required T Function(Map<String, dynamic>) fromJson,
   // 序列化方法
@@ -85,7 +84,7 @@ Future<List<T>> _fetchAndCache<T>({
   final res = await getFromApi(repository);
 
   // 数据清洗
-  final list = res.data?.map((c) => fromJson(c as Map<String, dynamic>)).toList() ?? [];
+  final list = res.map((c) => fromJson(c as Map<String, dynamic>)).toList();
 
   // 3. 排序
   list.sort((a, b) => (getCount(b) ?? 0).compareTo(getCount(a) ?? 0));

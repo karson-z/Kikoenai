@@ -153,22 +153,33 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
       children: <Widget>[
         // Body 部分
         widget.body != null
-            ? AnimatedBuilder(
-          animation: _ac,
-          builder: (context, child) {
-            return Positioned(
-              top: widget.parallaxEnabled ? _getParallax() : 0.0,
-              left: 0.0,
-              right: 0.0,
-              bottom: widget.minHeight +
-                  ((widget.bottomNavBar != null && widget.showBottomNavBar)
-                      ? widget.bottomNavBarHeight
-                      : 0.0),
-              child: child ?? const SizedBox.shrink(),
-            );
-          },
-          child: widget.body,
-        )
+            ? widget.parallaxEnabled
+                ? AnimatedBuilder(
+                    animation: _ac,
+                    builder: (context, child) {
+                      return Positioned(
+                        top: _getParallax(),
+                        left: 0.0,
+                        right: 0.0,
+                        bottom: widget.minHeight +
+                            ((widget.bottomNavBar != null && widget.showBottomNavBar)
+                                ? widget.bottomNavBarHeight
+                                : 0.0),
+                        child: child ?? const SizedBox.shrink(),
+                      );
+                    },
+                    child: widget.body,
+                  )
+                : Positioned(
+                    top: 0.0,
+                    left: 0.0,
+                    right: 0.0,
+                    bottom: widget.minHeight +
+                        ((widget.bottomNavBar != null && widget.showBottomNavBar)
+                            ? widget.bottomNavBarHeight
+                            : 0.0),
+                    child: widget.body!,
+                  )
             : const SizedBox.shrink(),
         widget.bottomNavBar != null && widget.showBottomNavBar
             ? Positioned(
