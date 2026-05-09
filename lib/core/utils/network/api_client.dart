@@ -8,7 +8,6 @@ import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import '../../service/cache/cache_service.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
-import '../../common/result.dart';
 import '../../constants/app_constants.dart';
 
 class ApiClient {
@@ -80,15 +79,10 @@ class ApiClient {
   }
 
   /// 泛型请求核心方法
-  Future<Result<T>> _request<T>(Future<Response> Function() request) async {
+  Future<T> _request<T>(Future<Response> Function() request) async {
     try {
       final response = await request();
-
-      return Result.success(
-        data: response.data as T,
-        code: response.statusCode ?? -1,
-        message: 'success',
-      );
+      return response.data as T;
     } catch (e, st) {
       final exception = mapToGlobalException(e);
       throw GlobalException(
@@ -103,7 +97,7 @@ class ApiClient {
 
   /// HTTP 方法封装（已添加 options 参数）
 
-  Future<Result<T>> get<T>(
+  Future<T> get<T>(
       String path, {
         Map<String, dynamic>? queryParameters,
         Options? options,
@@ -116,7 +110,7 @@ class ApiClient {
         ),
       );
 
-  Future<Result<T>> post<T>(
+  Future<T> post<T>(
       String path, {
         dynamic data,
         Options? options,
@@ -129,7 +123,7 @@ class ApiClient {
         ),
       );
 
-  Future<Result<T>> put<T>(
+  Future<T> put<T>(
       String path, {
         dynamic data,
         Options? options,
@@ -142,7 +136,7 @@ class ApiClient {
         ),
       );
 
-  Future<Result<T>> delete<T>(
+  Future<T> delete<T>(
       String path, {
         dynamic data,
         Options? options,

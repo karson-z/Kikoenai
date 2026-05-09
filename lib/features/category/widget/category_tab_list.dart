@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/loading/lottie_loading.dart';
 import '../../../core/enums/sort_options.dart';
-import '../../album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../album/presentation/widget/work_grid_layout.dart';
 import '../presentation/viewmodel/provider/category_data_provider.dart';
 import '../presentation/viewmodel/provider/category_keep_alive.dart';
@@ -104,8 +104,17 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
           );
         },
 
-        // 7. 只有在【首次初始化】且没有数据时，才会显示骨架屏
-        loading: () => const ResponsiveCardGridSkeleton(),
+        loading: () => const SliverToBoxAdapter(
+          child: SizedBox(
+            height: 280,
+            child: Center(
+              child: LottieLoadingIndicator(
+                size: 76,
+                message: '加载中...',
+              ),
+            ),
+          ),
+        ),
 
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(

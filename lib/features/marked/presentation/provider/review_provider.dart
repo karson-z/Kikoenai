@@ -31,12 +31,12 @@ class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
     // 使用当前的 _params 发起请求
     final jsonMap = await service.fetchReviews(_params);
 
-    final List<dynamic> listData = jsonMap.data?['works'] as List<dynamic>? ?? [];
+    final List<dynamic> listData = jsonMap['works'] as List<dynamic>? ?? [];
     final works = listData
         .map((e) => Work.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    final pagination = Pagination.fromJson(jsonMap.data?['pagination']);
+    final pagination = Pagination.fromJson(jsonMap['pagination']);
 
     return PagedReviewData(
       works: works,

@@ -66,11 +66,11 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
       builder: (context, child) {
         final expandVal = _controller.expandValue;
         final lyricsVal = _controller.lyricsValue;
-        debugPrint('lyrics: $lyricsVal');
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
         double currentLyricsAlpha = isWide ? 1.0 : lyricsVal.clamp(0.0, 1.0);
         final bool ignoreControls = expandVal < 0.5 || (!isWide && lyricsVal > 0.5);
+        final bool shouldMountExpandedVideo = shouldRenderVideo && expandVal > 0.02;
 
         return CustomMultiChildLayout(
           delegate: PlayerLayoutDelegate(
@@ -91,7 +91,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.videoContainer,
-              child: shouldRenderVideo
+              child: shouldMountExpandedVideo
                   ? Opacity(
                 opacity: expandVal.clamp(0.0, 1.0),
                 child: IgnorePointer(

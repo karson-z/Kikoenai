@@ -14,7 +14,7 @@ import 'package:kikoenai/features/player/presentation/provider/player_controller
 import '../../../features/player/presentation/page/player_view.dart';
 import '../../utils/window/display_util.dart';
 import '../common/back_button_interceptor.dart';
-import '../slider/PlayerSheetPanel.dart';
+import '../slider/player_sheet_panel.dart';
 // import 'app_player_slider.dart'; // 之前桌面端专用的组件可以安全移除了
 
 final panelControllerProvider = Provider((ref) => PanelController());
@@ -61,7 +61,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
     Widget bodyContent;
     if (isMobile) {
-      bodyContent = widget.navigationShell;
+      bodyContent = RepaintBoundary(
+        child: widget.navigationShell,
+      );
     } else {
       bodyContent = Row(
         children: [
@@ -116,14 +118,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           showBottomNavBar: isMobile ? showBottomNav : false,
           bottomNavBarHeight: AppConstants.kAppBottomNavHeight,
           bottomNavBar: isMobile
-              ? NavigationBar(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: (index) => _navigateTo(index),
-            destinations: appNavigationItems
-                .map((item) => NavigationDestination(
-                icon: item.icon, label: item.label))
-                .toList(),
-          )
+              ? RepaintBoundary(
+                  child: NavigationBar(
+                    selectedIndex: selectedIndex,
+                    onDestinationSelected: (index) => _navigateTo(index),
+                    destinations: appNavigationItems
+                        .map((item) => NavigationDestination(
+                            icon: item.icon, label: item.label))
+                        .toList(),
+                  ),
+                )
               : null, // 桌面端不渲染底部导航栏
           onPanelOpened: () => mainController.handlePanelStateChange(true),
           onPanelClosed: () => mainController.handlePanelStateChange(false),

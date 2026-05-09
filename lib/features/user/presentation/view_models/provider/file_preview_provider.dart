@@ -29,8 +29,7 @@ final textContentProvider = FutureProvider.family<String, String>((ref, inputPat
         options: Options(responseType: ResponseType.bytes),
       );
 
-      if (response.data == null) throw Exception("下载内容为空");
-      fileBytes = response.data!;
+      fileBytes = response;
 
     } else {
       // 本地文件

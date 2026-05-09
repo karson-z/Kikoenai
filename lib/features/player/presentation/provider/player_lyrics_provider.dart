@@ -29,8 +29,8 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
   try {
     if (url.startsWith('http')) {
       // 网络请求获取
-      final response = await apiClient.get(url);
-      return response.data.toString();
+      final response = await apiClient.get<dynamic>(url);
+      return response.toString();
     } else {
       // 本地文件读取或解压
       final file = File(url);

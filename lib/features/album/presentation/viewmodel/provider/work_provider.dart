@@ -84,8 +84,7 @@ class HotWorksNotifier extends BaseWorksNotifier {
   Future<Map<String, dynamic>?> fetchWorksData(int page) async {
     final keyword = buildGlobalKeyword(isGet: false); // 调用基类方法获取组装好的 keyword
     final repo = ref.read(workRepositoryProvider);
-    final result = await repo.getPopularWorks(page: page, keyword: keyword);
-    return result.data;
+    return repo.getPopularWorks(page: page, keyword: keyword);
   }
 }
 
@@ -103,9 +102,8 @@ class NewWorksNotifier extends BaseWorksNotifier {
     const order = 'release';
     final sort = SortDirection.desc.value;
 
-    final result = await repo.getWorks(
+    return repo.getWorks(
         page: page, keyword: keyword, order: order, sort: sort);
-    return result.data;
   }
 }
 
@@ -126,9 +124,8 @@ class RecommendedWorksNotifier extends BaseWorksNotifier {
     final currentUser = CacheService.instance.getAuthSession();
     final targetUuid = currentUser?.user?.recommenderUuid ?? recommendUuid;
 
-    final result = await repo.getRecommendedWorks(
+    return repo.getRecommendedWorks(
         recommenderUuid: targetUuid, page: page, keyword: keyword);
-    return result.data;
   }
 }
 
@@ -136,3 +133,19 @@ final recommendedWorksProvider =
 AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
   RecommendedWorksNotifier.new,
 );
+
+
+
+final albumAllEmptyProvider = Provider<bool>((ref) {
+  final hot = ref.watch(hotWorksProvider);
+  final recommended = ref.watch(recommendedWorksProvider);
+  final newest = ref.watch(newWorksProvider);
+
+  bool isEmpty(AsyncValue<WorkState> state) {
+    if (state.isLoading && !state.hasValue) return false;
+    if (state.hasError && !state.hasValue) return false;
+    return state.value?.works.isEmpty ?? true;
+  }
+
+  return isEmpty(hot) && isEmpty(recommended) && isEmpty(newest);
+});

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
+import '../../../../core/widgets/loading/lottie_loading.dart';
 import '../viewmodel/provider/work_provider.dart';
-import '../viewmodel/state/work_state.dart';
 import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
-import '../widget/skeleton/h_card_list_skeleton.dart';
-import '../widget/skeleton/work_list_h_skeleton.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
 import '../widget/smart_works_sliver_grid.dart';
@@ -18,28 +15,11 @@ import '../widget/smart_works_sliver_grid.dart';
 class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
 
-  // 辅助方法：判断某个板块是否是“真正的空”
-  bool _isSectionEmpty(AsyncValue<WorkState> state) {
-    // 1. 如果正在初始加载（还没有任何旧数据），不能算空，要展示骨架图
-    if (state.isLoading && !state.hasValue) return false;
-    // 2. 如果发生了错误（且没旧数据），不能算空，要展示错误提示
-    if (state.hasError && !state.hasValue) return false;
-    // 3. 数据加载完毕，判断列表是否真的为空
-    return state.value?.works.isEmpty ?? true;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceType = context.deviceType;
 
-    final hotState = ref.watch(hotWorksProvider);
-    final recommendedState = ref.watch(recommendedWorksProvider);
-    final newestState = ref.watch(newWorksProvider);
-
-    // 当三个板块都确认没有数据时，显示全局空状态
-    final isAllEmpty = _isSectionEmpty(hotState) &&
-        _isSectionEmpty(recommendedState) &&
-        _isSectionEmpty(newestState);
+    final isEmpty = ref.watch(albumAllEmptyProvider);
 
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
@@ -63,7 +43,7 @@ class AlbumPage extends ConsumerWidget {
         },
         child: CustomScrollView(
           slivers: [
-            if (isAllEmpty)
+            if (isEmpty)
             // 全局空状态占位符
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -86,7 +66,6 @@ class AlbumPage extends ConsumerWidget {
               const _RecommendedWorksSection(),
               const _NewestWorksSection(),
             ],
-            const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
           ],
         ),
       ),
@@ -103,7 +82,6 @@ class _HotWorksSection extends ConsumerWidget {
 
     return hotState.when(
       data: (state) {
-        // 如果数据为空，返回 shrink 彻底隐藏该板块（包括 Header）
         if (state.works.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
@@ -132,7 +110,7 @@ class _HotWorksSection extends ConsumerWidget {
         slivers: [
           SectionHeader(title: '热门作品', isShowMoreButton: false),
           SliverToBoxAdapter(
-            child: ResponsiveHorizontalCardListSkeleton(),
+            child: _SectionLoadingBox(message: '热门作品加载中...'),
           ),
         ],
       ),
@@ -180,11 +158,11 @@ class _RecommendedWorksSection extends ConsumerWidget {
           ],
         );
       },
-      loading: () => SliverMainAxisGroup(
+      loading: () => const SliverMainAxisGroup(
         slivers: [
-          const SectionHeader(title: '推荐作品', isShowMoreButton: false),
-          const SliverToBoxAdapter(
-            child: WorkListHorizontalSkeleton(),
+          SectionHeader(title: '推荐作品', isShowMoreButton: false),
+          SliverToBoxAdapter(
+            child: _SectionLoadingBox(message: '推荐作品加载中...'),
           ),
         ],
       ),
@@ -224,10 +202,15 @@ class _NewestWorksSection extends ConsumerWidget {
           ],
         );
       },
-      loading: () => SliverMainAxisGroup(
+      loading: () => const SliverMainAxisGroup(
         slivers: [
-          const SectionHeader(title: '最新作品'),
-          const ResponsiveCardGridSkeleton(),
+          SectionHeader(title: '最新作品'),
+          SliverToBoxAdapter(
+            child: _SectionLoadingBox(
+              message: '最新作品加载中...',
+              minHeight: 260,
+            ),
+          ),
         ],
       ),
       error: (error, _) => SliverMainAxisGroup(
@@ -255,6 +238,29 @@ class _SectionErrorSliver extends StatelessWidget {
             '加载失败: $error',
             style: TextStyle(color: Colors.red[300]),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLoadingBox extends StatelessWidget {
+  final String message;
+  final double minHeight;
+
+  const _SectionLoadingBox({
+    required this.message,
+    this.minHeight = 180,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: minHeight,
+      child: Center(
+        child: LottieLoadingIndicator(
+          size: 72,
+          message: message,
         ),
       ),
     );

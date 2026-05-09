@@ -53,24 +53,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = AsyncData(newState);
   }
 
-  Future<AuthState> _handleAuthSuccess(dynamic result) async {
-    if (result.data != null) {
-      final data = result.data as Map<String, dynamic>;
-      final authResponse = AuthResponse(
-        user: data['user'] != null ? User.fromJson(data['user']) : null,
-        token: data['token'] as String?,
-      );
-
-      if (!authResponse.isSuccess) {
-        throw const FormatException("服务端返回数据不完整");
-      }
-
-      await _cacheService.saveAuthSession(authResponse);
-      return AuthState(currentUser: authResponse.user, token: authResponse.token);
-    } else {
-      // 业务错误直接抛出，UI 层的 Mutation 会自动将其转为 MutationError 状态
-      throw Exception(result.message ?? '服务器操作失败');
+  Future<AuthState> _handleAuthSuccess(AuthResponse authResponse) async {
+    if (!authResponse.isSuccess || authResponse.user == null || authResponse.token == null) {
+      throw const FormatException("服务端返回数据不完整");
     }
+
+    await _cacheService.saveAuthSession(authResponse);
+    return AuthState(currentUser: authResponse.user, token: authResponse.token);
   }
 
   Future<void> logout() async {
