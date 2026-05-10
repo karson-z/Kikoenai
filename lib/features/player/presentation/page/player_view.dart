@@ -60,7 +60,14 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
 
     final shouldRenderVideo =
     ref.watch(playerControllerProvider.select((s) => s.isCurrentVideoView));
-
+    final cachedLyricsContent = RepaintBoundary(
+      child: MobileLyricsContent(
+        isWideScreen: isWide,
+        track: currentTrack,
+        onTapHeader: isWide ? null : _controller.toggleLyrics,
+        padding: padding,
+      ),
+    );
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -86,7 +93,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
                   : RepaintBoundary(
-                child: PlayerBackground(expandedOpacity: expandedOpacity),
+                child: PlayerBackground(expVal: expandedOpacity),
               ),
             ),
             LayoutId(
@@ -107,7 +114,6 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             LayoutId(
               id: PlayerLayoutId.playerInfo,
               child: Offstage(
-                // 当 offstage 为 true 时，瞬间隐藏，且不触发 child 的重建
                 offstage: shouldRenderVideo || lyricsVal > 0,
                 child: IgnorePointer(
                   ignoring: ignoreControls,
@@ -153,20 +159,13 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
 
             LayoutId(
               id: PlayerLayoutId.bodyLyrics,
-              child: shouldRenderVideo
-                  ? const SizedBox.shrink()
-                  : AnimatedOpacity(
-                duration: Duration(milliseconds: (expandedOpacity * 100).round()),
-                opacity: expandedOpacity * currentLyricsAlpha,
-                child: IgnorePointer(
-                  ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
-                  child: RepaintBoundary(
-                    child: MobileLyricsContent(
-                      isWideScreen: isWide,
-                      track: currentTrack,
-                      onTapHeader: isWide ? null : _controller.toggleLyrics,
-                      padding: padding,
-                    ),
+              child: Offstage(
+                offstage: shouldRenderVideo || currentLyricsAlpha == 0.0,
+                child: Opacity(
+                  opacity: currentLyricsAlpha,
+                  child: IgnorePointer(
+                    ignoring: expandVal < 0.5 || (!isWide && lyricsVal <= 0.5),
+                    child: cachedLyricsContent,
                   ),
                 ),
               ),

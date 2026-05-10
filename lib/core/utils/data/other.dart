@@ -140,6 +140,11 @@ class OtherUtil {
 
   static Future getPlayerTempPath() async {
     final tempDir = await getTemporaryDirectory();
-    return tempDir.path;
+    final baseDir = Directory('${tempDir.path}/kikoenai');
+
+    if (!await baseDir.exists()) {
+      await baseDir.create(recursive: true);
+    }
+    return baseDir.path;
   }
 }
