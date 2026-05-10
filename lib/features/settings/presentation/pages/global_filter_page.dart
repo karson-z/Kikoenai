@@ -25,7 +25,6 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
       appBar: _buildAppBar(),
       body: Padding(
         // 1. 【整体边距】水平边距从 32 缩小到 16，垂直边距从 24 缩小到 12
