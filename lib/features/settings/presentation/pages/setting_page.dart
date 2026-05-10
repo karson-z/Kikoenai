@@ -129,6 +129,36 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           _SettingsSection(
+            title: '背景处理与性能',
+            children: [
+              HiveSliderTile(
+                title: '模糊半径 (Blur Radius)',
+                storageKey: StorageKeys.blurBackground,
+                defaultValue: 10,
+                min: 0,
+                max: 50,
+                divisions: 50,
+              ),
+              HiveSliderTile(
+                title: '缩放分辨率 (Resize Width)',
+                storageKey: StorageKeys.backgroundScale,
+                defaultValue: 100,
+                min: 10,
+                max: 500,
+                divisions: 49,
+              ),
+              HiveSliderTile(
+                title: '编码质量 (JPEG Quality)',
+                storageKey: StorageKeys.backgroundQuality,
+                defaultValue: 70,
+                min: 10,
+                max: 100,
+                divisions: 90,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _SettingsSection(
             title: '搜索',
             children: [
               _ChevronTile(
@@ -339,6 +369,89 @@ class _ServerSelectionTile extends ConsumerWidget {
           builder: (context) => const ServerSelectionModal(),
         );
       },
+    );
+  }
+}
+
+class HiveSliderTile extends StatefulWidget {
+  final String title;
+  final String storageKey;
+  final int defaultValue;
+  final double min;
+  final double max;
+  final int divisions;
+
+  const HiveSliderTile({
+    super.key,
+    required this.title,
+    required this.storageKey,
+    required this.defaultValue,
+    required this.min,
+    required this.max,
+    required this.divisions,
+  });
+
+  @override
+  State<HiveSliderTile> createState() => _HiveSliderTileState();
+}
+
+class _HiveSliderTileState extends State<HiveSliderTile> {
+  late double _currentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    final rawValue = AppStorage.settingsBox.get(widget.storageKey, defaultValue: widget.defaultValue);
+    _currentValue = (rawValue as num).toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.title,
+                style: theme.textTheme.bodyLarge?.copyWith(fontSize: 16),
+              ),
+              Text(
+                _currentValue.toInt().toString(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            ),
+            child: Slider(
+              value: _currentValue,
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              onChanged: (val) {
+                setState(() {
+                  _currentValue = val;
+                });
+              },
+              onChangeEnd: (val) {
+                AppStorage.settingsBox.put(widget.storageKey, val.toInt());
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

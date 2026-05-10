@@ -72,10 +72,9 @@ class AdvancedFilterPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 _getTitleForType(type),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800], // 标题颜色可以固定深色，或者传参
                 ),
               ),
             ],

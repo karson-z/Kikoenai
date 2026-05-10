@@ -35,7 +35,7 @@ class SidebarCategoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: 90,
       child: ListView.builder(
@@ -50,7 +50,7 @@ class SidebarCategoryList extends StatelessWidget {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: isActive ? Colors.white : Colors.transparent,
+                color: isActive ? isDark? const Color(0xFF212529) : Colors.white : Colors.transparent,
                 border: Border(
                   left: BorderSide(
                       color: isActive ? primaryColor : Colors.transparent,
