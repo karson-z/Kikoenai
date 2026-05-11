@@ -63,19 +63,18 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
           .where((item) => item.workData?.id == workId)
           .toList();
 
-      final playListProcessed = LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
-      final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
+      /// 尝试不做数据归一化
+      // final playListProcessed = LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
+      // final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
       // 执行自动匹配
-      final matches = MatchLyrics.match(playListProcessed, lyricListProcessed);
+      final matches = MatchLyrics.match(currentWorkPlaylist, targetSubtitleList);
 
       state = state.copyWith(
         isSearching: false,
         lyricsList: targetSubtitleList,
         subtitleMapping: matches,
       );
-
-      // 自动匹配失败时的处理逻辑（如弹窗提示）交由 UI 层的 listener 处理，保持 Controller 纯粹
     } catch (e) {
       state = state.copyWith(isSearching: false);
     }

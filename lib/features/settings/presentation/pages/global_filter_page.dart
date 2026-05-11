@@ -27,7 +27,6 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
     return Scaffold(
       appBar: _buildAppBar(),
       body: Padding(
-        // 1. 【整体边距】水平边距从 32 缩小到 16，垂直边距从 24 缩小到 12
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,7 +38,7 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
                     title: '标签',
                     icon: Icons.local_offer,
                     iconColor: const Color(0xFF6B72FF),
-                    subtitle: '通用标签', // 2. 【文案精简】短文案更适合手机端
+                    subtitle: '通用标签',
                     initiallyExpanded: true,
                     content: _buildTagsContent(
                       '标签',
