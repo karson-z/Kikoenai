@@ -6,7 +6,7 @@ class PlayerViewController extends ChangeNotifier {
   final ValueListenable<double> expandProgress;
 
   late final AnimationController _lyricsCtrl;
-  bool _showLyrics = false;
+  bool showLyrics = false;
 
   PlayerViewController({
     required TickerProvider vsync,
@@ -25,8 +25,8 @@ class PlayerViewController extends ChangeNotifier {
   double get expandValue => expandProgress.value;
 
   void toggleLyrics() {
-    _showLyrics = !_showLyrics;
-    if (_showLyrics) {
+    showLyrics = !showLyrics;
+    if (showLyrics) {
       _lyricsCtrl.forward();
     } else {
       _lyricsCtrl.reverse();
