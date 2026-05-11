@@ -109,9 +109,8 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
   Widget build(BuildContext context) {
     final state = ref.watch(searchFilterProvider(widget.type));
     final controller = ref.read(searchFilterProvider(widget.type).notifier);
-
     final currentCategory = CategoryType.values[state.selectedFilterIndex];
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     List<SelectorItem> currentItems = _getCurrentCategoryItems(currentCategory);
 
     if (state.localSearchKeyword.isNotEmpty) {
@@ -131,8 +130,8 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             onToggleTag: (type, name) {
               controller.toggleTag(type, name);
             },
-            fillColor: const Color(0xFFF9FAFB),
-            textColor: const Color(0xFF4B5563),
+            fillColor: isDark ? const Color(0xFF212529) : const Color(0xFFF9FAFB),
+            textColor: isDark ? const Color(0xFF8492A6) : const Color(0xFF4B5563),
           ),
         ),
       );
