@@ -11,6 +11,7 @@ import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/history/data/repository/history_respository.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
@@ -29,18 +30,14 @@ import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 
 final playerControllerProvider =
-    NotifierProvider<PlayerController, AppPlayerState>(() {
-      return PlayerController();
-    });
+NotifierProvider<PlayerController, AppPlayerState>(() {
+  return PlayerController();
+});
 
 class PlayerController extends Notifier<AppPlayerState> {
-  static const _historyProgressSaveThresholdMs = 1000;
-
   ReceivePort? _overlayReceivePort;
 
   Timer? _controlsHideTimer;
-
-  ({String trackId, int progressMs})? _lastSavedHistory;
 
   AudioHandler get _handler => AudioServiceSingleton.instance;
 
@@ -48,11 +45,22 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   CacheService get _cacheService => CacheService.instance;
 
+  HistoryRepository get _historyRepository => HistoryRepository.instance;
+
+  AppLifecycleListener? _lifecycleListener;
+
   @override
   AppPlayerState build() {
     _listen();
 
     _listenToPlayer();
+
+    // 1. 监听应用生命周期：退出、退到后台、被强杀时，保存当前进度
+    _lifecycleListener = AppLifecycleListener(
+      onPause: () => _saveCurrentHistory(),
+      onHide: () => _saveCurrentHistory(),
+      onDetach: () => _saveCurrentHistory(),
+    );
 
     Future.microtask(() {
       _loadPlayerState();
@@ -60,8 +68,12 @@ class PlayerController extends Notifier<AppPlayerState> {
     startControlsHideTimer();
 
     ref.onDispose(() {
+      // 2. Controller 销毁前最后保存一次
+      _saveCurrentHistory();
+
       _closeOverlayPort();
       _controlsHideTimer?.cancel();
+      _lifecycleListener?.dispose(); // 销毁生命周期监听器
       stop();
     });
     return const AppPlayerState();
@@ -105,11 +117,10 @@ class PlayerController extends Notifier<AppPlayerState> {
     final playList = savedState.playlist;
 
     // 2. 恢复当前索引
-    // 加入空值判断，避免程序崩溃
     final progress = savedState.progressBarState.current;
     if (savedState.currentTrack != null) {
       final currentIndex = playList.indexWhere(
-        (item) => item.id == savedState.currentTrack!.id,
+            (item) => item.id == savedState.currentTrack!.id,
       );
       await (_handler as MyAudioHandler).initPlayback(
         initialPlaylist: playList,
@@ -236,7 +247,6 @@ class PlayerController extends Notifier<AppPlayerState> {
             previous();
             break;
           case PlayerConstants.closeOverlay:
-            // 由主应用统一执行隐藏，这会同时销毁窗口并休眠字幕同步服务
             lyricsNotifier.hide(isUserAction: true);
             break;
           case PlayerConstants.toggleLock:
@@ -284,7 +294,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       state = state.copyWith(
         loading:
-            p.processingState == AudioProcessingState.loading ||
+        p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -295,9 +305,10 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       if (state.currentTrack != null) {
         _saveState();
-        _saveHistory();
+        // 删除了 _saveHistory() 调用，彻底释放高频 I/O
       }
     });
+
     // 低频流：处理播放与暂停状态切换
     _handler.playbackState.map((p) => p.playing).distinct().listen((isPlaying) {
       state = state.copyWith(playing: isPlaying);
@@ -312,15 +323,24 @@ class PlayerController extends Notifier<AppPlayerState> {
         _saveState();
       }
     });
+
     // 当前播放曲目
     _handler.mediaItem.listen((item) {
-      if (state.currentTrack?.id != item?.id) {
+      final currentItem = state.currentTrack;
+
+      // 核心修改：在切歌发生前，精准拦截并保存上一首歌的进度
+      if (currentItem != null && currentItem.id != item?.id) {
+        _saveCurrentHistory();
+      }
+
+      if (currentItem?.id != item?.id) {
         state = state.copyWith(currentTrack: item);
       }
+
       _updateSkipInfo();
+
       if (state.currentTrack != null) {
         _saveState();
-        _saveHistory();
       }
       _updateTrackerStatus(mediaItem: item, isPlaying: state.playing);
     });
@@ -365,45 +385,34 @@ class PlayerController extends Notifier<AppPlayerState> {
     );
   }
 
-  // 保存播放器状态
+  // 保存播放器状态 (队列、模式配置等)
   void _saveState() {
     _cacheService.savePlayerState(state);
   }
 
-  // 保存播放历史
-  void _saveHistory() {
+  // 极简化的核心历史记录保存机制
+  void _saveCurrentHistory() {
     final currentItem = state.currentTrack;
-    if (currentItem == null) return;
+    final currentWork = state.currentWork;
+
+    // 如果没有正在播放的内容，或没有对应的作品载体，直接跳过
+    if (currentItem == null || currentWork == null) return;
 
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
-    final last = _lastSavedHistory;
-    if (last != null &&
-        last.trackId == currentItem.id &&
-        (currentProgressMs - last.progressMs).abs() <
-            _historyProgressSaveThresholdMs) {
-      return;
-    }
 
     try {
-      final currentWork = state.currentWork;
-      if (currentWork == null || currentWork.id == null) return;
-
       final history = HistoryEntry(
-        isLocal: currentItem.isLocal,
         work: currentWork,
-        lastTrackId: currentItem.id,
-        currentTrackTitle: currentItem.title,
+        lastPlayTrack: currentItem,
         lastProgressMs: currentProgressMs,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        lastPlayTime: DateTime.now().millisecondsSinceEpoch,
       );
 
-      _cacheService.addToHistory(history);
-      _lastSavedHistory = (
-        trackId: currentItem.id,
-        progressMs: currentProgressMs,
-      );
+      _historyRepository.save(history);
+
+      debugPrint('✅ 历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
-      debugPrint('保存历史记录失败: $e');
+      debugPrint('❌ 保存历史记录失败: $e');
     }
   }
 
@@ -426,10 +435,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> loadExternalSubtitle(
-    String uri, {
-    String? title,
-    String? language,
-  }) async {
+      String uri, {
+        String? title,
+        String? language,
+      }) async {
     final externalTrack = SubtitleTrack.uri(
       uri,
       title: title ?? 'External Subtitle',
@@ -444,10 +453,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> loadExternalAudioTrack(
-    String uri, {
-    String? title,
-    String? language,
-  }) async {
+      String uri, {
+        String? title,
+        String? language,
+      }) async {
     final externalTrack = AudioTrack.uri(
       uri,
       title: title ?? 'External Audio',
@@ -530,11 +539,11 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> handleFileTap(
-    FileNode node,
-    List<FileNode> currentNodes, {
-    HistoryEntry? history,
-    Work? work,
-  }) async {
+      FileNode node,
+      List<FileNode> currentNodes, {
+        HistoryEntry? history,
+        Work? work,
+      }) async {
     if (node.isAudio || node.isVideo) {
       final audioFiles = currentNodes
           .where((n) => n.isAudio || n.isVideo)
@@ -570,9 +579,9 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<HistoryEntry?> checkHistoryForWork(Work work) async {
-    final historyList = CacheService.instance.getHistoryList();
+    final historyList = _historyRepository.getAll();
     try {
-      final history = historyList.firstWhere((h) => h.work.id == work.id);
+      final history = historyList.firstWhere((h) => h.work?.id == work.id);
       return history;
     } catch (e) {
       debugPrint('checkHistoryForWork: 当前作品暂无历史记录');
@@ -581,9 +590,9 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Map<String, dynamic>? findTrackParentAndIndex(
-    List<FileNode> nodes,
-    String trackId,
-  ) {
+      List<FileNode> nodes,
+      String trackId,
+      ) {
     for (var node in nodes) {
       if (node.isAudio && node.hash.toString() == trackId) {
         // 当前节点就在根层级
@@ -598,11 +607,11 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> restoreHistory(
-    List<FileNode> nodes,
-    Work work,
-    HistoryEntry history,
-  ) async {
-    if (history.lastTrackId == null) return;
+      List<FileNode> nodes,
+      Work work,
+      HistoryEntry history,
+      ) async {
+    if (history.lastPlayTrack == null) return;
 
     final found = findTrackParentAndIndex(nodes, history.lastTrackId!);
     if (found == null) return;
@@ -650,29 +659,22 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> cyclePlayMode() async {
-    // 1. 如果当前是随机模式
     if (state.shuffleEnabled) {
-      // 点击后：关闭随机 -> 切换到列表循环 (回到最基础的状态)
-      await toggleShuffle(); // 关闭随机
+      await toggleShuffle();
       await setRepeat(AudioServiceRepeatMode.all);
       return;
     }
 
-    // 2. 如果当前不是随机模式，检查循环状态
     switch (state.repeatMode) {
       case AudioServiceRepeatMode.all:
-        // 当前是列表循环 -> 切换到单曲循环
         await setRepeat(AudioServiceRepeatMode.one);
         break;
 
       case AudioServiceRepeatMode.one:
-        // 当前是单曲循环 -> 切换到不循环
         await setRepeat(AudioServiceRepeatMode.none);
         break;
 
       case AudioServiceRepeatMode.none:
-        // 当前是不循环 -> 切换到随机播放
-        // 开启随机时，通常将循环模式设为 all (意味着随机播放整个列表直到手动停止，或者你想随机播完一轮停止也可以设为 none)
         await setRepeat(AudioServiceRepeatMode.all);
         await toggleShuffle();
         break;
@@ -689,7 +691,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final url = node.mediaStreamUrl ?? '';
     final isVideo =
         FileExtensions.video.any((ext) => url.toLowerCase().endsWith(ext)) ||
-        node.isVideo == true;
+            node.isVideo == true;
 
     return MediaItem(
       id: node.hash.toString(),

@@ -17,6 +17,7 @@ class HistoryRepository {
   }
 
   /// 根据唯一标识获取单条历史记录
+  /// [id] primaryKey
   HistoryEntry? getById(String id) {
     return _box.get(id);
   }

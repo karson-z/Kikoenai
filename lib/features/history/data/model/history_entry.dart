@@ -30,28 +30,25 @@ abstract class HistoryEntry with _$HistoryEntry {
     Work? work,
 
     @HiveField(1)
-    MediaItem? lastPlayTrack,
+    required MediaItem lastPlayTrack,
 
     @HiveField(2)
-    required int lastPlayTime,
+    required List<MediaItem>? playlist,
 
     @HiveField(3)
-    String? lastTrackId,
+    required int lastPlayTime,
 
     @HiveField(4)
-    String? currentTrackTitle,
-
-    @HiveField(5)
     int? lastProgressMs,
 
-    @HiveField(6)
+    @HiveField(5)
     @Default(HistoryEntryType.work) HistoryEntryType historyType,
   }) = _HistoryEntry;
 
   /// 作为历史记录的唯一键，根据不同的类型生成
   String get primaryKey {
     // 提取可用的实体 ID
-    final entityId = work?.id.toString() ?? lastTrackId;
+    final entityId = work?.id.toString() ?? lastPlayTrack.id;
 
     // 极端情况兜底：如果都没有，则用时间戳（虽然业务上不应该出现都没有的情况）
     final fallbackId = entityId ?? lastPlayTime.toString();
