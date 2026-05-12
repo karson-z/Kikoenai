@@ -95,6 +95,7 @@ class _TagItem extends StatelessWidget {
             type.stringValue,
             tag.name,
         );
+        ref.invalidate(categoryProvider);
         context.go(AppRoutes.category);
       },
       child: Container(
