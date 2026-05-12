@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
@@ -143,7 +143,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (item == null) {
       return;
     }
-    final workId = item.workData?.id?.toString();
+    final workId = item.workData?.id.toString();
 
     // 4. 通知 Provider
     if (workId != null && workId.isNotEmpty) {
@@ -360,9 +360,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final i = playlist.indexOf(current);
 
     state = state.copyWith(
-      // 处于循环模式时，允许一直点击上一首
       isFirst: isLooping ? false : i <= 0,
-      // 处于循环模式时，允许一直点击下一首
       isLast: isLooping ? false : i >= playlist.length - 1,
     );
   }

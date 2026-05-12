@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import '../../../../core/service/cache/cache_service.dart';
+import '../../data/repository/history_respository.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -11,9 +12,11 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+
+
   // 缓存列表数据
   List<HistoryEntry> historyList = [];
-  final CacheService _cacheService = CacheService.instance;
+  final HistoryRepository _historyRepository = HistoryRepository.instance;
 
   @override
   void initState() {
@@ -24,7 +27,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   /// 同步加载历史记录
   void _loadHistory() {
-    final list = _cacheService.getHistoryList();
+    final list = _historyRepository.getAll();
     if (mounted) {
       setState(() {
         historyList = list;
@@ -54,7 +57,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
     if (confirmed == true) {
       // 2. 调用 Service 的清理方法
-      await _cacheService.clearHistory();
+      await _historyRepository.clear();
 
       if (mounted) {
         setState(() {
@@ -95,19 +98,19 @@ class _HistoryPageState extends State<HistoryPage> {
               mainAxisSpacing: spacing,
               childAspectRatio: 0.75, // 调整比例适配封面图
             ),
-            itemCount: historyList.length,
-            itemBuilder: (context, index) {
-              final history = historyList[index];
-              return WorkCard(
-                isLocalMedia: history.isLocal,
-                work: history.work,
-                // 如果有进度，可以显示具体进度信息
-                lastTrackTitle: history.currentTrackTitle,
-                lastPlayedAt: DateTime.fromMillisecondsSinceEpoch(
-                  history.updatedAt,
-                ),
-              );
-            },
+            itemCount: historyList.length, itemBuilder: (BuildContext context, int index) {  },
+            // itemBuilder: (context, index) {
+            //   final history = historyList[index];
+            //   return WorkCard(
+            //     isLocalMedia: history.isLocal,
+            //     work: history.work,
+            //     // 如果有进度，可以显示具体进度信息
+            //     lastTrackTitle: history.currentTrackTitle,
+            //     lastPlayedAt: DateTime.fromMillisecondsSinceEpoch(
+            //       history.updatedAt,
+            //     ),
+            //   );
+            // },
           );
         },
       ),

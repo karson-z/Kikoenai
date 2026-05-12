@@ -8,7 +8,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import '../../features/player/data/model/player_state.dart';
 import '../adapter/audio_service_repeat_mode_adapter.dart';
 import '../adapter/media_item_adapter.dart';
@@ -109,30 +109,30 @@ class AppStorage {
   }
 
   /// 智能合并历史记录 (Patch Logic)
-  static Future<void> patchHistory(String backupPath) async {
-    final file = File(backupPath);
-    if (!await file.exists()) return;
-
-    final bytes = await file.readAsBytes();
-    // 打开临时 Box
-    final tempBox = await Hive.openBox<HistoryEntry>(
-        'temp_history_${DateTime.now().millisecondsSinceEpoch}',
-        bytes: bytes
-    );
-
-    // 遍历合并
-    for (var entry in tempBox.toMap().entries) {
-      final key = entry.key;
-      final backupItem = entry.value;
-      final localItem = historyBox.get(key);
-
-      // 如果本地没有，或者备份比本地新，则写入
-      if (localItem == null || backupItem.updatedAt > localItem.updatedAt) {
-        await historyBox.put(key, backupItem);
-      }
-    }
-    await tempBox.close();
-  }
+  // static Future<void> patchHistory(String backupPath) async {
+  //   final file = File(backupPath);
+  //   if (!await file.exists()) return;
+  //
+  //   final bytes = await file.readAsBytes();
+  //   // 打开临时 Box
+  //   final tempBox = await Hive.openBox<HistoryEntry>(
+  //       'temp_history_${DateTime.now().millisecondsSinceEpoch}',
+  //       bytes: bytes
+  //   );
+  //
+  //   // 遍历合并
+  //   for (var entry in tempBox.toMap().entries) {
+  //     final key = entry.key;
+  //     final backupItem = entry.value;
+  //     final localItem = historyBox.get(key);
+  //
+  //     // 如果本地没有，或者备份比本地新，则写入
+  //     if (localItem == null || backupItem.updatedAt > localItem.updatedAt) {
+  //       await historyBox.put(key, backupItem);
+  //     }
+  //   }
+  //   await tempBox.close();
+  // }
 
   /// 获取 Box 文件大小
   static Future<int> getBoxSize(String boxName) async {

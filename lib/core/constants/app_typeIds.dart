@@ -11,6 +11,7 @@ class TypeIds {
   static const int authResponse = 30;
   static const int user = 31;
   static const int historyEntry = 32;
+  static const int historyEntryType = 33;
 
   // --- 播放器与状态 (50-69) ---
   static const int appPlayerState = 50;
