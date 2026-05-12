@@ -7,7 +7,7 @@ import 'package:kikoenai/features/marked/presentation/page/review_page.dart';
 import 'package:kikoenai/features/playlist/presentation/page/playlist_page.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
 import '../../../download/presentation/page/download_page.dart';
-import 'history_page.dart';
+import '../../../history/presentation/page/history_page.dart';
 
 class UserPage extends ConsumerStatefulWidget {
   const UserPage({super.key});

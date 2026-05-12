@@ -6,7 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import '../../../features/player/data/model/player_state.dart';
 // 引入新定义的 Key 常量类
 import '../../storage/hive_key.dart';
@@ -123,40 +123,6 @@ class CacheService {
   AppPlayerState? getPlayerState() {
     // [Refactored] 使用常量 key
     return AppStorage.playerBox.get(StorageKeys.playerLastState);
-  }
-
-  // ==================== 5. 播放历史 ====================
-
-  /// 获取历史列表 (按时间倒序)
-  List<HistoryEntry> getHistoryList() {
-    final list = AppStorage.historyBox.values.toList();
-    list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return list;
-  }
-
-  /// 添加历史记录
-  Future<void> addToHistory(HistoryEntry entry) async {
-    // HistoryBox 的 Key 是动态的 (WorkId)，所以这里保持原样
-    await AppStorage.historyBox.put(entry.work.id, entry);
-
-    if (AppStorage.historyBox.length > _maxHistory) {
-      _trimHistory();
-    }
-  }
-
-  Future<void> _trimHistory() async {
-    final list = getHistoryList();
-    if (list.length <= _maxHistory) return;
-
-    final keysToDelete = list
-        .sublist(_maxHistory)
-        .map((e) => e.work.id);
-
-    await AppStorage.historyBox.deleteAll(keysToDelete);
-  }
-
-  Future<void> clearHistory() async {
-    await AppStorage.historyBox.clear();
   }
 
   // ==================== 获取用户选择的扫描路径 ====================
