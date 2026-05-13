@@ -8,6 +8,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/download/presentation/provider/download_provider.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
@@ -21,11 +22,13 @@ import '../../../../core/widgets/common/manage_playlist_dialog.dart';
 class FileNodeBrowser extends ConsumerStatefulWidget {
   final Work work;
   final List<FileNode> rootNodes;
+  final bool isLocal;
 
   const FileNodeBrowser({
     super.key,
     required this.work,
     required this.rootNodes,
+    required this.isLocal,
   });
 
   @override
@@ -33,48 +36,14 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
 }
 
 class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
-  bool _historyChecked = false;
 
   @override
   void initState() {
     super.initState();
-    _checkHistoryOnce();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(allTasksProvider.notifier).refreshTasks();
     });
-  }
-
-  Future<void> _checkHistoryOnce() async {
-    final playerState = ref.read(playerControllerProvider);
-    final playerController = ref.read(playerControllerProvider.notifier);
-    final history = await playerController.checkHistoryForWork(widget.work);
-
-    if (!_historyChecked &&
-        mounted &&
-        history != null &&
-        history.lastTrackId != playerState.currentTrack?.id) {
-      _historyChecked = true;
-      if (!mounted) return;
-
-      KikoenaiToast.show(
-        message: '检测到上次播放: ${history.currentTrackTitle}',
-        context: context,
-        backgroundColor: Colors.blueGrey,
-        icon: Icons.history,
-        action: SnackBarAction(
-          label: '恢复',
-          textColor: Colors.amberAccent,
-          onPressed: () {
-            playerController.restoreHistory(
-              widget.rootNodes,
-              widget.work,
-              history,
-            );
-          },
-        ),
-      );
-    }
   }
 
   /// [核心逻辑] 批量替换本地路径
@@ -263,6 +232,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             targetNode,
             processedList,
             work: widget.work,
+            historyType: widget.isLocal
+                ? HistoryEntryType.localWork
+                : HistoryEntryType.work,
           );
         }
       },
@@ -292,9 +264,13 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
               }
             }
-            ref
-                .read(playerControllerProvider.notifier)
-                .addSingleInQueue(nodeToAdd, widget.work);
+            ref.read(playerControllerProvider.notifier).addSingleInQueue(
+                  nodeToAdd,
+                  widget.work,
+                  historyType: widget.isLocal
+                      ? HistoryEntryType.localWork
+                      : HistoryEntryType.work,
+                );
             KikoenaiToast.success("已添加到播放列表");
           }
         },

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
@@ -30,7 +29,7 @@ import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 
 final playerControllerProvider =
-NotifierProvider<PlayerController, AppPlayerState>(() {
+    NotifierProvider<PlayerController, AppPlayerState>(() {
   return PlayerController();
 });
 
@@ -120,7 +119,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final progress = savedState.progressBarState.current;
     if (savedState.currentTrack != null) {
       final currentIndex = playList.indexWhere(
-            (item) => item.id == savedState.currentTrack!.id,
+        (item) => item.id == savedState.currentTrack!.id,
       );
       await (_handler as MyAudioHandler).initPlayback(
         initialPlaylist: playList,
@@ -293,8 +292,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
-        loading:
-        p.processingState == AudioProcessingState.loading ||
+        loading: p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -305,7 +303,6 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       if (state.currentTrack != null) {
         _saveState();
-        // 删除了 _saveHistory() 调用，彻底释放高频 I/O
       }
     });
 
@@ -328,7 +325,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     _handler.mediaItem.listen((item) {
       final currentItem = state.currentTrack;
 
-      // 核心修改：在切歌发生前，精准拦截并保存上一首歌的进度
       if (currentItem != null && currentItem.id != item?.id) {
         _saveCurrentHistory();
       }
@@ -390,15 +386,15 @@ class PlayerController extends Notifier<AppPlayerState> {
     _cacheService.savePlayerState(state);
   }
 
-  // 极简化的核心历史记录保存机制
   void _saveCurrentHistory() {
     final currentItem = state.currentTrack;
-    final currentWork = state.currentWork;
 
-    // 如果没有正在播放的内容，或没有对应的作品载体，直接跳过
-    if (currentItem == null || currentWork == null) return;
+    if (currentItem == null) return;
 
+    final historyType = currentItem.extras?['historyType'];
+    final currentWork = currentItem.workData;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
+    final historyPlaylist = _buildHistoryPlaylist(currentItem, historyType);
 
     try {
       final history = HistoryEntry(
@@ -406,14 +402,41 @@ class PlayerController extends Notifier<AppPlayerState> {
         lastPlayTrack: currentItem,
         lastProgressMs: currentProgressMs,
         lastPlayTime: DateTime.now().millisecondsSinceEpoch,
+        playlist: historyPlaylist,
+        historyType: historyType,
       );
 
       _historyRepository.save(history);
 
-      debugPrint('✅ 历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
+      debugPrint(
+          '历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
-      debugPrint('❌ 保存历史记录失败: $e');
+      debugPrint('保存历史记录失败: $e');
     }
+  }
+
+  List<MediaItem>? _buildHistoryPlaylist(
+    MediaItem currentItem,
+    HistoryEntryType historyType,
+  ) {
+    if (historyType == HistoryEntryType.singleWork) return null;
+
+    final currentWorkId = currentItem.workData?.id;
+    final filtered = currentWorkId == null
+        ? <MediaItem>[]
+        : state.playlist
+            .where((item) => item.workData?.id == currentWorkId)
+            .toList();
+
+    final playlist = filtered.any((item) => item.id == currentItem.id)
+        ? filtered
+        : [currentItem, ...filtered.where((item) => item.id != currentItem.id)];
+
+    final seenIds = <String>{};
+    return [
+      for (final item in playlist)
+        if (seenIds.add(item.id)) item,
+    ];
   }
 
   Future<void> play() async => _handler.play();
@@ -435,10 +458,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> loadExternalSubtitle(
-      String uri, {
-        String? title,
-        String? language,
-      }) async {
+    String uri, {
+    String? title,
+    String? language,
+  }) async {
     final externalTrack = SubtitleTrack.uri(
       uri,
       title: title ?? 'External Subtitle',
@@ -453,10 +476,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> loadExternalAudioTrack(
-      String uri, {
-        String? title,
-        String? language,
-      }) async {
+    String uri, {
+    String? title,
+    String? language,
+  }) async {
     final externalTrack = AudioTrack.uri(
       uri,
       title: title ?? 'External Audio',
@@ -533,23 +556,28 @@ class PlayerController extends Notifier<AppPlayerState> {
     await (_handler as MyAudioHandler).clearPlaylist();
   }
 
-  Future<void> addSingleInQueue(FileNode node, Work work) async {
-    final mediaItem = _fileNodeToMediaItem(node, work);
+  Future<void> addSingleInQueue(
+    FileNode node,
+    Work work, {
+    HistoryEntryType historyType = HistoryEntryType.work,
+  }) async {
+    final mediaItem =
+        _fileNodeToMediaItem(node, work, historyType: historyType);
     await add(mediaItem);
   }
 
   Future<void> handleFileTap(
-      FileNode node,
-      List<FileNode> currentNodes, {
-        HistoryEntry? history,
-        Work? work,
-      }) async {
+    FileNode node,
+    List<FileNode> currentNodes, {
+    HistoryEntry? history,
+    Work? work,
+    HistoryEntryType historyType = HistoryEntryType.work,
+  }) async {
     if (node.isAudio || node.isVideo) {
-      final audioFiles = currentNodes
-          .where((n) => n.isAudio || n.isVideo)
-          .toList();
+      final audioFiles =
+          currentNodes.where((n) => n.isAudio || n.isVideo).toList();
       final mediaList = audioFiles.map((n) {
-        return _fileNodeToMediaItem(n, work);
+        return _fileNodeToMediaItem(n, work, historyType: historyType);
       }).toList();
 
       // 2. 计算目标索引
@@ -565,7 +593,7 @@ class PlayerController extends Notifier<AppPlayerState> {
           mediaList,
           initialIndex: audioTapIndex,
           initialPosition: startPosition,
-          autoPlay: true, // 点击通常意味着想直接播放
+          autoPlay: true,
         );
       } else {
         await clear();
@@ -578,10 +606,17 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  Future<HistoryEntry?> checkHistoryForWork(Work work) async {
+  Future<HistoryEntry?> checkHistoryForWork(
+    Work work, {
+    HistoryEntryType? historyType,
+  }) async {
     final historyList = _historyRepository.getAll();
     try {
-      final history = historyList.firstWhere((h) => h.work?.id == work.id);
+      final history = historyList.firstWhere(
+        (h) =>
+            h.work?.id == work.id &&
+            (historyType == null || h.historyType == historyType),
+      );
       return history;
     } catch (e) {
       debugPrint('checkHistoryForWork: 当前作品暂无历史记录');
@@ -589,37 +624,65 @@ class PlayerController extends Notifier<AppPlayerState> {
     return null;
   }
 
-  Map<String, dynamic>? findTrackParentAndIndex(
-      List<FileNode> nodes,
-      String trackId,
-      ) {
-    for (var node in nodes) {
-      if (node.isAudio && node.hash.toString() == trackId) {
-        // 当前节点就在根层级
-        return {'parentList': nodes, 'index': nodes.indexOf(node)};
-      }
-      if (node.children != null && node.children!.isNotEmpty) {
-        final result = findTrackParentAndIndex(node.children!, trackId);
-        if (result != null) return result;
-      }
-    }
-    return null; // 未找到
-  }
 
   Future<void> restoreHistory(
-      List<FileNode> nodes,
-      Work work,
-      HistoryEntry history,
-      ) async {
-    if (history.lastPlayTrack == null) return;
+    List<FileNode> nodes,
+    Work? work,
+    HistoryEntry history,
+  ) async {
+    if (history.historyType == HistoryEntryType.singleWork) {
+      await _restoreSingleWorkHistory(history);
+      return;
+    }
 
-    final found = findTrackParentAndIndex(nodes, history.lastTrackId!);
-    if (found == null) return;
+    final savedPlaylist = history.playlist;
+    if (savedPlaylist != null && savedPlaylist.isNotEmpty) {
+      final initialIndex = savedPlaylist.indexWhere(
+        (item) => item.id == history.lastPlayTrack.id,
+      );
+      final safeIndex = initialIndex < 0 ? 0 : initialIndex;
+      final startPosition = history.lastProgressMs == null
+          ? Duration.zero
+          : Duration(milliseconds: history.lastProgressMs!);
 
-    final parentList = found['parentList'] as List<FileNode>;
-    final index = found['index'] as int;
-    final currentNode = parentList[index];
-    await handleFileTap(currentNode, parentList, history: history, work: work);
+      if (_handler is MyAudioHandler) {
+        await (_handler as MyAudioHandler).loadPlaylist(
+          savedPlaylist,
+          initialIndex: safeIndex,
+          initialPosition: startPosition,
+          autoPlay: true,
+        );
+      } else {
+        await clear();
+        await addAll(savedPlaylist);
+        await skipTo(safeIndex);
+        if (startPosition > Duration.zero) {
+          await seek(startPosition);
+        }
+      }
+      return;
+    }
+  }
+
+  Future<void> _restoreSingleWorkHistory(HistoryEntry history) async {
+    final startPosition = history.lastProgressMs == null
+        ? Duration.zero
+        : Duration(milliseconds: history.lastProgressMs!);
+
+    if (_handler is MyAudioHandler) {
+      await (_handler as MyAudioHandler).loadPlaylist(
+        [history.lastPlayTrack],
+        initialPosition: startPosition,
+        autoPlay: true,
+      );
+    } else {
+      await clear();
+      await add(history.lastPlayTrack);
+      if (startPosition > Duration.zero) {
+        await seek(startPosition);
+      }
+      await play();
+    }
   }
 
   Future<void> removeMediaItemInQueue(int index) async {
@@ -630,10 +693,14 @@ class PlayerController extends Notifier<AppPlayerState> {
     _saveState();
   }
 
-  Future<void> addMultiInQueue(List<FileNode> nodes, Work work) async {
+  Future<void> addMultiInQueue(
+    List<FileNode> nodes,
+    Work work, {
+    HistoryEntryType historyType = HistoryEntryType.work,
+  }) async {
     try {
       final mediaList = nodes.map((node) {
-        return _fileNodeToMediaItem(node, work);
+        return _fileNodeToMediaItem(node, work, historyType: historyType);
       }).toList();
       await addAll(mediaList);
       KikoenaiToast.success("已加入播放队列");
@@ -685,7 +752,11 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  MediaItem _fileNodeToMediaItem(FileNode node, Work? work) {
+  MediaItem _fileNodeToMediaItem(
+    FileNode node,
+    Work? work, {
+    required HistoryEntryType historyType,
+  }) {
     String? imagePath;
 
     final url = node.mediaStreamUrl ?? '';
@@ -698,13 +769,15 @@ class PlayerController extends Notifier<AppPlayerState> {
       album: node.workTitle,
       title: node.title,
       artist: work?.vas == null ? node.artist : OtherUtil.joinVAs(work?.vas),
-      artUri: work?.mainCoverUrl != null ? Uri.parse(work!.mainCoverUrl!) : null,
+      artUri:
+          work?.mainCoverUrl != null ? Uri.parse(work!.mainCoverUrl!) : null,
       extras: {
         'url': url,
         'mainCoverUrl': work?.mainCoverUrl ?? imagePath,
         'samCorverUrl': work?.samCoverUrl ?? imagePath,
-        'workData': jsonEncode(work),
-        'isVideo': isVideo, // 将视频标记存入 extras
+        'workData': work == null ? null : jsonEncode(work),
+        'historyType': historyType.name,
+        'isVideo': isVideo,
       },
     );
   }
