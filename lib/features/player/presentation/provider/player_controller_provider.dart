@@ -391,7 +391,10 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     if (currentItem == null) return;
 
-    final historyType = currentItem.extras?['historyType'];
+    final historyType = HistoryEntryType.values.firstWhere(
+          (e) => e.name == currentItem.extras?['historyType'],
+      orElse: () => HistoryEntryType.work,
+    );
     final currentWork = currentItem.workData;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
     final historyPlaylist = _buildHistoryPlaylist(currentItem, historyType);
