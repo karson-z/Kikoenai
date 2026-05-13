@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/rename_dialog.dart';
 import 'package:kikoenai/features/local_media/presentation/widget/status_pill.dart';
 
@@ -27,21 +28,23 @@ class FileBrowserPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
 
-    final List<FileNode> currentNodes = breadcrumbs.isEmpty
-        ? rootNodes
-        : (breadcrumbs.last.children ?? []);
+    final List<FileNode> currentNodes =
+        breadcrumbs.isEmpty ? rootNodes : (breadcrumbs.last.children ?? []);
 
     return PopScope(
       canPop: breadcrumbs.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).navigateBack();
+        ref
+            .read(breadcrumbProvider(BreadCrumbBarType.local).notifier)
+            .navigateBack();
       },
       child: _buildFileList(context, ref, currentNodes, scanMode),
     );
   }
 
-  Widget _buildFileList(BuildContext context, WidgetRef ref, List<FileNode> nodes, ScanMode scanMode) {
+  Widget _buildFileList(BuildContext context, WidgetRef ref,
+      List<FileNode> nodes, ScanMode scanMode) {
     if (nodes.isEmpty) {
       return const Center(
         child: Column(
@@ -85,7 +88,9 @@ class FileBrowserPanel extends ConsumerWidget {
       title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         subtitleText,
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+        style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -110,12 +115,15 @@ class FileBrowserPanel extends ConsumerWidget {
         );
       },
       onTap: () {
-        ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier).enterFolder(node);
+        ref
+            .read(breadcrumbProvider(BreadCrumbBarType.local).notifier)
+            .enterFolder(node);
       },
     );
   }
 
-  Widget _buildFileItem(BuildContext context, WidgetRef ref, FileNode node, List<FileNode> contextNodes, ScanMode scanMode) {
+  Widget _buildFileItem(BuildContext context, WidgetRef ref, FileNode node,
+      List<FileNode> contextNodes, ScanMode scanMode) {
     IconData icon;
     Color iconColor;
 
@@ -163,16 +171,16 @@ class FileBrowserPanel extends ConsumerWidget {
       onLongPress: () => RenameFileDialog.show(context, node),
       onTap: () {
         if (scanMode == ScanMode.subtitles) {
-          Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ""));
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("已复制路径: ${node.title}"),
-                duration: const Duration(seconds: 1),
-                behavior: SnackBarBehavior.floating,
-              )
-          );
+          Clipboard.setData(
+              ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ""));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("已复制路径: ${node.title}"),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ));
         } else {
-          final breadcrumbs = ref.read(breadcrumbProvider(BreadCrumbBarType.local));
+          final breadcrumbs =
+              ref.read(breadcrumbProvider(BreadCrumbBarType.local));
           FileNode? targetRootNode;
           for (final bNode in breadcrumbs) {
             if (bNode.rjCode != null && bNode.rjCode!.isNotEmpty) {
@@ -180,20 +188,25 @@ class FileBrowserPanel extends ConsumerWidget {
               break;
             }
           }
-          final rjCode = targetRootNode?.rjCode;
+          final rjCode = targetRootNode?.rjCode ?? node.rjCode;
           Work? work;
-          if(rjCode != null){
+          if (rjCode != null) {
             work = ScraperStorage().getWork(rjCode.toUpperCase());
           }
 
-          ref.read(playerControllerProvider.notifier).handleFileTap(node,contextNodes,work: work);
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("开始播放: ${node.title}"),
-                duration: const Duration(milliseconds: 500),
-                behavior: SnackBarBehavior.floating,
-              )
-          );
+          ref.read(playerControllerProvider.notifier).handleFileTap(
+                node,
+                contextNodes,
+                work: work,
+                historyType: work == null
+                    ? HistoryEntryType.singleWork
+                    : HistoryEntryType.localWork,
+              );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("开始播放: ${node.title}"),
+            duration: const Duration(milliseconds: 500),
+            behavior: SnackBarBehavior.floating,
+          ));
         }
       },
     );

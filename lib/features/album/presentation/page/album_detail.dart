@@ -20,7 +20,8 @@ import '../widget/file_box.dart';
 import '../widget/rating_menu.dart';
 import '../widget/rating_section.dart';
 import '../widget/work_tag.dart';
-import '../../../../core/service/file/file_scanner_storage.dart'; 
+import '../../../../core/service/file/file_scanner_storage.dart';
+
 /// 专辑详情页承接展示组件
 class AlbumDetailPage extends StatefulWidget {
   const AlbumDetailPage({super.key, required this.extra});
@@ -28,6 +29,7 @@ class AlbumDetailPage extends StatefulWidget {
   @override
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
 }
+
 class _AlbumDetailPageState extends State<AlbumDetailPage> {
   late final KikoenaiInnerDrawerController _drawerController;
 
@@ -42,6 +44,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     _drawerController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     var work = widget.extra['work'];
@@ -57,11 +60,10 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             controller: _drawerController,
             edgeDragWidth: 300,
             drawer: const AlbumDetailSimilarWorkDrawer(),
-            child: AlbumDetailContent(work: work,isLocal: isLocal)
-        ));
+            child: AlbumDetailContent(work: work, isLocal: isLocal)));
   }
-
 }
+
 /// 专辑详情页抽屉内容区--- 相似作品
 class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
   const AlbumDetailSimilarWorkDrawer({super.key});
@@ -70,12 +72,11 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mockList = List.generate(
       10,
-          (index) => SimilarWorkModel(
+      (index) => SimilarWorkModel(
         id: index,
         title: 'Artwork ${index + 1}',
         author: 'Author ${index + 1}',
-        cover:
-        'https://picsum.photos/300/300?random=$index',
+        cover: 'https://picsum.photos/300/300?random=$index',
         likes: 100 + index * 12,
       ),
     );
@@ -114,8 +115,7 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.title,
@@ -176,14 +176,15 @@ class AlbumDetailContent extends ConsumerWidget {
   final Work work;
   final bool isLocal;
 
-  const AlbumDetailContent({super.key,required this.work,required this.isLocal});
+  const AlbumDetailContent(
+      {super.key, required this.work, required this.isLocal});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-
     // 2. 如果是本地模式，禁用网络 Provider 监听
     final workStatus = isLocal ? null : ref.watch(workDetailProvider(work.id));
-    final asyncData = isLocal ? null : ref.watch(trackFileNodeProvider(work.id));
+    final asyncData =
+        isLocal ? null : ref.watch(trackFileNodeProvider(work.id));
 
     return Scaffold(
       appBar: AppBar(
@@ -210,7 +211,10 @@ class AlbumDetailContent extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: const Text(
                 "本地作品",
-                style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold),
               ),
             )
           else
@@ -236,7 +240,8 @@ class AlbumDetailContent extends ConsumerWidget {
                     return ReviewBottomSheet(
                       initialStatus: initialStatus,
                       onSubmit: (newStatus) async {
-                        await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+                        await HandleSubmit.handleRatingSubmit(
+                            context, ref, newStatus);
                         ref.invalidate(workDetailProvider(work.id));
                       },
                     );
@@ -244,10 +249,12 @@ class AlbumDetailContent extends ConsumerWidget {
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.bookmark_add_outlined, color: Colors.grey, size: 20),
+                    const Icon(Icons.bookmark_add_outlined,
+                        color: Colors.grey, size: 20),
                     const SizedBox(width: 4),
                     workStatus!.when(
                       data: (status) {
@@ -294,14 +301,17 @@ class AlbumDetailContent extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(work.title ?? '',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (work.name != null)
                 GestureDetector(
                   onTap: () {
                     // 即使是本地模式，标签跳转功能一般也可以保留（如果分类页支持全局浏览的话）
-                    ref.read(searchFilterProvider(FilterModule.category).notifier).toggleTag(
-                        TagType.circle.stringValue, work.name!);
+                    ref
+                        .read(searchFilterProvider(FilterModule.category)
+                            .notifier)
+                        .toggleTag(TagType.circle.stringValue, work.name!);
                     context.go(AppRoutes.category);
                   },
                   child: Text(work.name!,
@@ -326,31 +336,30 @@ class AlbumDetailContent extends ConsumerWidget {
                 userRating: isLocal ? 0 : (workStatus?.value?.userRating ?? 0),
                 extraWidgets: [
                   RatingMetaItem(
-                      icon: Icons.comment,
-                      text: "(${work.reviewCount ?? 0})"
-                  ),
+                      icon: Icons.comment, text: "(${work.reviewCount ?? 0})"),
                   if ((work.duration ?? 0) > 0)
                     RatingMetaItem(
                         icon: Icons.timer,
-                        text: "(${TimeFormatter.formatSeconds(work.duration!)})"
-                    )
+                        text:
+                            "(${TimeFormatter.formatSeconds(work.duration!)})")
                 ],
                 // 5. 本地模式下禁用评分提交
                 onRatingUpdate: isLocal
                     ? (int _) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('本地模式下无法提交评价')),
-                  );
-                }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('本地模式下无法提交评价')),
+                        );
+                      }
                     : (int newRating) {
-                  final currentStatus = UserWorkStatus(workId: work.id);
-                  final newStatus = currentStatus.copyWith(
-                    rating: newRating,
-                    workId: work.id,
-                  );
-                  HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-                  ref.invalidate(workDetailProvider(work.id));
-                },
+                        final currentStatus = UserWorkStatus(workId: work.id);
+                        final newStatus = currentStatus.copyWith(
+                          rating: newRating,
+                          workId: work.id,
+                        );
+                        HandleSubmit.handleRatingSubmit(
+                            context, ref, newStatus);
+                        ref.invalidate(workDetailProvider(work.id));
+                      },
               ),
               const SizedBox(height: 12),
               if (work.tags != null) TagRow(tags: work.tags!),
@@ -360,17 +369,17 @@ class AlbumDetailContent extends ConsumerWidget {
           // 组合头部区域
           final metadata = isWide
               ? Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(flex: 3, child: cover),
-              const SizedBox(width: 16),
-              Flexible(flex: 6, child: info),
-            ],
-          )
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(flex: 3, child: cover),
+                    const SizedBox(width: 16),
+                    Flexible(flex: 6, child: info),
+                  ],
+                )
               : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [cover, const SizedBox(height: 16), info],
-          );
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [cover, const SizedBox(height: 16), info],
+                );
 
           // 核心滚动视图（包含 metadata 和 树形列表）
           Widget buildScrollBody() {
@@ -379,7 +388,8 @@ class AlbumDetailContent extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     child: metadata,
                   ),
                 ),
@@ -387,42 +397,51 @@ class AlbumDetailContent extends ConsumerWidget {
 
                 // 6. 根据是否是本地模式渲染不同的列表源
                 if (isLocal)
-                // 本地模式：直接从 FileScannerStorage 拿取匹配此 RJ 码的节点
+                  // 本地模式：直接从 FileScannerStorage 拿取匹配此 RJ 码的节点
                   Builder(builder: (context) {
                     // 极其清爽的调用！全量跨路径查找并组装！
-                    final localWorkTree = FileScannerStorage().getWorkFileTreeLocally(work.id);
+                    final localWorkTree =
+                        FileScannerStorage().getWorkFileTreeLocally(work.id);
 
                     if (localWorkTree == null) {
                       return const SliverFillRemaining(
                         hasScrollBody: false,
-                        child: Center(child: Text("本地未找到该作品的文件", style: TextStyle(color: Colors.grey))),
+                        child: Center(
+                            child: Text("本地未找到该作品的文件",
+                                style: TextStyle(color: Colors.grey))),
                       );
                     }
 
-                    if (localWorkTree.children == null || localWorkTree.children!.isEmpty) {
+                    if (localWorkTree.children == null ||
+                        localWorkTree.children!.isEmpty) {
                       return const SliverFillRemaining(
                         hasScrollBody: false,
-                        child: Center(child: Text("该文件夹内部为空", style: TextStyle(color: Colors.grey))),
+                        child: Center(
+                            child: Text("该文件夹内部为空",
+                                style: TextStyle(color: Colors.grey))),
                       );
                     }
 
                     return FileNodeBrowser(
                       work: work,
                       rootNodes: localWorkTree.children!,
+                      isLocal: isLocal,
                     );
                   })
                 else
-                // 网络模式：渲染异步加载的数据
+                  // 网络模式：渲染异步加载的数据
                   asyncData!.when(
                     loading: () => const SliverFillRemaining(
                       hasScrollBody: false,
-                      child: Center(child: LottieLoadingIndicator(message: 'loading...')),
+                      child: Center(
+                          child: LottieLoadingIndicator(message: 'loading...')),
                     ),
                     error: (err, stack) => SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
                         child: err is GlobalException
-                            ? Text("GlobalException: ${err.message}\ncode=${err.code}")
+                            ? Text(
+                                "GlobalException: ${err.message}\ncode=${err.code}")
                             : Text("Error: $err"),
                       ),
                     ),
@@ -430,6 +449,7 @@ class AlbumDetailContent extends ConsumerWidget {
                       return FileNodeBrowser(
                         work: work,
                         rootNodes: nodes,
+                        isLocal: isLocal,
                       );
                     },
                   ),
@@ -441,9 +461,10 @@ class AlbumDetailContent extends ConsumerWidget {
           return isLocal
               ? buildScrollBody()
               : RefreshIndicator(
-            onRefresh: () => ref.refresh(trackFileNodeProvider(work.id).future),
-            child: buildScrollBody(),
-          );
+                  onRefresh: () =>
+                      ref.refresh(trackFileNodeProvider(work.id).future),
+                  child: buildScrollBody(),
+                );
         },
       ),
     );
@@ -460,7 +481,6 @@ class AlbumCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Hero(
       tag: heroTag ?? '',
       child: ClipRRect(
