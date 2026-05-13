@@ -50,6 +50,7 @@ class AppStorage {
     Hive.registerAdapter(AudioServiceRepeatModeAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
+    Hive.registerAdapter(HistoryEntryTypeAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
     Hive.registerAdapter(SearchTagAdapter());
     // 3. 并行打开 Box
