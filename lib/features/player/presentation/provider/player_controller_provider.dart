@@ -10,7 +10,7 @@ import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
-import 'package:kikoenai/features/history/data/repository/history_respository.dart';
+import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
@@ -43,8 +43,6 @@ class PlayerController extends Notifier<AppPlayerState> {
   Player get _player => PlayerService.instance.player;
 
   CacheService get _cacheService => CacheService.instance;
-
-  HistoryRepository get _historyRepository => HistoryRepository.instance;
 
   AppLifecycleListener? _lifecycleListener;
 
@@ -392,7 +390,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (currentItem == null) return;
 
     final historyType = HistoryEntryType.values.firstWhere(
-          (e) => e.name == currentItem.extras?['historyType'],
+      (e) => e.name == currentItem.extras?['historyType'],
       orElse: () => HistoryEntryType.work,
     );
     final currentWork = currentItem.workData;
@@ -409,10 +407,9 @@ class PlayerController extends Notifier<AppPlayerState> {
         historyType: historyType,
       );
 
-      _historyRepository.save(history);
+      ref.read(historyControllerProvider.notifier).upsert(history);
 
-      debugPrint(
-          '历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
+      debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }
@@ -613,7 +610,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     Work work, {
     HistoryEntryType? historyType,
   }) async {
-    final historyList = _historyRepository.getAll();
+    final historyList = ref.read(historyControllerProvider);
     try {
       final history = historyList.firstWhere(
         (h) =>
@@ -626,7 +623,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
     return null;
   }
-
 
   Future<void> restoreHistory(
     List<FileNode> nodes,

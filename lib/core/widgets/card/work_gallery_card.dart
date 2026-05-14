@@ -53,30 +53,19 @@ class WorkGalleryCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor ?? theme.cardColor,
-          borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
+        color: Colors.red,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// 图片区域
-            AspectRatio(
-              aspectRatio: aspectRatio,
-              child: Hero(
-                tag: imageUrl,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: AspectRatio(
+                aspectRatio: aspectRatio,
                 child: SimpleExtendedImage(
                   imageUrl,
                   fit: fit,
-                )
+                ),
               ),
             ),
 
@@ -92,6 +81,7 @@ class WorkGalleryCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1.2,
                     ),
@@ -122,7 +112,7 @@ class WorkGalleryCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )
     );
   }
 }

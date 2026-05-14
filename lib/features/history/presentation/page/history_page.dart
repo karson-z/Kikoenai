@@ -1,74 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/card/work_gallery_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
+import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/history/presentation/widget/history_horizontal_section.dart';
 
-import '../../data/repository/history_respository.dart';
-
-class HistoryPage extends StatefulWidget {
+class HistoryPage extends ConsumerWidget {
   const HistoryPage({super.key});
 
-  @override
-  State<HistoryPage> createState() => _HistoryPageState();
-}
-
-class _HistoryPageState extends State<HistoryPage> {
-  static const int _previewLimit = 20;
-
-  final HistoryRepository _historyRepository = HistoryRepository.instance;
-  List<HistoryEntry> historyList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHistory();
-  }
-
-  void _loadHistory() {
-    final list = _historyRepository.getAll();
-    if (!mounted) return;
-    setState(() {
-      historyList = list;
-    });
-  }
-
-  Future<void> _clearHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('清空历史记录'),
-        content: const Text('确定要清空所有历史记录吗？此操作无法撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    await _historyRepository.clear();
-    if (!mounted) return;
-    setState(() {
-      historyList.clear();
-    });
-  }
-
-  List<HistoryEntry> _entriesOf(HistoryEntryType type) {
-    return historyList.where((entry) => entry.historyType == type).toList();
-  }
-
-  void _showAllEntries(String title, List<HistoryEntry> entries) {
+  void _showAllEntries(
+    BuildContext context,
+    String title,
+    List<HistoryEntry> entries,
+  ) {
     KikoenaiDialog.showBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -124,22 +72,22 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Widget _buildSection(
+    BuildContext context,
     String title,
-    List<HistoryEntry> entries,
+    List<HistoryEntry> previewItems,
+    List<HistoryEntry> fullItems,
   ) {
-    if (entries.isEmpty) {
+    if (fullItems.isEmpty) {
       return const SizedBox.shrink();
     }
-
-    final previewItems = entries.take(_previewLimit).toList();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: HistoryHorizontalSection(
         title: title,
         items: previewItems,
-        onMoreTap: entries.length > _previewLimit
-            ? () => _showAllEntries(title, entries)
+        onMoreTap: fullItems.length > 20
+            ? () => _showAllEntries(context, title, fullItems)
             : null,
         itemBuilder: _buildHistoryCard,
       ),
@@ -153,9 +101,12 @@ class _HistoryPageState extends State<HistoryPage> {
     final subtitle = entry.currentTrackTitle;
 
     return SizedBox(
-      width: 170,
+      width: 175,
       child: WorkGalleryCard(
+        borderRadius: 12,
+        aspectRatio: 4/3,
         imageUrl: cover,
+        padding: const EdgeInsets.symmetric(vertical: 12),
         title: title,
         subtitle: subtitle,
         onTap: work == null
@@ -173,17 +124,49 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  Future<void> _clearHistory(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清空历史记录'),
+        content: const Text('确定要清空所有历史记录吗？此操作无法撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await ref.read(historyControllerProvider.notifier).clear();
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final workEntries = _entriesOf(HistoryEntryType.work);
-    final localWorkEntries = _entriesOf(HistoryEntryType.localWork);
-    final singleWorkEntries = _entriesOf(HistoryEntryType.singleWork);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyList = ref.watch(historyControllerProvider);
+    final workEntries = ref.watch(historyByTypeProvider(HistoryEntryType.work));
+    final localWorkEntries =
+        ref.watch(historyByTypeProvider(HistoryEntryType.localWork));
+    final singleWorkEntries =
+        ref.watch(historyByTypeProvider(HistoryEntryType.singleWork));
+    final workPreview =
+        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.work));
+    final localWorkPreview =
+        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.localWork));
+    final singleWorkPreview =
+        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.singleWork));
 
     return Scaffold(
       floatingActionButton: historyList.isNotEmpty
           ? FloatingActionButton(
               heroTag: 'clear_history',
-              onPressed: _clearHistory,
+              onPressed: () => _clearHistory(context, ref),
               tooltip: '清空历史记录',
               child: const Icon(Icons.delete_forever),
             )
@@ -193,9 +176,11 @@ class _HistoryPageState extends State<HistoryPage> {
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                _buildSection('作品历史', workEntries),
-                _buildSection('本地作品历史', localWorkEntries),
-                _buildSection('单曲历史', singleWorkEntries),
+                _buildSection(context, '作品历史', workPreview, workEntries),
+                _buildSection(
+                    context, '本地作品历史', localWorkPreview, localWorkEntries),
+                _buildSection(
+                    context, '单曲历史', singleWorkPreview, singleWorkEntries),
                 const SizedBox(height: 80),
               ],
             ),
