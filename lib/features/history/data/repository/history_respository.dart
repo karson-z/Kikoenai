@@ -9,6 +9,10 @@ class HistoryRepository {
 
   Box<HistoryEntry> get _box => AppStorage.historyBox;
 
+  Stream<BoxEvent> watch() {
+    return _box.watch();
+  }
+
   /// 获取历史列表 (按时间倒序)
   List<HistoryEntry> getAll() {
     final list = _box.values.toList();
@@ -21,6 +25,7 @@ class HistoryRepository {
   HistoryEntry? getById(String id) {
     return _box.get(id);
   }
+
   /// 添加或更新历史记录
   Future<void> save(HistoryEntry entry) async {
     final key = entry.primaryKey;
