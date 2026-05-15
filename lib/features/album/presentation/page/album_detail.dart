@@ -7,6 +7,7 @@ import 'package:kikoenai/core/widgets/drawer/kikoenai_inner_drawer.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/album/presentation/viewmodel/provider/work_provider.dart';
 import 'package:kikoenai/features/album/presentation/widget/review_bottom_sheet.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import '../../../../core/common/global_exception.dart';
@@ -14,6 +15,7 @@ import '../../../../core/enums/tag_enum.dart';
 import '../../../../core/enums/work_progress.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/utils/data/time_formatter.dart';
+import '../../../../core/widgets/card/work_single_col_card.dart';
 import '../../data/model/user_work_status.dart';
 import '../viewmodel/provider/audio_file_provider.dart';
 import '../widget/file_box.dart';
@@ -47,6 +49,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     var work = widget.extra['work'];
     if (work is Map) {
       work = Work.fromJson(work as Map<String, dynamic>);
@@ -57,100 +60,44 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     return KikoenaiInnerDrawerScope(
         controller: _drawerController,
         child: KikoenaiInnerDrawer(
+            backgroundColor: isDark? Colors.black : Colors.white,
             controller: _drawerController,
             edgeDragWidth: 300,
-            drawer: const AlbumDetailSimilarWorkDrawer(),
+            drawer: AlbumDetailSimilarWorkDrawer(work: work),
             child: AlbumDetailContent(work: work, isLocal: isLocal)));
   }
 }
 
 /// 专辑详情页抽屉内容区--- 相似作品
 class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
-  const AlbumDetailSimilarWorkDrawer({super.key});
+  const AlbumDetailSimilarWorkDrawer({super.key, required this.work});
+  final Work work;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mockList = List.generate(
-      10,
-      (index) => SimilarWorkModel(
-        id: index,
-        title: 'Artwork ${index + 1}',
-        author: 'Author ${index + 1}',
-        cover: 'https://picsum.photos/300/300?random=$index',
-        likes: 100 + index * 12,
-      ),
-    );
+    final workListAsync = ref.watch(similarWorkProvider(work.circle?.name));
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: mockList.length,
-      itemBuilder: (context, index) {
-        final item = mockList[index];
+    return workListAsync.when(
+      data: (workList) {
+        if (workList == null || workList.isEmpty) {
+          return const Center(child: Text('暂无相关作品'));
+        }
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                blurRadius: 8,
-                color: Color(0x14000000),
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  item.cover,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.author,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.favorite,
-                          size: 16,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(width: 4),
-                        Text('${item.likes}'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: workList.length,
+          itemBuilder: (context, index) {
+            final item = workList[index];
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: WorkSingleColCard(work: item),
+            );
+          },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(child: Text('加载失败: $error')),
     );
   }
 }

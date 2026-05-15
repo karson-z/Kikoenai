@@ -4,6 +4,7 @@ import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/model/search_tag.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/state/work_state.dart';
 import 'package:kikoenai/core/enums/sort_options.dart';
 import '../../../../../core/service/cache/cache_service.dart';
@@ -148,4 +149,17 @@ final albumAllEmptyProvider = Provider<bool>((ref) {
   }
 
   return isEmpty(hot) && isEmpty(recommended) && isEmpty(newest);
+});
+
+final similarWorkProvider = FutureProvider.family<List<Work>?,String?>((ref,String? circle) async {
+  if(circle == null) return null;
+  final repo = ref.read(workRepositoryProvider);
+  const order = 'release';
+  final sort = SortDirection.desc.value;
+  final keyWork = SearchTag(TagType.circle.stringValue, circle, true);
+  final query = SearchTag.buildTagQueryPath([keyWork], encode: true);
+  final work = await repo.getWorks(
+      page: 1, keyword: query, order: order, sort: sort);
+  final newWorks = OtherUtil.parseWorks(work['works']);
+  return newWorks;
 });
