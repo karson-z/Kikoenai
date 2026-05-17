@@ -393,9 +393,10 @@ class PlayerController extends Notifier<AppPlayerState> {
       (e) => e.name == currentItem.extras?['historyType'],
       orElse: () => HistoryEntryType.work,
     );
+
     final currentWork = currentItem.workData;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
-    final historyPlaylist = _buildHistoryPlaylist(currentItem, historyType);
+
 
     try {
       final history = HistoryEntry(
@@ -403,7 +404,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         lastPlayTrack: currentItem,
         lastProgressMs: currentProgressMs,
         lastPlayTime: DateTime.now().millisecondsSinceEpoch,
-        playlist: historyPlaylist,
+        playlist: state.playlist,
         historyType: historyType,
       );
 
@@ -415,29 +416,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  List<MediaItem>? _buildHistoryPlaylist(
-    MediaItem currentItem,
-    HistoryEntryType historyType,
-  ) {
-    if (historyType == HistoryEntryType.singleWork) return null;
-
-    final currentWorkId = currentItem.workData?.id;
-    final filtered = currentWorkId == null
-        ? <MediaItem>[]
-        : state.playlist
-            .where((item) => item.workData?.id == currentWorkId)
-            .toList();
-
-    final playlist = filtered.any((item) => item.id == currentItem.id)
-        ? filtered
-        : [currentItem, ...filtered.where((item) => item.id != currentItem.id)];
-
-    final seenIds = <String>{};
-    return [
-      for (final item in playlist)
-        if (seenIds.add(item.id)) item,
-    ];
-  }
 
   Future<void> play() async => _handler.play();
 
@@ -606,30 +584,10 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  Future<HistoryEntry?> checkHistoryForWork(
-    Work work, {
-    HistoryEntryType? historyType,
-  }) async {
-    final historyList = ref.read(historyControllerProvider);
-    try {
-      final history = historyList.firstWhere(
-        (h) =>
-            h.work?.id == work.id &&
-            (historyType == null || h.historyType == historyType),
-      );
-      return history;
-    } catch (e) {
-      debugPrint('checkHistoryForWork: 当前作品暂无历史记录');
-    }
-    return null;
-  }
-
   Future<void> restoreHistory(
-    List<FileNode> nodes,
-    Work? work,
     HistoryEntry history,
   ) async {
-    if (history.historyType == HistoryEntryType.singleWork) {
+    if (history.historyType.name == HistoryEntryType.singleWork.name) {
       await _restoreSingleWorkHistory(history);
       return;
     }
@@ -771,6 +729,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       artUri:
           work?.mainCoverUrl != null ? Uri.parse(work!.mainCoverUrl!) : null,
       extras: {
+        'workId': work?.id,
         'url': url,
         'mainCoverUrl': work?.mainCoverUrl ?? imagePath,
         'samCorverUrl': work?.samCoverUrl ?? imagePath,

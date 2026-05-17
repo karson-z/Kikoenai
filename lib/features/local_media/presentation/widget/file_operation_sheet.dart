@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
@@ -14,6 +15,18 @@ class FolderActionBottomSheet extends ConsumerWidget {
   final FileNode node;
 
   const FolderActionBottomSheet({super.key, required this.node});
+
+  static Future<void> show(BuildContext context, FileNode node) {
+    return KikoenaiDialog.showBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => FolderActionBottomSheet(node: node),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,7 +70,9 @@ class FolderActionBottomSheet extends ConsumerWidget {
                   subtitle: node.mediaStreamUrl,
                   onTap: () {
                     Navigator.pop(context);
-                    Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? ""));
+                    Clipboard.setData(
+                      ClipboardData(text: node.mediaStreamUrl ?? ""),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("已复制路径: ${node.title}")),
                     );
@@ -122,11 +137,11 @@ class FolderActionBottomSheet extends ConsumerWidget {
             borderRadius: BorderRadius.circular(6),
             child: imageUrl != null
                 ? SimpleExtendedImage(
-              imageUrl,
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-            )
+                    imageUrl,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  )
                 : _buildFallbackIcon(context),
           ),
           const SizedBox(width: 12),
@@ -147,10 +162,9 @@ class FolderActionBottomSheet extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontSize: 13),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -170,7 +184,9 @@ class FolderActionBottomSheet extends ConsumerWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Icon(
         FileExtensions.isArchive(node.title) ? Icons.folder_zip : Icons.folder,
-        color: FileExtensions.isArchive(node.title) ? Colors.purpleAccent : Colors.amber,
+        color: FileExtensions.isArchive(node.title)
+            ? Colors.purpleAccent
+            : Colors.amber,
       ),
     );
   }
@@ -184,15 +200,24 @@ class FolderActionBottomSheet extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, size: 24, color: Theme.of(context).colorScheme.onSurfaceVariant),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      leading: Icon(
+        icon,
+        size: 24,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      ),
       subtitle: subtitle != null
           ? Text(
-        subtitle,
-        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      )
+              subtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
           : null,
       onTap: onTap,
     );
