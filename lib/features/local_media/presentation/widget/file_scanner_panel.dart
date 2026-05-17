@@ -28,8 +28,9 @@ class FileBrowserPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
 
-    final List<FileNode> currentNodes =
-        breadcrumbs.isEmpty ? rootNodes : (breadcrumbs.last.children ?? []);
+    final List<FileNode> currentNodes = breadcrumbs.isEmpty
+        ? rootNodes
+        : (breadcrumbs.last.children ?? []);
 
     return PopScope(
       canPop: breadcrumbs.isEmpty,
@@ -43,8 +44,12 @@ class FileBrowserPanel extends ConsumerWidget {
     );
   }
 
-  Widget _buildFileList(BuildContext context, WidgetRef ref,
-      List<FileNode> nodes, ScanMode scanMode) {
+  Widget _buildFileList(
+    BuildContext context,
+    WidgetRef ref,
+    List<FileNode> nodes,
+    ScanMode scanMode,
+  ) {
     if (nodes.isEmpty) {
       return const Center(
         child: Column(
@@ -89,8 +94,9 @@ class FileBrowserPanel extends ConsumerWidget {
       subtitle: Text(
         subtitleText,
         style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 12,
+        ),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -100,20 +106,7 @@ class FileBrowserPanel extends ConsumerWidget {
           const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
         ],
       ),
-      onLongPress: () {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          // 适配深色/浅色模式的圆角底板
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (context) {
-            return FolderActionBottomSheet(node: node);
-          },
-        );
-      },
+      onLongPress: () => FolderActionBottomSheet.show(context, node),
       onTap: () {
         ref
             .read(breadcrumbProvider(BreadCrumbBarType.local).notifier)
@@ -122,8 +115,13 @@ class FileBrowserPanel extends ConsumerWidget {
     );
   }
 
-  Widget _buildFileItem(BuildContext context, WidgetRef ref, FileNode node,
-      List<FileNode> contextNodes, ScanMode scanMode) {
+  Widget _buildFileItem(
+    BuildContext context,
+    WidgetRef ref,
+    FileNode node,
+    List<FileNode> contextNodes,
+    ScanMode scanMode,
+  ) {
     IconData icon;
     Color iconColor;
 
@@ -168,19 +166,23 @@ class FileBrowserPanel extends ConsumerWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      onLongPress: () => RenameFileDialog.show(context, node),
+      onLongPress: () => FolderActionBottomSheet.show(context, node),
       onTap: () {
         if (scanMode == ScanMode.subtitles) {
           Clipboard.setData(
-              ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ""));
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("已复制路径: ${node.title}"),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
-          ));
+            ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ""),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("已复制路径: ${node.title}"),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         } else {
-          final breadcrumbs =
-              ref.read(breadcrumbProvider(BreadCrumbBarType.local));
+          final breadcrumbs = ref.read(
+            breadcrumbProvider(BreadCrumbBarType.local),
+          );
           FileNode? targetRootNode;
           for (final bNode in breadcrumbs) {
             if (bNode.rjCode != null && bNode.rjCode!.isNotEmpty) {
@@ -194,19 +196,23 @@ class FileBrowserPanel extends ConsumerWidget {
             work = ScraperStorage().getWork(rjCode.toUpperCase());
           }
 
-          ref.read(playerControllerProvider.notifier).handleFileTap(
+          ref
+              .read(playerControllerProvider.notifier)
+              .handleFileTap(
                 node,
                 contextNodes,
                 work: work,
-                historyType: work == null
+                historyType: rjCode == null
                     ? HistoryEntryType.singleWork
                     : HistoryEntryType.localWork,
               );
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("开始播放: ${node.title}"),
-            duration: const Duration(milliseconds: 500),
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("开始播放: ${node.title}"),
+              duration: const Duration(milliseconds: 500),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       },
     );

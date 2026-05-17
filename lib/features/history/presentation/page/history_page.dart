@@ -8,6 +8,7 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/history/presentation/widget/history_horizontal_section.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
 class HistoryPage extends ConsumerWidget {
   const HistoryPage({super.key});
@@ -52,11 +53,11 @@ class HistoryPage extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 210,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.66,
-                    ),
+                          maxCrossAxisExtent: 210,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.66,
+                        ),
                     itemCount: entries.length,
                     itemBuilder: (context, index) {
                       return _buildHistoryCard(context, entries[index]);
@@ -99,29 +100,64 @@ class HistoryPage extends ConsumerWidget {
     final cover = work?.mainCoverUrl ?? work?.samCoverUrl ?? placeholderImage;
     final title = work?.title ?? entry.lastPlayTrack.title;
     final subtitle = entry.currentTrackTitle;
+    final progressLabel = _buildProgressLabel(entry);
 
     return SizedBox(
       width: 175,
-      child: WorkGalleryCard(
-        borderRadius: 12,
-        aspectRatio: 4/3,
-        imageUrl: cover,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        title: title,
-        subtitle: subtitle,
-        onTap: work == null
-            ? null
-            : () {
-                context.push(
-                  AppRoutes.detail,
-                  extra: {
-                    'work': work,
-                    'isLocal': entry.historyType == HistoryEntryType.localWork,
+      child: Consumer(
+        builder: (context, ref, _) {
+          return WorkGalleryCard(
+            borderRadius: 12,
+            aspectRatio: 4 / 3,
+            imageUrl: cover,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            title: title,
+            subtitle: subtitle,
+            progressLabel: progressLabel,
+            onPlayTap: () {
+              ref
+                  .read(playerControllerProvider.notifier)
+                  .restoreHistory(entry);
+            },
+            onTap: work == null
+                ? null
+                : () {
+                    context.push(
+                      AppRoutes.detail,
+                      extra: {
+                        'work': work,
+                        'isLocal':
+                            entry.historyType == HistoryEntryType.localWork,
+                      },
+                    );
                   },
-                );
-              },
+          );
+        },
       ),
     );
+  }
+
+  String? _buildProgressLabel(HistoryEntry entry) {
+    final duration = entry.lastPlayTrack.duration;
+    if (duration == null || duration <= Duration.zero) return null;
+
+    final progress = Duration(milliseconds: entry.lastProgressMs ?? 0);
+    final safeProgress = progress > duration ? duration : progress;
+    return '${_formatDuration(safeProgress)} / ${_formatDuration(duration)}';
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    if (hours > 0) {
+      return '$hours:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
+    return '$minutes:${twoDigits(seconds)}';
   }
 
   Future<void> _clearHistory(BuildContext context, WidgetRef ref) async {
@@ -151,16 +187,21 @@ class HistoryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historyList = ref.watch(historyControllerProvider);
     final workEntries = ref.watch(historyByTypeProvider(HistoryEntryType.work));
-    final localWorkEntries =
-        ref.watch(historyByTypeProvider(HistoryEntryType.localWork));
-    final singleWorkEntries =
-        ref.watch(historyByTypeProvider(HistoryEntryType.singleWork));
-    final workPreview =
-        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.work));
-    final localWorkPreview =
-        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.localWork));
-    final singleWorkPreview =
-        ref.watch(historyPreviewByTypeProvider(HistoryEntryType.singleWork));
+    final localWorkEntries = ref.watch(
+      historyByTypeProvider(HistoryEntryType.localWork),
+    );
+    final singleWorkEntries = ref.watch(
+      historyByTypeProvider(HistoryEntryType.singleWork),
+    );
+    final workPreview = ref.watch(
+      historyPreviewByTypeProvider(HistoryEntryType.work),
+    );
+    final localWorkPreview = ref.watch(
+      historyPreviewByTypeProvider(HistoryEntryType.localWork),
+    );
+    final singleWorkPreview = ref.watch(
+      historyPreviewByTypeProvider(HistoryEntryType.singleWork),
+    );
 
     return Scaffold(
       floatingActionButton: historyList.isNotEmpty
@@ -178,9 +219,17 @@ class HistoryPage extends ConsumerWidget {
               children: [
                 _buildSection(context, '作品历史', workPreview, workEntries),
                 _buildSection(
-                    context, '本地作品历史', localWorkPreview, localWorkEntries),
+                  context,
+                  '本地作品历史',
+                  localWorkPreview,
+                  localWorkEntries,
+                ),
                 _buildSection(
-                    context, '单曲历史', singleWorkPreview, singleWorkEntries),
+                  context,
+                  '单曲历史',
+                  singleWorkPreview,
+                  singleWorkEntries,
+                ),
                 const SizedBox(height: 80),
               ],
             ),

@@ -328,12 +328,7 @@ class FileScanWorker {
 
       int lastMod = 0;
       try { lastMod = file.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
-
-      String? rjCode;
-      // 在字幕模式下，从当前文件的全路径中尝试提取 RJ 号
-      if (config.scanMode == ScanMode.subtitles) {
-        rjCode = _extractRjCodeFromPath(normalizedPath);
-      }
+      String? rjCode = _extractRjCodeFromPath(normalizedPath);
 
       return FileNode(
         mediaStreamUrl: normalizedPath,
@@ -341,7 +336,6 @@ class FileScanWorker {
         type: _mapModeToType(config.scanMode),
         title: normalizedPath.split('/').last,
         lastModified: lastMod,
-        // 【核心修改】：强制普通状态，并注入可能存在的 RJ 号
         nodeStatus: NodeStatus.normal,
         rjCode: rjCode,
       );

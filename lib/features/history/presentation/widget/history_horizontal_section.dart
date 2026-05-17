@@ -63,18 +63,20 @@ class HistoryHorizontalSection extends StatelessWidget {
         const SizedBox(height: 14),
 
         /// Horizontal List
-        SizedBox(
-          height: 260,
-          child: ListView.separated(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (context, index) {
-              final entry = items[index];
-              return itemBuilder(context, entry);
-            },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < items.length; index++) ...[
+                  if (index > 0) const SizedBox(width: 14),
+                  itemBuilder(context, items[index]),
+                ],
+              ],
+            ),
           ),
         ),
       ],
