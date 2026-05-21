@@ -30,14 +30,15 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       nodeStatus: fields[10] == null
           ? NodeStatus.normal
           : fields[10] as NodeStatus,
-      rjCode: fields[11] as String?,
+      workId: (fields[11] as num?)?.toInt(),
+      source: fields[12] as NodeSource,
     );
   }
 
   @override
   void write(BinaryWriter writer, FileNode obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.type)
       ..writeByte(1)
@@ -61,7 +62,9 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       ..writeByte(10)
       ..write(obj.nodeStatus)
       ..writeByte(11)
-      ..write(obj.rjCode);
+      ..write(obj.workId)
+      ..writeByte(12)
+      ..write(obj.source);
   }
 
   @override
@@ -71,6 +74,51 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FileNodeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class NodeSourceAdapter extends TypeAdapter<NodeSource> {
+  @override
+  final typeId = 15;
+
+  @override
+  NodeSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return NodeSource.asmrServer;
+      case 1:
+        return NodeSource.localWork;
+      case 2:
+        return NodeSource.localSingle;
+      case 3:
+        return NodeSource.cloudDrive;
+      default:
+        return NodeSource.asmrServer;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, NodeSource obj) {
+    switch (obj) {
+      case NodeSource.asmrServer:
+        writer.writeByte(0);
+      case NodeSource.localWork:
+        writer.writeByte(1);
+      case NodeSource.localSingle:
+        writer.writeByte(2);
+      case NodeSource.cloudDrive:
+        writer.writeByte(3);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeSourceAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -181,7 +229,7 @@ class NodeStatusAdapter extends TypeAdapter<NodeStatus> {
 // JsonSerializableGenerator
 // **************************************************************************
 
-FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
+_FileNode _$FileNodeFromJson(Map<String, dynamic> json) => _FileNode(
   type: $enumDecode(_$NodeTypeEnumMap, json['type']),
   title: json['title'] as String,
   children: (json['children'] as List<dynamic>?)
@@ -198,10 +246,11 @@ FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
   nodeStatus:
       $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
       NodeStatus.normal,
-  rjCode: json['rjCode'] as String?,
+  workId: (json['workId'] as num?)?.toInt(),
+  source: $enumDecode(_$NodeSourceEnumMap, json['source']),
 );
 
-Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
+Map<String, dynamic> _$FileNodeToJson(_FileNode instance) => <String, dynamic>{
   'type': _$NodeTypeEnumMap[instance.type]!,
   'title': instance.title,
   'children': instance.children,
@@ -214,7 +263,8 @@ Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
   'artist': instance.artist,
   'lastModified': instance.lastModified,
   'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
-  'rjCode': instance.rjCode,
+  'workId': instance.workId,
+  'source': _$NodeSourceEnumMap[instance.source]!,
 };
 
 const _$NodeTypeEnumMap = {
@@ -232,4 +282,11 @@ const _$NodeStatusEnumMap = {
   NodeStatus.pending: 'pending',
   NodeStatus.parsing: 'parsing',
   NodeStatus.parsed: 'parsed',
+};
+
+const _$NodeSourceEnumMap = {
+  NodeSource.asmrServer: 'asmrServer',
+  NodeSource.localWork: 'localWork',
+  NodeSource.localSingle: 'localSingle',
+  NodeSource.cloudDrive: 'cloudDrive',
 };

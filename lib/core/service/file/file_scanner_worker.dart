@@ -1,353 +1,125 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'archive_service.dart';
-import 'file_scanner_service.dart';
-
-enum WorkerState {
-  idle,
-  scanning,
-  done,
-  error,
-}
-
-/// 传递给 Isolate 的配置参数 (DTO)
-class _WorkerConfig {
-  final String rootPath;
-  final Set<String> extensions;
-  final bool scanArchives;
-  final ScanMode scanMode;
-  final SendPort sendPort;
-  final Set<String> parsedRjCodes;
-
-  _WorkerConfig({
-    required this.rootPath,
-    required this.extensions,
-    required this.scanArchives,
-    required this.scanMode,
-    required this.sendPort,
-    required this.parsedRjCodes,
-  });
-}
-
-class FileScanBatch {
-  final List<FileNode> nodes;
-  final int scannedCount;
-
-  const FileScanBatch({
-    required this.nodes,
-    required this.scannedCount,
-  });
-}
 
 class FileScanWorker {
-  Isolate? _isolate;
-  ReceivePort? _receivePort;
-  StreamController<FileScanBatch>? _resultController;
+  static final RegExp _rjRegex = RegExp(r'RJ(\d{7,9})', caseSensitive: false);
 
-  final _stateController = StreamController<WorkerState>.broadcast();
-  WorkerState _currentState = WorkerState.idle;
-
-  WorkerState get currentState => _currentState;
-  Stream<WorkerState> get stateStream => _stateController.stream;
-
-  /// 开始扫描
-  Stream<FileScanBatch> start({
+  /// 启动扁平化扫描，任务完全结束后直接返回文件节点列表
+  Future<List<FileNode>> start({
     required String path,
     required Set<String> extensions,
-    required ScanMode scanMode,
+    required Set<int> parsedWorkIds,
     bool scanArchives = false,
-    required Set<String> parsedRjCodes,
   }) {
-    _releaseResources();
-    _updateState(WorkerState.scanning);
+    final normalizedRoot = path.replaceAll('\\', '/');
 
-    _resultController = StreamController<FileScanBatch>();
-    _receivePort = ReceivePort();
+    return Isolate.run(() async {
+      final List<FileNode> results = [];
+      final dir = Directory(normalizedRoot);
+      if (!await dir.exists()) return results;
 
-    final config = _WorkerConfig(
-      rootPath: path,
-      extensions: extensions,
-      scanArchives: scanArchives,
-      scanMode: scanMode,
-      sendPort: _receivePort!.sendPort,
-      parsedRjCodes: parsedRjCodes,
-    );
-
-    _spawnIsolate(config);
-    return _resultController!.stream;
-  }
-
-  void dispose() {
-    _releaseResources();
-    _updateState(WorkerState.idle);
-  }
-
-  void _releaseResources() {
-    _receivePort?.close();
-    _isolate?.kill(priority: Isolate.immediate);
-    _resultController?.close();
-    _isolate = null;
-    _receivePort = null;
-    _resultController = null;
-  }
-
-  void _updateState(WorkerState newState) {
-    if (_currentState != newState) {
-      _currentState = newState;
-      if (!_stateController.isClosed) {
-        _stateController.add(newState);
-      }
-    }
-  }
-
-  Future<void> _spawnIsolate(_WorkerConfig config) async {
-    try {
-      _isolate = await Isolate.spawn(_entryPoint, config);
-
-      _receivePort!.listen((message) {
-        if (message is FileScanBatch) {
-          _resultController?.add(message);
-        } else if (message == 'DONE') {
-          _resultController?.close();
-          _releaseResources();
-          _updateState(WorkerState.done);
-        } else if (message is String && message.startsWith('ERROR:')) {
-          _resultController?.addError(Exception(message));
-          _resultController?.close();
-          _releaseResources();
-          _updateState(WorkerState.error);
-        }
-      });
-    } catch (e) {
-      _resultController?.addError(e);
-      _releaseResources();
-      _updateState(WorkerState.error);
-    }
-  }
-
-  // ==================== Isolate 内部逻辑 ====================
-
-  // 预编译正则：匹配 RJ 或 RJ0 开头，后接 6-8 位数字
-  static final RegExp _rjRegex = RegExp(r'RJ0?\d{6,8}', caseSensitive: false);
-
-  /// 【核心新增】：辅助方法，从路径中逆向提取 RJ 号
-  /// 逆向提取的好处是：如果文件叫 sub.srt，它会去找父文件夹名；如果文件本身叫 RJ123456.srt，就直接提取
-  static String? _extractRjCodeFromPath(String path) {
-    final segments = path.split('/');
-    // 倒序遍历，优先获取最贴近文件的 RJ 号
-    for (int i = segments.length - 1; i >= 0; i--) {
-      final match = _rjRegex.firstMatch(segments[i]);
-      if (match != null) {
-        return match.group(0)!.toUpperCase();
-      }
-    }
-    return null;
-  }
-
-  static void _entryPoint(_WorkerConfig config) async {
-    final buffer = <FileNode>[];
-    var scannedCount = 0;
-
-    final pendingDirectories = <String, FileNode>{};
-    final emittedDirectories = <String>{};
-    final rootPathNorm = config.rootPath.replaceAll('\\', '/');
-
-    int lastSendTime = DateTime.now().millisecondsSinceEpoch;
-    const int batchSize = 100;
-    const int flushInterval = 200;
-
-    void flush() {
-      if (buffer.isNotEmpty) {
-        config.sendPort.send(FileScanBatch(
-          nodes: List<FileNode>.from(buffer),
-          scannedCount: scannedCount,
-        ));
-        buffer.clear();
-        lastSendTime = DateTime.now().millisecondsSinceEpoch;
-      }
-    }
-
-    String getDirname(String path) {
-      final lastSlash = path.lastIndexOf('/');
-      return lastSlash > 0 ? path.substring(0, lastSlash) : path;
-    }
-
-    void flushAncestors(String filePath) {
-      String current = getDirname(filePath);
-      while (true) {
-        if (emittedDirectories.contains(current)) break;
-
-        if (pendingDirectories.containsKey(current)) {
-          buffer.add(pendingDirectories.remove(current)!);
-          emittedDirectories.add(current);
-        }
-
-        if (current == rootPathNorm || current == getDirname(current)) break;
-        current = getDirname(current);
-      }
-    }
-
-    final dir = Directory(config.rootPath);
-    if (!await dir.exists()) {
-      config.sendPort.send('DONE');
-      return;
-    }
-
-    try {
       await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          final filePath = entity.path;
+          final lastDotIndex = filePath.lastIndexOf('.');
+          if (lastDotIndex == -1 || lastDotIndex == filePath.length - 1) continue;
+          final ext = filePath.substring(lastDotIndex).toLowerCase();
 
-        if (entity is Directory) {
-          final node = _processDirectory(entity, config);
-          if (node != null) {
-            pendingDirectories[node.mediaStreamUrl!] = node;
-          }
-        }
-        else if (entity is File) {
-          final node = _processFile(entity, config);
-          if (node != null) {
-            buffer.add(node);
-            scannedCount++;
-            flushAncestors(node.mediaStreamUrl!);
-          }
-          else if (config.scanArchives && ArchiveService.isArchive(entity.path)) {
+          if (extensions.contains(ext)) {
+            final normalizedPath = filePath.replaceAll('\\', '/');
+            int lastMod = 0;
+            try {
+              lastMod = entity.statSync().modified.millisecondsSinceEpoch;
+            } catch (_) {}
+
+            final (source, workId) = _resolveSourceAndWorkId(normalizedPath);
+
+            // 根据是否有 RJ 号以及是否在已解析集合中确立节点状态
+            NodeStatus nodeStatus = NodeStatus.normal;
+            if (source == NodeSource.localWork && workId != null) {
+              nodeStatus = parsedWorkIds.contains(workId)
+                  ? NodeStatus.parsed
+                  : NodeStatus.pending;
+            }
+
+            results.add(FileNode(
+              mediaStreamUrl: normalizedPath,
+              mediaDownloadUrl: normalizedPath,
+              type: _determineNodeType(ext),
+              title: normalizedPath.split('/').last,
+              lastModified: lastMod,
+              nodeStatus: nodeStatus,
+              workId: workId,
+              source: source,
+            ));
+          } else if (scanArchives && ArchiveService.isArchive(filePath)) {
             try {
               int archiveLastMod = 0;
-              try { archiveLastMod = entity.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
+              try {
+                archiveLastMod = entity.statSync().modified.millisecondsSinceEpoch;
+              } catch (_) {}
 
-              final entries = ArchiveService.scanZip(entity, allowedExts: config.extensions);
-              bool hasValidArchiveEntry = false;
+              final entries = await ArchiveService.scanZip(entity, allowedExts: extensions);
 
-              for (var entry in await entries) {
-                // 【核心修改】：把压缩包本身的路径 entity.path 也传进去，用于匹配 RJ 号
-                final zipNode = _processArchiveEntry(entity.path, entry.virtualPath, archiveLastMod, config);
-                if(zipNode != null) {
-                  buffer.add(zipNode);
-                  scannedCount++;
-                  hasValidArchiveEntry = true;
+              for (var entry in entries) {
+                final virtualPath = entry.virtualPath;
+                final zipLastDotIndex = virtualPath.lastIndexOf('.');
+                if (zipLastDotIndex == -1 || zipLastDotIndex == virtualPath.length - 1) continue;
+                final zipExt = virtualPath.substring(zipLastDotIndex).toLowerCase();
+
+                if (extensions.contains(zipExt)) {
+                  final normalizedVirtualPath = virtualPath.replaceAll('\\', '/');
+                  final normalizedArchivePath = filePath.replaceAll('\\', '/');
+                  final combinedPath = '$normalizedArchivePath/$normalizedVirtualPath';
+                  final (source, workId) = _resolveSourceAndWorkId(combinedPath);
+
+                  // 压缩包内虚拟节点同样执行对齐的状态判定
+                  NodeStatus nodeStatus = NodeStatus.normal;
+                  if (source == NodeSource.localWork && workId != null) {
+                    nodeStatus = parsedWorkIds.contains(workId)
+                        ? NodeStatus.parsed
+                        : NodeStatus.pending;
+                  }
+
+                  results.add(FileNode(
+                    mediaStreamUrl: normalizedVirtualPath,
+                    mediaDownloadUrl: normalizedVirtualPath,
+                    type: _determineNodeType(zipExt),
+                    title: normalizedVirtualPath.split('/').last,
+                    lastModified: archiveLastMod,
+                    nodeStatus: nodeStatus,
+                    workId: workId,
+                    source: source,
+                  ));
                 }
               }
-
-              if (hasValidArchiveEntry) {
-                flushAncestors(entity.path.replaceAll('\\', '/'));
-              }
-            } catch (e) {
-              // 忽略错误
-            }
+            } catch (_) {}
           }
         }
-
-        final now = DateTime.now().millisecondsSinceEpoch;
-        if (buffer.length >= batchSize || (now - lastSendTime > flushInterval)) {
-          flush();
-        }
       }
-
-      flush();
-      config.sendPort.send('DONE');
-
-    } catch (e) {
-      config.sendPort.send("ERROR: $e");
-    } finally {
-      Isolate.exit();
-    }
+      return results;
+    });
   }
 
-  /// 【核心修改】：接收压缩包本体路径 `archivePath`，从而能从压缩包的名字中提取 RJ 号
-  static FileNode? _processArchiveEntry(String archivePath, String virtualPath, int lastMod, _WorkerConfig config) {
-    final lastDotIndex = virtualPath.lastIndexOf('.');
-    if (lastDotIndex == -1 || lastDotIndex == virtualPath.length - 1) return null;
-    final ext = virtualPath.substring(lastDotIndex).toLowerCase();
-
-    if (config.extensions.contains(ext)) {
-      final normalizedVirtualPath = virtualPath.replaceAll('\\', '/');
-      final normalizedArchivePath = archivePath.replaceAll('\\', '/');
-
-      String? rjCode;
-      // 在字幕模式下，拼接压缩包路径和虚拟路径，从中提取 RJ 号
-      if (config.scanMode == ScanMode.subtitles) {
-        rjCode = _extractRjCodeFromPath('$normalizedArchivePath/$normalizedVirtualPath');
-      }
-
-      return FileNode(
-        mediaStreamUrl: normalizedVirtualPath,
-        mediaDownloadUrl: normalizedVirtualPath,
-        type: _mapModeToType(config.scanMode),
-        title: normalizedVirtualPath.split('/').last,
-        lastModified: lastMod,
-        nodeStatus: NodeStatus.normal,
-        rjCode: rjCode,
-      );
-    }
-    return null;
-  }
-
-  static FileNode? _processDirectory(Directory dir, _WorkerConfig config) {
-    final normalizedPath = dir.path.replaceAll('\\', '/');
-    final segments = normalizedPath.split('/');
-    final currentDirName = segments.last;
-
-    NodeStatus status = NodeStatus.normal;
-    String? rjCode;
-
-    for (final segment in segments) {
-      final match = _rjRegex.firstMatch(segment);
-      if (match != null) {
-        if (segment == currentDirName) {
-          rjCode = match.group(0)!.toUpperCase();
-          status = config.parsedRjCodes.contains(rjCode)
-              ? NodeStatus.parsed
-              : NodeStatus.pending;
-        }
-        break;
+  static (NodeSource, int?) _resolveSourceAndWorkId(String path) {
+    final match = _rjRegex.firstMatch(path);
+    if (match != null) {
+      final idStr = match.group(1);
+      if (idStr != null) {
+        return (NodeSource.localWork, int.tryParse(idStr));
       }
     }
-
-    int lastMod = 0;
-    try { lastMod = dir.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
-
-    return FileNode(
-      mediaStreamUrl: normalizedPath,
-      type: NodeType.folder,
-      title: currentDirName,
-      nodeStatus: status,
-      rjCode: rjCode,
-      lastModified: lastMod,
-    );
+    return (NodeSource.localSingle, null);
   }
 
-  static FileNode? _processFile(File file, _WorkerConfig config) {
-    final filePath = file.path;
-    final lastDotIndex = filePath.lastIndexOf('.');
-    if (lastDotIndex == -1 || lastDotIndex == filePath.length - 1) return null;
-    final ext = filePath.substring(lastDotIndex).toLowerCase();
-
-    if (config.extensions.contains(ext)) {
-      final normalizedPath = filePath.replaceAll('\\', '/');
-
-      int lastMod = 0;
-      try { lastMod = file.statSync().modified.millisecondsSinceEpoch; } catch(_) {}
-      String? rjCode = _extractRjCodeFromPath(normalizedPath);
-
-      return FileNode(
-        mediaStreamUrl: normalizedPath,
-        mediaDownloadUrl: normalizedPath,
-        type: _mapModeToType(config.scanMode),
-        title: normalizedPath.split('/').last,
-        lastModified: lastMod,
-        nodeStatus: NodeStatus.normal,
-        rjCode: rjCode,
-      );
-    }
-    return null;
-  }
-
-  static NodeType _mapModeToType(ScanMode mode) {
-    switch (mode) {
-      case ScanMode.video: return NodeType.video;
-      case ScanMode.audio: return NodeType.audio;
-      case ScanMode.subtitles: return NodeType.text;
-    }
+  static NodeType _determineNodeType(String ext) {
+    if (FileExtensions.audio.contains(ext)) return NodeType.audio;
+    if (FileExtensions.video.contains(ext)) return NodeType.video;
+    if (FileExtensions.subtitles.contains(ext)) return NodeType.text;
+    return NodeType.unknown;
   }
 }

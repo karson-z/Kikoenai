@@ -155,16 +155,14 @@ class SearchLyricsService {
   }
 
   static List<FileNode> findSubtitleInLocalById(int workId) {
-    final targetRj = "RJ$workId".toUpperCase();
-    final targetRj0 = "RJ0$workId".toUpperCase();
 
     // 1. 获取所有的字幕节点
     final nodeList = FileScannerStorage().getAllByMode(ScanMode.subtitles);
 
     // 2. 寻找匹配该 RJ 码的根文件夹节点
     final rootFolders = nodeList.where((node) {
-      final nodeRj = node.rjCode?.toUpperCase() ?? '';
-      return node.isFolder && (nodeRj == targetRj || nodeRj == targetRj0);
+      final nodeRj = node.workId;
+      return node.isFolder && (nodeRj == workId);
     }).toList();
 
     // 如果没有找到该作品的根目录，返回空列表

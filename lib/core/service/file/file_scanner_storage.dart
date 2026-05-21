@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart'; // 确保在 pubspec.yaml 中添加了 crypto 依赖
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/model/file_node.dart';
@@ -7,41 +7,27 @@ import 'package:path/path.dart' as p;
 import '../../storage/hive_storage.dart';
 import 'file_scanner_service.dart';
 
-/// 文件扫描存储类
-///
-/// 负责与 Hive 数据库交互，持久化保存 [FileNode] 数据。
-/// 修改点：使用路径的 MD5 作为存储 Key，并将 MD5 存入 node.hash 字段。
-/// 不再使用原始路径作为HIve 中的Key ， 会导致莫名奇妙的TypeId unknown ，排查原因为Key字符串过长导致
-/// 后续考虑降数据库迁移至Isar 对象数据库 迁移困难且使用体验感觉不如 Hive 不再进行尝试
 class FileScannerStorage {
   FileScannerStorage._();
   static final FileScannerStorage _instance = FileScannerStorage._();
   factory FileScannerStorage() => _instance;
 
-  /// 获取 Hive Box 引用
   Box<FileNode> get _box => AppStorage.scannerBox;
 
-
-  /// 新增：计算标准化路径的 MD5 字符串
   String _computeMd5(String path) {
-    // 统一转为 posix 风格并转小写，确保 MD5 的确定性
     final normalized = path.replaceAll('\\', '/').toLowerCase();
     return md5.convert(utf8.encode(normalized)).toString();
   }
 
-  /// 修改：生成带有模式隔离的 MD5 Key
   String _generateIsolatedKey(ScanMode mode, String originalPath) {
     final pathMd5 = _computeMd5(originalPath);
     return '${mode.name}_$pathMd5';
   }
 
-  /// 检查 Hive 中的 Key 是否属于指定的扫描模式
   bool _isModeKey(ScanMode mode, dynamic key) {
     return key is String && key.startsWith('${mode.name}_');
   }
 
-
-  /// 根据根路径获取指定模式下缓存的所有文件节点
   List<FileNode> getNodesByRootPath(ScanMode mode, String rootPath) {
     if (_box.isEmpty) return [];
 
@@ -58,12 +44,10 @@ class FileScannerStorage {
     }).toList();
   }
 
-  /// 根据 Key 获取指定模式下的单个节点（内部自动转为 MD5）
   FileNode? getNode(ScanMode mode, String path) {
     return _box.get(_generateIsolatedKey(mode, path));
   }
 
-  /// 获取指定模式下所有缓存的文件节点
   List<FileNode> getAllByMode(ScanMode mode) {
     return _box.toMap().entries
         .where((e) => _isModeKey(mode, e.key))
@@ -71,7 +55,6 @@ class FileScannerStorage {
         .toList();
   }
 
-  /// 批量保存或更新：计算 MD5 Key 并同步更新 node.hash
   Future<void> saveNodes(ScanMode mode, List<FileNode> nodes) async {
     if (nodes.isEmpty) return;
 
@@ -79,16 +62,14 @@ class FileScannerStorage {
     for (var node in nodes) {
       if (node.keyId.isNotEmpty) {
         final pathMd5 = _computeMd5(node.keyId);
-        // 关键：将 MD5 存入 hash 字段，确保数据自描述
         final nodeWithHash = node.copyWith(hash: pathMd5);
         map['${mode.name}_$pathMd5'] = nodeWithHash;
       }
     }
     await _box.putAll(map);
-    debugPrint('[FileScannerStorage] (${mode.name}) 成功保存/更新了 ${nodes.length} 个 MD5 节点。');
+    debugPrint('[FileScannerStorage] (${mode.name}) 成功保存了 ${nodes.length} 个扁平节点。');
   }
 
-  /// 保存指定模式的单个节点
   Future<void> saveNode(ScanMode mode, FileNode node) async {
     if (node.keyId.isNotEmpty) {
       final pathMd5 = _computeMd5(node.keyId);
@@ -97,15 +78,13 @@ class FileScannerStorage {
     }
   }
 
-  /// 批量删除指定模式的节点（内部自动转为 MD5）
   Future<void> deleteNodes(ScanMode mode, List<String> paths) async {
     if (paths.isEmpty) return;
     final keysToDelete = paths.map((p) => _generateIsolatedKey(mode, p)).toList();
     await _box.deleteAll(keysToDelete);
-    debugPrint('[FileScannerStorage] (${mode.name}) 成功删除了 ${keysToDelete.length} 个失效 MD5 节点。');
+    debugPrint('[FileScannerStorage] (${mode.name}) 成功删除了 ${keysToDelete.length} 个失效缓存节点。');
   }
 
-  /// 清空指定根路径下的所有相关模式的节点
   Future<void> clearByRootPath(ScanMode mode, String rootPath) async {
     final posix = p.Context(style: p.Style.posix);
     final normalizedRoot = posix.normalize(rootPath.replaceAll('\\', '/'));
@@ -122,96 +101,77 @@ class FileScannerStorage {
 
     if (keysToDelete.isNotEmpty) {
       await _box.deleteAll(keysToDelete);
-      debugPrint('[FileScannerStorage] (${mode.name}) 成功清理了 ${keysToDelete.length} 个属于 $normalizedRoot 的 MD5 缓存。');
+      debugPrint('[FileScannerStorage] (${mode.name}) 成功清理了 ${keysToDelete.length} 个属于 $normalizedRoot 的缓存。');
     }
   }
 
-  /// 清空指定扫描模式下的所有数据
   Future<void> clearByMode(ScanMode mode) async {
     final keysToDelete = _box.keys.where((k) => _isModeKey(mode, k)).toList();
     await _box.deleteAll(keysToDelete);
-    debugPrint('[FileScannerStorage] (${mode.name}) 已清空该模式下的全部 MD5 缓存数据。');
+    debugPrint('[FileScannerStorage] (${mode.name}) 已清空该模式下的全部缓存数据。');
   }
 
-  /// 获取数据库中所有扫描模式下的全部缓存文件节点
   List<FileNode> getAllAcrossModes() {
     return _box.values.toList();
   }
 
-  /// 清空整个扫描器数据库
   Future<void> clearAbsolutelyAll() async {
     await _box.clear();
-    debugPrint('[FileScannerStorage] 已彻底清空所有模式的 MD5 缓存数据。');
+    debugPrint('[FileScannerStorage] 已彻底清空所有模式的缓存数据。');
   }
 
-  /// 全局方法：根据作品 ID 获取作品树（逻辑不变，因为依赖的是节点内的 rjCode 和路径）
   FileNode? getWorkFileTreeLocally(int workId) {
-    final targetRj = "RJ$workId".toUpperCase();
-    final targetRj0 = "RJ0$workId".toUpperCase();
-
     final allNodes = getAllAcrossModes();
-
-    final rootFolders = allNodes.where((node) {
-      final nodeRj = node.rjCode?.toUpperCase() ?? '';
-      return node.isFolder && (nodeRj == targetRj || nodeRj == targetRj0);
-    }).toList();
-
-    if (rootFolders.isEmpty) return null;
-
-    final rootFolder = rootFolders.first;
-    final rawRootPath = rootFolder.mediaStreamUrl;
-    if (rawRootPath == null) return null;
+    final workFiles = allNodes.where((node) => node.workId == workId).toList();
+    if (workFiles.isEmpty) return null;
 
     final posix = p.Context(style: p.Style.posix);
-    final rootPath = posix.normalize(rawRootPath.replaceAll('\\', '/'));
+    String? commonRoot;
 
-    final Map<String, FileNode> uniqueDescendants = {};
-    for (var node in allNodes) {
+    for (var node in workFiles) {
       if (node.mediaStreamUrl == null) continue;
-      final path = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
-      if (posix.isWithin(rootPath, path)) {
-        uniqueDescendants[path] = node;
+      final dir = posix.dirname(posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/')));
+      if (commonRoot == null) {
+        commonRoot = dir;
+      } else {
+        while (!dir.toLowerCase().startsWith(commonRoot!.toLowerCase()) && commonRoot != '/') {
+          commonRoot = posix.dirname(commonRoot);
+        }
       }
     }
 
-    final descendantNodes = uniqueDescendants.values.toList();
+    if (commonRoot == null) return null;
 
-    Map<String, List<FileNode>> childrenMap = {};
-    for (final node in descendantNodes) {
-      final path = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
-      final parentPath = posix.dirname(path);
-      childrenMap.putIfAbsent(parentPath, () => []).add(node);
-    }
+    final treeRoots = _buildTreeInternal(workFiles, commonRoot);
 
-    FileNode assembleTree(FileNode node) {
-      if (!node.isFolder) return node;
-
-      final path = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
-      final children = childrenMap[path] ?? [];
-      final assembledChildren = children.map((c) => assembleTree(c)).toList();
-
-      assembledChildren.sort((a, b) {
-        if (a.isFolder && !b.isFolder) return -1;
-        if (!a.isFolder && b.isFolder) return 1;
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      });
-
-      return node.copyWith(children: assembledChildren);
-    }
-
-    final rootDirectChildren = childrenMap[rootPath] ?? [];
-    final finalTreeNodes = rootDirectChildren.map((c) => assembleTree(c)).toList();
-
-    finalTreeNodes.sort((a, b) {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-    });
-
-    return rootFolder.copyWith(children: finalTreeNodes);
+    return FileNode(
+      type: NodeType.folder,
+      title: posix.basename(commonRoot),
+      mediaStreamUrl: commonRoot,
+      source: NodeSource.localWork,
+      workId: workId,
+      children: treeRoots,
+    );
   }
 
-  /// 全局方法：同步更新特定节点状态
+  FileNode? getFolderFiles(ScanMode mode, String folderPath) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedFolder = posix.normalize(folderPath.replaceAll('\\', '/'));
+
+    final cachedNodes = getNodesByRootPath(mode, normalizedFolder);
+    if (cachedNodes.isEmpty) return null;
+
+    final treeRoots = _buildTreeInternal(cachedNodes, normalizedFolder);
+
+    return FileNode(
+      type: NodeType.folder,
+      title: posix.basename(normalizedFolder),
+      mediaStreamUrl: normalizedFolder,
+      source: NodeSource.localWork,
+      children: treeRoots,
+    );
+  }
+
   Future<void> updateNodeStatusByKeyGlobally(String path, NodeStatus newStatus) async {
     final updates = <String, FileNode>{};
 
@@ -226,12 +186,79 @@ class FileScannerStorage {
 
     if (updates.isNotEmpty) {
       await _box.putAll(updates);
-      debugPrint('[FileScannerStorage] (全局) 已同步更新路径 MD5 节点的状态为 ${newStatus.name}');
+      debugPrint('[FileScannerStorage] (全局) 已同步更新路径节点的状态为 ${newStatus.name}');
     }
   }
-  /// 提供根据文件夹路径拿到该文件夹下的所有文件
-  /// [FileNode？] 文件夹下可能没有文件，状态已组装的文件🌲
-  FileNode? getFolderFiles(String folderPath){
 
+  /// 纯函数路径逆推树算法（解决不可变对象无 Setter 的编译限制）
+  List<FileNode> _buildTreeInternal(List<FileNode> flatNodes, String rootPath) {
+    final posix = p.Context(style: p.Style.posix);
+    final String normalizedRoot = posix.normalize(rootPath.replaceAll('\\', '/'));
+    final String lowerRoot = normalizedRoot.toLowerCase();
+
+    final Map<String, List<FileNode>> fileMap = {};
+    final Map<String, String> dirLowerToOriginal = {};
+    dirLowerToOriginal[lowerRoot] = normalizedRoot;
+
+    for (final node in flatNodes) {
+      final url = node.mediaStreamUrl;
+      if (url == null || url.isEmpty) continue;
+
+      final normalizedUrl = posix.normalize(url.replaceAll('\\', '/'));
+      final dirPath = posix.dirname(normalizedUrl);
+
+      fileMap.putIfAbsent(dirPath.toLowerCase(), () => []).add(node);
+
+      String currentDir = dirPath;
+      while (true) {
+        final currentDirLower = currentDir.toLowerCase();
+        dirLowerToOriginal[currentDirLower] = currentDir;
+
+        if (currentDirLower == lowerRoot || currentDir == posix.dirname(currentDir)) {
+          break;
+        }
+        currentDir = posix.dirname(currentDir);
+      }
+    }
+
+    final Map<String, Set<String>> subDirMap = {};
+    for (final dirLower in dirLowerToOriginal.keys) {
+      if (dirLower == lowerRoot) continue;
+      final originalDir = dirLowerToOriginal[dirLower]!;
+      final parentLower = posix.dirname(originalDir).toLowerCase();
+      subDirMap.putIfAbsent(parentLower, () => {}).add(dirLower);
+    }
+
+    List<FileNode> buildChildren(String currentPath) {
+      final List<FileNode> children = [];
+      final currentPathLower = currentPath.toLowerCase();
+
+      final files = fileMap[currentPathLower] ?? [];
+      children.addAll(files);
+
+      final subDirsLower = subDirMap[currentPathLower] ?? {};
+      for (final subDirLower in subDirsLower) {
+        final originalSubDir = dirLowerToOriginal[subDirLower]!;
+        final subChildren = buildChildren(originalSubDir);
+
+        children.add(FileNode(
+          type: NodeType.folder,
+          title: posix.basename(originalSubDir),
+          mediaStreamUrl: originalSubDir,
+          source: NodeSource.localWork,
+          children: subChildren,
+        ));
+      }
+
+      children.sort((a, b) {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      });
+
+      return children;
+    }
+
+    return buildChildren(normalizedRoot);
   }
 }
