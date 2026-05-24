@@ -158,25 +158,23 @@ class _ParseWorksViewState extends State<ParseWorksView> {
 
   /// 处理单个删除
   void _handleDeleteSingle(Work work) {
-    if (work.id != null) {
-      // 1. 删底层数据库
-      ScraperStorage().deleteWork(work.id.toString());
-      setState(() {
-        _localWorks.removeWhere((w) => w.id == work.id);
+    // 1. 删底层数据库
+    ScraperStorage().deleteWork(work.id);
+    setState(() {
+      _localWorks.removeWhere((w) => w.id == work.id);
 
-        // 可选：如果删光了，自动退出编辑模式
-        if (_localWorks.isEmpty) {
-          _isEditing = false;
-        }
-      });
+      // 可选：如果删光了，自动退出编辑模式
+      if (_localWorks.isEmpty) {
+        _isEditing = false;
+      }
+    });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已移除 ${work.id} 的缓存数据'),
-            duration: const Duration(seconds: 2),
-          )
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已移除 ${work.id} 的缓存数据'),
+          duration: const Duration(seconds: 2),
+        )
+    );
   }
 
   /// 处理全部清空

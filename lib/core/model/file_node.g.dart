@@ -32,13 +32,18 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
           : fields[10] as NodeStatus,
       workId: (fields[11] as num?)?.toInt(),
       source: fields[12] as NodeSource,
+      path: fields[13] as String?,
+      folderPath: fields[14] as String?,
+      rootPath: fields[15] as String?,
+      parentPath: fields[16] as String?,
+      depth: fields[17] == null ? 0 : (fields[17] as num).toInt(),
     );
   }
 
   @override
   void write(BinaryWriter writer, FileNode obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.type)
       ..writeByte(1)
@@ -64,7 +69,17 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       ..writeByte(11)
       ..write(obj.workId)
       ..writeByte(12)
-      ..write(obj.source);
+      ..write(obj.source)
+      ..writeByte(13)
+      ..write(obj.path)
+      ..writeByte(14)
+      ..write(obj.folderPath)
+      ..writeByte(15)
+      ..write(obj.rootPath)
+      ..writeByte(16)
+      ..write(obj.parentPath)
+      ..writeByte(17)
+      ..write(obj.depth);
   }
 
   @override
@@ -248,6 +263,12 @@ _FileNode _$FileNodeFromJson(Map<String, dynamic> json) => _FileNode(
       NodeStatus.normal,
   workId: (json['workId'] as num?)?.toInt(),
   source: $enumDecode(_$NodeSourceEnumMap, json['source']),
+  path: json['path'] as String?,
+  folderPath: json['folderPath'] as String?,
+  rootPath: json['rootPath'] as String?,
+  parentPath: json['parentPath'] as String?,
+  depth: (json['depth'] as num?)?.toInt() ?? 0,
+  subItemsCount: (json['subItemsCount'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$FileNodeToJson(_FileNode instance) => <String, dynamic>{
@@ -265,6 +286,12 @@ Map<String, dynamic> _$FileNodeToJson(_FileNode instance) => <String, dynamic>{
   'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
   'workId': instance.workId,
   'source': _$NodeSourceEnumMap[instance.source]!,
+  'path': instance.path,
+  'folderPath': instance.folderPath,
+  'rootPath': instance.rootPath,
+  'parentPath': instance.parentPath,
+  'depth': instance.depth,
+  'subItemsCount': instance.subItemsCount,
 };
 
 const _$NodeTypeEnumMap = {

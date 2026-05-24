@@ -1,11 +1,14 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
+
 import '../../utils/scraper/scraper_storage.dart';
+import 'file_node_library_index.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
-import 'package:path/path.dart' as p;
 
 enum ScanMode { audio, video, subtitles }
 
@@ -14,146 +17,170 @@ extension ScanModeConfig on ScanMode {
     switch (this) {
       case ScanMode.audio:
         return FileExtensions.audio;
+
       case ScanMode.video:
         return FileExtensions.video;
+
       case ScanMode.subtitles:
         return FileExtensions.subtitles;
     }
   }
 
-  bool get scanArchives {
-    switch (this) {
-      case ScanMode.audio:
-      case ScanMode.video:
-        return false;
-      case ScanMode.subtitles:
-        return true;
-    }
-  }
+  bool get scanArchives => this == ScanMode.subtitles;
 }
 
-class FileScanBatch {
-  final List<FileNode> nodes;
+class FileScannerResult {
+  final List<FileNode> flatNodes;
   final int scannedCount;
+  final String rootPath;
 
-  const FileScanBatch({
-    required this.nodes,
+  const FileScannerResult({
+    required this.flatNodes,
     required this.scannedCount,
+    required this.rootPath,
   });
 }
 
 class FileScannerService {
-  final ScanMode scanMode;
-  final _worker = FileScanWorker();
-  final _resultController = StreamController<FileScanBatch>.broadcast();
-  late final _storage = FileScannerStorage();
+  FileScannerService._();
+
+  static final FileScannerService instance = FileScannerService._();
+
+  final FileScanWorker _worker = FileScanWorker();
+
+  final FileScannerStorage _storage = FileScannerStorage();
+
+  final StreamController<FileScannerResult> _resultController =
+      StreamController<FileScannerResult>.broadcast();
 
   final List<FileNode> _flatFiles = [];
-  final Set<String> _visitedPaths = {};
-  int _baselineScannedCount = 0;
 
-  FileScannerService(this.scanMode);
+  final Set<String> _visitedKeys = {};
 
-  Stream<FileScanBatch> get result => _resultController.stream;
+  bool _disposed = false;
+
+  Stream<FileScannerResult> get result => _resultController.stream;
 
   void dispose() {
-    _resultController.close();
+    _disposed = true;
+
+    if (!_resultController.isClosed) {
+      _resultController.close();
+    }
   }
 
-  /// 启动扫描主入口
-  Future<void> startScan(String path) async {
-    await _initAndLoadCache(path);
-    await _performSilentSync(path);
+  Future<void> startScan(ScanTarget scanTarget) async {
+    await _initAndLoadCache(scanTarget);
+
+    await _performSilentSync(scanTarget);
   }
 
-  Future<void> _initAndLoadCache(String rootPath) async {
-    _flatFiles.clear();
-    final cachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-    final cachedFiles = cachedNodes.where((node) => !node.isFolder).toList();
+  /// 初始化并加载本地缓存
+  Future<void> _initAndLoadCache(ScanTarget scanTarget) async {
+    _flatFiles
+      ..clear()
+      ..addAll(
+        _storage
+            .getNodesByRootPath(scanTarget.scanMode, scanTarget.path)
+            .where((node) => !node.isFolder),
+      );
 
-    _baselineScannedCount = cachedFiles.length;
-    _flatFiles.addAll(cachedFiles);
-    _emitCurrentResult(_baselineScannedCount);
+    _emitCurrentResult(scanTarget.path);
   }
 
-  Future<void> _performSilentSync(String path) async {
-    _visitedPaths.clear();
-    final allParsedWorks = ScraperStorage().getAllWorks();
-    final parsedWorkIds = allParsedWorks.map((w) => w.id).toSet();
+  /// 静默同步磁盘
+  Future<void> _performSilentSync(ScanTarget scanTarget) async {
+    _visitedKeys.clear();
 
-    // 后台非流式任务一次性读取全量合规数据
-    final fileNodes = await _worker.start(
-      path: path,
-      extensions: scanMode.extensions,
+    final parsedWorkIds = ScraperStorage()
+        .getAllWorks()
+        .map((work) => work.id)
+        .toSet();
+
+    final scannedNodes = await _worker.start(
+      path: scanTarget.path,
+      extensions: scanTarget.scanMode.extensions,
       parsedWorkIds: parsedWorkIds,
-      scanArchives: scanMode.scanArchives,
+      scanArchives: scanTarget.scanMode.scanArchives,
     );
 
-    await _processScannedNodes(fileNodes);
-    await _handleDeletedFiles(path);
-  }
+    final List<FileNode> filesToSave = [];
 
-  Future<void> _processScannedNodes(List<FileNode> scannedNodes) async {
-    final List<FileNode> filesToUpdate = [];
+    for (final node in scannedNodes) {
+      final key = node.keyId;
 
-    for (var node in scannedNodes) {
-      final normalizedKey = p.normalize(node.keyId).toLowerCase();
-      _visitedPaths.add(normalizedKey);
+      if (key.isEmpty) continue;
 
-      final cachedNode = _storage.getNode(scanMode, node.keyId);
+      _visitedKeys.add(_normalizeKey(key));
 
-      if (cachedNode == null ||
-          cachedNode.lastModified != node.lastModified ||
-          cachedNode.nodeStatus != node.nodeStatus ||
-          cachedNode.source != node.source ||
-          cachedNode.workId != node.workId) {
-        filesToUpdate.add(node);
+      final cached = _storage.getNode(scanTarget.scanMode, key);
+
+      if (_shouldSave(cached, node)) {
+        filesToSave.add(node);
       }
     }
 
-    if (filesToUpdate.isNotEmpty) {
-      await _storage.saveNodes(scanMode, filesToUpdate);
+    final List<String> keysToDelete = [];
 
-      for (final updatedNode in filesToUpdate) {
-        final index = _flatFiles.indexWhere((n) => n.keyId == updatedNode.keyId);
-        if (index != -1) {
-          _flatFiles[index] = updatedNode;
+    for (final cached in _flatFiles) {
+      final key = cached.keyId;
+
+      if (key.isEmpty) continue;
+
+      if (!_visitedKeys.contains(_normalizeKey(key))) {
+        keysToDelete.add(key);
+      }
+    }
+
+    /// 删除已不存在文件
+    if (keysToDelete.isNotEmpty) {
+      await _storage.deleteNodes(scanTarget.scanMode, keysToDelete);
+
+      _flatFiles.removeWhere((node) => keysToDelete.contains(node.keyId));
+    }
+
+    /// 保存新增/更新文件
+    if (filesToSave.isNotEmpty) {
+      await _storage.saveNodes(scanTarget.scanMode, filesToSave);
+
+      for (final updated in filesToSave) {
+        final index = _flatFiles.indexWhere(
+          (node) => node.keyId == updated.keyId,
+        );
+
+        if (index >= 0) {
+          _flatFiles[index] = updated;
         } else {
-          _flatFiles.add(updatedNode);
+          _flatFiles.add(updated);
         }
       }
     }
 
-    _emitCurrentResult(_flatFiles.length);
+    debugPrint(
+      '[FileScannerService] '
+      '${scanTarget.scanMode.name}: '
+      '${_flatFiles.length} files indexed.',
+    );
+
+    _emitCurrentResult(scanTarget.path);
   }
 
-  Future<void> _handleDeletedFiles(String rootPath) async {
-    final allCachedNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-    final List<String> keysToDelete = [];
-
-    for (var node in allCachedNodes) {
-      final normalizedKey = p.normalize(node.keyId).toLowerCase();
-      if (!_visitedPaths.contains(normalizedKey)) {
-        keysToDelete.add(node.keyId);
-      }
-    }
-
-    if (keysToDelete.isNotEmpty) {
-      debugPrint("Scanner: Detected ${keysToDelete.length} deleted files. Cleaning up...");
-      await _storage.deleteNodes(scanMode, keysToDelete);
-
-      _flatFiles.removeWhere((n) => keysToDelete.contains(n.keyId));
-
-      final remainingNodes = _storage.getNodesByRootPath(scanMode, rootPath);
-      _baselineScannedCount = remainingNodes.where((n) => !n.isFolder).length;
-      _emitCurrentResult(_baselineScannedCount);
-    }
+  bool _shouldSave(FileNode? cached, FileNode next) {
+    return cached == null ||
+        cached.lastModified != next.lastModified ||
+        cached.nodeStatus != next.nodeStatus ||
+        cached.source != next.source ||
+        cached.workId != next.workId ||
+        cached.path != next.path ||
+        cached.folderPath != next.folderPath ||
+        cached.rootPath != next.rootPath;
   }
 
-  void _emitCurrentResult(int scannedCount) {
-    _resultController.add(FileScanBatch(
-      nodes: List.of(_flatFiles),
-      scannedCount: scannedCount,
-    ));
+  void _emitCurrentResult(String rootPath) {
+    _resultController.add(FileScannerResult(flatNodes: _flatFiles, scannedCount: _flatFiles.length, rootPath:rootPath ));
+  }
+
+  String _normalizeKey(String value) {
+    return FileNodeLibraryIndex.normalizePath(value).toLowerCase();
   }
 }

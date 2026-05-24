@@ -64,7 +64,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
   Future<void> addTasks(List<FileNode> nodes) async {
     // 过滤掉无效节点或已经在内存队列中的节点
     final validNodes = nodes.where((n) {
-      if (n.rjCode == null || n.rjCode!.isEmpty) return false;
+      if (n.workId == null) return false;
       final inQueue = state.pending.any((p) => p.keyId == n.keyId) ||
           state.processing.any((p) => p.keyId == n.keyId);
       return !inQueue;
@@ -142,17 +142,15 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     // 1. 开始解析前，将队列中的节点状态更新，并通过全局静态方法落盘
     final parsingNode = node.copyWith(nodeStatus: NodeStatus.parsing);
     try {
-      final rjStr = parsingNode.rjCode!.toUpperCase();
-      final numericIdStr = rjStr.replaceAll(RegExp(r'[^0-9]'), '');
-      final int id = int.parse(numericIdStr);
-
-      if (!ScraperStorage().hasWork(rjStr)) {
-        debugPrint('[ScraperQueue] 开始爬取网络元数据: $rjStr');
+      final id = parsingNode.workId;
+      if (id == null) return;
+      if (!ScraperStorage().hasWork(id)) {
+        debugPrint('[ScraperQueue] 开始爬取网络元数据: $id');
         final rawData = await DlSiteScraper.scrapeAll(id);
         final work = Work.fromJson(rawData);
-        await ScraperStorage().saveWork(rjStr, work);
+        await ScraperStorage().saveWork(id, work);
       } else {
-        debugPrint('[ScraperQueue] 命中本地缓存，跳过网络爬取: $rjStr');
+        debugPrint('[ScraperQueue] 命中本地缓存，跳过网络爬取: $id');
       }
       // 2. 解析成功，全局同步 physical 状态为 parsed
       final parsedNode = parsingNode.copyWith(nodeStatus: NodeStatus.parsed);
@@ -165,7 +163,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       );
 
     } catch (e, stack) {
-      debugPrint('[ScraperQueue] 爬取任务崩溃: ${parsingNode.rjCode} \n异常: $e\n$stack');
+      debugPrint('[ScraperQueue] 爬取任务崩溃: $parsingNode \n异常: $e\n$stack');
 
       // 3. 解析失败，全局同步 physical 状态退回 pending
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);

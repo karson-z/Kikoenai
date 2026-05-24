@@ -167,8 +167,8 @@ class ScraperQueueDrawer extends ConsumerWidget {
           color: item.type == _QueueItemType.completed ? Colors.grey : null,
         ),
       ),
-      subtitle: item.node.rjCode != null
-          ? Text(item.node.rjCode!, style: const TextStyle(fontSize: 12))
+      subtitle: item.node.workId != null
+          ? Text('RJ0${item.node.workId}', style: const TextStyle(fontSize: 12))
           : null,
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

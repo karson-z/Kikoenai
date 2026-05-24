@@ -22,4 +22,7 @@ class TypeIds {
 
   // --- 歌词与配置 (70-89) ---
   static const int lyricConfig = 70;
+  // --- 本地路径 （90-100）---
+  static const int scanTarget = 90;
+  static const int scanMode = 91;
 }

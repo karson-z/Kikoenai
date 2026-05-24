@@ -1,119 +1,109 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:path/path.dart' as p;
+
 import 'archive_service.dart';
 
-class FileScanWorker {
-  static final RegExp _rjRegex = RegExp(r'RJ(\d{7,9})', caseSensitive: false);
+enum WorkerState { idle, scanning, done, error }
 
-  /// 启动扁平化扫描，任务完全结束后直接返回文件节点列表
+class FileScanWorker {
+  static final RegExp _rjRegex = RegExp(r'RJ0?(\d{7,9})', caseSensitive: false);
+
   Future<List<FileNode>> start({
     required String path,
     required Set<String> extensions,
     required Set<int> parsedWorkIds,
     bool scanArchives = false,
   }) {
-    final normalizedRoot = path.replaceAll('\\', '/');
+    final rootPath = _normalize(path);
 
     return Isolate.run(() async {
-      final List<FileNode> results = [];
-      final dir = Directory(normalizedRoot);
+      final results = <FileNode>[];
+      final dir = Directory(rootPath);
       if (!await dir.exists()) return results;
 
       await for (final entity in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          final filePath = entity.path;
-          final lastDotIndex = filePath.lastIndexOf('.');
-          if (lastDotIndex == -1 || lastDotIndex == filePath.length - 1) continue;
-          final ext = filePath.substring(lastDotIndex).toLowerCase();
+        if (entity is! File) continue;
 
-          if (extensions.contains(ext)) {
-            final normalizedPath = filePath.replaceAll('\\', '/');
-            int lastMod = 0;
-            try {
-              lastMod = entity.statSync().modified.millisecondsSinceEpoch;
-            } catch (_) {}
+        final filePath = _normalize(entity.path);
+        final ext = _extension(filePath);
+        if (ext == null) continue;
 
-            final (source, workId) = _resolveSourceAndWorkId(normalizedPath);
+        if (extensions.contains(ext)) {
+          results.add(_buildNode(
+            filePath: filePath,
+            rootPath: rootPath,
+            ext: ext,
+            lastModified: _modified(entity),
+            parsedWorkIds: parsedWorkIds,
+          ));
+          continue;
+        }
 
-            // 根据是否有 RJ 号以及是否在已解析集合中确立节点状态
-            NodeStatus nodeStatus = NodeStatus.normal;
-            if (source == NodeSource.localWork && workId != null) {
-              nodeStatus = parsedWorkIds.contains(workId)
-                  ? NodeStatus.parsed
-                  : NodeStatus.pending;
-            }
+        if (scanArchives && ArchiveService.isArchive(filePath)) {
+          final archiveModified = _modified(entity);
+          final entries = await ArchiveService.scanZip(entity, allowedExts: extensions);
 
-            results.add(FileNode(
-              mediaStreamUrl: normalizedPath,
-              mediaDownloadUrl: normalizedPath,
-              type: _determineNodeType(ext),
-              title: normalizedPath.split('/').last,
-              lastModified: lastMod,
-              nodeStatus: nodeStatus,
-              workId: workId,
-              source: source,
+          for (final entry in entries) {
+            final virtualPath = _normalize(entry.virtualPath);
+            final virtualExt = _extension(virtualPath);
+            if (virtualExt == null || !extensions.contains(virtualExt)) continue;
+
+            results.add(_buildNode(
+              filePath: virtualPath,
+              rootPath: rootPath,
+              ext: virtualExt,
+              lastModified: archiveModified,
+              size: entry.size,
+              parsedWorkIds: parsedWorkIds,
             ));
-          } else if (scanArchives && ArchiveService.isArchive(filePath)) {
-            try {
-              int archiveLastMod = 0;
-              try {
-                archiveLastMod = entity.statSync().modified.millisecondsSinceEpoch;
-              } catch (_) {}
-
-              final entries = await ArchiveService.scanZip(entity, allowedExts: extensions);
-
-              for (var entry in entries) {
-                final virtualPath = entry.virtualPath;
-                final zipLastDotIndex = virtualPath.lastIndexOf('.');
-                if (zipLastDotIndex == -1 || zipLastDotIndex == virtualPath.length - 1) continue;
-                final zipExt = virtualPath.substring(zipLastDotIndex).toLowerCase();
-
-                if (extensions.contains(zipExt)) {
-                  final normalizedVirtualPath = virtualPath.replaceAll('\\', '/');
-                  final normalizedArchivePath = filePath.replaceAll('\\', '/');
-                  final combinedPath = '$normalizedArchivePath/$normalizedVirtualPath';
-                  final (source, workId) = _resolveSourceAndWorkId(combinedPath);
-
-                  // 压缩包内虚拟节点同样执行对齐的状态判定
-                  NodeStatus nodeStatus = NodeStatus.normal;
-                  if (source == NodeSource.localWork && workId != null) {
-                    nodeStatus = parsedWorkIds.contains(workId)
-                        ? NodeStatus.parsed
-                        : NodeStatus.pending;
-                  }
-
-                  results.add(FileNode(
-                    mediaStreamUrl: normalizedVirtualPath,
-                    mediaDownloadUrl: normalizedVirtualPath,
-                    type: _determineNodeType(zipExt),
-                    title: normalizedVirtualPath.split('/').last,
-                    lastModified: archiveLastMod,
-                    nodeStatus: nodeStatus,
-                    workId: workId,
-                    source: source,
-                  ));
-                }
-              }
-            } catch (_) {}
           }
         }
       }
+
       return results;
     });
   }
 
+  static FileNode _buildNode({
+    required String filePath,
+    required String rootPath,
+    required String ext,
+    required int lastModified,
+    required Set<int> parsedWorkIds,
+    int? size,
+  }) {
+    final (source, workId) = _resolveSourceAndWorkId(filePath);
+    final status = source == NodeSource.localWork && workId != null
+        ? parsedWorkIds.contains(workId)
+        ? NodeStatus.parsed
+        : NodeStatus.pending
+        : NodeStatus.normal;
+
+    return FileNode(
+      type: _determineNodeType(ext),
+      title: filePath.split('/').last,
+      path: filePath,
+      mediaStreamUrl: filePath,
+      mediaDownloadUrl: filePath,
+      folderPath: _dirname(filePath),
+      rootPath: rootPath,
+      lastModified: lastModified,
+      nodeStatus: status,
+      workId: workId,
+      size: size,
+      source: source,
+    );
+  }
+
   static (NodeSource, int?) _resolveSourceAndWorkId(String path) {
     final match = _rjRegex.firstMatch(path);
-    if (match != null) {
-      final idStr = match.group(1);
-      if (idStr != null) {
-        return (NodeSource.localWork, int.tryParse(idStr));
-      }
-    }
-    return (NodeSource.localSingle, null);
+    final id = match == null ? null : int.tryParse(match.group(1) ?? '');
+    return id == null ? (NodeSource.localSingle, null) : (NodeSource.localWork, id);
   }
 
   static NodeType _determineNodeType(String ext) {
@@ -121,5 +111,29 @@ class FileScanWorker {
     if (FileExtensions.video.contains(ext)) return NodeType.video;
     if (FileExtensions.subtitles.contains(ext)) return NodeType.text;
     return NodeType.unknown;
+  }
+
+  static String _normalize(String value) {
+    final posix = p.Context(style: p.Style.posix);
+    return posix.normalize(value.replaceAll('\\', '/'));
+  }
+
+  static String _dirname(String value) {
+    final posix = p.Context(style: p.Style.posix);
+    return posix.dirname(_normalize(value));
+  }
+
+  static String? _extension(String path) {
+    final index = path.lastIndexOf('.');
+    if (index < 0 || index == path.length - 1) return null;
+    return path.substring(index).toLowerCase();
+  }
+
+  static int _modified(File file) {
+    try {
+      return file.statSync().modified.millisecondsSinceEpoch;
+    } catch (_) {
+      return 0;
+    }
   }
 }

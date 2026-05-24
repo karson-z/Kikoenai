@@ -101,8 +101,6 @@ class ArchiveService {
 
       ArchiveFile? targetFile;
 
-      // 【致命 Bug 修复】: 不能使用 archive.findFile()
-      // 因为 archive 内部存的是未修复的乱码路径。我们需要遍历并实时应用修复来比对。
       for (final file in archive.files) {
         // 【关键修复】：这里同样需要 await，拿到实际字符串后再进行 replaceAll
         final decodedName = await CharsetCover.fixEncoding(file.name);
