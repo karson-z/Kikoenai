@@ -31,7 +31,9 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
           ? NodeStatus.normal
           : fields[10] as NodeStatus,
       workId: (fields[11] as num?)?.toInt(),
-      source: fields[12] as NodeSource,
+      source: fields[12] == null
+          ? NodeSource.asmrServer
+          : fields[12] as NodeSource,
       path: fields[13] as String?,
       folderPath: fields[14] as String?,
       rootPath: fields[15] as String?,
@@ -262,7 +264,9 @@ _FileNode _$FileNodeFromJson(Map<String, dynamic> json) => _FileNode(
       $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
       NodeStatus.normal,
   workId: (json['workId'] as num?)?.toInt(),
-  source: $enumDecode(_$NodeSourceEnumMap, json['source']),
+  source:
+      $enumDecodeNullable(_$NodeSourceEnumMap, json['source']) ??
+      NodeSource.asmrServer,
   path: json['path'] as String?,
   folderPath: json['folderPath'] as String?,
   rootPath: json['rootPath'] as String?,

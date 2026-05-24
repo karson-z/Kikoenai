@@ -2,7 +2,6 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
 class PlayerViewController extends ChangeNotifier {
-  // 1. 修改这里：类型改为 ValueListenable<double>
   final ValueListenable<double> expandProgress;
 
   late final AnimationController _lyricsCtrl;
