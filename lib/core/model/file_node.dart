@@ -7,10 +7,10 @@ part 'file_node.g.dart';
 
 @HiveType(typeId: TypeIds.nodeSource)
 enum NodeSource {
-  @HiveField(0) asmrServer,   // ASMR 服务器
-  @HiveField(1) localWork,    // 本地作品（拥有所属作品元数据）
-  @HiveField(2) localSingle,  // 本地单曲（无作品元数据依赖）
-  @HiveField(3) cloudDrive;   // 网盘媒体
+  @HiveField(0) asmrServer,
+  @HiveField(1) localWork,
+  @HiveField(2) localSingle,
+  @HiveField(3) cloudDrive;
 }
 
 @HiveType(typeId: TypeIds.nodeType)
@@ -52,11 +52,19 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(8) String? artist,
     @HiveField(9) @Default(0) int lastModified,
     @HiveField(10) @Default(NodeStatus.normal) NodeStatus nodeStatus,
-    @HiveField(11) int? workId, // 该文件节点所属作品的唯一标识 ID
-    @HiveField(12) required NodeSource source, // 必须在出生时决定的具体业务来源
+    @HiveField(11) int? workId,
+    @HiveField(12) required NodeSource source,
+
+    // Media-library index fields.
+    @HiveField(13) String? path,
+    @HiveField(14) String? folderPath,
+    @HiveField(15) String? rootPath,
+    @HiveField(16) String? parentPath,
+    @HiveField(17) @Default(0) int depth,
+    @Default(0)int subItemsCount
   }) = _FileNode;
 
-   FileNode._();
+  FileNode._();
 
   bool get isFolder => type == NodeType.folder;
   bool get isAudio => type == NodeType.audio;
@@ -65,7 +73,23 @@ abstract class FileNode extends HiveObject with _$FileNode {
   bool get isVideo => type == NodeType.video;
   bool get isOther => type == NodeType.other;
 
-  String get keyId => mediaStreamUrl ?? hash ?? "";
+  bool get isPlayable => isAudio || isVideo;
+
+  /// Stable identity for cache/index lookup.
+  /// Prefer path, then playable URL, then hash.
+  String get keyId => path ?? mediaStreamUrl ?? hash ?? '';
+
+  /// Actual playback/read path. Local file path or remote URL.
+  String get playablePath => mediaStreamUrl ?? path ?? '';
+
+  /// Internal path used by folder index.
+  String get effectivePath => path ?? mediaStreamUrl ?? hash ?? title;
+
+  NodeFolder? get folder {
+    final p = folderPath;
+    if (p == null || p.isEmpty) return null;
+    return NodeFolder(p);
+  }
 
   bool get isLocal => source == NodeSource.localWork || source == NodeSource.localSingle;
   bool get isRemote => source == NodeSource.asmrServer || source == NodeSource.cloudDrive;
@@ -76,4 +100,71 @@ abstract class FileNode extends HiveObject with _$FileNode {
   bool get isCloudDrive => source == NodeSource.cloudDrive;
 
   factory FileNode.fromJson(Map<String, dynamic> json) => _$FileNodeFromJson(json);
+}
+
+class NodeFolder {
+  final String path;
+
+  const NodeFolder(this.path);
+
+  String get normalized {
+    var p = path.replaceAll('\\', '/');
+    while (p.contains('//')) {
+      p = p.replaceAll('//', '/');
+    }
+    if (p.length > 1 && p.endsWith('/')) {
+      p = p.substring(0, p.length - 1);
+    }
+    return p;
+  }
+
+  String get key => normalized.toLowerCase();
+
+  String get name {
+    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
+    return parts.isEmpty ? normalized : parts.last;
+  }
+
+  NodeFolder? get parent {
+    final hasLeadingSlash = normalized.startsWith('/');
+    final prefix = hasLeadingSlash ? '/' : '';
+    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
+    if (parts.length <= 1) return null;
+    parts.removeLast();
+    return NodeFolder('$prefix${parts.join('/')}');
+  }
+
+  List<NodeFolder> buildInbetweenFolders({String? stopAtRootPath}) {
+    final root = stopAtRootPath == null ? null : NodeFolder(stopAtRootPath).key;
+    final hasLeadingSlash = normalized.startsWith('/');
+    final prefix = hasLeadingSlash ? '/' : '';
+    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
+    final result = <NodeFolder>[];
+    final buffer = <String>[];
+
+    for (final part in parts) {
+      buffer.add(part);
+      final folder = NodeFolder('$prefix${buffer.join('/')}');
+      if (root != null) {
+        if (!folder.key.startsWith(root)) continue;
+        if (folder.key == root) continue;
+      }
+      result.add(folder);
+    }
+
+    return result;
+  }
+
+  bool hasSamePathAs(String path) => key == NodeFolder(path).key;
+
+  @override
+  bool operator ==(Object other) {
+    return other is NodeFolder && other.key == key;
+  }
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  String toString() => 'NodeFolder($normalized)';
 }

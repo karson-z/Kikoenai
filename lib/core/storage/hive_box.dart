@@ -18,6 +18,8 @@ class BoxNames {
   static const String lyricsMatch = 'lyrics_match';
   /// 筛选盒子
   static const String globalFilterTags = 'global_filter_tags';
+  /// 扫描目标
+  static const String scanTarget = 'scan_target';
 
   static const List<String> values = [
     settings,

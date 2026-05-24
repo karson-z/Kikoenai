@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_worker.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import '../../../../../../core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
-import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
-import '../../data/model/file_scanner_state.dart';
+import '../../../../core/utils/scraper/scraper_storage.dart';
 import '../provider/file_scanner_notifier.dart';
 import '../widget/file_scanner_panel.dart';
 import '../widget/parsed_works_view.dart';
@@ -19,22 +17,28 @@ class ScannerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 1. 订阅最新的由对象驱动的单层切片文件树状态
     final scannerState = ref.watch(fileScannerProvider);
+    final scannerNotifier = ref.read(fileScannerProvider.notifier);
+
     final queueState = ref.watch(scraperQueueProvider);
-
-    final isScanning = scannerState.status == WorkerState.scanning;
     final currentMode = scannerState.scanMode;
-    final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
-    final breadcrumbNotifier = ref.read(breadcrumbProvider(BreadCrumbBarType.local).notifier);
-
     final queueCount = queueState.pending.length + queueState.processing.length;
+    final root = scannerState.rootPath;
 
-    ref.listen<FileScannerState>(fileScannerProvider, (previous, next) {
-      final wasScanning = previous?.status == WorkerState.scanning;
-      final isNowIdle = next.status == WorkerState.idle || next.status == WorkerState.done;
-      if (wasScanning && isNowIdle) {
-        final pendingNodes = _extractPendingNodes(next.roots);
-        if (pendingNodes.isNotEmpty && scannerState.scanMode != ScanMode.subtitles) {
+
+    List<String> breadcrumbPaths = scannerState.breadcrumbPaths;
+
+
+    // 3. 监听扫描流异步完成的副作用（仅在扫描状态由 true 变为 false 且存在有效节点时触发弹窗）
+    ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
+      final wasScanning = previous?.isScanning ?? false;
+      final isNowDone = !next.isScanning;
+
+      if (wasScanning && isNowDone && next.rootPath.isNotEmpty) {
+        // 从当前切片拿到待解析节点集合（如果是深度完成，建议由配套后台流通知，此处对齐页面 children 校验）
+        final pendingNodes = _extractPendingNodes(next.children);
+        if (pendingNodes.isNotEmpty && next.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
       }
@@ -45,29 +49,21 @@ class ScannerPage extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 66,
-          title: Column(
+          title: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '媒体库',
                 style: TextStyle(fontSize: 18),
                 overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _getStatusText(scannerState.status, scannerState.scannedCount),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isScanning
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
               ),
             ],
           ),
           actions: [
             Builder(
               builder: (context) {
-                return  Padding(padding: const EdgeInsets.only(right: 12),
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
                   child: IconButton(
                     tooltip: '解析队列',
                     icon: Badge(
@@ -87,27 +83,31 @@ class ScannerPage extends ConsumerWidget {
         endDrawer: const ScraperQueueDrawer(),
         body: Column(
           children: [
-            // 1. 固定在顶部的控制栏（面包屑 + 药丸 TabBar）
+            // 固定在顶部的控制栏（面包屑导航 + 药丸式切换 TabBar）
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                   Expanded(
-                    child: BreadcrumbBar(
-                      // 提取标题集合
-                      paths: breadcrumbs.map((node) => node.title).toList(),
-                      // 绑定点击根目录事件
-                      onHomeTap: () => breadcrumbNotifier.jumpTo(-1),
-                      // 绑定点击具体层级事件
-                      onPathTap: (index) => breadcrumbNotifier.jumpTo(index),
-
-                      // 可选：在此处覆盖默认样式
-                      // backgroundColor: Colors.transparent,
-                    ),// 左侧：面包屑无限延伸
+                  Expanded(
+                    child: root.isEmpty
+                        ? const SizedBox.shrink()
+                        : BreadcrumbBar(
+                      paths: breadcrumbPaths,
+                      // 点击 Home 图标：直接移回根目录
+                      onHomeTap: () => scannerNotifier.goHome(),
+                      // 点击中间具体的任意面包屑节点：执行绝对路径链式计算并瞬移跳转
+                      onPathTap: (index) {
+                        String targetAbsolutePath = root;
+                        for (int k = 0; k <= index; k++) {
+                          targetAbsolutePath = '$targetAbsolutePath/${breadcrumbPaths[k]}';
+                        }
+                        scannerNotifier.jumpToPath(targetAbsolutePath);
+                      },
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  // 右侧：药丸 TabBar
+                  // 右侧：“待解析 / 已解析”切换小药丸
                   Container(
                     width: 150,
                     height: 44,
@@ -156,7 +156,6 @@ class ScannerPage extends ConsumerWidget {
             ),
           ],
         ),
-
         floatingActionButton: FloatingActionButton.extended(
           icon: const Icon(Icons.folder_copy_outlined),
           label: const Text("管理路径"),
@@ -169,27 +168,15 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildPendingView(BuildContext context, scannerState, ScanMode currentMode) {
-    if (scannerState.roots.isEmpty) {
+  Widget _buildPendingView(BuildContext context, FileBrowserState scannerState, ScanMode currentMode) {
+    if (scannerState.rootPath.isEmpty) {
       return _buildEmptyStateView(context);
     }
+
     return FileBrowserPanel(
-      rootNodes: scannerState.roots,
+      rootNodes: scannerState.children, // 对齐模型字段，投喂当前层级下已被索引转换好的直接子节点列表
       scanMode: currentMode,
     );
-  }
-
-  String _getStatusText(WorkerState status, int count) {
-    switch (status) {
-      case WorkerState.idle:
-        return count > 0 ? '共 $count 个文件' : '准备就绪';
-      case WorkerState.scanning:
-        return '正在扫描中... ($count)';
-      case WorkerState.done:
-        return '扫描完成，共 $count 个文件';
-      case WorkerState.error:
-        return '扫描出错，请重试';
-    }
   }
 
   Widget _buildEmptyStateView(BuildContext context) {
@@ -209,7 +196,7 @@ class ScannerPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            "点击下方按钮管理文件夹",
+            "点击下方按钮管理并添加文件夹",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -228,19 +215,9 @@ class ScannerPage extends ConsumerWidget {
   }
 
   List<FileNode> _extractPendingNodes(List<FileNode> nodes) {
-    final pendingNodes = <FileNode>[];
-    void findPending(List<FileNode> currentLevel) {
-      for (var node in currentLevel) {
-        if (node.nodeStatus == NodeStatus.pending && node.rjCode != null) {
-          pendingNodes.add(node);
-        }
-        if (node.isFolder && node.children != null) {
-          findPending(node.children!);
-        }
-      }
-    }
-    findPending(nodes);
-    return pendingNodes;
+    return nodes
+        .where((node) => node.nodeStatus == NodeStatus.pending && node.workId != null)
+        .toList();
   }
 
   void _showScanCompleteDialog(BuildContext context, WidgetRef ref, List<FileNode> pendingNodes) {

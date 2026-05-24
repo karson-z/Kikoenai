@@ -32,8 +32,8 @@ class FolderActionBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 1. 尝试从本地数据库获取该作品的详细信息
     Work? work;
-    if (node.rjCode != null && node.rjCode!.isNotEmpty) {
-      work = ScraperStorage().getWork(node.rjCode!);
+    if (node.workId != null) {
+      work = ScraperStorage().getWork(node.workId!);
     }
 
     return SafeArea(
@@ -76,7 +76,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("已复制路径: ${node.title}")),
                     );
-                  },
+                    },
                 ),
                 _buildActionTile(
                   context: context,
@@ -95,7 +95,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
                   subtitle: "手动将此文件夹加入后台元数据刮削",
                   onTap: () {
                     Navigator.pop(context);
-                    if (node.rjCode == null) {
+                    if (node.workId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("未检测到有效 RJ 码，无法解析")),
                       );
@@ -105,7 +105,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
                     ref.read(scraperQueueProvider.notifier).addTasks([node]);
                     ref.read(scraperQueueProvider.notifier).start();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("已将 ${node.rjCode} 加入解析队列")),
+                      SnackBar(content: Text("已将 RJ0${node.workId} 加入解析队列")),
                     );
                   },
                 ),
@@ -123,7 +123,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
     // 如果没有解析数据，使用节点自身的标题作为占位
     final String title = work?.title ?? node.title;
     // 副标题：优先使用社团名(name)，其次 RJ码，最后是保底文本
-    final String subtitle = work?.name ?? node.rjCode ?? '本地文件夹';
+    final String subtitle = work?.name ?? (node.workId == null ? null : 'RJ0${node.workId}') ?? '本地文件夹';
     // 封面图
     final String? imageUrl = work?.thumbnailCoverUrl ?? work?.mainCoverUrl;
 

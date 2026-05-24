@@ -155,58 +155,18 @@ class SearchLyricsService {
   }
 
   static List<FileNode> findSubtitleInLocalById(int workId) {
+    final subtitles = FileScannerStorage()
+        .getAllByMode(ScanMode.subtitles)
+        .where((node) => !node.isFolder && node.workId == workId)
+        .toList();
 
-    // 1. 获取所有的字幕节点
-    final nodeList = FileScannerStorage().getAllByMode(ScanMode.subtitles);
-
-    // 2. 寻找匹配该 RJ 码的根文件夹节点
-    final rootFolders = nodeList.where((node) {
-      final nodeRj = node.workId;
-      return node.isFolder && (nodeRj == workId);
-    }).toList();
-
-    // 如果没有找到该作品的根目录，返回空列表
-    if (rootFolders.isEmpty) return [];
-
-    final rootFolder = rootFolders.first;
-    final rawRootPath = rootFolder.mediaStreamUrl;
-    if (rawRootPath == null) return [];
-
-    // 统一路径分隔符
-    final posix = p.Context(style: p.Style.posix);
-    final rootPath = posix.normalize(rawRootPath.replaceAll('\\', '/'));
-
-    // 3. 捞取所有属于该根文件夹下的字幕子孙节点（使用 Map 通过路径去重）
-    final Map<String, FileNode> uniqueNodes = {};
-
-    // 将根文件夹自身也加入列表（如果不需要根文件夹，可以注释掉这行，并将下方判断改为纯粹的 isWithin）
-    uniqueNodes[rootPath] = rootFolder;
-
-    for (var node in nodeList) {
-      if (node.mediaStreamUrl == null) continue;
-
-      final path = posix.normalize(node.mediaStreamUrl!.replaceAll('\\', '/'));
-
-      // 如果是子节点，加入字典
-      if (posix.isWithin(rootPath, path)) {
-        uniqueNodes[path] = node;
-      }
-    }
-
-    // 4. 提取为扁平列表
-    final flatList = uniqueNodes.values.toList();
-
-    // 5. 排序：文件夹优先，同类按路径字母升序排序
-    flatList.sort((a, b) {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-
-      final pathA = a.mediaStreamUrl?.toLowerCase() ?? '';
-      final pathB = b.mediaStreamUrl?.toLowerCase() ?? '';
+    subtitles.sort((a, b) {
+      final pathA = a.effectivePath.toLowerCase();
+      final pathB = b.effectivePath.toLowerCase();
       return pathA.compareTo(pathB);
     });
 
-    return flatList;
+    return subtitles;
   }
 
   /// 获取本地字幕
