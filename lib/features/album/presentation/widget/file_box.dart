@@ -123,9 +123,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
               downloadedIds: downloadedTaskMap.keys.toSet(),
             ),
           ),
-
-          const SliverToBoxAdapter(child: Divider(height: 1)),
-
           // 3. 列表内容
           if (currentNodes.isEmpty)
             const SliverFillRemaining(
@@ -147,7 +144,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                   currentNodes,
                   browserNotifier,
                   isDownloaded,
-                  downloadedTaskMap, // 传入 Map 供 onTap 使用
+                  downloadedTaskMap,
                 );
               },
             ),
@@ -207,7 +204,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             )
           : null,
       onTap: () async {
-        // [关键] onTap 变成 async
         if (node.isFolder) {
           notifier.enterFolder(node);
         } else if (node.isImage) {
@@ -215,7 +211,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         } else if (node.isText) {
           _handleTextPreview(context, node);
         } else {
-          // --- 播放逻辑：自动替换本地路径 ---
           final playerController = ref.read(playerControllerProvider.notifier);
           final List<FileNode> processedList = await _resolveLocalPathNodes(
             currentNodes,
@@ -321,6 +316,7 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
   final List<FileNode> rootNodes;
   final VoidCallback onRootTap;
   final Work work;
+  final double height;
   final Set<String> downloadedIds;
   final void Function(int index) onCrumbTap;
 
@@ -331,6 +327,7 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.breadcrumb,
     required this.onRootTap,
     required this.onCrumbTap,
+    this.height = 64,
   });
 
   @override
@@ -346,13 +343,14 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
       onRootTap: onRootTap,
       onCrumbTap: onCrumbTap,
       downloadedIds: downloadedIds,
+      height: height,
     );
   }
 
   @override
-  double get maxExtent => 54;
+  double get maxExtent => height;
   @override
-  double get minExtent => 54;
+  double get minExtent => height;
   @override
   bool shouldRebuild(covariant BreadcrumbHeaderDelegate oldDelegate) => true;
 }
@@ -363,6 +361,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
   final List<FileNode> rootNodes;
   final VoidCallback onRootTap;
   final Work work;
+  final double height;
   final void Function(int index) onCrumbTap;
 
   const _BreadcrumbHeader({
@@ -372,13 +371,14 @@ class _BreadcrumbHeader extends ConsumerWidget {
     required this.breadcrumb,
     required this.onRootTap,
     required this.onCrumbTap,
+    this.height = 64,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
     return Container(
-      height: 54,
+      height: height,
       color: Theme.of(context).scaffoldBackgroundColor,
       // 调整外层 padding，配合 BreadcrumbBar 内部的 padding
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
