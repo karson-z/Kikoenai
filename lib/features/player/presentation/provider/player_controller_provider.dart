@@ -722,7 +722,7 @@ class PlayerController extends Notifier<AppPlayerState> {
             node.isVideo == true;
 
     return MediaItem(
-      id: node.hash.toString(),
+      id: node.keyId,
       album: node.workTitle,
       title: node.title,
       artist: work?.vas == null ? node.artist : OtherUtil.joinVAs(work?.vas),

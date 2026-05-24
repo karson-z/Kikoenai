@@ -53,7 +53,7 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(9) @Default(0) int lastModified,
     @HiveField(10) @Default(NodeStatus.normal) NodeStatus nodeStatus,
     @HiveField(11) int? workId,
-    @HiveField(12) required NodeSource source,
+    @HiveField(12) @Default(NodeSource.asmrServer)  NodeSource source,
 
     // Media-library index fields.
     @HiveField(13) String? path,
@@ -77,7 +77,7 @@ abstract class FileNode extends HiveObject with _$FileNode {
 
   /// Stable identity for cache/index lookup.
   /// Prefer path, then playable URL, then hash.
-  String get keyId => path ?? mediaStreamUrl ?? hash ?? '';
+  String get keyId => hash ?? path ?? mediaStreamUrl ?? '';
 
   /// Actual playback/read path. Local file path or remote URL.
   String get playablePath => mediaStreamUrl ?? path ?? '';

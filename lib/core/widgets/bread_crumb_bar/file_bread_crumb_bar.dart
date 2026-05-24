@@ -63,6 +63,7 @@ class _BreadcrumbBarState extends State<BreadcrumbBar> {
     final defaultBorderColor = isDark ? Colors.white10 : Colors.grey[300]!;
 
     return Container(
+      width: double.infinity,
       padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? defaultBgColor,
@@ -107,6 +108,10 @@ class _BreadcrumbBarState extends State<BreadcrumbBar> {
 
                 // 精准鉴权可点击项
                 InkWell(
+                  // ==========================================
+                  // 【逻辑修复二】：最后一层（代表当前目录）时，强行将 onTap 设为 null 封禁交互
+                  // 只有中间层级的父文件夹才允许触发点击回溯跳转事件
+                  // ==========================================
                   onTap: i == widget.paths.length - 1 ? null : () => widget.onPathTap(i),
                   borderRadius: BorderRadius.circular(6),
                   child: Padding(
@@ -117,6 +122,7 @@ class _BreadcrumbBarState extends State<BreadcrumbBar> {
                       maxLines: 1,
                       style: TextStyle(
                         fontSize: 13,
+                        // 可点击项对齐系统 Primary 主题色，不可点击的当前层级自动标黑/标白加粗
                         color: i == widget.paths.length - 1
                             ? (isDark ? Colors.white : Colors.black87)
                             : Theme.of(context).colorScheme.primary,
