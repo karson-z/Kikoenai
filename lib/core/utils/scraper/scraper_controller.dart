@@ -138,7 +138,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
   }
 
   /// 内部工作单元：执行单个解析和持久化任务
-  /// 内部工作单元：执行单个解析和持久化任务
   Future<void> _executeScrape(FileNode node) async {
     // 1. 开始解析前，将队列中的节点状态更新，并通过全局静态方法落盘
     final parsingNode = node.copyWith(nodeStatus: NodeStatus.parsing);
