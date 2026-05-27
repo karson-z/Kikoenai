@@ -8,14 +8,18 @@ import '../../data/model/file_scanner_state.dart';
 import 'file_path_notifier.dart';
 
 final fileScannerProvider =
-NotifierProvider.autoDispose<FileScannerNotifier, FileBrowserState>(
-  FileScannerNotifier.new,
-);
+    NotifierProvider.autoDispose<FileScannerNotifier, FileBrowserState>(
+      FileScannerNotifier.new,
+    );
 
 class FileScannerNotifier extends Notifier<FileBrowserState> {
   late FileScannerService _service;
   StreamSubscription? _resultSub;
   FileNodeLibraryIndex? _libraryIndex;
+  FileScannerResultPhase? _lastResultPhase;
+
+  bool get didLastResultCompleteSync =>
+      _lastResultPhase == FileScannerResultPhase.syncCompleted;
 
   @override
   FileBrowserState build() {
@@ -46,15 +50,24 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   void _initializeService() {
     _resultSub?.cancel();
     _resultSub = _service.result.listen(
-          (batch) {
+      (batch) {
+        _lastResultPhase = batch.phase;
         _libraryIndex = FileNodeLibraryIndex(
           flatNodes: batch.flatNodes,
           rootPath: batch.rootPath,
         );
-        if (state.currentFolderPath != null && state.currentFolderPath != batch.rootPath) {
+        if (state.currentFolderPath != null &&
+            state.currentFolderPath != batch.rootPath) {
           _libraryIndex!.stepIn(NodeFolder(state.currentFolderPath!));
         }
-        _updateStateFromIndex(isScanning: false);
+        final isScanning = switch (batch.phase) {
+          FileScannerResultPhase.cacheLoaded => true,
+          FileScannerResultPhase.syncCompleted ||
+          FileScannerResultPhase.syncSkipped => false,
+          FileScannerResultPhase.statusUpdated => state.isScanning,
+        };
+
+        _updateStateFromIndex(isScanning: isScanning);
       },
       onError: (e) {
         state = state.copyWith(isScanning: false);
@@ -63,14 +76,34 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   }
 
   /// 开始/切换扫描路径（用户在路径管理弹窗里选中了某一条路径）
-  Future<void> startScan(ScanTarget scanTarget) async {
+  Future<void> startScan(
+    ScanTarget scanTarget, {
+    bool forceSync = false,
+  }) async {
     try {
-      await _service.startScan(scanTarget);
-      await ref.read(scanTargetsProvider.notifier).updateScanTime(path: scanTarget.path, mode: scanTarget.scanMode);
+      final didSync = await _service.startScan(
+        scanTarget,
+        forceSync: forceSync,
+      );
+      if (didSync) {
+        await ref
+            .read(scanTargetsProvider.notifier)
+            .updateScanTime(path: scanTarget.path, mode: scanTarget.scanMode);
+      }
     } catch (e) {
       debugPrint('FileScannerNotifier: 扫描失败: $e');
       state = state.copyWith(isScanning: false);
     }
+  }
+
+  Future<void> refreshCurrentTarget() async {
+    final activeTarget = ref
+        .read(scanTargetsProvider.notifier)
+        .getActiveTarget();
+    if (activeTarget == null) return;
+
+    state = state.copyWith(isScanning: true);
+    await startScan(activeTarget, forceSync: true);
   }
 
   /// 进入某个子文件夹
@@ -87,6 +120,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     _libraryIndex!.stepOut();
     _updateStateFromIndex();
   }
+
   /// 面包屑导航栏点击跳转
   void jumpToPath(String targetFolderPath) {
     if (_libraryIndex == null) return;
@@ -97,6 +131,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     // 刷新 UI 视图切片状态
     _updateStateFromIndex();
   }
+
   /// 回到当前扫描目标的根目录
   void goHome() {
     if (_libraryIndex == null) return;
@@ -135,12 +170,14 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
 
     state = state.copyWith(
       rootPath: _libraryIndex!.rootPath,
-      currentFolderPath: _libraryIndex!.currentFolder?.normalized ?? _libraryIndex!.rootPath,
+      currentFolderPath:
+          _libraryIndex!.currentFolder?.normalized ?? _libraryIndex!.rootPath,
       children: _libraryIndex!.currentChildren, // 只提取当前目录下的直接子文件夹与文件项
       isHome: _libraryIndex!.isHome,
       isScanning: isScanning ?? state.isScanning,
     );
   }
+
   /// 当用户在路径管理弹窗里选中了某一条新路径（或者自动向前补位切换路径）时调用
   Future<void> changeActiveTarget(ScanTarget scanTarget) async {
     _libraryIndex = null;
@@ -169,6 +206,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
       isHome: true,
     );
   }
+
   void _cleanupService() {
     _resultSub?.cancel();
     _resultSub = null;
