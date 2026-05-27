@@ -164,26 +164,52 @@ class FileScannerService {
         .map((work) => work.id)
         .toSet();
 
-    final scannedNodes = await _worker.start(
+    final nodeIndexByKey = <String, int>{
+      for (var index = 0; index < _flatFiles.length; index++)
+        if (_flatFiles[index].keyId.isNotEmpty) _flatFiles[index].keyId: index,
+    };
+    var discoveredCount = 0;
+    var scannedFileCount = 0;
+
+    await for (final batch in _worker.startStream(
       path: scanTarget.path,
       extensions: scanTarget.scanMode.extensions,
       parsedWorkIds: parsedWorkIds,
       scanArchives: scanTarget.scanMode.scanArchives,
-    );
+    )) {
+      discoveredCount += batch.nodes.length;
+      scannedFileCount = batch.scannedFileCount;
 
-    final List<FileNode> filesToSave = [];
+      final filesToSave = <FileNode>[];
 
-    for (final node in scannedNodes) {
-      final key = node.keyId;
+      for (final node in batch.nodes) {
+        final key = node.keyId;
 
-      if (key.isEmpty) continue;
+        if (key.isEmpty) continue;
 
-      _visitedKeys.add(_normalizeKey(key));
+        _visitedKeys.add(_normalizeKey(key));
 
-      final cached = _storage.getNode(scanTarget.scanMode, key);
+        final cached = _storage.getNode(scanTarget.scanMode, key);
 
-      if (_shouldSave(cached, node)) {
-        filesToSave.add(node);
+        if (_shouldSave(cached, node)) {
+          filesToSave.add(node);
+        }
+      }
+
+      if (filesToSave.isEmpty) continue;
+
+      await _storage.saveNodes(scanTarget.scanMode, filesToSave);
+
+      for (final updated in filesToSave) {
+        final key = updated.keyId;
+        final index = nodeIndexByKey[key];
+
+        if (index != null) {
+          _flatFiles[index] = updated;
+        } else {
+          nodeIndexByKey[key] = _flatFiles.length;
+          _flatFiles.add(updated);
+        }
       }
     }
 
@@ -206,27 +232,12 @@ class FileScannerService {
       _flatFiles.removeWhere((node) => keysToDelete.contains(node.keyId));
     }
 
-    /// 保存新增/更新文件
-    if (filesToSave.isNotEmpty) {
-      await _storage.saveNodes(scanTarget.scanMode, filesToSave);
-
-      for (final updated in filesToSave) {
-        final index = _flatFiles.indexWhere(
-          (node) => node.keyId == updated.keyId,
-        );
-
-        if (index >= 0) {
-          _flatFiles[index] = updated;
-        } else {
-          _flatFiles.add(updated);
-        }
-      }
-    }
-
     debugPrint(
       '[FileScannerService] '
       '${scanTarget.scanMode.name}: '
-      '${_flatFiles.length} files indexed.',
+      '${_flatFiles.length} files indexed, '
+      '$discoveredCount nodes discovered, '
+      '$scannedFileCount physical files scanned.',
     );
 
     _emitCurrentResult(
