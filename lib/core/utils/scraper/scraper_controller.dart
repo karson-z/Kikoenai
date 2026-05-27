@@ -6,6 +6,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/utils/scraper/scraper.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import '../../../../core/service/file/file_scanner_storage.dart';
+import '../../service/file/file_scanner_service.dart';
 
 @immutable
 class ScraperQueueState {
@@ -144,6 +145,8 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     try {
       final id = parsingNode.workId;
       if (id == null) return;
+      await _updateWorkStatus(id, NodeStatus.parsing);
+
       if (!ScraperStorage().hasWork(id)) {
         debugPrint('[ScraperQueue] 开始爬取网络元数据: $id');
         final rawData = await DlSiteScraper.scrapeAll(id);
@@ -154,7 +157,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       }
       // 2. 解析成功，全局同步 physical 状态为 parsed
       final parsedNode = parsingNode.copyWith(nodeStatus: NodeStatus.parsed);
-      await FileScannerStorage().updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.parsed);
+      await _updateWorkStatus(id, NodeStatus.parsed);
 
       // 任务成功，状态转移 (内存队列中直接替换)
       state = state.copyWith(
@@ -167,7 +170,10 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
       // 3. 解析失败，全局同步 physical 状态退回 pending
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);
-      await FileScannerStorage().updateNodeStatusByKeyGlobally(node.keyId, NodeStatus.pending);
+      final id = failedNode.workId;
+      if (id != null) {
+        await _updateWorkStatus(id, NodeStatus.pending);
+      }
 
       // 任务失败，状态转移
       state = state.copyWith(
@@ -179,6 +185,14 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
         _pumpQueue();
       }
     }
+  }
+
+  Future<void> _updateWorkStatus(int workId, NodeStatus status) async {
+    await FileScannerStorage().updateNodeStatusByWorkIdGlobally(workId, status);
+    FileScannerService.instance.updateWorkStatusInCurrentResult(
+      workId: workId,
+      status: status,
+    );
   }
 }
 
