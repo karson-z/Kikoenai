@@ -21,7 +21,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   FileBrowserState build() {
     _service = FileScannerService.instance;
     ref.onDispose(_cleanupService);
-    Future.microtask(() => _initializeService());
+    _initializeService();
     final targetsNotifier = ref.read(scanTargetsProvider.notifier);
     final ScanTarget? activeTarget = targetsNotifier.getActiveTarget();
     if (activeTarget == null) {
@@ -31,7 +31,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
         isHome: true,
       );
     }
-    startScan(activeTarget);
+    Future.microtask(() => startScan(activeTarget));
     final String initialPath = activeTarget.path;
     final ScanMode currentScanMode = activeTarget.scanMode;
     return FileBrowserState(
@@ -44,6 +44,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
 
   /// 内部初始化方法
   void _initializeService() {
+    _resultSub?.cancel();
     _resultSub = _service.result.listen(
           (batch) {
         _libraryIndex = FileNodeLibraryIndex(
@@ -103,6 +104,30 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     _updateStateFromIndex();
   }
 
+  /// 获取当前扫描根目录下所有待解析作品。
+  ///
+  /// 返回值按 workId 去重，每个作品只保留第一个命中的文件节点作为解析任务入口。
+  List<FileNode> getPendingWorkNodesInActiveRoot() {
+    if (_libraryIndex == null) return const [];
+
+    final seenWorkIds = <int>{};
+    final pendingNodes = <FileNode>[];
+    final files = _libraryIndex!.getFilesInFolder(
+      _libraryIndex!.rootFolder,
+      recursive: true,
+    );
+
+    for (final node in files) {
+      final workId = node.workId;
+      if (workId == null || node.nodeStatus != NodeStatus.pending) continue;
+
+      if (seenWorkIds.add(workId)) {
+        pendingNodes.add(node);
+      }
+    }
+
+    return pendingNodes;
+  }
 
   /// 将树的单层节点投影，高效率、无嵌套地转换并同步为当前的 UI 视图切片状态
   void _updateStateFromIndex({bool? isScanning}) {
@@ -147,6 +172,5 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   void _cleanupService() {
     _resultSub?.cancel();
     _resultSub = null;
-    _service.dispose();
   }
 }

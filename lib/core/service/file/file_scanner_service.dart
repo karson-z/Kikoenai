@@ -57,13 +57,9 @@ class FileScannerService {
 
   final Set<String> _visitedKeys = {};
 
-  bool _disposed = false;
-
   Stream<FileScannerResult> get result => _resultController.stream;
 
   void dispose() {
-    _disposed = true;
-
     if (!_resultController.isClosed) {
       _resultController.close();
     }

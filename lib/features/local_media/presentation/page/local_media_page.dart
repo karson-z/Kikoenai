@@ -36,8 +36,7 @@ class ScannerPage extends ConsumerWidget {
       final isNowDone = !next.isScanning;
 
       if (wasScanning && isNowDone && next.rootPath.isNotEmpty) {
-        // 从当前切片拿到待解析节点集合（如果是深度完成，建议由配套后台流通知，此处对齐页面 children 校验）
-        final pendingNodes = _extractPendingNodes(next.children);
+        final pendingNodes = scannerNotifier.getPendingWorkNodesInActiveRoot();
         if (pendingNodes.isNotEmpty && next.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
@@ -212,12 +211,6 @@ class ScannerPage extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  List<FileNode> _extractPendingNodes(List<FileNode> nodes) {
-    return nodes
-        .where((node) => node.nodeStatus == NodeStatus.pending && node.workId != null)
-        .toList();
   }
 
   void _showScanCompleteDialog(BuildContext context, WidgetRef ref, List<FileNode> pendingNodes) {
