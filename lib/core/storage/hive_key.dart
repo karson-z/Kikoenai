@@ -37,6 +37,16 @@ class StorageKeys {
   /// 用法示例: "${StorageKeys.scanPrefixItem}$itemId"
   static const String scanPrefixItem = 'item_';
 
+  /// 本地媒体库是否开启自动静默同步
+  /// 类型: bool
+  static const String localMediaAutoSyncEnabled =
+      'local_media_auto_sync_enabled';
+
+  /// 本地媒体库自动静默同步阈值，单位小时
+  /// 类型: int
+  static const String localMediaAutoSyncThresholdHours =
+      'local_media_auto_sync_threshold_hours';
+
   // ==================== Option Keys (Settings Box - 用户偏好) ====================
 
   /// 标签(Tag)筛选或显示选项
@@ -87,14 +97,19 @@ class StorageKeys {
 
   /// 全局主题字体预设
   static const String themeFontPreset = 'theme_font_preset';
+
   /// 桌面字幕位置 X轴
   static const String overlayLyricsPositionX = 'overlay_lyrics_positionX';
+
   /// 桌面字幕位置 Y轴
   static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
+
   /// 播放器背景模糊程度
   static const String blurBackground = 'blur_background';
+
   /// 播放器背景图片缩放比例
   static const String backgroundScale = 'background_scale';
+
   /// 播放器背景图片编码质量
   static const String backgroundQuality = 'background_quality';
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================

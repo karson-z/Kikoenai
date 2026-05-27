@@ -9,70 +9,86 @@ import '../model/file_scanner_state.dart';
 class ScannerPathRepository {
   ScannerPathRepository._();
   static final ScannerPathRepository instance = ScannerPathRepository._();
+
   /// 全局静态 Box 实例
   Box<ScanTarget> get scanTargetBox => AppStorage.scanTargetBox;
+
   /// 生成统一的 Hive Key，确保同一路径在不同扫描模式下拥有独立的存储身份
   static String _generateKey(String path, ScanMode mode) {
     final normalizedPath = path.replaceAll('\\', '/').toLowerCase();
     return '${mode.name}_$normalizedPath';
   }
+
   String activeKey = 'active_path';
 
   Future<void> saveActiveTarget(ScanTarget target) async {
-
     await scanTargetBox.put(activeKey, target);
 
     debugPrint(
       '[ScannerPathRepository] Saved active target for ${target.scanMode.name}: ${target.path}',
     );
   }
+
   ScanTarget? getActiveTarget() {
     final activeTarget = scanTargetBox.get(activeKey);
     if (activeTarget != null) {
-      final realKey = _generateKey(
-        activeTarget.path,
-        activeTarget.scanMode,
-      );
+      final realKey = _generateKey(activeTarget.path, activeTarget.scanMode);
       if (scanTargetBox.containsKey(realKey)) {
-        return activeTarget;
+        return scanTargetBox.get(realKey);
       }
     }
     return null;
   }
+
   /// 保存或更新一个扫描目标
   /// 无论是用户新添加，还是扫描完成后更新 [lastScannedAt]，都调用此方法
   Future<void> saveTarget(ScanTarget target) async {
     final key = _generateKey(target.path, target.scanMode);
     await scanTargetBox.put(key, target);
-    debugPrint('[ScannerPathRepository] Saved target: ${target.path} for mode: ${target.scanMode.name}');
+    debugPrint(
+      '[ScannerPathRepository] Saved target: ${target.path} for mode: ${target.scanMode.name}',
+    );
   }
 
   /// 快捷更新方法：仅更新指定目标的最后扫描时间
-   Future<void> updateLastScannedAt(String path, ScanMode mode, int timestamp) async {
+  Future<void> updateLastScannedAt(
+    String path,
+    ScanMode mode,
+    int timestamp,
+  ) async {
     final key = _generateKey(path, mode);
     final cached = scanTargetBox.get(key);
     if (cached != null) {
       final updated = cached.copyWith(lastScannedAt: timestamp);
       await scanTargetBox.put(key, updated);
+      final activeTarget = scanTargetBox.get(activeKey);
+      if (activeTarget != null &&
+          activeTarget.path == path &&
+          activeTarget.scanMode == mode) {
+        await scanTargetBox.put(activeKey, updated);
+      }
     }
   }
+
   /// 删除一个扫描目标，并联动清理该路径下产生的所有文件缓存
-   Future<void> deleteTarget(String path, ScanMode mode) async {
+  Future<void> deleteTarget(String path, ScanMode mode) async {
     final key = _generateKey(path, mode);
     if (scanTargetBox.containsKey(key)) {
       await FileScannerStorage().clearByRootPath(mode, path);
       await scanTargetBox.delete(key);
-      debugPrint('[ScannerPathRepository] Deleted target and cleared caches for: $path');
+      debugPrint(
+        '[ScannerPathRepository] Deleted target and cleared caches for: $path',
+      );
     }
   }
 
-   Future<void> clearAllTargets() async {
+  Future<void> clearAllTargets() async {
     await scanTargetBox.clear();
     debugPrint('[ScannerPathRepository] Cleared absolutely all scan targets.');
   }
 
   /// 获取单个特定的扫描目标
-   ScanTarget? getTarget(String path, ScanMode mode) {
+  ScanTarget? getTarget(String path, ScanMode mode) {
     final key = _generateKey(path, mode);
     return scanTargetBox.get(key);
   }
@@ -99,7 +115,7 @@ class ScannerPathRepository {
   }
 
   /// 判断某个路径在指定模式下是否已经被添加过
-   bool isPathExists(String path, ScanMode mode) {
+  bool isPathExists(String path, ScanMode mode) {
     final key = _generateKey(path, mode);
     return scanTargetBox.containsKey(key);
   }

@@ -30,23 +30,31 @@ class FileScannerStorage {
   }
 
   List<FileNode> getNodesByRootPath(ScanMode mode, String rootPath) {
-    final normalizedRoot = FileNodeLibraryIndex.normalizePath(rootPath).toLowerCase();
+    final normalizedRoot = FileNodeLibraryIndex.normalizePath(
+      rootPath,
+    ).toLowerCase();
 
-    return _box.toMap().entries
+    return _box
+        .toMap()
+        .entries
         .where((entry) => _isModeKey(mode, entry.key))
         .map((entry) => entry.value)
         .where((node) {
-      final nodeRoot = node.rootPath;
-      if (nodeRoot != null && nodeRoot.isNotEmpty) {
-        return FileNodeLibraryIndex.normalizePath(nodeRoot).toLowerCase() == normalizedRoot;
-      }
+          final nodeRoot = node.rootPath;
+          if (nodeRoot != null && nodeRoot.isNotEmpty) {
+            return FileNodeLibraryIndex.normalizePath(nodeRoot).toLowerCase() ==
+                normalizedRoot;
+          }
 
-      final nodePath = node.path ?? node.mediaStreamUrl;
-      if (nodePath == null || nodePath.isEmpty) return false;
+          final nodePath = node.path ?? node.mediaStreamUrl;
+          if (nodePath == null || nodePath.isEmpty) return false;
 
-      final normalizedNode = FileNodeLibraryIndex.normalizePath(nodePath).toLowerCase();
-      return normalizedNode == normalizedRoot || normalizedNode.startsWith('$normalizedRoot/');
-    })
+          final normalizedNode = FileNodeLibraryIndex.normalizePath(
+            nodePath,
+          ).toLowerCase();
+          return normalizedNode == normalizedRoot ||
+              normalizedNode.startsWith('$normalizedRoot/');
+        })
         .toList();
   }
 
@@ -55,7 +63,9 @@ class FileScannerStorage {
   }
 
   List<FileNode> getAllByMode(ScanMode mode) {
-    return _box.toMap().entries
+    return _box
+        .toMap()
+        .entries
         .where((entry) => _isModeKey(mode, entry.key))
         .map((entry) => entry.value)
         .toList();
@@ -76,41 +86,60 @@ class FileScannerStorage {
     }
 
     await _box.putAll(map);
-    debugPrint('[FileScannerStorage] (${mode.name}) saved ${map.length} flat nodes.');
+    debugPrint(
+      '[FileScannerStorage] (${mode.name}) saved ${map.length} flat nodes.',
+    );
   }
 
   Future<void> deleteNodes(ScanMode mode, List<String> nodeKeys) async {
     if (nodeKeys.isEmpty) return;
     await _box.deleteAll(nodeKeys.map((key) => _keyFor(mode, key)));
-    debugPrint('[FileScannerStorage] (${mode.name}) deleted ${nodeKeys.length} stale nodes.');
+    debugPrint(
+      '[FileScannerStorage] (${mode.name}) deleted ${nodeKeys.length} stale nodes.',
+    );
   }
 
   Future<void> clearByRootPath(ScanMode mode, String rootPath) async {
-    final normalizedRoot = FileNodeLibraryIndex.normalizePath(rootPath).toLowerCase();
+    final normalizedRoot = FileNodeLibraryIndex.normalizePath(
+      rootPath,
+    ).toLowerCase();
 
-    final keys = _box.toMap().entries.where((entry) {
-      if (!_isModeKey(mode, entry.key)) return false;
-      final node = entry.value;
+    final keys = _box
+        .toMap()
+        .entries
+        .where((entry) {
+          if (!_isModeKey(mode, entry.key)) return false;
+          final node = entry.value;
 
-      final nodeRoot = node.rootPath;
-      if (nodeRoot != null && nodeRoot.isNotEmpty) {
-        return FileNodeLibraryIndex.normalizePath(nodeRoot).toLowerCase() == normalizedRoot;
-      }
+          final nodeRoot = node.rootPath;
+          if (nodeRoot != null && nodeRoot.isNotEmpty) {
+            return FileNodeLibraryIndex.normalizePath(nodeRoot).toLowerCase() ==
+                normalizedRoot;
+          }
 
-      final nodePath = node.path ?? node.mediaStreamUrl;
-      if (nodePath == null || nodePath.isEmpty) return false;
-      final normalizedNode = FileNodeLibraryIndex.normalizePath(nodePath).toLowerCase();
-      return normalizedNode == normalizedRoot || normalizedNode.startsWith('$normalizedRoot/');
-    }).map((entry) => entry.key).toList();
+          final nodePath = node.path ?? node.mediaStreamUrl;
+          if (nodePath == null || nodePath.isEmpty) return false;
+          final normalizedNode = FileNodeLibraryIndex.normalizePath(
+            nodePath,
+          ).toLowerCase();
+          return normalizedNode == normalizedRoot ||
+              normalizedNode.startsWith('$normalizedRoot/');
+        })
+        .map((entry) => entry.key)
+        .toList();
 
     await _box.deleteAll(keys);
-    debugPrint('[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes under $rootPath.');
+    debugPrint(
+      '[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes under $rootPath.',
+    );
   }
 
   Future<void> clearByMode(ScanMode mode) async {
     final keys = _box.keys.where((key) => _isModeKey(mode, key)).toList();
     await _box.deleteAll(keys);
-    debugPrint('[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes.');
+    debugPrint(
+      '[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes.',
+    );
   }
 
   Future<void> clearAbsolutelyAll() async {
@@ -152,7 +181,10 @@ class FileScannerStorage {
     );
   }
 
-  Future<void> updateNodeStatusByKeyGlobally(String nodeKey, NodeStatus newStatus) async {
+  Future<void> updateNodeStatusByKeyGlobally(
+    String nodeKey,
+    NodeStatus newStatus,
+  ) async {
     final updates = <String, FileNode>{};
 
     for (final mode in ScanMode.values) {
@@ -164,7 +196,10 @@ class FileScannerStorage {
     if (updates.isNotEmpty) await _box.putAll(updates);
   }
 
-  Future<void> updateNodeStatusByWorkIdGlobally(int workId, NodeStatus newStatus) async {
+  Future<void> updateNodeStatusByWorkIdGlobally(
+    int workId,
+    NodeStatus newStatus,
+  ) async {
     final updates = <dynamic, FileNode>{};
 
     for (final entry in _box.toMap().entries) {
@@ -180,7 +215,9 @@ class FileScannerStorage {
     String? root;
 
     for (final node in nodes) {
-      final folder = node.folderPath ?? FileNodeLibraryIndex.dirName(node.path ?? node.mediaStreamUrl ?? '');
+      final folder =
+          node.folderPath ??
+          FileNodeLibraryIndex.dirName(node.path ?? node.mediaStreamUrl ?? '');
       if (folder.isEmpty) continue;
 
       if (root == null) {
@@ -188,7 +225,8 @@ class FileScannerStorage {
         continue;
       }
 
-      while (root != null && !folder.toLowerCase().startsWith(root.toLowerCase())) {
+      while (root != null &&
+          !folder.toLowerCase().startsWith(root.toLowerCase())) {
         final parent = FileNodeLibraryIndex.dirName(root);
         if (parent == root) return root;
         root = parent;

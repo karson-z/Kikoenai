@@ -5,12 +5,21 @@ import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 
+import '../../storage/hive_key.dart';
+import '../../storage/hive_storage.dart';
 import '../../utils/scraper/scraper_storage.dart';
 import 'file_node_library_index.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
 
 enum ScanMode { audio, video, subtitles }
+
+enum FileScannerResultPhase {
+  cacheLoaded,
+  syncSkipped,
+  syncCompleted,
+  statusUpdated,
+}
 
 extension ScanModeConfig on ScanMode {
   Set<String> get extensions {
@@ -33,11 +42,13 @@ class FileScannerResult {
   final List<FileNode> flatNodes;
   final int scannedCount;
   final String rootPath;
+  final FileScannerResultPhase phase;
 
   const FileScannerResult({
     required this.flatNodes,
     required this.scannedCount,
     required this.rootPath,
+    required this.phase,
   });
 }
 
@@ -65,10 +76,24 @@ class FileScannerService {
     }
   }
 
-  Future<void> startScan(ScanTarget scanTarget) async {
-    await _initAndLoadCache(scanTarget);
+  Future<bool> startScan(
+    ScanTarget scanTarget, {
+    bool forceSync = false,
+  }) async {
+    final hasCache = await _initAndLoadCache(scanTarget);
+    final shouldSync =
+        forceSync || _shouldSilentSync(scanTarget, hasCache: hasCache);
 
+    _emitCurrentResult(
+      scanTarget.path,
+      phase: shouldSync
+          ? FileScannerResultPhase.cacheLoaded
+          : FileScannerResultPhase.syncSkipped,
+    );
+
+    if (!shouldSync) return false;
     await _performSilentSync(scanTarget);
+    return true;
   }
 
   void updateWorkStatusInCurrentResult({
@@ -87,12 +112,12 @@ class FileScannerService {
 
     if (changed) {
       final rootPath = _flatFiles.firstOrNull?.rootPath ?? '';
-      _emitCurrentResult(rootPath);
+      _emitStatusUpdatedResult(rootPath);
     }
   }
 
   /// 初始化并加载本地缓存
-  Future<void> _initAndLoadCache(ScanTarget scanTarget) async {
+  Future<bool> _initAndLoadCache(ScanTarget scanTarget) async {
     _flatFiles
       ..clear()
       ..addAll(
@@ -101,7 +126,33 @@ class FileScannerService {
             .where((node) => !node.isFolder),
       );
 
-    _emitCurrentResult(scanTarget.path);
+    return _flatFiles.isNotEmpty;
+  }
+
+  bool _shouldSilentSync(ScanTarget scanTarget, {required bool hasCache}) {
+    if (!hasCache) return true;
+
+    final autoSyncEnabled =
+        AppStorage.settingsBox.get(
+              StorageKeys.localMediaAutoSyncEnabled,
+              defaultValue: true,
+            )
+            as bool;
+    if (!autoSyncEnabled) return false;
+
+    final thresholdHours =
+        AppStorage.settingsBox.get(
+              StorageKeys.localMediaAutoSyncThresholdHours,
+              defaultValue: 24,
+            )
+            as int;
+    final threshold = Duration(hours: thresholdHours.clamp(1, 168));
+    final lastScannedAt = scanTarget.lastScannedAt;
+
+    if (lastScannedAt == null || lastScannedAt <= 0) return true;
+
+    final elapsed = DateTime.now().millisecondsSinceEpoch - lastScannedAt;
+    return elapsed >= threshold.inMilliseconds;
   }
 
   /// 静默同步磁盘
@@ -178,7 +229,10 @@ class FileScannerService {
       '${_flatFiles.length} files indexed.',
     );
 
-    _emitCurrentResult(scanTarget.path);
+    _emitCurrentResult(
+      scanTarget.path,
+      phase: FileScannerResultPhase.syncCompleted,
+    );
   }
 
   bool _shouldSave(FileNode? cached, FileNode next) {
@@ -192,8 +246,22 @@ class FileScannerService {
         cached.rootPath != next.rootPath;
   }
 
-  void _emitCurrentResult(String rootPath) {
-    _resultController.add(FileScannerResult(flatNodes: _flatFiles, scannedCount: _flatFiles.length, rootPath:rootPath ));
+  void _emitStatusUpdatedResult(String rootPath) {
+    _emitCurrentResult(rootPath, phase: FileScannerResultPhase.statusUpdated);
+  }
+
+  void _emitCurrentResult(
+    String rootPath, {
+    required FileScannerResultPhase phase,
+  }) {
+    _resultController.add(
+      FileScannerResult(
+        flatNodes: _flatFiles,
+        scannedCount: _flatFiles.length,
+        rootPath: rootPath,
+        phase: phase,
+      ),
+    );
   }
 
   String _normalizeKey(String value) {
