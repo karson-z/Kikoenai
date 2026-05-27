@@ -33,9 +33,11 @@ class ScanTargets extends Notifier<List<ScanTarget>> {
     return _repository.getActiveTarget();
   }
   Future<void> selectTarget({required String path, required ScanMode mode}) async {
-    final scanTarget = ScanTarget(path: path, scanMode: mode, addedAt: DateTime.now().millisecondsSinceEpoch);
-    _repository.saveActiveTarget(scanTarget);
-    ref.read(fileScannerProvider.notifier).startScan(scanTarget);
+    final scanTarget = _repository.getTarget(path, mode);
+    if (scanTarget == null) return;
+
+    await _repository.saveActiveTarget(scanTarget);
+    state = _repository.getAllTargets();
   }
   /// 删除扫描目标
   Future<void> removeTarget({required String path, required ScanMode mode}) async {
