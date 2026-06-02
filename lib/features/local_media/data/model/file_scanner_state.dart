@@ -2,8 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_typeIds.dart';
 import 'package:kikoenai/core/model/file_node.dart';
-import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/service/file/file_scanner_worker.dart';
+import '../../../../core/service/file/scan_mode.dart';
 
 part 'file_scanner_state.freezed.dart';
 part 'file_scanner_state.g.dart';
@@ -18,7 +17,8 @@ abstract class ScanTarget with _$ScanTarget {
     @HiveField(3) required ScanMode scanMode,
   }) = _ScanTarget;
 
-  factory ScanTarget.fromJson(Map<String, dynamic> json) => _$ScanTargetFromJson(json);
+  factory ScanTarget.fromJson(Map<String, dynamic> json) =>
+      _$ScanTargetFromJson(json);
 }
 
 @freezed
@@ -46,9 +46,14 @@ abstract class FileBrowserState with _$FileBrowserState {
 
   List<String> get breadcrumbPaths {
     final normalizedRoot = rootPath.replaceAll('\\', '/');
-    final normalizedCurrent = (currentFolderPath ?? rootPath).replaceAll('\\', '/');
+    final normalizedCurrent = (currentFolderPath ?? rootPath).replaceAll(
+      '\\',
+      '/',
+    );
 
-    if (normalizedCurrent.isEmpty || normalizedRoot.isEmpty || !normalizedCurrent.startsWith(normalizedRoot)) {
+    if (normalizedCurrent.isEmpty ||
+        normalizedRoot.isEmpty ||
+        !normalizedCurrent.startsWith(normalizedRoot)) {
       return const [];
     }
     final relativePath = normalizedCurrent.substring(normalizedRoot.length);

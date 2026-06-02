@@ -1,7 +1,6 @@
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_typeIds.dart';
-// 确保引入了 ScanMode 所在的正确路径
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/service/file/scan_mode.dart';
 
 class ScanModeAdapter extends TypeAdapter<ScanMode> {
   /// Hive 内部类型标识符。请在 TypeIds 统一管理类中进行登记，避免与其他对象冲突。

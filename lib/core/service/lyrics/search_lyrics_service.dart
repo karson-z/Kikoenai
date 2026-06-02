@@ -2,7 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/service/file/scan_mode.dart';
 import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -18,6 +18,7 @@ class LyricsDataProcess {
       return node.copyWith(title: cleanTitle);
     }).toList();
   }
+
   /// 播放列表数据处理
   /// 输入[playList] 播放列表
   static List<MediaItem> batchPlayListProcess(List<MediaItem> playList) {
@@ -27,6 +28,7 @@ class LyricsDataProcess {
       return mediaItem.copyWith(title: cleanTitle);
     }).toList();
   }
+
   /// [内部流水线] 生成文件指纹
   /// 将三个步骤串联：取文件名 -> 去扩展名 -> 去干扰字符 -> 归一化
   static String _generateFingerprint(String originalName) {
@@ -48,8 +50,10 @@ class LyricsDataProcess {
   static String _removeSuffixes(String input) {
     var result = input;
 
-    result =
-        result.replaceAll(RegExp(r'(（.*?）|\(.*?\)|\[.*?\]|【.*?】|《.*?》)'), '');
+    result = result.replaceAll(
+      RegExp(r'(（.*?）|\(.*?\)|\[.*?\]|【.*?】|《.*?》)'),
+      '',
+    );
 
     const suffixes = FileExtensions.seSuffixes; // 示例
     for (final suffix in suffixes) {
@@ -84,8 +88,9 @@ class SearchLyricsService {
       } else {
         final fileName = file.title.toLowerCase();
 
-        bool isSubtitle =
-            allowedExtensions.any((ext) => fileName.endsWith(ext));
+        bool isSubtitle = allowedExtensions.any(
+          (ext) => fileName.endsWith(ext),
+        );
 
         if (isSubtitle) {
           result.add(file);
@@ -204,20 +209,21 @@ class SearchLyricsService {
   /// [workId] 作品Id
   /// [ref] ProviderRef
   static Future<List<FileNode>> findSubtitleInNetWorkById(
-      int workId, Ref ref) async {
+    int workId,
+    Ref ref,
+  ) async {
     // A.拿到作品对应的文件列表
-    final workFiles =
-        await ref.read(trackFileNodeProvider(workId).future);
+    final workFiles = await ref.read(trackFileNodeProvider(workId).future);
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }
+
   /// 查找当前作品下的所有字幕
   /// [workId] 作品Id
   /// [ref] ProviderRef
-  static Future<List<FileNode>> findLyrics(
-      int workId, Ref ref) async {
+  static Future<List<FileNode>> findLyrics(int workId, Ref ref) async {
     final localLyrics = findSubtitleInLocalById(workId);
-    if(localLyrics.isNotEmpty){
+    if (localLyrics.isNotEmpty) {
       return localLyrics;
     }
     final netWorkLyrics = await findSubtitleInNetWorkById(workId, ref);
