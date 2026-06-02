@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import 'app/app.dart';
 import 'config/environment_config.dart';
 import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
+import 'core/service/file/local_media_sync_scheduler.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/presentation/page/overly_lyrics_panel.dart';
@@ -75,5 +78,6 @@ void main() async {
   await EnvironmentConfig.selectBestServer();
   debugPrint('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
   setupDesktopWindow();
+  unawaited(LocalMediaSyncScheduler.instance.runStartupCheck());
   runApp(const ProviderScope(child: MyApp()));
 }

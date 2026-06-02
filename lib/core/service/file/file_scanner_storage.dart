@@ -7,7 +7,7 @@ import 'package:kikoenai/core/model/file_node.dart';
 
 import '../../storage/hive_storage.dart';
 import 'file_node_library_index.dart';
-import 'file_scanner_service.dart';
+import 'scan_mode.dart';
 
 class FileScannerStorage {
   FileScannerStorage._();
