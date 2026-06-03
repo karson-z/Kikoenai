@@ -1,61 +1,180 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive_ce/hive.dart';
-
-import '../../../album/data/model/work.dart';
-import '../../../../core/constants/app_typeIds.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
+import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 
 part 'history_entry.freezed.dart';
-part 'history_entry.g.dart';
 
-// 必须给 Enum 加上 HiveType 和 HiveField，否则存入时会报错
-@HiveType(
-    typeId: TypeIds.historyEntryType, adapterName: 'HistoryEntryTypeAdapter')
-enum HistoryEntryType {
-  @HiveField(0)
-  work,
-  @HiveField(1)
-  localWork,
-  @HiveField(2)
-  singleWork,
-}
+@Deprecated('Only kept for reading legacy Hive history entries.')
+enum HistoryEntryType { work, localWork, singleWork }
 
 @freezed
-@HiveType(typeId: TypeIds.historyEntry, adapterName: 'HistoryEntryAdapter')
 abstract class HistoryEntry with _$HistoryEntry {
   const HistoryEntry._();
 
   const factory HistoryEntry({
-    @HiveField(0) Work? work,
-    @HiveField(1) required MediaItem lastPlayTrack,
-    @HiveField(2) required List<MediaItem>? playlist,
-    @HiveField(3) required int lastPlayTime,
-    @HiveField(4) int? lastProgressMs,
-    @HiveField(5) @Default(HistoryEntryType.work) HistoryEntryType historyType,
+    required PlaybackSession session,
+    required String lastItemId,
+    required int lastPlayTime,
+    int? lastProgressMs,
   }) = _HistoryEntry;
 
-  String get lastTrackId => lastPlayTrack.id;
+  PlaybackItem? get lastItem =>
+      session.itemById(lastItemId) ?? session.currentItem;
 
-  String get currentTrackTitle => lastPlayTrack.title;
+  NodeSource? get source => lastItem?.source;
 
-  /// 作为历史记录的唯一键，根据不同的类型生成
+  String? get workId => lastItem?.workId?.toString();
+
+  String get lastTrackId => lastItemId;
+
+  String get currentTrackTitle => lastItem?.title ?? '';
+
+  String? get title => lastItem?.albumTitle ?? lastItem?.title;
+
+  String? get coverUrl => lastItem?.coverUrl ?? lastItem?.smallCoverUrl;
+
+  Duration? get duration => lastItem?.duration;
+
+  bool get isNetworkWork => source == NodeSource.asmrServer;
+
+  bool get isLocalWork => source == NodeSource.localWork;
+
+  bool get isLocalSingle => source == NodeSource.localSingle;
+
   String get primaryKey {
-    // 提取可用的实体 ID
-    final entityId = work?.id.toString() ?? lastPlayTrack.id;
+    final item = lastItem;
+    if (item == null) return 'unknown_$lastItemId';
 
-    switch (historyType) {
-      case HistoryEntryType.work:
-        // 网络作品：以 work_ 为前缀
-        return 'work_$entityId';
+    return switch (item.source) {
+      NodeSource.asmrServer => 'work_${item.scopeId}',
+      NodeSource.localWork => 'local_work_${item.scopeId}',
+      NodeSource.localSingle => 'single_${item.id}',
+      NodeSource.cloudDrive => 'cloud_${item.scopeId}',
+    };
+  }
+}
 
-      case HistoryEntryType.localWork:
-        // 本地作品：以 local_work_ 为前缀
-        return 'local_work_$entityId';
+class HistoryEntryAdapter extends TypeAdapter<HistoryEntry> {
+  @override
+  int get typeId => TypeIds.historyEntry;
 
-      case HistoryEntryType.singleWork:
-        // 单曲：以 single_ 为前缀
-        // 单曲可能没有 work 对象，此时 entityId 自然取到了 lastTrackId (通常是文件 hash)
-        return 'single_$entityId';
+  @override
+  HistoryEntry read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+
+    final session = fields[6] as PlaybackSession?;
+    if (session != null) {
+      return HistoryEntry(
+        session: session,
+        lastItemId: fields[7] as String? ?? session.currentItem?.id ?? '',
+        lastPlayTime:
+            (fields[8] as num?)?.toInt() ??
+            DateTime.now().millisecondsSinceEpoch,
+        lastProgressMs: (fields[9] as num?)?.toInt(),
+      );
     }
+
+    return _readLegacyEntry(fields);
+  }
+
+  @override
+  void write(BinaryWriter writer, HistoryEntry obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(6)
+      ..write(obj.session)
+      ..writeByte(7)
+      ..write(obj.lastItemId)
+      ..writeByte(8)
+      ..write(obj.lastPlayTime)
+      ..writeByte(9)
+      ..write(obj.lastProgressMs);
+  }
+
+  HistoryEntry _readLegacyEntry(Map<int, dynamic> fields) {
+    final work = fields[0] as Work?;
+    final lastPlayTrack = fields[1] as MediaItem?;
+    final playlist = (fields[2] as List?)?.cast<MediaItem>();
+    final lastPlayTime =
+        (fields[3] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+    final lastProgressMs = (fields[4] as num?)?.toInt();
+    final historyType = fields[5] as HistoryEntryType?;
+    final source = _legacySource(historyType, lastPlayTrack);
+    final mediaItems = playlist?.isNotEmpty == true
+        ? playlist!
+        : lastPlayTrack == null
+        ? const <MediaItem>[]
+        : <MediaItem>[lastPlayTrack];
+    final items = mediaItems
+        .map(
+          (item) =>
+              PlaybackItem.fromMediaItem(item, work: work, source: source),
+        )
+        .toList();
+    final lastItemId =
+        lastPlayTrack?.id ?? (items.isEmpty ? '' : items.first.id);
+    final currentIndex = items.indexWhere((item) => item.id == lastItemId);
+
+    return HistoryEntry(
+      session: PlaybackSession(
+        id: 'legacy_$lastItemId',
+        currentIndex: currentIndex < 0 ? 0 : currentIndex,
+        queue: items,
+        createdAt: lastPlayTime,
+        updatedAt: lastPlayTime,
+      ),
+      lastItemId: lastItemId,
+      lastPlayTime: lastPlayTime,
+      lastProgressMs: lastProgressMs,
+    );
+  }
+
+  NodeSource _legacySource(HistoryEntryType? type, MediaItem? item) {
+    return switch (type) {
+      HistoryEntryType.work => NodeSource.asmrServer,
+      HistoryEntryType.localWork => NodeSource.localWork,
+      HistoryEntryType.singleWork => NodeSource.localSingle,
+      null => _legacySourceFromMediaItem(item),
+    };
+  }
+
+  NodeSource _legacySourceFromMediaItem(MediaItem? item) {
+    final url = item?.extras?['url'] as String?;
+    if (url == null) return NodeSource.asmrServer;
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      return NodeSource.localWork;
+    }
+    return NodeSource.asmrServer;
+  }
+}
+
+class HistoryEntryTypeAdapter extends TypeAdapter<HistoryEntryType> {
+  @override
+  int get typeId => TypeIds.historyEntryType;
+
+  @override
+  HistoryEntryType read(BinaryReader reader) {
+    return switch (reader.readByte()) {
+      0 => HistoryEntryType.work,
+      1 => HistoryEntryType.localWork,
+      2 => HistoryEntryType.singleWork,
+      _ => HistoryEntryType.work,
+    };
+  }
+
+  @override
+  void write(BinaryWriter writer, HistoryEntryType obj) {
+    writer.writeByte(switch (obj) {
+      HistoryEntryType.work => 0,
+      HistoryEntryType.localWork => 1,
+      HistoryEntryType.singleWork => 2,
+    });
   }
 }

@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
-import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import '../../../features/player/data/model/player_state.dart';
 // 引入新定义的 Key 常量类
 import '../../storage/hive_key.dart';

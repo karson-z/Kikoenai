@@ -1,14 +1,11 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/core/constants/app_file_extensions.dart';
-import 'package:kikoenai/core/model/file_node.dart';
+import 'package:audio_service/audio_service.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:kikoenai/features/player/data/model/progress_state.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../../../core/constants/app_typeIds.dart';
-import '../../../../core/service/audio/audio_extension.dart';
-import '../../../album/data/model/work.dart';
 
 part 'player_state.freezed.dart';
 part 'player_state.g.dart';
@@ -22,20 +19,25 @@ abstract class AppPlayerState with _$AppPlayerState {
     @HiveField(0) @Default(false) bool playing,
     @HiveField(1) @Default(false) bool loading,
     @HiveField(2)
-    @Default(ProgressBarState(
-      current: Duration.zero,
-      buffered: Duration.zero,
-      total: Duration.zero,
-    ))
+    @Default(
+      ProgressBarState(
+        current: Duration.zero,
+        buffered: Duration.zero,
+        total: Duration.zero,
+      ),
+    )
     ProgressBarState progressBarState,
-    @HiveField(3) MediaItem? currentTrack,
-    @HiveField(4) @Default([]) List<MediaItem> playlist,
+    @HiveField(3) MediaItem? legacyCurrentTrack,
+    @HiveField(4) @Default([]) List<MediaItem> legacyPlaylist,
     @HiveField(5) @Default(true) bool isFirst,
     @HiveField(6) @Default(true) bool isLast,
     @HiveField(7) @Default(false) bool shuffleEnabled,
-    @HiveField(8) @Default(AudioServiceRepeatMode.none) AudioServiceRepeatMode repeatMode,
+    @HiveField(8)
+    @Default(AudioServiceRepeatMode.none)
+    AudioServiceRepeatMode repeatMode,
     @HiveField(9) @Default(1.0) double volume,
     @HiveField(12) @Default(false) bool isAudioOnly,
+    @HiveField(13) PlaybackSession? session,
     @Default(true) bool isVideoControlsVisible,
     @Default(0) int videoWidth,
     @Default(0) int videoHeight,
@@ -50,7 +52,14 @@ abstract class AppPlayerState with _$AppPlayerState {
     @Default([]) List<SubtitleTrack> externalSubtitleTracks,
   }) = _AppPlayerState;
 
-  Work? get currentWork => currentTrack?.workData;
+  PlaybackItem? get currentItem => session?.currentItem;
+
+  MediaItem? get currentTrack =>
+      session?.currentMediaItem ?? legacyCurrentTrack;
+
+  List<MediaItem> get playlist => session?.mediaItems ?? legacyPlaylist;
+
+  List<PlaybackItem> get playbackQueue => session?.queue ?? const [];
 
   bool get isVideoPortrait {
     if (videoWidth == 0 || videoHeight == 0) return false;
@@ -60,15 +69,20 @@ abstract class AppPlayerState with _$AppPlayerState {
     return effectiveHeight > effectiveWidth;
   }
 
-  List<SubtitleTrack> get allSubtitleTracks =>
-      [...availableSubtitleTracks, ...externalSubtitleTracks];
+  List<SubtitleTrack> get allSubtitleTracks => [
+    ...availableSubtitleTracks,
+    ...externalSubtitleTracks,
+  ];
 
-  List<AudioTrack> get allAudioTracks =>
-      [...availableAudioTracks, ...externalAudioTracks];
+  List<AudioTrack> get allAudioTracks => [
+    ...availableAudioTracks,
+    ...externalAudioTracks,
+  ];
 
   // 当前是否是视频播放页面
   bool get isCurrentVideoView {
-    if (currentTrack == null) return false;
-    return FileExtensions.isVideo(currentTrack!.extras?['url']) && !isAudioOnly;
+    final item = currentItem;
+    if (item == null) return false;
+    return item.isVideo && !isAudioOnly;
   }
 }

@@ -19,6 +19,8 @@ class TypeIds {
   static const int progressBarState = 51;
   static const int mediaItem = 52;
   static const int repeatMode = 53;
+  static const int playbackItem = 54;
+  static const int playbackSession = 55;
 
   // --- 歌词与配置 (70-89) ---
   static const int lyricConfig = 70;
