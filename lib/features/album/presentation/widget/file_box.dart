@@ -8,7 +8,6 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/download/presentation/provider/download_provider.dart';
-import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
@@ -36,7 +35,6 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
 }
 
 class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
-
   @override
   void initState() {
     super.initState();
@@ -227,9 +225,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             targetNode,
             processedList,
             work: widget.work,
-            historyType: widget.isLocal
-                ? HistoryEntryType.localWork
-                : HistoryEntryType.work,
+            source: widget.isLocal
+                ? NodeSource.localWork
+                : NodeSource.asmrServer,
           );
         }
       },
@@ -259,12 +257,14 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
               }
             }
-            ref.read(playerControllerProvider.notifier).addSingleInQueue(
+            ref
+                .read(playerControllerProvider.notifier)
+                .addSingleInQueue(
                   nodeToAdd,
                   widget.work,
-                  historyType: widget.isLocal
-                      ? HistoryEntryType.localWork
-                      : HistoryEntryType.work,
+                  source: widget.isLocal
+                      ? NodeSource.localWork
+                      : NodeSource.asmrServer,
                 );
             KikoenaiToast.success("已添加到播放列表");
           }

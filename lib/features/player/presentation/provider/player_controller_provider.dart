@@ -1,20 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
-import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
-import '../../../../core/service/audio/audio_extension.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
@@ -25,13 +21,14 @@ import '../../../../core/utils/window/display_util.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
+import '../../data/model/playback_session.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
 
 final playerControllerProvider =
     NotifierProvider<PlayerController, AppPlayerState>(() {
-  return PlayerController();
-});
+      return PlayerController();
+    });
 
 class PlayerController extends Notifier<AppPlayerState> {
   ReceivePort? _overlayReceivePort;
@@ -110,18 +107,27 @@ class PlayerController extends Notifier<AppPlayerState> {
     final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
 
-    // 1. 恢复播放列表
-    final playList = savedState.playlist;
-
-    // 2. 恢复当前索引
-    final progress = savedState.progressBarState.current;
-    if (savedState.currentTrack != null) {
-      final currentIndex = playList.indexWhere(
-        (item) => item.id == savedState.currentTrack!.id,
+    var session = savedState.session;
+    if (session == null && savedState.legacyPlaylist.isNotEmpty) {
+      final legacyItems = savedState.legacyPlaylist
+          .map((item) => PlaybackItem.fromMediaItem(item))
+          .toList();
+      final legacyIndex = savedState.legacyCurrentTrack == null
+          ? 0
+          : legacyItems.indexWhere(
+              (item) => item.id == savedState.legacyCurrentTrack!.id,
+            );
+      session = PlaybackSession.fromQueue(
+        legacyItems,
+        initialIndex: legacyIndex < 0 ? 0 : legacyIndex,
       );
+    }
+
+    final progress = savedState.progressBarState.current;
+    if (session != null && session.queue.isNotEmpty) {
       await (_handler as MyAudioHandler).initPlayback(
-        initialPlaylist: playList,
-        initialIndex: currentIndex,
+        initialPlaylist: session.mediaItems,
+        initialIndex: session.currentIndex,
         initialPosition: progress,
         volume: savedState.volume,
         repeatMode: savedState.repeatMode,
@@ -136,7 +142,13 @@ class PlayerController extends Notifier<AppPlayerState> {
       });
     }
 
-    state = state.copyWith(isAudioOnly: savedState.isAudioOnly);
+    state = state.copyWith(
+      session: session,
+      isAudioOnly: savedState.isAudioOnly,
+      repeatMode: savedState.repeatMode,
+      shuffleEnabled: savedState.shuffleEnabled,
+      volume: savedState.volume,
+    );
   }
 
   void _updateTrackerStatus({
@@ -144,14 +156,18 @@ class PlayerController extends Notifier<AppPlayerState> {
     bool isCompleted = false,
     MediaItem? mediaItem,
   }) {
-    final item = mediaItem ?? state.currentTrack;
+    final item = mediaItem == null
+        ? state.currentItem
+        : PlaybackItem.fromMediaItem(mediaItem);
 
     final finalIsPlaying = isCompleted ? false : (isPlaying ?? state.playing);
 
     if (item == null) {
       return;
     }
-    final workId = item.workData?.id.toString();
+    final workId = item.source == NodeSource.asmrServer
+        ? item.workId?.toString()
+        : null;
 
     // 4. 通知 Provider
     if (workId != null && workId.isNotEmpty) {
@@ -290,7 +306,8 @@ class PlayerController extends Notifier<AppPlayerState> {
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
-        loading: p.processingState == AudioProcessingState.loading ||
+        loading:
+            p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -328,7 +345,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       }
 
       if (currentItem?.id != item?.id) {
-        state = state.copyWith(currentTrack: item);
+        state = state.copyWith(session: _sessionWithCurrentMediaItem(item));
       }
 
       _updateSkipInfo();
@@ -341,7 +358,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     // 播放列表变化
     _handler.queue.listen((queue) {
-      state = state.copyWith(playlist: queue);
+      state = state.copyWith(session: _sessionFromMediaQueue(queue));
       _updateSkipInfo();
       if (state.currentTrack != null) {
         _saveState();
@@ -371,7 +388,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       return;
     }
 
-    final i = playlist.indexOf(current);
+    final i = playlist.indexWhere((item) => item.id == current.id);
 
     state = state.copyWith(
       isFirst: isLooping ? false : i <= 0,
@@ -385,27 +402,18 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _saveCurrentHistory() {
-    final currentItem = state.currentTrack;
+    final session = state.session;
+    final currentItem = state.currentItem;
 
-    if (currentItem == null) return;
-
-    final historyType = HistoryEntryType.values.firstWhere(
-      (e) => e.name == currentItem.extras?['historyType'],
-      orElse: () => HistoryEntryType.work,
-    );
-
-    final currentWork = currentItem.workData;
+    if (session == null || currentItem == null) return;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
-
 
     try {
       final history = HistoryEntry(
-        work: currentWork,
-        lastPlayTrack: currentItem,
+        session: session,
+        lastItemId: currentItem.id,
         lastProgressMs: currentProgressMs,
         lastPlayTime: DateTime.now().millisecondsSinceEpoch,
-        playlist: state.playlist,
-        historyType: historyType,
       );
 
       ref.read(historyControllerProvider.notifier).upsert(history);
@@ -415,7 +423,6 @@ class PlayerController extends Notifier<AppPlayerState> {
       debugPrint('保存历史记录失败: $e');
     }
   }
-
 
   Future<void> play() async => _handler.play();
 
@@ -537,11 +544,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> addSingleInQueue(
     FileNode node,
     Work work, {
-    HistoryEntryType historyType = HistoryEntryType.work,
+    NodeSource? source,
   }) async {
-    final mediaItem =
-        _fileNodeToMediaItem(node, work, historyType: historyType);
-    await add(mediaItem);
+    final item = _fileNodeToPlaybackItem(node, work, source: source);
+    await add(item.toMediaItem());
   }
 
   Future<void> handleFileTap(
@@ -549,14 +555,16 @@ class PlayerController extends Notifier<AppPlayerState> {
     List<FileNode> currentNodes, {
     HistoryEntry? history,
     Work? work,
-    HistoryEntryType historyType = HistoryEntryType.work,
+    NodeSource? source,
   }) async {
     if (node.isAudio || node.isVideo) {
-      final audioFiles =
-          currentNodes.where((n) => n.isAudio || n.isVideo).toList();
-      final mediaList = audioFiles.map((n) {
-        return _fileNodeToMediaItem(n, work, historyType: historyType);
+      final audioFiles = currentNodes
+          .where((n) => n.isAudio || n.isVideo)
+          .toList();
+      final playbackItems = audioFiles.map((n) {
+        return _fileNodeToPlaybackItem(n, work, source: source);
       }).toList();
+      final mediaList = playbackItems.toMediaItems();
 
       // 2. 计算目标索引
       final audioTapIndex = audioFiles.indexOf(node);
@@ -584,18 +592,12 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  Future<void> restoreHistory(
-    HistoryEntry history,
-  ) async {
-    if (history.historyType.name == HistoryEntryType.singleWork.name) {
-      await _restoreSingleWorkHistory(history);
-      return;
-    }
-
-    final savedPlaylist = history.playlist;
-    if (savedPlaylist != null && savedPlaylist.isNotEmpty) {
-      final initialIndex = savedPlaylist.indexWhere(
-        (item) => item.id == history.lastPlayTrack.id,
+  Future<void> restoreHistory(HistoryEntry history) async {
+    final savedSession = history.session;
+    if (savedSession.queue.isNotEmpty) {
+      final mediaItems = savedSession.mediaItems;
+      final initialIndex = savedSession.queue.indexWhere(
+        (item) => item.id == history.lastItemId,
       );
       final safeIndex = initialIndex < 0 ? 0 : initialIndex;
       final startPosition = history.lastProgressMs == null
@@ -604,41 +606,21 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       if (_handler is MyAudioHandler) {
         await (_handler as MyAudioHandler).loadPlaylist(
-          savedPlaylist,
+          mediaItems,
           initialIndex: safeIndex,
           initialPosition: startPosition,
           autoPlay: true,
         );
       } else {
         await clear();
-        await addAll(savedPlaylist);
+        await addAll(mediaItems);
         await skipTo(safeIndex);
         if (startPosition > Duration.zero) {
           await seek(startPosition);
         }
       }
+      state = state.copyWith(session: savedSession.withCurrentIndex(safeIndex));
       return;
-    }
-  }
-
-  Future<void> _restoreSingleWorkHistory(HistoryEntry history) async {
-    final startPosition = history.lastProgressMs == null
-        ? Duration.zero
-        : Duration(milliseconds: history.lastProgressMs!);
-
-    if (_handler is MyAudioHandler) {
-      await (_handler as MyAudioHandler).loadPlaylist(
-        [history.lastPlayTrack],
-        initialPosition: startPosition,
-        autoPlay: true,
-      );
-    } else {
-      await clear();
-      await add(history.lastPlayTrack);
-      if (startPosition > Duration.zero) {
-        await seek(startPosition);
-      }
-      await play();
     }
   }
 
@@ -653,13 +635,13 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> addMultiInQueue(
     List<FileNode> nodes,
     Work work, {
-    HistoryEntryType historyType = HistoryEntryType.work,
+    NodeSource? source,
   }) async {
     try {
-      final mediaList = nodes.map((node) {
-        return _fileNodeToMediaItem(node, work, historyType: historyType);
+      final items = nodes.map((node) {
+        return _fileNodeToPlaybackItem(node, work, source: source);
       }).toList();
-      await addAll(mediaList);
+      await addAll(items.toMediaItems());
       KikoenaiToast.success("已加入播放队列");
     } catch (e) {
       KikoenaiLogger().e("加入播放队列失败");
@@ -709,34 +691,73 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  MediaItem _fileNodeToMediaItem(
+  PlaybackItem _fileNodeToPlaybackItem(
     FileNode node,
     Work? work, {
-    required HistoryEntryType historyType,
+    NodeSource? source,
   }) {
-    String? imagePath;
-
-    final url = node.mediaStreamUrl ?? '';
-    final isVideo =
-        FileExtensions.video.any((ext) => url.toLowerCase().endsWith(ext)) ||
-            node.isVideo == true;
-
-    return MediaItem(
-      id: node.keyId,
-      album: node.workTitle,
-      title: node.title,
-      artist: work?.vas == null ? node.artist : OtherUtil.joinVAs(work?.vas),
-      artUri:
-          work?.mainCoverUrl != null ? Uri.parse(work!.mainCoverUrl!) : null,
-      extras: {
-        'workId': work?.id,
-        'url': url,
-        'mainCoverUrl': work?.mainCoverUrl ?? imagePath,
-        'samCorverUrl': work?.samCoverUrl ?? imagePath,
-        'workData': work == null ? null : jsonEncode(work),
-        'historyType': historyType.name,
-        'isVideo': isVideo,
-      },
+    return PlaybackItem.fromFileNode(
+      node,
+      work: work,
+      source: source ?? node.source,
     );
+  }
+
+  PlaybackSession? _sessionFromMediaQueue(List<MediaItem> queue) {
+    if (queue.isEmpty) return null;
+
+    final current = _handler.mediaItem.value;
+    final currentIndex = current == null
+        ? _handler.playbackState.value.queueIndex ??
+              state.session?.currentIndex ??
+              0
+        : queue.indexWhere((item) => item.id == current.id);
+    final previousItems = {
+      for (final item in state.playbackQueue) item.id: item,
+    };
+    final items = queue.map((mediaItem) {
+      final previous = previousItems[mediaItem.id];
+      if (previous == null) return PlaybackItem.fromMediaItem(mediaItem);
+      return previous.copyWith(
+        durationMs: mediaItem.duration?.inMilliseconds ?? previous.durationMs,
+      );
+    }).toList();
+
+    final previous = state.session;
+    if (previous == null) {
+      return PlaybackSession.fromQueue(
+        items,
+        initialIndex: currentIndex < 0 ? 0 : currentIndex,
+      );
+    }
+    return previous.withQueue(
+      items,
+      nextIndex: currentIndex < 0 ? previous.currentIndex : currentIndex,
+    );
+  }
+
+  PlaybackSession? _sessionWithCurrentMediaItem(MediaItem? mediaItem) {
+    if (mediaItem == null) return state.session;
+    final session = state.session;
+    final index =
+        session?.queue.indexWhere((item) => item.id == mediaItem.id) ?? -1;
+
+    if (session != null && index >= 0) {
+      final queue = [...session.queue];
+      final current = queue[index];
+      queue[index] = current.copyWith(
+        durationMs: mediaItem.duration?.inMilliseconds ?? current.durationMs,
+      );
+      return session.withQueue(queue, nextIndex: index);
+    }
+
+    final item = PlaybackItem.fromMediaItem(mediaItem);
+    if (session == null) {
+      return PlaybackSession.fromQueue([item]);
+    }
+    return session.withQueue([
+      ...session.queue,
+      item,
+    ], nextIndex: session.queue.length);
   }
 }

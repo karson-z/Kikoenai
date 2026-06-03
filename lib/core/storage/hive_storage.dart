@@ -10,6 +10,7 @@ import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import '../../features/player/data/model/player_state.dart';
 import '../adapter/audio_service_repeat_mode_adapter.dart';
 import '../adapter/media_item_adapter.dart';
@@ -19,20 +20,21 @@ import '../adapter/work_adapter.dart';
 import '../adapter/work_info_adapter.dart';
 import '../model/lyric_model.dart';
 
-
 class AppStorage {
   // 1. 定义强类型的 Box
-  static late Box<AuthResponse> authBox;       // 登录信息
-  static late Box<HistoryEntry> historyBox;    // 播放历史 (Key: WorkId)
-  static late Box<AppPlayerState> playerBox;   // 播放器状态
-  static late Box<dynamic> settingsBox;        // 通用设置/缓存
-  static late Box<FileNode> scannerBox;        // 扫描结果
-  static late Box<Work> scraperWorkBox;        // 爬取作品元数据
-  static late Box<FileNode> lyricMatchBox;     // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
-  static late Box<SearchTag> filterTagsBox;    // 全局筛选
-  static late Box<ScanTarget> scanTargetBox;   // 扫描目标
+  static late Box<AuthResponse> authBox; // 登录信息
+  static late Box<HistoryEntry> historyBox; // 播放历史 (Key: WorkId)
+  static late Box<AppPlayerState> playerBox; // 播放器状态
+  static late Box<dynamic> settingsBox; // 通用设置/缓存
+  static late Box<FileNode> scannerBox; // 扫描结果
+  static late Box<Work> scraperWorkBox; // 爬取作品元数据
+  static late Box<FileNode>
+  lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<SearchTag> filterTagsBox; // 全局筛选
+  static late Box<ScanTarget> scanTargetBox; // 扫描目标
 
   static late final String _hiveRootPath;
+
   /// 初始化 Hive 和所有 Box
   static Future<void> init() async {
     final appDocDir = await getApplicationSupportDirectory();
@@ -51,6 +53,8 @@ class AppStorage {
     Hive.registerAdapter(NodeStatusAdapter());
     Hive.registerAdapter(FileNodeAdapter());
     Hive.registerAdapter(AudioServiceRepeatModeAdapter());
+    Hive.registerAdapter(PlaybackItemAdapter());
+    Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryTypeAdapter());
@@ -63,13 +67,21 @@ class AppStorage {
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
       _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
-      _openBox<AppPlayerState>(BoxNames.playerState).then((val) => playerBox = val),
+      _openBox<AppPlayerState>(
+        BoxNames.playerState,
+      ).then((val) => playerBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
-      _openBox<FileNode>(BoxNames.lyricsMatch).then((val) => lyricMatchBox = val),
-      _openBox<SearchTag>(BoxNames.globalFilterTags).then((val) => filterTagsBox = val),
-      _openBox<ScanTarget>(BoxNames.scanTarget).then((val) => scanTargetBox = val),
+      _openBox<FileNode>(
+        BoxNames.lyricsMatch,
+      ).then((val) => lyricMatchBox = val),
+      _openBox<SearchTag>(
+        BoxNames.globalFilterTags,
+      ).then((val) => filterTagsBox = val),
+      _openBox<ScanTarget>(
+        BoxNames.scanTarget,
+      ).then((val) => scanTargetBox = val),
     ]);
   }
 
@@ -172,7 +184,7 @@ class AppStorage {
         await scraperWorkBox.clear();
         break;
       default:
-      // 兜底逻辑：处理那些没有定义为静态变量、或者确实是 dynamic 类型的临时 Box
+        // 兜底逻辑：处理那些没有定义为静态变量、或者确实是 dynamic 类型的临时 Box
         if (Hive.isBoxOpen(boxName)) {
           await Hive.box(boxName).clear();
         }

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/card/work_gallery_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
@@ -96,9 +98,14 @@ class HistoryPage extends ConsumerWidget {
   }
 
   Widget _buildHistoryCard(BuildContext context, HistoryEntry entry) {
-    final work = entry.work;
-    final cover = work?.mainCoverUrl ?? work?.samCoverUrl ?? placeholderImage;
-    final title = work?.title ?? entry.lastPlayTrack.title;
+    final workId = entry.lastItem?.workId;
+    final work = workId == null ? null : ScraperStorage().getWork(workId);
+    final cover =
+        entry.coverUrl ??
+        work?.mainCoverUrl ??
+        work?.samCoverUrl ??
+        placeholderImage;
+    final title = entry.title ?? work?.title ?? entry.currentTrackTitle;
     final subtitle = entry.currentTrackTitle;
     final progressLabel = _buildProgressLabel(entry);
 
@@ -115,20 +122,14 @@ class HistoryPage extends ConsumerWidget {
             subtitle: subtitle,
             progressLabel: progressLabel,
             onPlayTap: () {
-              ref
-                  .read(playerControllerProvider.notifier)
-                  .restoreHistory(entry);
+              ref.read(playerControllerProvider.notifier).restoreHistory(entry);
             },
             onTap: work == null
                 ? null
                 : () {
                     context.push(
                       AppRoutes.detail,
-                      extra: {
-                        'work': work,
-                        'isLocal':
-                            entry.historyType == HistoryEntryType.localWork,
-                      },
+                      extra: {'work': work, 'isLocal': entry.isLocalWork},
                     );
                   },
           );
@@ -138,7 +139,7 @@ class HistoryPage extends ConsumerWidget {
   }
 
   String? _buildProgressLabel(HistoryEntry entry) {
-    final duration = entry.lastPlayTrack.duration;
+    final duration = entry.duration;
     if (duration == null || duration <= Duration.zero) return null;
 
     final progress = Duration(milliseconds: entry.lastProgressMs ?? 0);
@@ -186,21 +187,23 @@ class HistoryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyList = ref.watch(historyControllerProvider);
-    final workEntries = ref.watch(historyByTypeProvider(HistoryEntryType.work));
+    final workEntries = ref.watch(
+      historyBySourceProvider(NodeSource.asmrServer),
+    );
     final localWorkEntries = ref.watch(
-      historyByTypeProvider(HistoryEntryType.localWork),
+      historyBySourceProvider(NodeSource.localWork),
     );
     final singleWorkEntries = ref.watch(
-      historyByTypeProvider(HistoryEntryType.singleWork),
+      historyBySourceProvider(NodeSource.localSingle),
     );
     final workPreview = ref.watch(
-      historyPreviewByTypeProvider(HistoryEntryType.work),
+      historyPreviewBySourceProvider(NodeSource.asmrServer),
     );
     final localWorkPreview = ref.watch(
-      historyPreviewByTypeProvider(HistoryEntryType.localWork),
+      historyPreviewBySourceProvider(NodeSource.localWork),
     );
     final singleWorkPreview = ref.watch(
-      historyPreviewByTypeProvider(HistoryEntryType.singleWork),
+      historyPreviewBySourceProvider(NodeSource.localSingle),
     );
 
     return Scaffold(
