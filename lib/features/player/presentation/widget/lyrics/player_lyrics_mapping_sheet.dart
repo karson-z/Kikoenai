@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import '../../../../../core/service/audio/audio_extension.dart';
 import '../../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../../core/widgets/common/kikoenai_dialog.dart';
@@ -33,7 +34,7 @@ class _LyricsMappingSheetState extends ConsumerState<LyricsMappingSheet> {
 
   @override
   void initState() {
-    super.initState();
+    super.initState(); 
     _initData();
   }
 
@@ -44,9 +45,9 @@ class _LyricsMappingSheetState extends ConsumerState<LyricsMappingSheet> {
     _draftMapping = Map.of(matchState.subtitleMapping);
 
     final currentWorkId = matchState.currentWorkId;
-    _currentWorkPlaylist = playerState.playlist
-        .where((item) => item.workData?.id == currentWorkId)
-        .toList();
+    _currentWorkPlaylist = playerState.playbackQueue
+        .where((item) => item.workId == currentWorkId)
+        .toList().toMediaItems();
   }
 
   void _clearMapping(String trackId) {
@@ -330,8 +331,6 @@ class _LyricsMappingSheetState extends ConsumerState<LyricsMappingSheet> {
               ],
             ),
             const SizedBox(height: 12),
-
-            // 下半部分：字幕关联区域
             Row(
               children: [
                 Expanded(
