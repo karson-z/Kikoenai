@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
 import '../../../../core/service/audio/audio_extension.dart';
@@ -35,12 +36,12 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
 
   void _listenToPlayerTrackChanges() {
     // 监听播放器的当前曲目变化
-    ref.listen(playerControllerProvider.select((p) => p.currentTrack), (previousTrack, currentTrack) {
+    ref.listen(playerControllerProvider.select((p) => p.currentItem), (previousTrack, currentTrack) {
       if (currentTrack == null) {
         state = const LyricsMatchState();
         return;
       }
-      final newWorkId = currentTrack.workData?.id;
+      final newWorkId = currentTrack.workId;
       final oldWorkId = state.currentWorkId;
       if (newWorkId != null && newWorkId != oldWorkId) {
         _handleWorkChanged(newWorkId);
@@ -55,12 +56,11 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       final targetSubtitleList = await SearchLyricsService.findLyrics(workId, ref);
 
       // 检查在异步请求期间，播放器是否已经切走了，防止旧请求覆盖新状态 (竞态条件处理)
-      final activeTrack = ref.read(playerControllerProvider).currentTrack;
-      if (activeTrack?.workData?.id != workId) return;
+      final activeTrack = ref.read(playerControllerProvider).currentItem;
+      if (activeTrack?.workId != workId) return;
 
       final currentWorkPlaylist = ref.read(playerControllerProvider)
-          .playlist
-          .where((item) => item.workData?.id == workId)
+          .playbackQueue.where((item) => item.workId == workId)
           .toList();
 
       /// 尝试不做数据归一化
@@ -68,7 +68,7 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       // final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
       // 执行自动匹配
-      final matches = MatchLyrics.match(currentWorkPlaylist, targetSubtitleList);
+      final matches = MatchLyrics.match(currentWorkPlaylist.toMediaItems(), targetSubtitleList);
 
       state = state.copyWith(
         isSearching: false,
