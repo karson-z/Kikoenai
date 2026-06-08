@@ -45,6 +45,27 @@ abstract class HistoryEntry with _$HistoryEntry {
 
   bool get isLocalSingle => source == NodeSource.localSingle;
 
+  /// Session used when the user resumes this history entry.
+  ///
+  /// A history entry may be saved from a mixed playback queue, but the resume
+  /// action should only restore the queue that belongs to this entry's
+  /// aggregation scope.
+  PlaybackSession get restoreSession {
+    final anchor = lastItem;
+    if (anchor == null) return session;
+
+    final scopedQueue = session.queue
+        .where((item) => _isSameHistoryScope(anchor, item))
+        .toList(growable: false);
+    if (scopedQueue.isEmpty) return session;
+
+    final scopedIndex = scopedQueue.indexWhere((item) => item.id == lastItemId);
+    return session.copyWith(
+      queue: scopedQueue,
+      currentIndex: scopedIndex < 0 ? 0 : scopedIndex,
+    );
+  }
+
   String get primaryKey {
     final item = lastItem;
     if (item == null) return 'unknown_$lastItemId';
@@ -54,6 +75,16 @@ abstract class HistoryEntry with _$HistoryEntry {
       NodeSource.localWork => 'local_work_${item.scopeId}',
       NodeSource.localSingle => 'single_${item.id}',
       NodeSource.cloudDrive => 'cloud_${item.scopeId}',
+    };
+  }
+
+  bool _isSameHistoryScope(PlaybackItem anchor, PlaybackItem item) {
+    if (anchor.source != item.source) return false;
+    return switch (anchor.source) {
+      NodeSource.localSingle => item.id == anchor.id,
+      NodeSource.asmrServer ||
+      NodeSource.localWork ||
+      NodeSource.cloudDrive => item.scopeId == anchor.scopeId,
     };
   }
 }
