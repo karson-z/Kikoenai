@@ -27,8 +27,6 @@ abstract class AppPlayerState with _$AppPlayerState {
       ),
     )
     ProgressBarState progressBarState,
-    @HiveField(3) MediaItem? legacyCurrentTrack,
-    @HiveField(4) @Default([]) List<MediaItem> legacyPlaylist,
     @HiveField(5) @Default(true) bool isFirst,
     @HiveField(6) @Default(true) bool isLast,
     @HiveField(7) @Default(false) bool shuffleEnabled,
@@ -53,11 +51,6 @@ abstract class AppPlayerState with _$AppPlayerState {
   }) = _AppPlayerState;
 
   PlaybackItem? get currentItem => session?.currentItem;
-
-  MediaItem? get currentTrack =>
-      session?.currentMediaItem ?? legacyCurrentTrack;
-
-  List<MediaItem> get playlist => session?.mediaItems ?? legacyPlaylist;
 
   List<PlaybackItem> get playbackQueue => session?.queue ?? const [];
 

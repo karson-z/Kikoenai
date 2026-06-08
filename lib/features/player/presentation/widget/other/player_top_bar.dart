@@ -11,8 +11,9 @@ class TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTrack =
-        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final currentItem = ref.watch(
+      playerControllerProvider.select((s) => s.currentItem),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -23,8 +24,11 @@ class TopBar extends ConsumerWidget {
           Positioned(
             left: 0,
             child: IconButton(
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white, size: 28),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
               onPressed: onClose,
             ),
           ),
@@ -40,7 +44,7 @@ class TopBar extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.more_horiz, color: Colors.white),
                   onPressed: () {
-                    showMoreOptions(context,ref,currentTrack);
+                    showMoreOptions(context, ref, currentItem);
                   },
                 ),
               ],

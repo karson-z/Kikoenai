@@ -1,17 +1,13 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:kikoenai/features/player/presentation/widget/audio/player_controls.dart';
 
 class CollapsedMinibar extends ConsumerWidget {
-  final MediaItem? track;
+  final PlaybackItem? track;
   final VoidCallback onTap;
 
-  const CollapsedMinibar({
-    super.key,
-    required this.track,
-    required this.onTap,
-  });
+  const CollapsedMinibar({super.key, required this.track, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,7 +54,7 @@ class CollapsedMinibar extends ConsumerWidget {
             const SizedBox(width: 16),
           ],
         ),
-      )
+      ),
     );
   }
 }

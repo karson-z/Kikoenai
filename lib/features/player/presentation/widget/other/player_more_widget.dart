@@ -1,9 +1,9 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 
 class MoreOptionsBottomSheet extends StatelessWidget {
-  final MediaItem track;
+  final PlaybackItem track;
   final List<QuickActionItem> quickActions;
   final List<ListActionItem> listActions;
 
@@ -20,7 +20,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
-    final secondaryColor = colorScheme.onSurface.withOpacity(0.6);
+    final secondaryColor = colorScheme.onSurface.withValues(alpha: 0.6);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -32,7 +32,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
               // 专辑封面
               SimpleExtendedImage(
                 borderRadius: BorderRadius.circular(8),
-                track.extras?['mainCoverUrl'] ?? "",
+                track.coverUrl ?? track.smallCoverUrl ?? "",
                 width: 60,
                 height: 60,
               ),
@@ -104,10 +104,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
             // Icon 默认就会使用当前主题的颜色，无需手动传色
             Icon(action.icon, size: 28),
             const SizedBox(height: 8),
-            Text(
-              action.label,
-              style: theme.textTheme.bodySmall,
-            ),
+            Text(action.label, style: theme.textTheme.bodySmall),
           ],
         ),
       ),
@@ -115,7 +112,11 @@ class MoreOptionsBottomSheet extends StatelessWidget {
   }
 
   // 内部组件构建方法
-  Widget _buildListItem(ListActionItem item, ThemeData theme, Color secondaryColor) {
+  Widget _buildListItem(
+    ListActionItem item,
+    ThemeData theme,
+    Color secondaryColor,
+  ) {
     bool currentSwitchValue = item.initialSwitchValue;
 
     return StatefulBuilder(
@@ -123,12 +124,15 @@ class MoreOptionsBottomSheet extends StatelessWidget {
         return InkWell(
           onTap: item.hasSwitch
               ? () {
-            setState(() => currentSwitchValue = !currentSwitchValue);
-            item.onSwitchChanged?.call(currentSwitchValue);
-          }
+                  setState(() => currentSwitchValue = !currentSwitchValue);
+                  item.onSwitchChanged?.call(currentSwitchValue);
+                }
               : item.onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 12.0,
+            ),
             child: Row(
               children: [
                 Icon(item.icon, size: 24),
@@ -136,10 +140,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
                 Expanded(
                   child: Row(
                     children: [
-                      Text(
-                        item.title,
-                        style: theme.textTheme.titleSmall,
-                      ),
+                      Text(item.title, style: theme.textTheme.titleSmall),
                       if (item.subtitle != null) ...[
                         const SizedBox(width: 12),
                         Expanded(
@@ -169,7 +170,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
                         item.onSwitchChanged?.call(val);
                       },
                     ),
-                  )
+                  ),
               ],
             ),
           ),

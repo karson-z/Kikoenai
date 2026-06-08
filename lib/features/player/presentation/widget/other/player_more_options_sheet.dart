@@ -1,19 +1,18 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/provider/audio_file_provider.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:kikoenai/features/player/presentation/widget/other/player_lyrics_edit.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
-import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_mapping_sheet.dart';
 import 'package:kikoenai/features/player/presentation/widget/other/player_more_widget.dart';
 import '../../../../../core/model/file_node.dart';
 import '../../../../../core/routes/app_routes.dart';
 import '../../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../../core/service/file/file_scanner_storage.dart';
-import '../../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/utils/log/kikoenai_log.dart';
@@ -30,14 +29,16 @@ import '../../../../overly-lyrics/presentation/widget/overly_setting_panel.dart'
 import '../../provider/player_controller_provider.dart';
 
 /// 触发 WoltModalSheet 更多选项
-void showMoreOptions(BuildContext context, WidgetRef ref, MediaItem? track) {
+void showMoreOptions(BuildContext context, WidgetRef ref, PlaybackItem? track) {
   if (track == null) return;
 
   WoltModalSheet.show<void>(
     context: context,
     modalTypeBuilder: (modalContext) {
       final width = MediaQuery.of(modalContext).size.width;
-      return width < 500 ? const CustomBottomType() : const CustomSideSheetType();
+      return width < 500
+          ? const CustomBottomType()
+          : const CustomSideSheetType();
     },
     pageListBuilder: (modalContext) {
       return [_buildWoltPage(modalContext, track)];
@@ -46,13 +47,16 @@ void showMoreOptions(BuildContext context, WidgetRef ref, MediaItem? track) {
 }
 
 /// 提取构建 Page 的逻辑，避免 show 方法过于臃肿
-SliverWoltModalSheetPage _buildWoltPage(BuildContext context, MediaItem track) {
+SliverWoltModalSheetPage _buildWoltPage(
+  BuildContext context,
+  PlaybackItem track,
+) {
   return SliverWoltModalSheetPage(
     isTopBarLayerAlwaysVisible: false,
     hasSabGradient: false,
     navBarHeight: 0,
     mainContentSliversBuilder: (context) => [
-       const SliverPadding(padding:EdgeInsets.only(top: 16) ),
+      const SliverPadding(padding: EdgeInsets.only(top: 16)),
       SliverToBoxAdapter(
         child: BackButtonPriorityWrapper(
           zIndex: 100,
@@ -71,16 +75,18 @@ SliverWoltModalSheetPage _buildWoltPage(BuildContext context, MediaItem track) {
 
 /// 拆分出的内容组件，负责读取状态和构建菜单
 class _MoreOptionsContent extends ConsumerWidget {
-  final MediaItem track;
+  final PlaybackItem track;
 
   const _MoreOptionsContent({required this.track});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isAudioOnly = ref.watch(playerControllerProvider.select((s) => s.isAudioOnly));
-    final work = track.workData;
-    final rjCode = work?.id;
-    final bool isVideoTrack = track.extras?['isVideo'] == true;
+    final isAudioOnly = ref.watch(
+      playerControllerProvider.select((s) => s.isAudioOnly),
+    );
+    final workId = track.workId;
+    final work = workId == null ? null : ScraperStorage().getWork(workId);
+    final bool isVideoTrack = track.isVideo;
 
     final List<ListActionItem> dynamicListActions = [
       ListActionItem(
@@ -113,18 +119,21 @@ class _MoreOptionsContent extends ConsumerWidget {
           hasSwitch: true,
           initialSwitchValue: isAudioOnly,
           onSwitchChanged: (bool value) async {
-            ref.read(playerControllerProvider.notifier).toggleAudioOnlyMode(value);
+            ref
+                .read(playerControllerProvider.notifier)
+                .toggleAudioOnlyMode(value);
             await AudioServiceSingleton.instance.customAction(
               'toggleVideoDecoding',
               {'enable': !value},
             );
-            final isFullScreen = ref.read(mainScaffoldProvider.select((p) => p.isFullScreen));
-            if(isFullScreen){
+            final isFullScreen = ref.read(
+              mainScaffoldProvider.select((p) => p.isFullScreen),
+            );
+            if (isFullScreen) {
               final controller = ref.read(mainScaffoldProvider.notifier);
               controller.setFullScreen(false);
               await DisplayUtils.exitFullScreen();
             }
-
           },
         ),
       );
@@ -134,7 +143,7 @@ class _MoreOptionsContent extends ConsumerWidget {
       ListActionItem(
         icon: Icons.album_outlined,
         title: "专辑",
-        subtitle: track.album,
+        subtitle: track.albumTitle,
         onTap: () => _handleAlbumTap(context, ref, track),
       ),
       ListActionItem(
@@ -146,12 +155,18 @@ class _MoreOptionsContent extends ConsumerWidget {
 
     return MoreOptionsBottomSheet(
       track: track,
-      quickActions: _buildQuickActions(context,track, ref, work, rjCode),
+      quickActions: _buildQuickActions(context, track, ref, work, workId),
       listActions: dynamicListActions,
     );
   }
 
-  List<QuickActionItem> _buildQuickActions(BuildContext context,MediaItem track, WidgetRef ref, Work? work, int? rjCode) {
+  List<QuickActionItem> _buildQuickActions(
+    BuildContext context,
+    PlaybackItem track,
+    WidgetRef ref,
+    Work? work,
+    int? workId,
+  ) {
     return [
       QuickActionItem(
         icon: Icons.favorite_border,
@@ -172,7 +187,7 @@ class _MoreOptionsContent extends ConsumerWidget {
         icon: Icons.folder_open_outlined,
         label: "文件管理",
         onTap: () async {
-          if (rjCode == null) {
+          if (workId == null) {
             KikoenaiToast.info("当前播放的歌曲不是DLsite中的作品或未解析，无法进行文件管理");
             return;
           }
@@ -181,21 +196,23 @@ class _MoreOptionsContent extends ConsumerWidget {
             List<FileNode> roots;
             if (track.isLocal) {
               // 处理本地逻辑
-              final localRoots = FileScannerStorage().getWorkFileTreeLocally(rjCode)?.children;
+              final localRoots = FileScannerStorage()
+                  .getWorkFileTreeLocally(workId)
+                  ?.children;
               if (localRoots == null) {
                 KikoenaiToast.warning("当前拿不到本地的音频数据，请查看音频是否被删除,或扫描是否完成");
                 return; // 提前退出
               }
               roots = localRoots;
             } else {
-              roots = await ref.read(trackFileNodeProvider(rjCode).future);
+              roots = await ref.read(trackFileNodeProvider(workId).future);
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
               context,
               roots: roots,
               work: work,
-              isFirstPage: false
+              isFirstPage: false,
             );
             WoltModalSheet.of(context).addPage(fileTreePage);
             WoltModalSheet.of(context).showNext();
@@ -212,12 +229,17 @@ class _MoreOptionsContent extends ConsumerWidget {
     ];
   }
 
-  void _handleAlbumTap(BuildContext context, WidgetRef ref, MediaItem track) {
+  void _handleAlbumTap(
+    BuildContext context,
+    WidgetRef ref,
+    PlaybackItem track,
+  ) {
     Navigator.pop(context);
     if (track.isLocal) {
       KikoenaiLogger().i("本地轨道，跳转至文件目录或本地索引");
     } else {
-      final work = track.workData;
+      final workId = track.workId;
+      final work = workId == null ? null : ScraperStorage().getWork(workId);
       if (work != null) {
         final panelCtrl = ref.read(panelControllerProvider);
         if (panelCtrl.isPanelOpen) panelCtrl.close();

@@ -1,14 +1,11 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:text_scroll/text_scroll.dart';
 
 class PlayerInfoWidget extends StatelessWidget {
-  final MediaItem? track;
+  final PlaybackItem? track;
 
-  const PlayerInfoWidget({
-    super.key,
-    required this.track,
-  });
+  const PlayerInfoWidget({super.key, required this.track});
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +34,7 @@ class PlayerInfoWidget extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
         ],
       ),

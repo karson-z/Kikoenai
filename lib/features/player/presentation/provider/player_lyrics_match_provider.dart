@@ -3,32 +3,29 @@ import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
-import '../../../../core/service/audio/audio_extension.dart';
 import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../core/service/lyrics/search_lyrics_service.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../data/model/lyrics_match_state.dart';
 
-final lyricsMatchControllerProvider = NotifierProvider<LyricsMatchController, LyricsMatchState>(() {
-  return LyricsMatchController();
-});
+final lyricsMatchControllerProvider =
+    NotifierProvider<LyricsMatchController, LyricsMatchState>(() {
+      return LyricsMatchController();
+    });
 
 class LyricsMatchController extends Notifier<LyricsMatchState> {
   @override
   LyricsMatchState build() {
     _listenToPlayerTrackChanges();
 
-    final initialTrack = ref.read(playerControllerProvider).currentTrack;
-    final initialWorkId = initialTrack?.workData?.id;
+    final initialTrack = ref.read(playerControllerProvider).currentItem;
+    final initialWorkId = initialTrack?.workId;
 
     if (initialWorkId != null) {
       Future.microtask(() => _handleWorkChanged(initialWorkId));
 
       // 返回预设了 currentWorkId 的初始状态
-      return LyricsMatchState(
-        currentWorkId: initialWorkId,
-        isSearching: true,
-      );
+      return LyricsMatchState(currentWorkId: initialWorkId, isSearching: true);
     }
 
     return const LyricsMatchState();
@@ -36,12 +33,15 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
 
   void _listenToPlayerTrackChanges() {
     // 监听播放器的当前曲目变化
-    ref.listen(playerControllerProvider.select((p) => p.currentItem), (previousTrack, currentTrack) {
-      if (currentTrack == null) {
+    ref.listen(playerControllerProvider.select((p) => p.currentItem), (
+      _,
+      currentItem,
+    ) {
+      if (currentItem == null) {
         state = const LyricsMatchState();
         return;
       }
-      final newWorkId = currentTrack.workId;
+      final newWorkId = currentItem.workId;
       final oldWorkId = state.currentWorkId;
       if (newWorkId != null && newWorkId != oldWorkId) {
         _handleWorkChanged(newWorkId);
@@ -53,14 +53,19 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
     state = state.copyWith(currentWorkId: workId, isSearching: true);
 
     try {
-      final targetSubtitleList = await SearchLyricsService.findLyrics(workId, ref);
+      final targetSubtitleList = await SearchLyricsService.findLyrics(
+        workId,
+        ref,
+      );
 
       // 检查在异步请求期间，播放器是否已经切走了，防止旧请求覆盖新状态 (竞态条件处理)
       final activeTrack = ref.read(playerControllerProvider).currentItem;
       if (activeTrack?.workId != workId) return;
 
-      final currentWorkPlaylist = ref.read(playerControllerProvider)
-          .playbackQueue.where((item) => item.workId == workId)
+      final currentWorkPlaylist = ref
+          .read(playerControllerProvider)
+          .playbackQueue
+          .where((item) => item.workId == workId)
           .toList();
 
       /// 尝试不做数据归一化
@@ -68,7 +73,10 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       // final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
       // 执行自动匹配
-      final matches = MatchLyrics.match(currentWorkPlaylist.toMediaItems(), targetSubtitleList);
+      final matches = MatchLyrics.match(
+        currentWorkPlaylist.toMediaItems(),
+        targetSubtitleList,
+      );
 
       state = state.copyWith(
         isSearching: false,
@@ -85,7 +93,9 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
     // 这个 Map 用于持久化存储（不包含 null）
     final validMapping = <String, FileNode>{};
     // 这个 Map 用于更新内存状态
-    final updatedStateMapping = Map<String, FileNode?>.from(state.subtitleMapping);
+    final updatedStateMapping = Map<String, FileNode?>.from(
+      state.subtitleMapping,
+    );
 
     draftMapping.forEach((trackId, fileNode) {
       if (fileNode != null) {

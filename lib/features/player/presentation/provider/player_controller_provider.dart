@@ -107,21 +107,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     final savedState = _cacheService.getPlayerState();
     if (savedState == null) return;
 
-    var session = savedState.session;
-    if (session == null && savedState.legacyPlaylist.isNotEmpty) {
-      final legacyItems = savedState.legacyPlaylist
-          .map((item) => PlaybackItem.fromMediaItem(item))
-          .toList();
-      final legacyIndex = savedState.legacyCurrentTrack == null
-          ? 0
-          : legacyItems.indexWhere(
-              (item) => item.id == savedState.legacyCurrentTrack!.id,
-            );
-      session = PlaybackSession.fromQueue(
-        legacyItems,
-        initialIndex: legacyIndex < 0 ? 0 : legacyIndex,
-      );
-    }
+    final session = savedState.session;
 
     final progress = savedState.progressBarState.current;
     if (session != null && session.queue.isNotEmpty) {
@@ -316,7 +302,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         _updateTrackerStatus(isPlaying: false, isCompleted: true);
       }
 
-      if (state.currentTrack != null) {
+      if (state.currentItem != null) {
         _saveState();
       }
     });
@@ -331,14 +317,14 @@ class PlayerController extends Notifier<AppPlayerState> {
         'isPlaying': isPlaying,
       });
 
-      if (state.currentTrack != null) {
+      if (state.currentItem != null) {
         _saveState();
       }
     });
 
     // 当前播放曲目
     _handler.mediaItem.listen((item) {
-      final currentItem = state.currentTrack;
+      final currentItem = state.currentItem;
 
       if (currentItem != null && currentItem.id != item?.id) {
         _saveCurrentHistory();
@@ -350,7 +336,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       _updateSkipInfo();
 
-      if (state.currentTrack != null) {
+      if (state.currentItem != null) {
         _saveState();
       }
       _updateTrackerStatus(mediaItem: item, isPlaying: state.playing);
@@ -360,7 +346,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     _handler.queue.listen((queue) {
       state = state.copyWith(session: _sessionFromMediaQueue(queue));
       _updateSkipInfo();
-      if (state.currentTrack != null) {
+      if (state.currentItem != null) {
         _saveState();
       }
     });
@@ -369,7 +355,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (_handler is MyAudioHandler) {
       (_handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
-        if (state.currentTrack != null) {
+        if (state.currentItem != null) {
           _saveState();
         }
       });
@@ -378,7 +364,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _updateSkipInfo() {
-    final playlist = state.playlist;
+    final playlist = state.playbackQueue;
     final current = _handler.mediaItem.value;
 
     final isLooping = state.repeatMode != AudioServiceRepeatMode.none;
@@ -625,8 +611,11 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> removeMediaItemInQueue(int index) async {
+    final queueLength = state.playbackQueue.length;
+    if (index < 0 || index >= queueLength) return;
+    final willClearQueue = queueLength <= 1;
     await _handler.removeQueueItemAt(index);
-    if (state.playlist.isEmpty) {
+    if (willClearQueue) {
       state = const AppPlayerState();
     }
     _saveState();

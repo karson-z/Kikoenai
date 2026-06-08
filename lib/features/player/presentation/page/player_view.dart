@@ -55,15 +55,17 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
     final padding = mediaQuery.padding;
     final isWide = mediaQuery.size.width > 800;
 
-    final currentTrack =
-    ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final currentItem = ref.watch(
+      playerControllerProvider.select((s) => s.currentItem),
+    );
 
-    final shouldRenderVideo =
-    ref.watch(playerControllerProvider.select((s) => s.isCurrentVideoView));
+    final shouldRenderVideo = ref.watch(
+      playerControllerProvider.select((s) => s.isCurrentVideoView),
+    );
     final cachedLyricsContent = RepaintBoundary(
       child: MobileLyricsContent(
         isWideScreen: isWide,
-        track: currentTrack,
+        track: currentItem,
         onTapHeader: isWide ? null : _controller.toggleLyrics,
         padding: padding,
       ),
@@ -76,8 +78,10 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
         final collapsedOpacity = (1.0 - expandVal * 5).clamp(0.0, 1.0);
         final expandedOpacity = ((expandVal - 0.7) / 0.3).clamp(0.0, 1.0);
         double currentLyricsAlpha = isWide ? 1.0 : lyricsVal.clamp(0.0, 1.0);
-        final bool ignoreControls = expandVal < 0.5 || (!isWide && lyricsVal > 0.5);
-        final bool shouldMountExpandedVideo = shouldRenderVideo && expandVal > 0.02;
+        final bool ignoreControls =
+            expandVal < 0.5 || (!isWide && lyricsVal > 0.5);
+        final bool shouldMountExpandedVideo =
+            shouldRenderVideo && expandVal > 0.02;
 
         return CustomMultiChildLayout(
           delegate: PlayerLayoutDelegate(
@@ -93,21 +97,21 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
                   : RepaintBoundary(
-                child: PlayerBackground(expVal: expandedOpacity),
-              ),
+                      child: PlayerBackground(expVal: expandedOpacity),
+                    ),
             ),
             LayoutId(
               id: PlayerLayoutId.videoContainer,
               child: shouldMountExpandedVideo
                   ? Opacity(
-                opacity: expandVal.clamp(0.0, 1.0),
-                child: IgnorePointer(
-                  ignoring: expandVal < 0.5,
-                  child: const RepaintBoundary(
-                    child: PlayerVideoContent(),
-                  ),
-                ),
-              )
+                      opacity: expandVal.clamp(0.0, 1.0),
+                      child: IgnorePointer(
+                        ignoring: expandVal < 0.5,
+                        child: const RepaintBoundary(
+                          child: PlayerVideoContent(),
+                        ),
+                      ),
+                    )
                   : const SizedBox.shrink(),
             ),
 
@@ -118,7 +122,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 child: IgnorePointer(
                   ignoring: ignoreControls,
                   child: RepaintBoundary(
-                    child: PlayerInfoWidget(track: currentTrack),
+                    child: PlayerInfoWidget(track: currentItem),
                   ),
                 ),
               ),
@@ -127,9 +131,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
               id: PlayerLayoutId.progressBar,
               child: Offstage(
                 offstage: shouldRenderVideo || lyricsVal > 0,
-                child: const RepaintBoundary(
-                  child: PlayerProgressBar(),
-                ),
+                child: const RepaintBoundary(child: PlayerProgressBar()),
               ),
             ),
             LayoutId(
@@ -138,9 +140,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 offstage: shouldRenderVideo || lyricsVal > 0,
                 child: IgnorePointer(
                   ignoring: ignoreControls,
-                  child: const RepaintBoundary(
-                    child: PlayerControls(),
-                  ),
+                  child: const RepaintBoundary(child: PlayerControls()),
                 ),
               ),
             ),
@@ -150,9 +150,7 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                 offstage: shouldRenderVideo || lyricsVal > 0,
                 child: IgnorePointer(
                   ignoring: ignoreControls,
-                  child: const RepaintBoundary(
-                    child: PlayerVolumeSlider(),
-                  ),
+                  child: const RepaintBoundary(child: PlayerVolumeSlider()),
                 ),
               ),
             ),
@@ -172,47 +170,55 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
             ),
             LayoutId(
               id: PlayerLayoutId.minibar,
-              child:Opacity(opacity: collapsedOpacity,child: IgnorePointer(
-                ignoring: collapsedOpacity < 0.05,
-                child: CollapsedMinibar(
-                  track: currentTrack,
-                  onTap: () => ref.read(panelControllerProvider).open(),
+              child: Opacity(
+                opacity: collapsedOpacity,
+                child: IgnorePointer(
+                  ignoring: collapsedOpacity < 0.05,
+                  child: CollapsedMinibar(
+                    track: currentItem,
+                    onTap: () => ref.read(panelControllerProvider).open(),
+                  ),
                 ),
-              ),)
+              ),
             ),
             LayoutId(
               id: PlayerLayoutId.topBar,
               child: shouldRenderVideo
                   ? const SizedBox.shrink()
                   : Opacity(
-                opacity: expandedOpacity,
-                child: IgnorePointer(
-                  ignoring: expandedOpacity == 0,
-                  child: RepaintBoundary(
-                    child: TopBar(
-                      onClose: () => ref.read(panelControllerProvider).close(),
+                      opacity: expandedOpacity,
+                      child: IgnorePointer(
+                        ignoring: expandedOpacity == 0,
+                        child: RepaintBoundary(
+                          child: TopBar(
+                            onClose: () =>
+                                ref.read(panelControllerProvider).close(),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
             LayoutId(
               id: PlayerLayoutId.coverHero,
               child: (shouldRenderVideo && expandVal > 0)
                   ? const SizedBox.shrink()
-                  :  GestureDetector(
-                onTap: () {
-                  if (expandVal < 0.5) {
-                    ref.read(panelControllerProvider).open();
-                  } else if (!isWide && !shouldRenderVideo) {
-                    _controller.toggleLyrics();
-                  }
-                },
-                child: shouldRenderVideo ? PlayerVideoContent(isMini: expandVal < 0.1,) : FloatingCoverImage(
-                  url: currentTrack?.extras?['mainCoverUrl'],
-                  radiusValue: isWide ? 8.0 : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
-                ),
-              ),
+                  : GestureDetector(
+                      onTap: () {
+                        if (expandVal < 0.5) {
+                          ref.read(panelControllerProvider).open();
+                        } else if (!isWide && !shouldRenderVideo) {
+                          _controller.toggleLyrics();
+                        }
+                      },
+                      child: shouldRenderVideo
+                          ? PlayerVideoContent(isMini: expandVal < 0.1)
+                          : FloatingCoverImage(
+                              url: currentItem?.displayCoverUrl,
+                              radiusValue: isWide
+                                  ? 8.0
+                                  : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                            ),
+                    ),
             ),
           ],
         );
