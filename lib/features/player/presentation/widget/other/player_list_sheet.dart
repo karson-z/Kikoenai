@@ -8,15 +8,14 @@ import '../../../../../core/widgets/common/custom_side_sheet_type.dart';
 import '../../provider/player_controller_provider.dart';
 
 class PlayerPlaylistSheet {
-  static Future<void> show(
-      BuildContext context, {
-        VoidCallback? onClosed,
-      }) {
+  static Future<void> show(BuildContext context, {VoidCallback? onClosed}) {
     return WoltModalSheet.show<void>(
       context: context,
       modalTypeBuilder: (_) {
         final width = MediaQuery.sizeOf(context).width;
-        return width < 500 ? const CustomBottomType() : const CustomSideSheetType();
+        return width < 500
+            ? const CustomBottomType()
+            : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
         final colorScheme = Theme.of(modalContext).colorScheme;
@@ -38,10 +37,12 @@ class PlayerPlaylistSheet {
                 name: 'PlaylistSheetModal',
                 child: Consumer(
                   builder: (_, ref, __) {
-                    final notifier = ref.read(playerControllerProvider.notifier);
+                    final notifier = ref.read(
+                      playerControllerProvider.notifier,
+                    );
                     final state = ref.watch(playerControllerProvider);
-                    final currentTrack = state.currentTrack;
-                    final playList = state.playlist;
+                    final currentItem = state.currentItem;
+                    final playList = state.playbackQueue;
 
                     // 空状态
                     if (playList.isEmpty) {
@@ -51,9 +52,16 @@ class PlayerPlaylistSheet {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.queue_music, size: 64, color: Colors.grey),
+                              Icon(
+                                Icons.queue_music,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
                               SizedBox(height: 16),
-                              Text("播放队列为空", style: TextStyle(color: Colors.grey)),
+                              Text(
+                                "播放队列为空",
+                                style: TextStyle(color: Colors.grey),
+                              ),
                             ],
                           ),
                         ),
@@ -72,7 +80,9 @@ class PlayerPlaylistSheet {
                           itemBuilder: (context, index) {
                             final item = playList[index];
                             final itemKey = ValueKey("tile-${item.hashCode}");
-                            final isCurrentTrack = currentTrack != null && item == currentTrack;
+                            final isCurrentTrack =
+                                currentItem != null &&
+                                item.id == currentItem.id;
 
                             return ReorderableDelayedDragStartListener(
                               key: itemKey,
@@ -85,33 +95,42 @@ class PlayerPlaylistSheet {
                                   extentRatio: 0.2,
                                   children: [
                                     SlidableAction(
-                                        onPressed: (context) {
-                                          notifier.removeMediaItemInQueue(index);
-                                        },
-                                        backgroundColor: colorScheme.error,
-                                        foregroundColor: colorScheme.onError,
-                                        icon: Icons.delete
+                                      onPressed: (context) {
+                                        notifier.removeMediaItemInQueue(index);
+                                      },
+                                      backgroundColor: colorScheme.error,
+                                      foregroundColor: colorScheme.onError,
+                                      icon: Icons.delete,
                                     ),
                                   ],
                                 ),
                                 child: Material(
                                   child: ListTile(
                                     leading: isCurrentTrack
-                                        ? Icon(Icons.volume_up_rounded, color: colorScheme.primary)
+                                        ? Icon(
+                                            Icons.volume_up_rounded,
+                                            color: colorScheme.primary,
+                                          )
                                         : Text('${index + 1}'),
                                     title: Text(
                                       item.title,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: isCurrentTrack ? colorScheme.primary : null,
-                                        fontWeight: isCurrentTrack ? FontWeight.bold : null,
+                                        color: isCurrentTrack
+                                            ? colorScheme.primary
+                                            : null,
+                                        fontWeight: isCurrentTrack
+                                            ? FontWeight.bold
+                                            : null,
                                       ),
                                     ),
                                     subtitle: Text(
                                       item.artist ?? '未知艺术家',
                                       style: TextStyle(
-                                        color: isCurrentTrack ? colorScheme.primary.withAlpha(200) : null,
+                                        color: isCurrentTrack
+                                            ? colorScheme.primary.withAlpha(200)
+                                            : null,
                                       ),
                                     ),
                                     onTap: () {
@@ -120,7 +139,7 @@ class PlayerPlaylistSheet {
                                       Navigator.of(context).pop();
                                     },
                                   ),
-                                )
+                                ),
                               ),
                             );
                           },

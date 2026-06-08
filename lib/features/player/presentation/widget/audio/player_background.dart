@@ -46,16 +46,27 @@ class BlurredImageService {
     if (url.isEmpty) return null;
 
     // 获取当前设置参数
-    final blurBg = settingsBox.get(StorageKeys.blurBackground, defaultValue: 10);
-    final resizeBg = settingsBox.get(StorageKeys.backgroundScale, defaultValue: 100);
-    final qualityBg = settingsBox.get(StorageKeys.backgroundQuality, defaultValue: 70);
+    final blurBg = settingsBox.get(
+      StorageKeys.blurBackground,
+      defaultValue: 10,
+    );
+    final resizeBg = settingsBox.get(
+      StorageKeys.backgroundScale,
+      defaultValue: 100,
+    );
+    final qualityBg = settingsBox.get(
+      StorageKeys.backgroundQuality,
+      defaultValue: 70,
+    );
 
     // 2. 构建唯一的 Cache Key（将 URL 和参数绑定）
     final String customCacheKey = '${url}_${blurBg}_${resizeBg}_$qualityBg';
 
     // 3. 尝试从专属的 CacheManager 中获取缓存
     // 这里会自动触发 LRU 算法的 "Touch" 操作，更新最近访问时间
-    final FileInfo? fileInfo = await BlurCacheManager.instance.getFileFromCache(customCacheKey);
+    final FileInfo? fileInfo = await BlurCacheManager.instance.getFileFromCache(
+      customCacheKey,
+    );
     if (fileInfo != null) {
       return fileInfo.file;
     }
@@ -71,7 +82,10 @@ class BlurredImageService {
         resizeWidth: resizeBg,
         quality: qualityBg,
       );
-      final Uint8List? blurredBytes = await compute(_processBlurInIsolate, params);
+      final Uint8List? blurredBytes = await compute(
+        _processBlurInIsolate,
+        params,
+      );
 
       if (blurredBytes != null) {
         final File savedFile = await BlurCacheManager.instance.putFile(
@@ -88,7 +102,9 @@ class BlurredImageService {
     return null;
   }
 
-  static Future<Uint8List?> _processBlurInIsolate(BlurProcessParams params) async {
+  static Future<Uint8List?> _processBlurInIsolate(
+    BlurProcessParams params,
+  ) async {
     final totalStopwatch = Stopwatch()..start();
     final stepStopwatch = Stopwatch()..start();
 
@@ -101,7 +117,9 @@ class BlurredImageService {
     stepStopwatch.reset();
 
     final int origWidth = decodedImage.width;
-    final int safeResizeWidth = origWidth < params.resizeWidth ? origWidth : params.resizeWidth;
+    final int safeResizeWidth = origWidth < params.resizeWidth
+        ? origWidth
+        : params.resizeWidth;
 
     final img.Image resizedImage = img.copyResize(
       decodedImage,
@@ -111,11 +129,17 @@ class BlurredImageService {
     debugPrint('2. 缩放耗时: ${stepStopwatch.elapsedMilliseconds} ms');
     stepStopwatch.reset();
 
-    final img.Image blurredImage = img.gaussianBlur(resizedImage, radius: params.blurRadius);
+    final img.Image blurredImage = img.gaussianBlur(
+      resizedImage,
+      radius: params.blurRadius,
+    );
     debugPrint('3. 模糊耗时: ${stepStopwatch.elapsedMilliseconds} ms');
     stepStopwatch.reset();
 
-    final Uint8List resultBytes = img.encodeJpg(blurredImage, quality: params.quality);
+    final Uint8List resultBytes = img.encodeJpg(
+      blurredImage,
+      quality: params.quality,
+    );
     debugPrint('4. 编码耗时: ${stepStopwatch.elapsedMilliseconds} ms');
 
     totalStopwatch.stop();
@@ -125,9 +149,9 @@ class BlurredImageService {
 }
 
 final blurredImageProvider = FutureProvider.autoDispose<File?>((ref) async {
-  final coverUrl = ref.watch(playerControllerProvider.select(
-        (s) => s.currentTrack?.extras?['mainCoverUrl'] as String?,
-  ));
+  final coverUrl = ref.watch(
+    playerControllerProvider.select((s) => s.currentItem?.displayCoverUrl),
+  );
 
   if (coverUrl == null || coverUrl.isEmpty) {
     return null;
@@ -137,9 +161,7 @@ final blurredImageProvider = FutureProvider.autoDispose<File?>((ref) async {
 });
 
 class PlayerBackground extends ConsumerWidget {
-  const PlayerBackground({
-    super.key, required this.expVal,
-  });
+  const PlayerBackground({super.key, required this.expVal});
   final double expVal;
 
   @override
@@ -166,16 +188,16 @@ class PlayerBackground extends ConsumerWidget {
           },
           child: currentFile != null
               ? SimpleExtendedImage(
-            currentFile.path,
-            key: ValueKey(currentFile.path),
-            width: double.infinity,
-            height: double.infinity,
-            fit: BoxFit.cover,
-          )
+                  currentFile.path,
+                  key: ValueKey(currentFile.path),
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                )
               : const SizedBox.shrink(
-            // 当没有图片时，SizedBox 是透明的，会完美露出上面的 AnimatedContainer 纯色
-            key: ValueKey('empty_bg'),
-          ),
+                  // 当没有图片时，SizedBox 是透明的，会完美露出上面的 AnimatedContainer 纯色
+                  key: ValueKey('empty_bg'),
+                ),
         ),
 
         Container(
@@ -183,15 +205,12 @@ class PlayerBackground extends ConsumerWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.black38,
-                Colors.black87,
-              ],
+              colors: [Colors.black38, Colors.black87],
             ),
           ),
         ),
         Container(
-          color: baseColor.withOpacity(1 - expVal.clamp(0.0, 1.0)),
+          color: baseColor.withValues(alpha: 1 - expVal.clamp(0.0, 1.0)),
         ),
       ],
     );

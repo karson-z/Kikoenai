@@ -129,16 +129,19 @@ abstract class PlaybackItem with _$PlaybackItem {
   Duration? get duration =>
       durationMs == null ? null : Duration(milliseconds: durationMs!);
 
+  String? get displayCoverUrl => coverUrl ?? smallCoverUrl;
+
   bool get isLocal =>
       source == NodeSource.localWork || source == NodeSource.localSingle;
 
   MediaItem toMediaItem() {
+    final artworkUrl = displayCoverUrl;
     return MediaItem(
       id: id,
       album: albumTitle,
       title: title,
       artist: artist,
-      artUri: coverUrl == null ? null : Uri.tryParse(coverUrl!),
+      artUri: artworkUrl == null ? null : Uri.tryParse(artworkUrl),
       duration: duration,
       extras: {
         'url': url,

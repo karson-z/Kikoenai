@@ -17,12 +17,14 @@ import '../../../../core/utils/log/kikoenai_log.dart';
 
 /// 字幕提供者
 final lyricsProvider = FutureProvider<String?>((ref) async {
-  final currentTrackId =
-      ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
-  if (currentTrackId == null) return null;
-  final subtitleMapping =
-      ref.watch(lyricsMatchControllerProvider.select((s) => s.subtitleMapping));
-  final currentSub = subtitleMapping[currentTrackId];
+  final currentItemId = ref.watch(
+    playerControllerProvider.select((s) => s.currentItem?.id),
+  );
+  if (currentItemId == null) return null;
+  final subtitleMapping = ref.watch(
+    lyricsMatchControllerProvider.select((s) => s.subtitleMapping),
+  );
+  final currentSub = subtitleMapping[currentItemId];
   final newUrl = currentSub?.mediaStreamUrl;
   if (newUrl == null || newUrl.isEmpty) return null;
   final api = ref.read(apiClientProvider);
@@ -37,17 +39,16 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
       final response = await apiClient.getBytes(
         url,
         options: Options(
-          headers: const {
-            'Accept': 'text/plain, text/lrc, */*',
-          },
+          headers: const {'Accept': 'text/plain, text/lrc, */*'},
         ),
       );
       final bytes = response.data;
       if (bytes == null || bytes.isEmpty) return null;
 
       final contentType = response.headers.value(Headers.contentTypeHeader);
-      final hintedCharset =
-          FileEncodingHelper.extractCharsetFromContentType(contentType);
+      final hintedCharset = FileEncodingHelper.extractCharsetFromContentType(
+        contentType,
+      );
       final decoded = await FileEncodingHelper.decodeBytes(
         bytes,
         hintedCharset: hintedCharset,
@@ -71,8 +72,11 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
 
 /// 自定义的加载方法，支持传入解析器列表
 extension LyricControllerExt on LyricController {
-  void loadLyricWithParsers(String lyric,
-      {String? translationLyric, List<LyricParse>? parsers}) {
+  void loadLyricWithParsers(
+    String lyric, {
+    String? translationLyric,
+    List<LyricParse>? parsers,
+  }) {
     final lyricModel = LyricParse.parse(
       lyric,
       translationLyric: translationLyric,
@@ -85,16 +89,18 @@ extension LyricControllerExt on LyricController {
 /// 字幕样式提供者
 final lyricConfigProvider =
     NotifierProvider<LyricConfigNotifier, LyricConfigModel>(() {
-  return LyricConfigNotifier();
-});
+      return LyricConfigNotifier();
+    });
 
 class LyricConfigNotifier extends Notifier<LyricConfigModel> {
   Box get setting => AppStorage.settingsBox;
 
   @override
   LyricConfigModel build() {
-    return setting.get(StorageKeys.lyricsStyleConfig,
-        defaultValue: const LyricConfigModel());
+    return setting.get(
+      StorageKeys.lyricsStyleConfig,
+      defaultValue: const LyricConfigModel(),
+    );
   }
 
   void updateMainFontSize(double val) =>
