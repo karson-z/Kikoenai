@@ -579,7 +579,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> restoreHistory(HistoryEntry history) async {
-    final savedSession = history.session;
+    final savedSession = history.restoreSession;
     if (savedSession.queue.isNotEmpty) {
       final mediaItems = savedSession.mediaItems;
       final initialIndex = savedSession.queue.indexWhere(
