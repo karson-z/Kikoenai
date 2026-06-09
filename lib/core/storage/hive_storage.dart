@@ -57,7 +57,6 @@ class AppStorage {
     Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(WorkAdapter());
-    Hive.registerAdapter(HistoryEntryTypeAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
     Hive.registerAdapter(NodeSourceAdapter());
     Hive.registerAdapter(SearchTagAdapter());

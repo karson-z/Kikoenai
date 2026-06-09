@@ -194,12 +194,8 @@ class FileNodeLibraryIndex {
       workTitle: sample?.workTitle,
       artist: sample?.artist,
       nodeStatus: sample?.nodeStatus ?? NodeStatus.normal,
-
-      // ==========================================
-      // 【正解】：让属性回归本质
-      // ==========================================
       subItemsCount: directFoldersCount + directFilesCount,
-      children: null, // 干净利落，不带任何累赘
+      children: null,
     );
   }
 
