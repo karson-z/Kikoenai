@@ -28,6 +28,7 @@ class MyApp extends ConsumerWidget {
     if (ref.read(defaultMarkTargetPlaylistProvider) == null) {
       notifier.fetchAndCacheDefault();
     }
+
     return MaterialApp.router(
       scrollBehavior: MyCustomScrollBehavior(),
       debugShowCheckedModeBanner: false,

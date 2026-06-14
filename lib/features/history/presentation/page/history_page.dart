@@ -15,82 +15,21 @@ import 'package:kikoenai/features/player/presentation/provider/player_controller
 class HistoryPage extends ConsumerWidget {
   const HistoryPage({super.key});
 
-  void _showAllEntries(
-    BuildContext context,
-    String title,
-    List<HistoryEntry> entries,
-  ) {
-    KikoenaiDialog.showBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        final theme = Theme.of(context);
-        return SafeArea(
-          child: FractionallySizedBox(
-            heightFactor: 0.88,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 210,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 0.66,
-                        ),
-                    itemCount: entries.length,
-                    itemBuilder: (context, index) {
-                      return _buildHistoryCard(context, entries[index]);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildSection(
     BuildContext context,
     String title,
     List<HistoryEntry> previewItems,
-    List<HistoryEntry> fullItems,
   ) {
-    if (fullItems.isEmpty) {
-      return const SizedBox.shrink();
-    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: HistoryHorizontalSection(
         title: title,
         items: previewItems,
-        onMoreTap: fullItems.length > 20
-            ? () => _showAllEntries(context, title, fullItems)
+        onMoreTap: previewItems.length > 20
+            ? () {
+          //TODO 跳转到显示全部历史记录的页面。
+        }
             : null,
         itemBuilder: _buildHistoryCard,
       ),
@@ -187,15 +126,6 @@ class HistoryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyList = ref.watch(historyControllerProvider);
-    final workEntries = ref.watch(
-      historyBySourceProvider(NodeSource.asmrServer),
-    );
-    final localWorkEntries = ref.watch(
-      historyBySourceProvider(NodeSource.localWork),
-    );
-    final singleWorkEntries = ref.watch(
-      historyBySourceProvider(NodeSource.localSingle),
-    );
     final workPreview = ref.watch(
       historyPreviewBySourceProvider(NodeSource.asmrServer),
     );
@@ -220,18 +150,16 @@ class HistoryPage extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                _buildSection(context, '作品历史', workPreview, workEntries),
+                _buildSection(context, '作品历史', workPreview),
                 _buildSection(
                   context,
                   '本地作品历史',
                   localWorkPreview,
-                  localWorkEntries,
                 ),
                 _buildSection(
                   context,
                   '单曲历史',
                   singleWorkPreview,
-                  singleWorkEntries,
                 ),
                 const SizedBox(height: 80),
               ],
