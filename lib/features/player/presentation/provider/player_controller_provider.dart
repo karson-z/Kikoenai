@@ -10,6 +10,7 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 import '../../../../core/constants/app_player.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
@@ -30,7 +31,7 @@ final playerControllerProvider =
       return PlayerController();
     });
 
-class PlayerController extends Notifier<AppPlayerState> {
+class PlayerController extends Notifier<AppPlayerState> with WindowListener {
   ReceivePort? _overlayReceivePort;
 
   Timer? _controlsHideTimer;
@@ -43,34 +44,52 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   AppLifecycleListener? _lifecycleListener;
 
+  bool _isRestoring = true;
+
   @override
   AppPlayerState build() {
     _listen();
 
     _listenToPlayer();
-
+    windowManager.addListener(this);
     // 1. 监听应用生命周期：退出、退到后台、被强杀时，保存当前进度
     _lifecycleListener = AppLifecycleListener(
       onPause: () => _saveCurrentHistory(),
       onHide: () => _saveCurrentHistory(),
-      onDetach: () => _saveCurrentHistory(),
+      onDetach: (){
+        _saveCurrentHistory();
+        _debugDetachTrigger();
+      },
     );
 
-    Future.microtask(() {
-      _loadPlayerState();
+    Future.microtask(() async {
+      await _loadPlayerState();
+      _isRestoring = false;
     });
     startControlsHideTimer();
 
     ref.onDispose(() {
       // 2. Controller 销毁前最后保存一次
+      windowManager.removeListener(this);
       _saveCurrentHistory();
-
       _closeOverlayPort();
       _controlsHideTimer?.cancel();
       _lifecycleListener?.dispose(); // 销毁生命周期监听器
       stop();
     });
     return const AppPlayerState();
+  }
+  @override
+  void onWindowClose() async {
+    debugPrint('【Windows 调试】检测到窗口关闭信号，开始保存历史记录...');
+
+    // 执行你的保存逻辑
+    _saveCurrentHistory();
+    _debugDetachTrigger(); // 写入你的测试埋点
+
+    // 必须等待数据安全写入（如果有异步行为可以 await）
+    // 强制销毁当前窗口，真正退出程序
+    await windowManager.destroy();
   }
 
   void startControlsHideTimer() {
@@ -323,17 +342,22 @@ class PlayerController extends Notifier<AppPlayerState> {
     });
 
     // 当前播放曲目
-    _handler.mediaItem.listen((item) {
-      final currentItem = state.currentItem;
-
-      if (currentItem != null && currentItem.id != item?.id) {
-        _saveCurrentHistory();
+    _handler.mediaItem
+        .distinct((previous, next) {
+      if (previous?.id != null && next?.id != null) {
+        return previous!.id == next!.id;
       }
-
-      if (currentItem?.id != item?.id) {
-        state = state.copyWith(session: _sessionWithCurrentMediaItem(item));
+      return false;
+    })
+        .listen((item) {
+      if (_isRestoring) return;
+      if (item == null) return;
+      final previousItem = state.currentItem;
+      // 2. 如果存在旧曲目，且确实发生了切歌，则保存旧曲目的进度
+      if (previousItem != null && previousItem.id != item.id) {
+        _saveCurrentHistory(item: previousItem);
       }
-
+      state = state.copyWith(session: _sessionWithCurrentMediaItem(item));
       _updateSkipInfo();
 
       if (state.currentItem != null) {
@@ -386,10 +410,19 @@ class PlayerController extends Notifier<AppPlayerState> {
   void _saveState() {
     _cacheService.savePlayerState(state);
   }
-
-  void _saveCurrentHistory() {
+  void _debugDetachTrigger() {
+    try {
+      AppStorage.settingsBox.put(
+          'debug_detach_time',
+          'Detached 成功触发于: ${DateTime.now().toIso8601String()}'
+      );
+    } catch (e) {
+      // 极其简短的捕获
+    }
+  }
+  void _saveCurrentHistory({PlaybackItem? item}) {
     final session = state.session;
-    final currentItem = state.currentItem;
+    final currentItem = item ?? state.currentItem;
 
     if (session == null || currentItem == null) return;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;

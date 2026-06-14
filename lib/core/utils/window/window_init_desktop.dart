@@ -21,4 +21,5 @@ Future<void> setupDesktopWindow() async {
     await windowManager.show();
     await windowManager.focus();
   });
+  await windowManager.setPreventClose(true);
 }
