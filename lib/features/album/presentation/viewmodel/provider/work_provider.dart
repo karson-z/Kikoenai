@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/age_rating.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
@@ -62,14 +63,27 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
 
   /// 通用加载更多
   Future<void> loadMore() async {
-    final currentState = state.value;
-    if (currentState == null || !currentState.hasMore || state.isLoading) {
+    final current = state.value;
+    if (current == null ||
+        current.isLoading ||
+        !current.hasMore) {
       return;
     }
 
-    state = await AsyncValue.guard(() async {
-      return _loadPage(currentState.currentPage + 1);
-    });
+    state = AsyncData(current.copyWith(isLoading: true));
+
+    try {
+      final result = await _loadPage(current.currentPage + 1);
+
+      state = AsyncData(
+        result.copyWith(isLoading: false),
+      );
+    } catch (e, st) {
+      state = AsyncData(
+        current.copyWith(isLoading: false),
+      );
+      rethrow;
+    }
   }
 
   /// 通用刷新

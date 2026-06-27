@@ -10,5 +10,6 @@ abstract class FilterDataState with _$FilterDataState {
     @Default(1) int currentPage,
     @Default(0) int totalCount,
     @Default(true) bool hasMore,
+    @Default(false) bool isLoading,
   }) = _FilterDataState;
 }

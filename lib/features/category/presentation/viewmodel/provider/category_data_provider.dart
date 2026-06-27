@@ -62,18 +62,29 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
   }
 
   Future<void> loadMore() async {
-    // 防抖保护：如果正在加载中，且没有更多数据，则直接返回
-    if (state.isLoading || state.value?.hasMore == false) return;
+    final current = state.value;
+    if (current == null ||
+        current.isLoading ||
+        !current.hasMore) {
+      return;
+    }
+
+    // 开始加载
+    state = AsyncData(
+      current.copyWith(isLoading: true),
+    );
 
     try {
-      if(state.isLoading) return; // 双重校验防抖
+      final result = await _load(reset: false);
 
-      // 注意这里因为是基于旧状态继续加载，我们暂时置为 loading 态防重复触发，由于使用的是 AsyncNotifier，
-      // 原生的 Riverpod 处理 loadMore 建议直接覆盖 state。
-      final nextState = await _load(reset: false);
-      state = AsyncData(nextState);
+      state = AsyncData(
+        result.copyWith(isLoading: false),
+      );
     } catch (e, st) {
-      state = AsyncError(e, st);
+      state = AsyncData(
+        current.copyWith(isLoading: false),
+      );
+      Error.throwWithStackTrace(e, st);
     }
   }
 }

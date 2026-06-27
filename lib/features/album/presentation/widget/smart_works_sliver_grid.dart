@@ -51,6 +51,7 @@ class SmartWorksSliverGrid extends ConsumerWidget {
         return ResponsiveCardGrid(
           work: state.works,
           hasMore: state.hasMore,
+          isLoading: state.isLoading,
           onLoadMore: onLoadMore,
         );
       },

@@ -1,35 +1,17 @@
 // works_state.dart
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../data/model/work.dart';
 
-class WorkState extends Equatable {
-  final List<Work> works;
-  final int currentPage;
-  final int totalCount;
-  final bool hasMore;
+part 'work_state.freezed.dart';
 
-  const WorkState({
-    this.works = const [],
-    this.currentPage = 1,
-    this.totalCount = 0,
-    this.hasMore = true,
-  });
-
-  WorkState copyWith({
-    List<Work>? works,
-    int? currentPage,
-    int? totalCount,
-    bool? hasMore,
-  }) {
-    return WorkState(
-      works: works ?? this.works,
-      currentPage: currentPage ?? this.currentPage,
-      totalCount: totalCount ?? this.totalCount,
-      hasMore: hasMore ?? this.hasMore,
-    );
-  }
-
-  @override
-  List<Object?> get props => [works, currentPage, totalCount, hasMore];
+@freezed
+abstract class WorkState with _$WorkState {
+  const factory WorkState({
+    @Default([]) List<Work> works,
+    @Default(1) int currentPage,
+    @Default(0) int totalCount,
+    @Default(true) bool hasMore,
+    @Default(false) bool isLoading,
+  }) = _WorkState;
 }

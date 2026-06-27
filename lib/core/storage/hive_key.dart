@@ -49,6 +49,18 @@ class StorageKeys {
 
   // ==================== Option Keys (Settings Box - 用户偏好) ====================
 
+  /// 播放器偏好：音量大小 (double)
+  static const String playerVolume = 'player_volume';
+
+  /// 播放器偏好：循环模式 (AudioServiceRepeatMode 的 index)
+  static const String playerRepeatMode = 'player_repeat_mode';
+
+  /// 播放器偏好：是否开启随机播放 (bool)
+  static const String playerShuffleEnabled = 'player_shuffle_enabled';
+
+  /// 播放器偏好：是否开启仅音频模式 (bool)
+  static const String playerIsAudioOnly = 'player_is_audio_only';
+
   /// 标签(Tag)筛选或显示选项
   static const String tagOption = 'tag_option';
 

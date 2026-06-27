@@ -4,13 +4,13 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:hive_ce/hive.dart' hide IsolateNameServer;
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:window_manager/window_manager.dart';
 import '../../../../core/constants/app_player.dart';
 import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
@@ -31,7 +31,9 @@ final playerControllerProvider =
       return PlayerController();
     });
 
-class PlayerController extends Notifier<AppPlayerState> with WindowListener {
+class PlayerController extends Notifier<AppPlayerState> {
+  Timer? _playbackTicker;
+
   ReceivePort? _overlayReceivePort;
 
   Timer? _controlsHideTimer;
@@ -42,54 +44,34 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
 
   CacheService get _cacheService => CacheService.instance;
 
-  AppLifecycleListener? _lifecycleListener;
+  Box<dynamic> get _settingsBox => AppStorage.settingsBox;
 
-  bool _isRestoring = true;
+  HistoryController get historyController => ref.read(historyControllerProvider.notifier);
 
   @override
   AppPlayerState build() {
     _listen();
 
     _listenToPlayer();
-    windowManager.addListener(this);
-    // 1. 监听应用生命周期：退出、退到后台、被强杀时，保存当前进度
-    _lifecycleListener = AppLifecycleListener(
-      onPause: () => _saveCurrentHistory(),
-      onHide: () => _saveCurrentHistory(),
-      onDetach: (){
+
+    _playbackTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state.playing) {
         _saveCurrentHistory();
-        _debugDetachTrigger();
-      },
-    );
+      }
+    });
 
     Future.microtask(() async {
       await _loadPlayerState();
-      _isRestoring = false;
     });
     startControlsHideTimer();
 
     ref.onDispose(() {
-      // 2. Controller 销毁前最后保存一次
-      windowManager.removeListener(this);
-      _saveCurrentHistory();
       _closeOverlayPort();
       _controlsHideTimer?.cancel();
-      _lifecycleListener?.dispose(); // 销毁生命周期监听器
+      _playbackTicker?.cancel();
       stop();
     });
     return const AppPlayerState();
-  }
-  @override
-  void onWindowClose() async {
-    debugPrint('【Windows 调试】检测到窗口关闭信号，开始保存历史记录...');
-
-    // 执行你的保存逻辑
-    _saveCurrentHistory();
-    _debugDetachTrigger(); // 写入你的测试埋点
-
-    // 必须等待数据安全写入（如果有异步行为可以 await）
-    // 强制销毁当前窗口，真正退出程序
-    await windowManager.destroy();
   }
 
   void startControlsHideTimer() {
@@ -123,36 +105,49 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
 
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
-    final savedState = _cacheService.getPlayerState();
-    if (savedState == null) return;
+    final volume = _settingsBox.get(StorageKeys.playerVolume, defaultValue: 1.0) as double;
 
-    final session = savedState.session;
+    final repeatModeIndex = _settingsBox.get(StorageKeys.playerRepeatMode, defaultValue: 0) as int;
 
-    final progress = savedState.progressBarState.current;
-    if (session != null && session.queue.isNotEmpty) {
-      await (_handler as MyAudioHandler).initPlayback(
-        initialPlaylist: session.mediaItems,
-        initialIndex: session.currentIndex,
-        initialPosition: progress,
-        volume: savedState.volume,
-        repeatMode: savedState.repeatMode,
-        shuffleEnabled: savedState.shuffleEnabled,
-      );
-    }
+    final repeatMode = AudioServiceRepeatMode.values[repeatModeIndex];
 
-    // 恢复仅音频模式到底层播放引擎
-    if (savedState.isAudioOnly) {
+    final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false) as bool;
+
+    final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false) as bool;
+
+    // 2. 将配置应用到底层播放引擎
+    if (isAudioOnly) {
       _handler.customAction('toggleVideoDecoding', {
-        'enable': !savedState.isAudioOnly,
+        'enable': !isAudioOnly,
       });
     }
 
+    // 3. 从历史记录恢复播放队列与进度
+    final previousState = historyController.getLatestOne();
+    PlaybackSession? session;
+
+    if (previousState != null) {
+      session = previousState.session;
+      final progress = previousState.lastProgressMs ?? 0;
+
+      if (session.queue.isNotEmpty) {
+        await (_handler as MyAudioHandler).initPlayback(
+          initialPlaylist: session.mediaItems,
+          initialIndex: session.currentIndex,
+          initialPosition: Duration(milliseconds: progress),
+          volume: volume,
+          repeatMode: repeatMode,
+          shuffleEnabled: shuffleEnabled,
+        );
+      }
+    }
+    // 4. 同步状态到 Riverpod
     state = state.copyWith(
       session: session,
-      isAudioOnly: savedState.isAudioOnly,
-      repeatMode: savedState.repeatMode,
-      shuffleEnabled: savedState.shuffleEnabled,
-      volume: savedState.volume,
+      isAudioOnly: isAudioOnly,
+      repeatMode: repeatMode,
+      shuffleEnabled: shuffleEnabled,
+      volume: volume,
     );
   }
 
@@ -307,7 +302,6 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
         buffered: p.bufferedPosition,
         total: _handler.mediaItem.value?.duration ?? Duration.zero,
       );
-
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
@@ -320,59 +314,31 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
       if (isCompleted) {
         _updateTrackerStatus(isPlaying: false, isCompleted: true);
       }
-
-      if (state.currentItem != null) {
-        _saveState();
-      }
     });
 
     // 低频流：处理播放与暂停状态切换
     _handler.playbackState.map((p) => p.playing).distinct().listen((isPlaying) {
       state = state.copyWith(playing: isPlaying);
-
       _updateTrackerStatus(isPlaying: isPlaying, isCompleted: false);
-
       ref.read(subtitleManagerProvider).syncBusinessState({
         'isPlaying': isPlaying,
       });
-
-      if (state.currentItem != null) {
-        _saveState();
-      }
     });
 
     // 当前播放曲目
-    _handler.mediaItem
-        .distinct((previous, next) {
-      if (previous?.id != null && next?.id != null) {
-        return previous!.id == next!.id;
-      }
-      return false;
-    })
-        .listen((item) {
-      if (_isRestoring) return;
+    _handler.mediaItem.listen((item) {
       if (item == null) return;
-      final previousItem = state.currentItem;
-      // 2. 如果存在旧曲目，且确实发生了切歌，则保存旧曲目的进度
-      if (previousItem != null && previousItem.id != item.id) {
-        _saveCurrentHistory(item: previousItem);
-      }
+
       state = state.copyWith(session: _sessionWithCurrentMediaItem(item));
+
       _updateSkipInfo();
 
-      if (state.currentItem != null) {
-        _saveState();
-      }
       _updateTrackerStatus(mediaItem: item, isPlaying: state.playing);
     });
-
     // 播放列表变化
     _handler.queue.listen((queue) {
       state = state.copyWith(session: _sessionFromMediaQueue(queue));
       _updateSkipInfo();
-      if (state.currentItem != null) {
-        _saveState();
-      }
     });
 
     // 音量变化
@@ -410,19 +376,10 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
   void _saveState() {
     _cacheService.savePlayerState(state);
   }
-  void _debugDetachTrigger() {
-    try {
-      AppStorage.settingsBox.put(
-          'debug_detach_time',
-          'Detached 成功触发于: ${DateTime.now().toIso8601String()}'
-      );
-    } catch (e) {
-      // 极其简短的捕获
-    }
-  }
-  void _saveCurrentHistory({PlaybackItem? item}) {
+
+  void _saveCurrentHistory() {
     final session = state.session;
-    final currentItem = item ?? state.currentItem;
+    final currentItem = state.currentItem;
 
     if (session == null || currentItem == null) return;
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
@@ -435,7 +392,7 @@ class PlayerController extends Notifier<AppPlayerState> with WindowListener {
         lastPlayTime: DateTime.now().millisecondsSinceEpoch,
       );
 
-      ref.read(historyControllerProvider.notifier).upsert(history);
+      historyController.upsert(history);
 
       debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
