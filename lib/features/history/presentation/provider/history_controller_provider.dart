@@ -1,19 +1,20 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/model/file_node.dart';
 import '../../data/model/history_entry.dart';
 import '../../data/repository/history_respository.dart';
 
-final historyRepositoryProvider = Provider<HistoryRepository>((ref) {
-  return HistoryRepository.instance;
-});
-
 final historyControllerProvider =
-    NotifierProvider<HistoryController, List<HistoryEntry>>(
-      HistoryController.new,
-    );
+NotifierProvider<HistoryController, List<HistoryEntry>>(
+  HistoryController.new,
+);
+
+final historyBySourceProvider = Provider.family<List<HistoryEntry>, NodeSource>(
+      (ref, source) {
+    final entries = ref.watch(historyControllerProvider);
+    return entries.where((entry) => entry.source == source).toList();
+  },
+);
 
 class HistoryController extends Notifier<List<HistoryEntry>> {
   HistoryRepository get _repository => ref.read(historyRepositoryProvider);
@@ -26,6 +27,19 @@ class HistoryController extends Notifier<List<HistoryEntry>> {
 
     ref.onDispose(subscription.cancel);
 
+    return _repository.getAll();
+  }
+  // 用于单次读取
+  List<HistoryEntry> getEntriesBySource(NodeSource source) {
+    return _repository.getBySource(source);
+  }
+  // 用于单次读取
+  HistoryEntry? getLatestOne() {
+    final list = getAll();
+    return list.isNotEmpty ? list.first : null;
+  }
+  // 用于单次读取
+  List<HistoryEntry> getAll(){
     return _repository.getAll();
   }
 
@@ -57,15 +71,3 @@ class HistoryController extends Notifier<List<HistoryEntry>> {
     state = const [];
   }
 }
-
-final historyBySourceProvider = Provider.family<List<HistoryEntry>, NodeSource>(
-  (ref, source) {
-    final entries = ref.watch(historyControllerProvider);
-    return entries.where((entry) => entry.source == source).toList();
-  },
-);
-
-final historyPreviewBySourceProvider =
-    Provider.family<List<HistoryEntry>, NodeSource>((ref, source) {
-      return ref.watch(historyBySourceProvider(source)).take(20).toList();
-    });

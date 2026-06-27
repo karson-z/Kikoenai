@@ -8,12 +8,14 @@ import '../../../../core/widgets/loading/lottie_loading.dart';
 
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Work> work;
+  final bool isLoading;
   final bool hasMore;
   final VoidCallback onLoadMore;
 
   const ResponsiveCardGrid({
     super.key,
     required this.work,
+    required this.isLoading,
     required this.hasMore,
     required this.onLoadMore,
   });

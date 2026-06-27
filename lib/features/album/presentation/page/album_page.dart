@@ -195,6 +195,7 @@ class _NewestWorksSection extends ConsumerWidget {
             ResponsiveCardGrid(
               work: state.works,
               hasMore: state.hasMore,
+              isLoading: state.isLoading,
               onLoadMore: () {
                 ref.read(newWorksProvider.notifier).loadMore();
               },

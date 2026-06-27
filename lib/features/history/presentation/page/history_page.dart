@@ -127,13 +127,13 @@ class HistoryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historyList = ref.watch(historyControllerProvider);
     final workPreview = ref.watch(
-      historyPreviewBySourceProvider(NodeSource.asmrServer),
+      historyBySourceProvider(NodeSource.asmrServer),
     );
     final localWorkPreview = ref.watch(
-      historyPreviewBySourceProvider(NodeSource.localWork),
+      historyBySourceProvider(NodeSource.localWork),
     );
     final singleWorkPreview = ref.watch(
-      historyPreviewBySourceProvider(NodeSource.localSingle),
+      historyBySourceProvider(NodeSource.localSingle),
     );
 
     return Scaffold(

@@ -1,9 +1,12 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import '../../../../core/storage/hive_storage.dart';
+import '../../../../core/model/file_node.dart';
 import '../model/history_entry.dart';
-
+final historyRepositoryProvider = Provider<HistoryRepository>((ref) {
+  return HistoryRepository.instance;
+});
 class HistoryRepository {
-  // 单例模式，方便全局调用
   HistoryRepository._();
   static final HistoryRepository instance = HistoryRepository._();
 
@@ -13,9 +16,16 @@ class HistoryRepository {
     return _box.watch();
   }
 
-  /// 获取历史列表 (按时间倒序)
+  /// 获取所有历史列表 (按时间倒序)
   List<HistoryEntry> getAll() {
     final list = _box.values.toList();
+    list.sort((a, b) => b.lastPlayTime.compareTo(a.lastPlayTime));
+    return list;
+  }
+
+  /// 根据来源分类获取历史列表 (按时间倒序)
+  List<HistoryEntry> getBySource(NodeSource source) {
+    final list = _box.values.where((entry) => entry.source == source).toList();
     list.sort((a, b) => b.lastPlayTime.compareTo(a.lastPlayTime));
     return list;
   }
