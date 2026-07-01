@@ -13,7 +13,6 @@ import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import '../../features/player/data/model/player_state.dart';
 import '../adapter/audio_service_repeat_mode_adapter.dart';
-import '../adapter/media_item_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/scan_mode.dart';
 import '../adapter/work_adapter.dart';
@@ -28,8 +27,7 @@ class AppStorage {
   static late Box<dynamic> settingsBox; // 通用设置/缓存
   static late Box<FileNode> scannerBox; // 扫描结果
   static late Box<Work> scraperWorkBox; // 爬取作品元数据
-  static late Box<FileNode>
-  lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<FileNode> lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
   static late Box<SearchTag> filterTagsBox; // 全局筛选
   static late Box<ScanTarget> scanTargetBox; // 扫描目标
 
@@ -47,7 +45,6 @@ class AppStorage {
     Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(LyricConfigModelAdapter());
     Hive.registerAdapter(AuthResponseAdapter());
-    Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
     Hive.registerAdapter(NodeTypeAdapter());
     Hive.registerAdapter(NodeStatusAdapter());
