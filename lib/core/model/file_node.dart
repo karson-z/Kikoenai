@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:path/path.dart' as p;
 import '../constants/app_typeIds.dart';
 
 part 'file_node.freezed.dart';
@@ -7,29 +8,44 @@ part 'file_node.g.dart';
 
 @HiveType(typeId: TypeIds.nodeSource)
 enum NodeSource {
-  @HiveField(0) asmrServer,
-  @HiveField(1) localWork,
-  @HiveField(2) localSingle,
-  @HiveField(3) cloudDrive;
+  @HiveField(0)
+  asmrServer,
+  @HiveField(1)
+  localWork,
+  @HiveField(2)
+  localSingle,
+  @HiveField(3)
+  cloudDrive,
 }
 
 @HiveType(typeId: TypeIds.nodeType)
 enum NodeType {
-  @HiveField(0) folder,
-  @HiveField(1) audio,
-  @HiveField(2) image,
-  @HiveField(3) text,
-  @HiveField(4) video,
-  @HiveField(5) other,
-  @HiveField(6) unknown;
+  @HiveField(0)
+  folder,
+  @HiveField(1)
+  audio,
+  @HiveField(2)
+  image,
+  @HiveField(3)
+  text,
+  @HiveField(4)
+  video,
+  @HiveField(5)
+  other,
+  @HiveField(6)
+  unknown,
 }
 
 @HiveType(typeId: TypeIds.nodeStatus)
 enum NodeStatus {
-  @HiveField(0) normal,
-  @HiveField(1) pending,
-  @HiveField(2) parsing,
-  @HiveField(3) parsed;
+  @HiveField(0)
+  normal,
+  @HiveField(1)
+  pending,
+  @HiveField(2)
+  parsing,
+  @HiveField(3)
+  parsed;
 
   bool get isPending => this == NodeStatus.pending;
   bool get isProcessing => this == NodeStatus.parsing;
@@ -53,7 +69,7 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(9) @Default(0) int lastModified,
     @HiveField(10) @Default(NodeStatus.normal) NodeStatus nodeStatus,
     @HiveField(11) int? workId,
-    @HiveField(12) @Default(NodeSource.asmrServer)  NodeSource source,
+    @HiveField(12) @Default(NodeSource.asmrServer) NodeSource source,
 
     // Media-library index fields.
     @HiveField(13) String? path,
@@ -61,7 +77,7 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(15) String? rootPath,
     @HiveField(16) String? parentPath,
     @HiveField(17) @Default(0) int depth,
-    @Default(0)int subItemsCount
+    @Default(0) int subItemsCount,
   }) = _FileNode;
 
   FileNode._();
@@ -91,15 +107,18 @@ abstract class FileNode extends HiveObject with _$FileNode {
     return NodeFolder(p);
   }
 
-  bool get isLocal => source == NodeSource.localWork || source == NodeSource.localSingle;
-  bool get isRemote => source == NodeSource.asmrServer || source == NodeSource.cloudDrive;
+  bool get isLocal =>
+      source == NodeSource.localWork || source == NodeSource.localSingle;
+  bool get isRemote =>
+      source == NodeSource.asmrServer || source == NodeSource.cloudDrive;
 
   bool get isAsmrServer => source == NodeSource.asmrServer;
   bool get isLocalWork => source == NodeSource.localWork;
   bool get isLocalSingle => source == NodeSource.localSingle;
   bool get isCloudDrive => source == NodeSource.cloudDrive;
 
-  factory FileNode.fromJson(Map<String, dynamic> json) => _$FileNodeFromJson(json);
+  factory FileNode.fromJson(Map<String, dynamic> json) =>
+      _$FileNodeFromJson(json);
 }
 
 class NodeFolder {
@@ -108,54 +127,103 @@ class NodeFolder {
   const NodeFolder(this.path);
 
   String get normalized {
-    var p = path.replaceAll('\\', '/');
-    while (p.contains('//')) {
-      p = p.replaceAll('//', '/');
-    }
-    if (p.length > 1 && p.endsWith('/')) {
-      p = p.substring(0, p.length - 1);
-    }
-    return p;
+    return normalizePath(path);
   }
 
   String get key => normalized.toLowerCase();
 
   String get name {
-    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
-    return parts.isEmpty ? normalized : parts.last;
+    return baseName(normalized);
   }
 
   NodeFolder? get parent {
-    final hasLeadingSlash = normalized.startsWith('/');
-    final prefix = hasLeadingSlash ? '/' : '';
-    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
-    if (parts.length <= 1) return null;
-    parts.removeLast();
-    return NodeFolder('$prefix${parts.join('/')}');
+    final parentPath = dirName(normalized);
+    if (parentPath == normalized || parentPath == '.') return null;
+    return NodeFolder(parentPath);
   }
 
   List<NodeFolder> buildInbetweenFolders({String? stopAtRootPath}) {
-    final root = stopAtRootPath == null ? null : NodeFolder(stopAtRootPath).key;
-    final hasLeadingSlash = normalized.startsWith('/');
-    final prefix = hasLeadingSlash ? '/' : '';
-    final parts = normalized.split('/').where((e) => e.isNotEmpty).toList();
-    final result = <NodeFolder>[];
-    final buffer = <String>[];
+    final rootFolder = stopAtRootPath == null
+        ? null
+        : NodeFolder(stopAtRootPath);
+    if (rootFolder != null) {
+      final normalizedRoot = rootFolder.normalized;
+      final normalizedRootLower = normalizedRoot.toLowerCase();
+      final normalizedLower = normalized.toLowerCase();
+      if (normalizedLower == normalizedRootLower) return const [];
+      if (normalizedLower.startsWith('$normalizedRootLower/')) {
+        final relative = normalized.substring(normalizedRoot.length);
+        final parts = relative.split('/').where((e) => e.isNotEmpty);
+        final result = <NodeFolder>[];
+        var currentPath = normalizedRoot;
 
-    for (final part in parts) {
-      buffer.add(part);
-      final folder = NodeFolder('$prefix${buffer.join('/')}');
-      if (root != null) {
-        if (!folder.key.startsWith(root)) continue;
-        if (folder.key == root) continue;
+        for (final part in parts) {
+          currentPath = joinPath(currentPath, part);
+          result.add(NodeFolder(currentPath));
+        }
+
+        return result;
       }
-      result.add(folder);
+    }
+
+    final result = <NodeFolder>[];
+    NodeFolder? cursor = this;
+    while (cursor != null) {
+      result.insert(0, cursor);
+      cursor = cursor.parent;
     }
 
     return result;
   }
 
   bool hasSamePathAs(String path) => key == NodeFolder(path).key;
+
+  static String normalizePath(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedSeparators = path.replaceAll('\\', '/');
+    final uriMatch = _uriPathPattern.firstMatch(normalizedSeparators);
+    if (uriMatch != null) {
+      final prefix = uriMatch.group(1)!;
+      final body = uriMatch.group(2)!;
+      final normalizedBody = posix
+          .normalize(body)
+          .replaceFirst(RegExp(r'^/+'), '');
+      return '$prefix$normalizedBody';
+    }
+    return posix.normalize(normalizedSeparators);
+  }
+
+  static String dirName(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedPath = normalizePath(path);
+    final uriMatch = _uriPathPattern.firstMatch(normalizedPath);
+    if (uriMatch != null) {
+      final prefix = uriMatch.group(1)!;
+      final body = uriMatch.group(2)!;
+      final parent = posix.dirname(body);
+      if (parent == '.' || parent == body) return normalizedPath;
+      return '$prefix$parent';
+    }
+    return posix.dirname(normalizedPath);
+  }
+
+  static String baseName(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedPath = normalizePath(path);
+    final uriMatch = _uriPathPattern.firstMatch(normalizedPath);
+    if (uriMatch != null) {
+      return posix.basename(uriMatch.group(2)!);
+    }
+    return posix.basename(normalizedPath);
+  }
+
+  static String joinPath(String parent, String child) {
+    final normalizedParent = normalizePath(parent);
+    final normalizedChild = child.replaceAll('\\', '/');
+    return normalizePath('$normalizedParent/$normalizedChild');
+  }
+
+  static final _uriPathPattern = RegExp(r'^([a-zA-Z][a-zA-Z0-9+.-]*://)(.*)$');
 
   @override
   bool operator ==(Object other) {
