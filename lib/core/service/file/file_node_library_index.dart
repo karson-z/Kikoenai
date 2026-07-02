@@ -1,4 +1,3 @@
-import 'package:path/path.dart' as p;
 import '../../model/file_node.dart';
 
 class FileNodeLibraryIndex {
@@ -21,6 +20,47 @@ class FileNodeLibraryIndex {
     _build(flatNodes);
   }
 
+  factory FileNodeLibraryIndex.fromRemoteTree({
+    required List<FileNode> roots,
+    required int workId,
+    NodeSource source = NodeSource.asmrServer,
+  }) {
+    final rootPath = remoteRootPath(workId);
+    return FileNodeLibraryIndex(
+      flatNodes: flattenRemoteTree(
+        roots: roots,
+        workId: workId,
+        source: source,
+      ),
+      rootPath: rootPath,
+      fallbackFolderSource: source,
+    );
+  }
+
+  static String remoteRootPath(int workId) => 'asmr://$workId';
+
+  static List<FileNode> flattenRemoteTree({
+    required List<FileNode> roots,
+    required int workId,
+    NodeSource source = NodeSource.asmrServer,
+  }) {
+    final rootPath = remoteRootPath(workId);
+    final flatNodes = <FileNode>[];
+
+    for (final node in roots) {
+      _flattenRemoteNode(
+        node: node,
+        parentPath: rootPath,
+        rootPath: rootPath,
+        workId: workId,
+        source: source,
+        flatNodes: flatNodes,
+      );
+    }
+
+    return flatNodes;
+  }
+
   NodeFolder? get currentFolder => _currentFolder;
 
   NodeFolder get rootFolder => NodeFolder(normalizePath(rootPath));
@@ -37,14 +77,12 @@ class FileNodeLibraryIndex {
 
   List<FileNode> get currentChildren {
     final folders = currentFolders.map(_folderToFileNode);
-    return [
-      ...folders,
-      ...currentFiles,
-    ];
+    return [...folders, ...currentFiles];
   }
 
   void stepIn(NodeFolder folder) {
-    final next = _currentNode.children[folder] ??
+    final next =
+        _currentNode.children[folder] ??
         rootNode.lookup(folder, stopAtRootPath: rootPath);
     if (next == null) return;
 
@@ -92,9 +130,7 @@ class FileNodeLibraryIndex {
     final node = rootNode.lookup(folder, stopAtRootPath: rootPath);
     if (node == null) return folderMap[folder] ?? const [];
 
-    final files = <FileNode>[
-      ...folderMap[folder] ?? const [],
-    ];
+    final files = <FileNode>[...folderMap[folder] ?? const []];
 
     node.walk((child) {
       final folder = child.folder;
@@ -113,17 +149,14 @@ class FileNodeLibraryIndex {
   List<FileNode> _childrenFor(FolderTreeNode treeNode) {
     final folders = treeNode.foldersList.map((folder) {
       final child = treeNode.children[folder];
-      return _folderToFileNode(folder).copyWith(
-        children: child == null ? const [] : _childrenFor(child),
-      );
+      return _folderToFileNode(
+        folder,
+      ).copyWith(children: child == null ? const [] : _childrenFor(child));
     });
 
     final files = folderMap[treeNode.folder ?? rootFolder] ?? const [];
 
-    return [
-      ...folders,
-      ...files,
-    ];
+    return [...folders, ...files];
   }
 
   void _build(List<FileNode> flatNodes) {
@@ -146,10 +179,12 @@ class FileNodeLibraryIndex {
     for (final folder in folderMap.keys) {
       var current = rootNode;
 
-      for (final part in folder.buildInbetweenFolders(stopAtRootPath: normalizedRoot)) {
+      for (final part in folder.buildInbetweenFolders(
+        stopAtRootPath: normalizedRoot,
+      )) {
         current = current.children.putIfAbsent(
           part,
-              () => FolderTreeNode(parentNode: current, folder: part),
+          () => FolderTreeNode(parentNode: current, folder: part),
         );
       }
     }
@@ -176,7 +211,10 @@ class FileNodeLibraryIndex {
   FileNode _folderToFileNode(NodeFolder folder) {
     final files = getFilesInFolder(folder, recursive: true);
     final sample = files.firstOrNull;
-    final treeNode = rootNode.lookup(folder, stopAtRootPath: normalizePath(rootPath));
+    final treeNode = rootNode.lookup(
+      folder,
+      stopAtRootPath: normalizePath(rootPath),
+    );
     final directFoldersCount = treeNode?.children.length ?? 0;
     final directFilesCount = folderMap[folder]?.length ?? 0;
 
@@ -201,12 +239,17 @@ class FileNodeLibraryIndex {
 
   void _sort() {
     for (final files in folderMap.values) {
-      files.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      files.sort(
+        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+      );
     }
 
     rootNode.walkIncludingSelf((node) {
       final entries = node.children.entries.toList()
-        ..sort((a, b) => a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()));
+        ..sort(
+          (a, b) =>
+              a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()),
+        );
       node.children
         ..clear()
         ..addEntries(entries);
@@ -214,13 +257,19 @@ class FileNodeLibraryIndex {
   }
 
   static String normalizePath(String path) {
-    final posix = p.Context(style: p.Style.posix);
-    return posix.normalize(path.replaceAll('\\', '/'));
+    return NodeFolder.normalizePath(path);
   }
 
   static String dirName(String path) {
-    final posix = p.Context(style: p.Style.posix);
-    return posix.dirname(path);
+    return NodeFolder.dirName(path);
+  }
+
+  static String baseName(String path) {
+    return NodeFolder.baseName(path);
+  }
+
+  static String joinPath(String parent, String child) {
+    return NodeFolder.joinPath(parent, child);
   }
 
   static int _depthFromRoot(String root, String path) {
@@ -232,6 +281,47 @@ class FileNodeLibraryIndex {
     final relative = normalizedPath.substring(normalizedRoot.length);
     return relative.split('/').where((e) => e.isNotEmpty).length;
   }
+
+  static void _flattenRemoteNode({
+    required FileNode node,
+    required String parentPath,
+    required String rootPath,
+    required int workId,
+    required NodeSource source,
+    required List<FileNode> flatNodes,
+  }) {
+    final nodePath = joinPath(parentPath, node.title);
+    final children = node.children ?? const <FileNode>[];
+
+    if (node.isFolder || children.isNotEmpty) {
+      for (final child in children) {
+        _flattenRemoteNode(
+          node: child,
+          parentPath: nodePath,
+          rootPath: rootPath,
+          workId: workId,
+          source: source,
+          flatNodes: flatNodes,
+        );
+      }
+      return;
+    }
+
+    final folderPath = normalizePath(parentPath);
+    final normalizedPath = normalizePath(nodePath);
+    flatNodes.add(
+      node.copyWith(
+        children: null,
+        path: normalizedPath,
+        folderPath: folderPath,
+        rootPath: rootPath,
+        parentPath: folderPath,
+        depth: _depthFromRoot(rootPath, normalizedPath),
+        source: source,
+        workId: workId,
+      ),
+    );
+  }
 }
 
 class FolderTreeNode {
@@ -239,10 +329,7 @@ class FolderTreeNode {
   final NodeFolder? folder;
   final Map<NodeFolder, FolderTreeNode> children = {};
 
-  FolderTreeNode({
-    required this.parentNode,
-    required this.folder,
-  });
+  FolderTreeNode({required this.parentNode, required this.folder});
 
   factory FolderTreeNode.root() {
     return FolderTreeNode(parentNode: null, folder: null);
