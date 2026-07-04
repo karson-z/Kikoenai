@@ -140,12 +140,13 @@ class _MoreOptionsContent extends ConsumerWidget {
     }
 
     dynamicListActions.addAll([
-      ListActionItem(
-        icon: Icons.album_outlined,
-        title: "专辑",
-        subtitle: track.albumTitle,
-        onTap: () => _handleAlbumTap(context, ref, track),
-      ),
+      if (!track.isLocal && workId != null)
+        ListActionItem(
+          icon: Icons.album_outlined,
+          title: "专辑",
+          subtitle: track.albumTitle,
+          onTap: () => _handleAlbumTap(context, ref, track),
+        ),
       ListActionItem(
         icon: Icons.person_outline_rounded,
         title: "歌手",
@@ -235,18 +236,19 @@ class _MoreOptionsContent extends ConsumerWidget {
     PlaybackItem track,
   ) {
     Navigator.pop(context);
-    if (track.isLocal) {
-      KikoenaiLogger().i("本地轨道，跳转至文件目录或本地索引");
-    } else {
-      final workId = track.workId;
-      final work = workId == null ? null : ScraperStorage().getWork(workId);
-      if (work != null) {
-        final panelCtrl = ref.read(panelControllerProvider);
-        if (panelCtrl.isPanelOpen) panelCtrl.close();
+    final workId = track.workId;
+    final work = workId == null ? null : ScraperStorage().getWork(workId);
+    final panelCtrl = ref.read(panelControllerProvider);
+    if (panelCtrl.isPanelOpen) panelCtrl.close();
 
-        context.push(AppRoutes.detail, extra: {'work': work});
-      }
-    }
+    context.push(
+      AppRoutes.detail,
+      extra: {
+        'workId': workId,
+        if (work != null) 'work': work,
+        'isLocal': track.isLocal,
+      },
+    );
   }
 
   void _handleSubtitleConfig(BuildContext context) {

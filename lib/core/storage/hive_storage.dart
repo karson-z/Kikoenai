@@ -12,7 +12,6 @@ import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/features/player/data/model/playback_session.dart';
 import '../../features/player/data/model/player_state.dart';
-import '../adapter/audio_service_repeat_mode_adapter.dart';
 import '../adapter/progressbar_state_adapter.dart';
 import '../adapter/scan_mode.dart';
 import '../adapter/work_adapter.dart';
@@ -49,7 +48,6 @@ class AppStorage {
     Hive.registerAdapter(NodeTypeAdapter());
     Hive.registerAdapter(NodeStatusAdapter());
     Hive.registerAdapter(FileNodeAdapter());
-    Hive.registerAdapter(AudioServiceRepeatModeAdapter());
     Hive.registerAdapter(PlaybackItemAdapter());
     Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
