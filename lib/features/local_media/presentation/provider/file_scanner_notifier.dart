@@ -21,6 +21,11 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   bool get didLastResultCompleteSync =>
       _lastResultPhase == FileScannerResultPhase.syncCompleted;
 
+  /// 暴露内部索引（只读用途，例如面包屑路径推导）。
+  /// 调用方不应直接通过返回值变更导航状态，请使用 [stepIn]/[stepOut]/
+  /// [goHome]/[jumpToPath]/[jumpToBreadcrumbIndex] 等方法以保证 UI 同步。
+  FileNodeLibraryIndex? get libraryIndex => _libraryIndex;
+
   @override
   FileBrowserState build() {
     _service = FileScannerService.instance;
@@ -129,6 +134,13 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     _libraryIndex!.jumpTo(targetFolderPath);
 
     // 刷新 UI 视图切片状态
+    _updateStateFromIndex();
+  }
+
+  /// 按面包屑层级跳转（-1 代表根目录）。
+  void jumpToBreadcrumbIndex(int index) {
+    if (_libraryIndex == null) return;
+    _libraryIndex!.jumpToBreadcrumbIndex(index);
     _updateStateFromIndex();
   }
 

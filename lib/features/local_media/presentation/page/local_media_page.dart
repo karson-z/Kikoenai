@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
 import '../../../../core/utils/scraper/scraper_storage.dart';
@@ -26,7 +27,13 @@ class ScannerPage extends ConsumerWidget {
     final queueCount = queueState.pending.length + queueState.processing.length;
     final root = scannerState.rootPath;
 
-    List<String> breadcrumbPaths = scannerState.breadcrumbPaths;
+    // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
+    final breadcrumbNodes = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
+    final breadcrumbNotifier = ref.read(
+      breadcrumbProvider(BreadCrumbBarType.local).notifier,
+    );
+    final List<String> breadcrumbPaths =
+        breadcrumbNodes.map((node) => node.title).toList();
 
     // 3. 监听扫描流异步完成的副作用（仅在扫描状态由 true 变为 false 且存在有效节点时触发弹窗）
     ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
@@ -117,16 +124,10 @@ class ScannerPage extends ConsumerWidget {
                         : BreadcrumbBar(
                             paths: breadcrumbPaths,
                             // 点击 Home 图标：直接移回根目录
-                            onHomeTap: () => scannerNotifier.goHome(),
-                            // 点击中间具体的任意面包屑节点：执行绝对路径链式计算并瞬移跳转
-                            onPathTap: (index) {
-                              String targetAbsolutePath = root;
-                              for (int k = 0; k <= index; k++) {
-                                targetAbsolutePath =
-                                    '$targetAbsolutePath/${breadcrumbPaths[k]}';
-                              }
-                              scannerNotifier.jumpToPath(targetAbsolutePath);
-                            },
+                            onHomeTap: () => breadcrumbNotifier.goHome(),
+                            // 点击任意中间面包屑节点：按层级索引瞬移跳转
+                            onPathTap: (index) =>
+                                breadcrumbNotifier.jumpTo(index),
                           ),
                   ),
                   const SizedBox(width: 12),
