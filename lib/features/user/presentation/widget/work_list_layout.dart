@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_list.dart';
 
@@ -22,7 +24,15 @@ class ResponsiveListGrid extends StatelessWidget {
         childAspectRatio: 2.6, // 横向大于纵向
       ),
       itemBuilder: (context, index) {
-        return WorkListItem(workInfo: work[index]);
+        final item = work[index];
+        return WorkListItem(
+          imageUrl: item.mainCoverUrl,
+          title: item.title,
+          name: item.name,
+          onTap: () {
+            context.push(AppRoutes.detail, extra: {'work': item});
+          },
+        );
       },
     );
   }
