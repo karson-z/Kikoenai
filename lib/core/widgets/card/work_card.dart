@@ -16,7 +16,7 @@ class WorkCard extends ConsumerWidget {
   final String? name;
   final String? circleName;
   final String? mainCoverUrl;
-  final String? heroTag;
+  final String heroTag;
   final bool? hasSubtitle;
   final String? ageCategoryString;
   final String? release;
@@ -34,7 +34,7 @@ class WorkCard extends ConsumerWidget {
     this.name,
     this.circleName,
     this.mainCoverUrl,
-    this.heroTag,
+    required this.heroTag,
     this.hasSubtitle,
     this.ageCategoryString,
     this.release,
@@ -66,7 +66,7 @@ class WorkCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   Hero(
-                    tag: heroTag ?? 'work-$id',
+                    tag: heroTag,
                     child: SimpleExtendedImage(mainCoverUrl ?? '', width: 240),
                   ),
                   _PositionedBadge(

@@ -65,7 +65,7 @@ class PlaylistCardGridView extends StatelessWidget {
                 name: item.name,
                 circleName: item.circle?.name,
                 mainCoverUrl: item.mainCoverUrl,
-                heroTag: item.heroTag,
+                heroTag: item.effectiveHeroTag,
                 hasSubtitle: item.hasSubtitle,
                 ageCategoryString: item.ageCategoryString,
                 release: item.release,

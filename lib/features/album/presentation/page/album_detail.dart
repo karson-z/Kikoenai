@@ -284,7 +284,7 @@ class AlbumDetailContent extends ConsumerWidget {
           final isWide = constraints.maxWidth > 600;
 
           final cover = AlbumCover(
-            heroTag: work.heroTag,
+            heroTag: work.effectiveHeroTag,
             thumbnailUrl: work.thumbnailCoverUrl,
             mainUrl: work.mainCoverUrl,
           );
@@ -484,14 +484,14 @@ class AlbumDetailContent extends ConsumerWidget {
 class AlbumCover extends StatelessWidget {
   final String? thumbnailUrl;
   final String? mainUrl;
-  final String? heroTag;
+  final String heroTag;
 
-  const AlbumCover({super.key, this.heroTag, this.thumbnailUrl, this.mainUrl});
+  const AlbumCover({super.key, required this.heroTag, this.thumbnailUrl, this.mainUrl});
 
   @override
   Widget build(BuildContext context) {
     return Hero(
-      tag: heroTag ?? '',
+      tag: heroTag,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: AspectRatio(

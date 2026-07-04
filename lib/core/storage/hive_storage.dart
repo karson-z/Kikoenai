@@ -8,14 +8,19 @@ import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:kikoenai/features/album/data/model/circle.dart';
+import 'package:kikoenai/features/album/data/model/other_language_edition.dart';
+import 'package:kikoenai/features/album/data/model/rank.dart';
+import 'package:kikoenai/features/album/data/model/rate_count_detail.dart';
+import 'package:kikoenai/features/album/data/model/tag.dart';
+import 'package:kikoenai/features/album/data/model/va.dart';
+import 'package:kikoenai/features/album/data/model/work_info.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
 import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/features/player/data/model/playback_session.dart';
+import 'package:kikoenai/core/service/file/scan_mode.dart';
 import '../../features/player/data/model/player_state.dart';
-import '../adapter/progressbar_state_adapter.dart';
-import '../adapter/scan_mode.dart';
-import '../adapter/work_adapter.dart';
-import '../adapter/work_info_adapter.dart';
+import '../../features/player/data/model/progress_state.dart';
 import '../model/lyric_model.dart';
 
 class AppStorage {
@@ -51,6 +56,12 @@ class AppStorage {
     Hive.registerAdapter(PlaybackItemAdapter());
     Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
+    Hive.registerAdapter(CircleAdapter());
+    Hive.registerAdapter(RankAdapter());
+    Hive.registerAdapter(TagAdapter());
+    Hive.registerAdapter(VAAdapter());
+    Hive.registerAdapter(RateCountDetailAdapter());
+    Hive.registerAdapter(OtherLanguageEditionAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
     Hive.registerAdapter(NodeSourceAdapter());
