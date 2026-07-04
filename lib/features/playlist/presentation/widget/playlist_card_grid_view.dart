@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kikoenai/config/work_layout_config.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
@@ -56,15 +58,29 @@ class PlaylistCardGridView extends StatelessWidget {
                   onLoadMore();
                 });
               }
-              return WorkCard(work: work[index]);
+              final item = work[index];
+              return WorkCard(
+                id: item.id,
+                title: item.title,
+                name: item.name,
+                circleName: item.circle?.name,
+                mainCoverUrl: item.mainCoverUrl,
+                heroTag: item.heroTag,
+                hasSubtitle: item.hasSubtitle,
+                ageCategoryString: item.ageCategoryString,
+                release: item.release,
+                vas: item.vas,
+                tags: item.tags,
+                onTap: () {
+                  context.push(AppRoutes.detail, extra: {'work': item});
+                },
+              );
             },
           ),
         ),
 
         // 3. 底部 Footer
-        SliverToBoxAdapter(
-          child: _buildFooter(context),
-        ),
+        SliverToBoxAdapter(child: _buildFooter(context)),
       ],
     );
   }
@@ -77,10 +93,7 @@ class PlaylistCardGridView extends StatelessWidget {
         children: [
           Icon(Icons.search_off, size: 54, color: Colors.grey),
           SizedBox(height: 16),
-          Text(
-            "这里什么都没有哦",
-            style: TextStyle(color: Colors.grey),
-          ),
+          Text("这里什么都没有哦", style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -91,10 +104,7 @@ class PlaylistCardGridView extends StatelessWidget {
     if (hasMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: LottieLoadingIndicator(
-          message: "loading...",
-          size: 80,
-        ),
+        child: LottieLoadingIndicator(message: "loading...", size: 80),
       );
     }
 

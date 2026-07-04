@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import '../../routes/app_routes.dart';
-import '../../../features/album/data/model/work.dart';
+
 import '../../utils/data/colors_util.dart';
 
 class SmartColorCard extends StatefulWidget {
-  final Work work;
+  final int id;
+  final String? title;
+  final String? mainCoverUrl;
+  final String? heroTag;
+  final VoidCallback? onTap;
   final double? width;
   final double borderRadius;
 
   const SmartColorCard({
     super.key,
-    required this.work,
+    required this.id,
+    this.title,
+    this.mainCoverUrl,
+    this.heroTag,
+    this.onTap,
     this.width,
     this.borderRadius = 14,
   });
@@ -22,7 +28,6 @@ class SmartColorCard extends StatefulWidget {
 }
 
 class _SmartColorCardState extends State<SmartColorCard> {
-  // 静态缓存，避免在列表滚动时重复提取同一个 Work 的颜色
   static final Map<String, Color> _colorCache = {};
   Color? _dominantColor;
   bool _isLoadingColor = false;
@@ -33,13 +38,23 @@ class _SmartColorCardState extends State<SmartColorCard> {
     _initColor();
   }
 
+  @override
+  void didUpdateWidget(covariant SmartColorCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id ||
+        oldWidget.mainCoverUrl != widget.mainCoverUrl) {
+      _dominantColor = null;
+      _isLoadingColor = false;
+      _initColor();
+    }
+  }
+
   void _initColor() {
-    final key = widget.work.id?.toString() ?? widget.work.title ?? '';
+    final key = widget.id.toString();
 
     if (_colorCache.containsKey(key)) {
       _dominantColor = _colorCache[key];
     } else {
-      // 延迟提取：避开页面入场动画或列表快速滑动时的首帧压力
       Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted) {
           _loadDominantColor(key);
@@ -52,8 +67,11 @@ class _SmartColorCardState extends State<SmartColorCard> {
     if (_isLoadingColor) return;
     _isLoadingColor = true;
 
-    final url = widget.work.mainCoverUrl ?? "";
-    if (url.isEmpty) return;
+    final url = widget.mainCoverUrl ?? '';
+    if (url.isEmpty) {
+      _isLoadingColor = false;
+      return;
+    }
 
     final color = await ColorUtils.getMainColors(url);
     if (mounted) {
@@ -70,39 +88,34 @@ class _SmartColorCardState extends State<SmartColorCard> {
     final cardWidth = widget.width ?? 240.0;
     final imageHeight = cardWidth * 3 / 4;
     const bottomHeight = 60.0;
-    // 使用占位色，直到颜色提取完成
     final baseColor = _dominantColor ?? Colors.grey.shade800;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: () {
-        context.push(AppRoutes.detail, extra: {'work': widget.work});
-      },
-      child: RepaintBoundary( // 关键：隔离重绘区域，baseColor 变化时不触发父级重绘
+      onTap: widget.onTap,
+      child: RepaintBoundary(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(widget.borderRadius),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // 紧凑布局
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Hero(
-                tag: widget.work.heroTag ?? widget.work.id.toString(),
+                tag: widget.heroTag ?? 'work-${widget.id}',
                 child: SizedBox(
                   width: cardWidth,
                   height: imageHeight,
-                  child: SimpleExtendedImage(
-                    widget.work.mainCoverUrl ?? "",
-                  ),
+                  child: SimpleExtendedImage(widget.mainCoverUrl ?? ''),
                 ),
               ),
-              AnimatedContainer( // 使用动画容器，让颜色切换更平滑
+              AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: cardWidth,
                 height: bottomHeight,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 color: baseColor,
                 child: Text(
-                  widget.work.title ?? "",
+                  widget.title ?? '',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

@@ -104,7 +104,15 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: WorkSingleColCard(work: item),
+              child: WorkSingleColCard(
+                imageUrl: item.mainCoverUrl,
+                title: item.title,
+                vas: item.vas,
+                tags: item.tags,
+                onTap: () {
+                  context.push(AppRoutes.detail, extra: {'work': item});
+                },
+              ),
             );
           },
         );
@@ -155,24 +163,22 @@ class AlbumDetailContent extends ConsumerWidget {
           title: Text("RJ0$workId", style: const TextStyle(fontSize: 18)),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_outlined),
-            onPressed: () => context.canPop() ? context.pop() : context.go(AppRoutes.home),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go(AppRoutes.home),
           ),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    final asyncData = isLocal ? null : ref.watch(trackFileNodeProvider(work.id));
+    final asyncData = isLocal
+        ? null
+        : ref.watch(trackFileNodeProvider(work.id));
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text(
-          "RJ0${work.id}",
-          style: const TextStyle(fontSize: 18),
-        ),
+        title: Text("RJ0${work.id}", style: const TextStyle(fontSize: 18)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_outlined),
           onPressed: () {
@@ -191,16 +197,17 @@ class AlbumDetailContent extends ConsumerWidget {
               child: const Text(
                 "本地作品",
                 style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.grey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             )
           else
             InkWell(
               borderRadius: BorderRadius.circular(4),
               onTap: () {
-                final currentData = workStatus?.value;
+                final currentData = workStatus.value;
 
                 final initialStatus = UserWorkStatus(
                   workId: work.id,
@@ -220,7 +227,10 @@ class AlbumDetailContent extends ConsumerWidget {
                       initialStatus: initialStatus,
                       onSubmit: (newStatus) async {
                         await HandleSubmit.handleRatingSubmit(
-                            context, ref, newStatus);
+                          context,
+                          ref,
+                          newStatus,
+                        );
                         ref.invalidate(workDetailProvider(work.id));
                       },
                     );
@@ -228,11 +238,17 @@ class AlbumDetailContent extends ConsumerWidget {
                 );
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.bookmark_add_outlined,
-                        color: Colors.grey, size: 20),
+                    const Icon(
+                      Icons.bookmark_add_outlined,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
                     const SizedBox(width: 4),
                     workStatus!.when(
                       data: (status) {
@@ -276,31 +292,43 @@ class AlbumDetailContent extends ConsumerWidget {
           final info = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(work.title ?? '',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                work.title ?? '',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
               if (work.name != null)
                 GestureDetector(
                   onTap: () {
                     ref
-                        .read(searchFilterProvider(FilterModule.category).notifier)
+                        .read(
+                          searchFilterProvider(FilterModule.category).notifier,
+                        )
                         .toggleTag(TagType.circle.stringValue, work.name!);
                     context.go(AppRoutes.category);
                   },
-                  child: Text(work.name!,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  child: Text(
+                    work.name!,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ),
               const SizedBox(height: 4),
               if (work.vas != null) TagRow(tags: work.vas!, type: TagType.va),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Text("${work.price ?? 0} JPY",
-                      style: const TextStyle(fontSize: 20, color: Colors.red)),
+                  Text(
+                    "${work.price ?? 0} JPY",
+                    style: const TextStyle(fontSize: 20, color: Colors.red),
+                  ),
                   const SizedBox(width: 20),
-                  Text("销量: ${work.dlCount ?? 0}",
-                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  Text(
+                    "销量: ${work.dlCount ?? 0}",
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -309,27 +337,34 @@ class AlbumDetailContent extends ConsumerWidget {
                 userRating: isLocal ? 0 : (workStatus?.value?.userRating ?? 0),
                 extraWidgets: [
                   RatingMetaItem(
-                      icon: Icons.comment, text: "(${work.reviewCount ?? 0})"),
+                    icon: Icons.comment,
+                    text: "(${work.reviewCount ?? 0})",
+                  ),
                   if ((work.duration ?? 0) > 0)
                     RatingMetaItem(
-                        icon: Icons.timer,
-                        text: "(${TimeFormatter.formatSeconds(work.duration!)})")
+                      icon: Icons.timer,
+                      text: "(${TimeFormatter.formatSeconds(work.duration!)})",
+                    ),
                 ],
                 onRatingUpdate: isLocal
                     ? (int _) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('本地模式下无法提交评价')),
-                  );
-                }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('本地模式下无法提交评价')),
+                        );
+                      }
                     : (int newRating) {
-                  final currentStatus = UserWorkStatus(workId: work.id);
-                  final newStatus = currentStatus.copyWith(
-                    rating: newRating,
-                    workId: work.id,
-                  );
-                  HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-                  ref.invalidate(workDetailProvider(work.id));
-                },
+                        final currentStatus = UserWorkStatus(workId: work.id);
+                        final newStatus = currentStatus.copyWith(
+                          rating: newRating,
+                          workId: work.id,
+                        );
+                        HandleSubmit.handleRatingSubmit(
+                          context,
+                          ref,
+                          newStatus,
+                        );
+                        ref.invalidate(workDetailProvider(work.id));
+                      },
               ),
               const SizedBox(height: 12),
               if (work.tags != null) TagRow(tags: work.tags!),
@@ -338,17 +373,17 @@ class AlbumDetailContent extends ConsumerWidget {
 
           final metadata = isWide
               ? Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(flex: 3, child: cover),
-              const SizedBox(width: 16),
-              Flexible(flex: 6, child: info),
-            ],
-          )
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(flex: 3, child: cover),
+                    const SizedBox(width: 16),
+                    Flexible(flex: 6, child: info),
+                  ],
+                )
               : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [cover, const SizedBox(height: 16), info],
-          );
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [cover, const SizedBox(height: 16), info],
+                );
 
           Widget buildScrollBody() {
             return CustomScrollView(
@@ -357,55 +392,67 @@ class AlbumDetailContent extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: metadata,
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
                 if (isLocal)
-                  Builder(builder: (context) {
-                    final localWorkTree =
-                    FileScannerStorage().getWorkFileTreeLocally(work.id);
+                  Builder(
+                    builder: (context) {
+                      final localWorkTree = FileScannerStorage()
+                          .getWorkFileTreeLocally(work.id);
 
-                    if (localWorkTree == null) {
-                      return const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                            child: Text("本地未找到该作品的文件",
-                                style: TextStyle(color: Colors.grey))),
+                      if (localWorkTree == null) {
+                        return const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: Text(
+                              "本地未找到该作品的文件",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (localWorkTree.children == null ||
+                          localWorkTree.children!.isEmpty) {
+                        return const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: Text(
+                              "该文件夹内部为空",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return FileNodeBrowser(
+                        work: work,
+                        rootNodes: localWorkTree.children!,
+                        isLocal: isLocal,
                       );
-                    }
-
-                    if (localWorkTree.children == null ||
-                        localWorkTree.children!.isEmpty) {
-                      return const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                            child: Text("该文件夹内部为空",
-                                style: TextStyle(color: Colors.grey))),
-                      );
-                    }
-
-                    return FileNodeBrowser(
-                      work: work,
-                      rootNodes: localWorkTree.children!,
-                      isLocal: isLocal,
-                    );
-                  })
+                    },
+                  )
                 else
                   asyncData!.when(
                     loading: () => const SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
-                          child: LottieLoadingIndicator(message: 'loading...')),
+                        child: LottieLoadingIndicator(message: 'loading...'),
+                      ),
                     ),
                     error: (err, stack) => SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
                         child: err is GlobalException
                             ? Text(
-                            "GlobalException: ${err.message}\ncode=${err.code}")
+                                "GlobalException: ${err.message}\ncode=${err.code}",
+                              )
                             : Text("Error: $err"),
                       ),
                     ),
@@ -424,10 +471,10 @@ class AlbumDetailContent extends ConsumerWidget {
           return isLocal
               ? buildScrollBody()
               : RefreshIndicator(
-            onRefresh: () =>
-                ref.refresh(trackFileNodeProvider(work.id).future),
-            child: buildScrollBody(),
-          );
+                  onRefresh: () =>
+                      ref.refresh(trackFileNodeProvider(work.id).future),
+                  child: buildScrollBody(),
+                );
         },
       ),
     );
