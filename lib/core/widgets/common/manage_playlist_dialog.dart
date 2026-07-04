@@ -7,6 +7,7 @@ import '../../../features/album/data/model/work.dart';
 import '../../../features/download/presentation/provider/download_provider.dart';
 import '../../../features/player/presentation/provider/player_controller_provider.dart';
 import '../../service/download/download_service.dart';
+import '../../service/file/file_node_library_index.dart';
 import '../bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../../model/file_node.dart';
 import '../../../features/album/presentation/viewmodel/provider/file_manage_provider.dart';
@@ -48,13 +49,15 @@ class FileTreeWoltSheet {
         required bool isFirstPage
       }) {
     final theme = Theme.of(context);
+    // 将传入的文件树规整为 FileNodeLibraryIndex，统一供面包屑与列表导航使用。
+    final index = FileNodeLibraryIndex.fromTree(roots: roots);
     return SliverWoltModalSheetPage(
       backgroundColor: theme.scaffoldBackgroundColor,
       surfaceTintColor: Colors.transparent,
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
-      leadingNavBarWidget: FileTreeStickyHeader(roots: roots, work: work),
+      leadingNavBarWidget: FileTreeStickyHeader(index: index, roots: roots, work: work),
       stickyActionBar: _buildInternalActionBar(roots, work,isFirstPage),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
@@ -68,7 +71,7 @@ class FileTreeWoltSheet {
         ),
 
         // 2. 真正的 Sliver 内容直接放在数组里，不要套 BoxAdapter
-        _SliverFileTreeContent(roots: roots, work: work),
+        _SliverFileTreeContent(index: index, roots: roots, work: work),
 
         const SliverPadding(padding: EdgeInsets.only(bottom: 90)),
       ],
@@ -157,14 +160,31 @@ class FileTreeWoltSheet {
 class _SliverFileTreeContent extends ConsumerStatefulWidget {
   final List<FileNode> roots;
   final Work? work;
+  final FileNodeLibraryIndex index;
 
-  const _SliverFileTreeContent({required this.roots, this.work});
+  const _SliverFileTreeContent({
+    required this.roots,
+    required this.index,
+    this.work,
+  });
 
   @override
   ConsumerState<_SliverFileTreeContent> createState() => _SliverFileTreeContentState();
 }
 
 class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> {
+  @override
+  void initState() {
+    super.initState();
+    // 将索引绑定到面包屑 Provider，后续导航统一经由索引。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(breadcrumbProvider(BreadCrumbBarType.player).notifier)
+          .bindIndex(widget.index);
+    });
+  }
+
   Icon _getIconForNode(FileNode node) {
     if (node.isFolder) return const Icon(Icons.folder, color: Colors.amber);
     if (node.isAudio) return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
@@ -177,12 +197,9 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
   @override
   Widget build(BuildContext context) {
     ref.watch(fileSelectionProvider);
-    final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.player));
-
-    // 核心修复：根据面包屑计算当前需要显示的节点列表
-    final List<FileNode> currentNodes = breadcrumbs.isEmpty
-        ? widget.roots
-        : (breadcrumbs.last.children ?? []);
+    // 监听面包屑路径，导航后自动重建并取最新 currentChildren。
+    ref.watch(breadcrumbProvider(BreadCrumbBarType.player));
+    final List<FileNode> currentNodes = widget.index.currentChildren;
 
     return SliverMainAxisGroup(
       slivers: [
@@ -277,24 +294,26 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
 class FileTreeStickyHeader extends ConsumerWidget {
   final List<FileNode> roots;
   final Work? work;
+  final FileNodeLibraryIndex index;
 
-  const FileTreeStickyHeader({super.key, required this.roots, this.work});
+  const FileTreeStickyHeader({
+    super.key,
+    required this.roots,
+    required this.index,
+    this.work,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // 假设你有一个管理路径的 Provider
-    // 如果还没写，可以用 ref.watch(fileNavigationProvider)
     final breadcrumbs = ref.watch(breadcrumbProvider(BreadCrumbBarType.player));
     final breadcrumbNotifier = ref.read(
       breadcrumbProvider(BreadCrumbBarType.player).notifier,
     );
 
-    // 获取当前层级的节点（计算逻辑移入 Header）
-    final currentNodes = breadcrumbs.isEmpty
-        ? roots
-        : (breadcrumbs.last.children ?? []);
+    // 当前层级的节点直接取自索引（导航后经由 Provider 状态变化触发重建）。
+    final currentNodes = index.currentChildren;
 
     final selectionNotifier = ref.read(fileSelectionProvider.notifier);
     ref.watch(fileSelectionProvider); // 监听选中变化

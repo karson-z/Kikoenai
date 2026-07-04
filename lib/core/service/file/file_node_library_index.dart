@@ -37,6 +37,40 @@ class FileNodeLibraryIndex {
     );
   }
 
+  /// 从任意 FileNode 树（含 children 嵌套）构建索引。
+  ///
+  /// 与 [fromRemoteTree] 不同，本工厂不会覆盖节点原有的 `source` / `workId`，
+  /// 适用于本地树、混合来源树等通用场景。
+  /// [rootPath] 缺省时取首个含非空 `rootPath` 的节点，再缺省则使用 `tree://root`。
+  factory FileNodeLibraryIndex.fromTree({
+    required List<FileNode> roots,
+    String? rootPath,
+    NodeSource fallbackFolderSource = NodeSource.localWork,
+  }) {
+    final effectiveRoot =
+        rootPath ??
+        roots
+            .map((n) => n.rootPath)
+            .firstWhere((p) => p != null && p.isNotEmpty, orElse: () => null) ??
+        'tree://root';
+
+    final flatNodes = <FileNode>[];
+    for (final node in roots) {
+      _flattenTreeNode(
+        node: node,
+        parentPath: effectiveRoot,
+        rootPath: effectiveRoot,
+        flatNodes: flatNodes,
+      );
+    }
+
+    return FileNodeLibraryIndex(
+      flatNodes: flatNodes,
+      rootPath: effectiveRoot,
+      fallbackFolderSource: fallbackFolderSource,
+    );
+  }
+
   static String remoteRootPath(int workId) => 'asmr://$workId';
 
   static List<FileNode> flattenRemoteTree({
@@ -122,6 +156,40 @@ class FileNodeLibraryIndex {
       _currentNode = targetNode;
       _currentFolder = targetFolder;
     }
+  }
+
+  /// 当前从根目录（不含）到当前位置的文件夹链，作为面包屑路径。
+  ///
+  /// 处于根目录（home）时返回空列表。每项为对应层级的文件夹 [FileNode]。
+  /// 顺序：从根目录下一级到当前所在目录。
+  List<FileNode> get breadcrumbPath {
+    if (_currentFolder == null) return const [];
+    final result = <FileNode>[];
+    var node = _currentNode;
+    while (node.folder != null) {
+      result.insert(0, _folderToFileNode(node.folder!));
+      final parent = node.parentNode;
+      if (parent == null || parent == rootNode) break;
+      node = parent;
+    }
+    return result;
+  }
+
+  /// 按面包屑索引跳转。
+  ///
+  /// - `index < 0`：回到根目录（home）。
+  /// - `0 <= index < breadcrumbPath.length`：跳转到第 `index` 级文件夹。
+  /// - 超出范围则忽略。
+  void jumpToBreadcrumbIndex(int index) {
+    if (index < 0) {
+      goHome();
+      return;
+    }
+    final path = breadcrumbPath;
+    if (index >= path.length) return;
+    final targetPath = path[index].path ?? path[index].mediaStreamUrl ?? '';
+    if (targetPath.isEmpty) return;
+    jumpTo(targetPath);
   }
 
   List<FileNode> getFilesInFolder(NodeFolder folder, {bool recursive = false}) {
@@ -319,6 +387,42 @@ class FileNodeLibraryIndex {
         depth: _depthFromRoot(rootPath, normalizedPath),
         source: source,
         workId: workId,
+      ),
+    );
+  }
+
+  /// 通用树扁平化：保留节点原有 `source` / `workId`，仅补齐路径相关字段。
+  static void _flattenTreeNode({
+    required FileNode node,
+    required String parentPath,
+    required String rootPath,
+    required List<FileNode> flatNodes,
+  }) {
+    final nodePath = joinPath(parentPath, node.title);
+    final children = node.children ?? const <FileNode>[];
+
+    if (node.isFolder || children.isNotEmpty) {
+      for (final child in children) {
+        _flattenTreeNode(
+          node: child,
+          parentPath: nodePath,
+          rootPath: rootPath,
+          flatNodes: flatNodes,
+        );
+      }
+      return;
+    }
+
+    final folderPath = normalizePath(parentPath);
+    final normalizedPath = normalizePath(nodePath);
+    flatNodes.add(
+      node.copyWith(
+        children: null,
+        path: normalizedPath,
+        folderPath: folderPath,
+        rootPath: rootPath,
+        parentPath: folderPath,
+        depth: _depthFromRoot(rootPath, normalizedPath),
       ),
     );
   }
