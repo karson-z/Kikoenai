@@ -57,7 +57,7 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
                   id: item.id,
                   title: item.title,
                   mainCoverUrl: item.mainCoverUrl,
-                  heroTag: item.heroTag,
+                  heroTag: item.effectiveHeroTag,
                   onTap: () {
                     context.push(AppRoutes.detail, extra: {'work': item});
                   },

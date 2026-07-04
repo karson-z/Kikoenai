@@ -7,7 +7,7 @@ class SmartColorCard extends StatefulWidget {
   final int id;
   final String? title;
   final String? mainCoverUrl;
-  final String? heroTag;
+  final String heroTag;
   final VoidCallback? onTap;
   final double? width;
   final double borderRadius;
@@ -17,7 +17,7 @@ class SmartColorCard extends StatefulWidget {
     required this.id,
     this.title,
     this.mainCoverUrl,
-    this.heroTag,
+    required this.heroTag,
     this.onTap,
     this.width,
     this.borderRadius = 14,
@@ -101,7 +101,7 @@ class _SmartColorCardState extends State<SmartColorCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Hero(
-                tag: widget.heroTag ?? 'work-${widget.id}',
+                tag: widget.heroTag,
                 child: SizedBox(
                   width: cardWidth,
                   height: imageHeight,

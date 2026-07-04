@@ -132,7 +132,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
             name: currentWork.name,
             circleName: currentWork.circle?.name,
             mainCoverUrl: currentWork.mainCoverUrl,
-            heroTag: currentWork.heroTag,
+            heroTag: currentWork.effectiveHeroTag,
             hasSubtitle: currentWork.hasSubtitle,
             ageCategoryString: currentWork.ageCategoryString,
             release: currentWork.release,

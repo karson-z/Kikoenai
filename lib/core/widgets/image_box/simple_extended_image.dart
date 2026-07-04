@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:extended_image/extended_image.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 
 import '../../constants/app_images.dart';
+import '../../theme/app_theme.dart';
 
 class SimpleExtendedImage extends StatelessWidget {
   final String url;
@@ -62,11 +64,6 @@ class SimpleExtendedImage extends StatelessWidget {
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 Edg/117.0.2045.35',
     };
 
-    final Widget placeholderWidget = _buildPlaceholder(
-      targetWidth,
-      targetHeight,
-    );
-
     Widget imageContent;
 
     if (url.startsWith('http') || url.startsWith('https')) {
@@ -82,14 +79,13 @@ class SimpleExtendedImage extends StatelessWidget {
           assetPath: 'assets/animation/StarLoader.json',
           size: loadingSize ?? 60.0,
         ),
-        errorWidget: (c, u, e) => placeholderWidget,
+        errorBuilder: (c, u, e) => _buildPlaceholder(),
         fadeInDuration: const Duration(milliseconds: 120),
         fadeOutDuration: const Duration(milliseconds: 120),
       );
     } else if (url == placeholder || url == placeholderImage) {
-      imageContent = placeholderWidget;
+      imageContent = _buildPlaceholder();
     } else if (url.startsWith('assets/')) {
-      // Flutter 资源路径（例如 assets/images/xxx.png）
       imageContent = _buildAssetImage(
         url,
         width: targetWidth,
@@ -108,7 +104,7 @@ class SimpleExtendedImage extends StatelessWidget {
           switch (state.extendedImageLoadState) {
             case LoadState.loading:
             case LoadState.failed:
-              return placeholderWidget;
+              return _buildPlaceholder();
             case LoadState.completed:
               return ExtendedRawImage(
                 image: state.extendedImageInfo?.image,
@@ -130,20 +126,24 @@ class SimpleExtendedImage extends StatelessWidget {
     }
   }
 
-  Widget _buildPlaceholder(double targetWidth, double targetHeight) {
-    final side = _placeholderIconSize(targetWidth, targetHeight);
+  Widget _buildPlaceholder() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = math.min(
+          constraints.maxWidth,
+          constraints.maxHeight,
+        );
 
-    return SizedBox(
-      width: targetWidth,
-      height: targetHeight,
-      child: Center(
-        child: _buildAssetImage(
-          placeholder,
-          width: side,
-          height: side,
-          fit: BoxFit.contain,
-        ),
-      ),
+        return ColoredBox(
+          color: const Color(0xFFE5E6E8),
+          child: Center(
+            child: Icon(
+              Icons.music_note_outlined,
+              size: size * 0.5,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -163,20 +163,5 @@ class SimpleExtendedImage extends StatelessWidget {
     }
 
     return Image.asset(assetPath, width: width, height: height, fit: fit);
-  }
-
-  double _placeholderIconSize(double targetWidth, double targetHeight) {
-    final candidates = <double>[
-      if (targetWidth.isFinite && targetWidth > 0) targetWidth,
-      if (targetHeight.isFinite && targetHeight > 0) targetHeight,
-    ];
-
-    final shortestSide = candidates.isEmpty
-        ? 96.0
-        : candidates.reduce(
-            (value, element) => value < element ? value : element,
-          );
-
-    return (shortestSide * 0.48).clamp(42.0, 96.0).toDouble();
   }
 }

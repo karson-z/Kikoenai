@@ -1,6 +1,18 @@
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_file_extensions.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 
-enum ScanMode { audio, video, subtitles }
+part 'scan_mode.g.dart';
+
+@HiveType(typeId: TypeIds.scanMode, adapterName: 'ScanModeAdapter')
+enum ScanMode {
+  @HiveField(0)
+  audio,
+  @HiveField(1)
+  video,
+  @HiveField(2)
+  subtitles,
+}
 
 extension ScanModeConfig on ScanMode {
   Set<String> get extensions {

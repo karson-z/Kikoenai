@@ -27,4 +27,12 @@ class TypeIds {
   // --- 本地路径 （90-100）---
   static const int scanTarget = 90;
   static const int scanMode = 91;
+
+  // --- 作品嵌套模型 (100-119) ---
+  static const int circle = 100;
+  static const int rank = 101;
+  static const int tag = 102;
+  static const int va = 103;
+  static const int rateCountDetail = 104;
+  static const int otherLanguageEdition = 105;
 }
