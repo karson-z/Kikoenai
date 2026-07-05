@@ -35,6 +35,12 @@ class BlurProcessParams {
   });
 }
 
+/// 单次原图下载最大重试次数（含首次）。
+const int _kMaxFetchAttempts = 3;
+
+/// 相邻重试之间的基础退避（实际退避 = base * attempt^2，叠加小幅抖动）。
+const Duration _kRetryBaseDelay = Duration(milliseconds: 400);
+
 class BlurredImageService {
   static final BlurredImageService _instance = BlurredImageService._internal();
   factory BlurredImageService() => _instance;
@@ -42,9 +48,25 @@ class BlurredImageService {
 
   Box<dynamic> get settingsBox => AppStorage.settingsBox;
 
+  /// 同一 URL 的并发请求去重表：所有并发调用复用同一个 Future。
+  /// 避免同一封面被 artUri / 列表 / 背景同时触发时多次下载。
+  final Map<String, Future<File?>> _inFlight = {};
+
   Future<File?> getBlurredImage(String url) async {
     if (url.isEmpty) return null;
 
+    // 并发去重：已有相同 URL 的下载在进行中则直接复用。
+    final existing = _inFlight[url];
+    if (existing != null) return existing;
+
+    final future = _getBlurredImageInternal(url).whenComplete(() {
+      _inFlight.remove(url);
+    });
+    _inFlight[url] = future;
+    return future;
+  }
+
+  Future<File?> _getBlurredImageInternal(String url) async {
     // 获取当前设置参数
     final blurBg = settingsBox.get(
       StorageKeys.blurBackground,
@@ -62,7 +84,7 @@ class BlurredImageService {
     // 2. 构建唯一的 Cache Key（将 URL 和参数绑定）
     final String customCacheKey = '${url}_${blurBg}_${resizeBg}_$qualityBg';
 
-    // 3. 尝试从专属的 CacheManager 中获取缓存
+    // 3. 尝试从专属的 CacheManager 中获取模糊图缓存
     // 这里会自动触发 LRU 算法的 "Touch" 操作，更新最近访问时间
     final FileInfo? fileInfo = await BlurCacheManager.instance.getFileFromCache(
       customCacheKey,
@@ -72,9 +94,10 @@ class BlurredImageService {
     }
 
     try {
-      // 4. 如果没有缓存，从默认的全局 CacheManager 获取原图
-      final File originalFile = await DefaultCacheManager().getSingleFile(url);
-      final Uint8List imageBytes = await originalFile.readAsBytes();
+      // 4. 复用全局 CacheManager 的原图缓存（与 CachedNetworkImage / 列表共用），
+      //    避免重复下载；缓存未命中才走带重试的网络下载。
+      final Uint8List imageBytes = await _fetchOriginalBytes(url);
+      if (imageBytes.isEmpty) return null;
 
       final params = BlurProcessParams(
         imageBytes: imageBytes,
@@ -100,6 +123,53 @@ class BlurredImageService {
     }
 
     return null;
+  }
+
+  /// 取原图字节数据。优先复用 [DefaultCacheManager] 已缓存文件，
+  /// 未命中则带指数退避重试下载（应对服务端偶发断连 / 限流）。
+  Future<Uint8List> _fetchOriginalBytes(String url) async {
+    final cacheManager = DefaultCacheManager();
+
+    // 4.1 先查磁盘缓存（命中即返回，不触发任何网络请求）
+    final cached = await cacheManager.getFileFromCache(url);
+    if (cached != null && await cached.file.exists()) {
+      return cached.file.readAsBytes();
+    }
+
+    // 4.2 缓存未命中，带重试下载
+    Object? lastError;
+    for (var attempt = 0; attempt < _kMaxFetchAttempts; attempt++) {
+      try {
+        final File file = await cacheManager.getSingleFile(url);
+        if (await file.exists()) {
+          return file.readAsBytes();
+        }
+      } catch (e) {
+        lastError = e;
+        // 仅在非最后一次重试时退避
+        if (attempt < _kMaxFetchAttempts - 1) {
+          final delay = _kRetryBaseDelay * (attempt + 1) * (attempt + 1);
+          // 加入 ±20% 抖动，避免多个失败请求同步重试再次撞限流
+          final jitter = Duration(
+            milliseconds:
+                (delay.inMilliseconds * (0.8 + 0.4 * _randomFraction()))
+                    .round(),
+          );
+          await Future.delayed(jitter);
+        }
+      }
+    }
+    if (lastError != null) {
+      debugPrint(
+        'BlurredImageService: 原图下载失败（重试 $_kMaxFetchAttempts 次）：$lastError',
+      );
+    }
+    return Uint8List(0);
+  }
+
+  /// 返回 [0, 1) 区间伪随机小数（避免引入 dart:math Random 依赖）。
+  double _randomFraction() {
+    return DateTime.now().microsecondsSinceEpoch % 1000 / 1000.0;
   }
 
   static Future<Uint8List?> _processBlurInIsolate(

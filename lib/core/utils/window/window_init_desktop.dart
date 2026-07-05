@@ -2,10 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'tray_service.dart';
+
 Future<void> setupDesktopWindow() async {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) return;
 
   await windowManager.ensureInitialized();
+
+  // 初始化系统托盘（最小化到托盘功能依赖此）
+  await TrayService.instance.init();
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1280, 860),

@@ -10,6 +10,7 @@ flutter:
   assets:
     - assets/images/
     - assets/animation/
+    - assets/icons/
 dependencies:
   flutter:
     sdk: flutter

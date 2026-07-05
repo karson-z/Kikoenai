@@ -69,7 +69,7 @@ class _UserPageState extends ConsumerState<UserPage>
                             const SimpleExtendedImage.avatar(
                               width: 32,
                               height: 32,
-                              'assets/images/138787745_p0_master1200.jpg',
+                              'assets/images/app_icon.jpg',
                             ),
                             const SizedBox(width: 12),
                             Flexible(
@@ -114,7 +114,7 @@ class _UserPageState extends ConsumerState<UserPage>
                           const SimpleExtendedImage.avatar(
                             width: 80,
                             height: 80,
-                            'assets/images/138787745_p0_master1200.jpg',
+                            'assets/images/app_icon.jpg',
                           ),
                           const SizedBox(width: 16),
                           Expanded(

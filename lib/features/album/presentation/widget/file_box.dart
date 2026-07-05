@@ -1,34 +1,101 @@
 import 'dart:io';
 
-import 'package:background_downloader/background_downloader.dart'; // 必须导入，用于 TaskRecord 和 filePath()
+import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
+import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import 'package:kikoenai/core/widgets/menu/menu.dart';
+import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/download/presentation/provider/download_provider.dart';
-import '../../../../core/theme/theme_view_model.dart';
-import '../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
-import '../../../../core/widgets/layout/app_toast.dart';
-import '../../../../core/widgets/menu/menu.dart';
-import '../../../../core/widgets/text_preview/text_preview_page.dart';
-import '../../../player/presentation/provider/player_controller_provider.dart';
-import '../../../../core/model/file_node.dart';
-import '../viewmodel/provider/file_manage_provider.dart';
-import '../../../../core/widgets/common/manage_playlist_dialog.dart';
+import 'package:kikoenai/features/local_media/presentation/widget/file_operation_sheet.dart';
+import 'package:kikoenai/features/local_media/presentation/widget/status_pill.dart';
+import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
 
+/// 统一文件浏览器的功能开关。
+///
+/// 本地媒体与专辑详情两种场景通过此配置区分 tile 行为，避免在视图层用 `if` 切换。
+class FileBrowserConfig {
+  /// 显示“本地”下载标记，并对网络文件做本地路径替换（专辑详情-网络用）。
+  final bool showDownloadBadge;
+
+  /// 显示文件夹状态药丸 + 子项数（本地媒体用）。
+  final bool showFolderStatus;
+
+  /// 字幕模式：点击文件复制路径而非播放（本地媒体-字幕扫描用）。
+  final bool subtitlesCopyMode;
+
+  /// 启用文件夹/文件长按操作面板（本地媒体用）。
+  final bool enableFolderLongPress;
+
+  /// 启用图片预览（专辑详情用）。
+  final bool enableImagePreview;
+
+  /// 启用文本预览（专辑详情用）。
+  final bool enableTextPreview;
+
+  /// 启用音频右键菜单“加入播放列表”（专辑详情用）。
+  final bool enableAudioContextMenu;
+
+  const FileBrowserConfig({
+    this.showDownloadBadge = false,
+    this.showFolderStatus = false,
+    this.subtitlesCopyMode = false,
+    this.enableFolderLongPress = false,
+    this.enableImagePreview = false,
+    this.enableTextPreview = false,
+    this.enableAudioContextMenu = false,
+  });
+}
+
+/// 统一的文件节点浏览器。
+///
+/// 本地媒体扫描页与作品详情页共用此组件，数据源统一规整为
+/// [FileNodeLibraryIndex]（由调用方持有索引并传入 [currentNodes]）。
+/// 本组件只负责渲染当前层级的节点列表 + 处理点击/预览/播放等交互，
+/// 不持有导航状态；进入文件夹 / 返回上一级由调用方通过回调驱动。
+///
+/// 返回一个 Sliver，调用方按需放入 [CustomScrollView]：
+/// - 专辑详情：与吸顶面包屑头一起包进 `SliverMainAxisGroup`。
+/// - 本地媒体：单独放进一个 `CustomScrollView`。
 class FileNodeBrowser extends ConsumerStatefulWidget {
-  final Work work;
-  final List<FileNode> rootNodes;
-  final bool isLocal;
-
   const FileNodeBrowser({
     super.key,
+    required this.currentNodes,
     required this.work,
-    required this.rootNodes,
-    required this.isLocal,
+    required this.source,
+    required this.config,
+    required this.onEnterFolder,
+    this.workResolver,
+    this.sourceResolver,
   });
+
+  /// 当前层级的直接子节点（由调用方从 `FileNodeLibraryIndex.currentChildren` 取）。
+  final List<FileNode> currentNodes;
+
+  /// 默认作品（专辑详情用）。本地媒体传 null，改由 [workResolver] 按节点解析。
+  final Work? work;
+
+  /// 默认来源（专辑详情用）。本地媒体改由 [sourceResolver] 按节点解析。
+  final NodeSource source;
+
+  /// 功能开关。
+  final FileBrowserConfig config;
+
+  /// 进入文件夹回调。调用方负责更新索引并触发重建。
+  final void Function(FileNode folder) onEnterFolder;
+
+  /// 按节点解析作品（本地媒体用）。为 null 时回退到 [work]。
+  final Work? Function(FileNode node)? workResolver;
+
+  /// 按节点解析来源（本地媒体用）。为 null 时回退到 [source]。
+  final NodeSource Function(FileNode node)? sourceResolver;
 
   @override
   ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
@@ -38,23 +105,29 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(allTasksProvider.notifier).refreshTasks();
-    });
+    // 仅在需要下载标记时刷新下载任务记录。
+    if (widget.config.showDownloadBadge) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(allTasksProvider.notifier).refreshTasks();
+      });
+    }
   }
 
-  /// [核心逻辑] 批量替换本地路径
-  /// 接收原始节点列表和下载记录 Map，返回 URL 已替换为本地路径的新列表
+  Map<String, TaskRecord> _buildDownloadedTaskMap() {
+    if (!widget.config.showDownloadBadge) return const {};
+    final taskList = ref.watch(completedTasksProvider);
+    return {for (var record in taskList) record.task.taskId: record};
+  }
+
+  /// 批量替换本地路径：将已下载节点的 URL 替换为本地文件路径。
   Future<List<FileNode>> _resolveLocalPathNodes(
     List<FileNode> nodes,
     Map<String, TaskRecord> taskMap,
   ) async {
     if (taskMap.isEmpty) return nodes;
-
     final resolvedNodes = <FileNode>[];
     for (final node in nodes) {
-      // 检查该节点是否有对应的下载记录 (使用 hash 匹配 taskId)
       final record = taskMap[node.hash];
       if (record != null) {
         final localPath = await _resolveDownloadedLocalPath(record);
@@ -62,178 +135,70 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
           resolvedNodes.add(node);
           continue;
         }
-        // 创建新对象，替换 URL
         resolvedNodes.add(node.copyWith(mediaStreamUrl: localPath));
         continue;
       }
       resolvedNodes.add(node);
     }
-
     return resolvedNodes;
   }
 
   Future<String?> _resolveDownloadedLocalPath(TaskRecord record) async {
     final task = record.task;
     final localPath = await task.filePath();
-
-    if (await File(localPath).exists()) {
-      return localPath;
-    }
-
+    if (await File(localPath).exists()) return localPath;
     await ref.read(allTasksProvider.notifier).deleteRecordOnly(task.taskId);
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final browserProvider = fileBrowserProvider(widget.work.id.toString());
-    final breadcrumb = ref.watch(browserProvider);
-    final browserNotifier = ref.read(browserProvider.notifier);
+    final downloadedTaskMap = _buildDownloadedTaskMap();
 
-    final currentNodes = browserNotifier.getCurrentNodes(widget.rootNodes);
-    final bool isRoot = breadcrumb.isEmpty;
+    if (widget.currentNodes.isEmpty) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: Text('该目录为空')),
+      );
+    }
 
-    final isCompleteDownloadFileList = ref.watch(completedTasksProvider);
-    final taskList = isCompleteDownloadFileList;
-    final Map<String, TaskRecord> downloadedTaskMap = {
-      for (var record in taskList) record.task.taskId: record,
-    };
-
-    return PopScope(
-      canPop: isRoot,
-      onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (didPop) return;
-        browserNotifier.goBack();
+    return SliverList.builder(
+      itemCount: widget.currentNodes.length,
+      itemBuilder: (_, index) {
+        final node = widget.currentNodes[index];
+        final bool isDownloaded =
+            widget.config.showDownloadBadge &&
+            downloadedTaskMap.containsKey(node.hash);
+        return _buildTile(
+          context,
+          node,
+          widget.currentNodes,
+          isDownloaded,
+          downloadedTaskMap,
+        );
       },
-      child: SliverMainAxisGroup(
-        slivers: [
-          // 1. 吸顶 Header
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: BreadcrumbHeaderDelegate(
-              work: widget.work,
-              rootNodes: widget.rootNodes,
-              breadcrumb: breadcrumb,
-              onRootTap: () => browserNotifier.jumpToBreadcrumbIndex(-1),
-              onCrumbTap: (index) =>
-                  browserNotifier.jumpToBreadcrumbIndex(index),
-              // Header 只需要 ID 集合用于弹窗禁用
-              downloadedIds: downloadedTaskMap.keys.toSet(),
-            ),
-          ),
-          // 3. 列表内容
-          if (currentNodes.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: Text("该目录为空")),
-            )
-          else
-            SliverList.builder(
-              itemCount: currentNodes.length,
-              itemBuilder: (_, index) {
-                final node = currentNodes[index];
-                // 判断是否已下载
-                final bool isDownloaded = downloadedTaskMap.containsKey(
-                  node.hash,
-                );
-                return _buildFileTile(
-                  context,
-                  node,
-                  currentNodes,
-                  browserNotifier,
-                  isDownloaded,
-                  downloadedTaskMap,
-                );
-              },
-            ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-        ],
-      ),
     );
   }
 
-  Widget _buildFileTile(
+  Widget _buildTile(
     BuildContext context,
     FileNode node,
-    List<FileNode> currentNodes,
-    FileBrowserNotifier notifier,
+    List<FileNode> contextNodes,
     bool isDownloaded,
     Map<String, TaskRecord> downloadedTaskMap,
   ) {
     final tile = ListTile(
-      leading: Icon(_iconByType(node)),
-      title: Text(
-        node.title,
-        style: TextStyle(
-          // 已下载的文件稍微加深一点颜色
-          color: isDownloaded ? Colors.black87 : null,
-          fontWeight: isDownloaded ? FontWeight.w500 : FontWeight.normal,
-        ),
-      ),
-      subtitle: Text(
-        "${node.isAudio ? "时长:" : "类型："}"
-        "${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}",
-      ),
-      // --- UI 标识：本地标签 ---
-      trailing: isDownloaded
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check, size: 12, color: Color(0xFF16A34A)),
-                  SizedBox(width: 4),
-                  Text(
-                    "本地",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF16A34A),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            )
+      leading: _buildLeading(node),
+      title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: _buildSubtitle(node),
+      trailing: _buildTrailing(node, isDownloaded),
+      onTap: () => _handleTap(context, node, contextNodes, downloadedTaskMap),
+      onLongPress: widget.config.enableFolderLongPress
+          ? () => FolderActionBottomSheet.show(context, node)
           : null,
-      onTap: () async {
-        if (node.isFolder) {
-          notifier.enterFolder(node);
-        } else if (node.isImage) {
-          _handleImagePreview(context, node, currentNodes);
-        } else if (node.isText) {
-          _handleTextPreview(context, node);
-        } else {
-          final playerController = ref.read(playerControllerProvider.notifier);
-          final List<FileNode> processedList = await _resolveLocalPathNodes(
-            currentNodes,
-            downloadedTaskMap,
-          );
-          // 2. 找到当前点击的目标节点（使用处理后的列表，因为它包含本地路径）
-          final FileNode targetNode = processedList.firstWhere(
-            (n) => n.hash == node.hash,
-            orElse: () => node,
-          );
-
-          // 3. 传递给播放器
-          playerController.handleFileTap(
-            targetNode,
-            processedList,
-            work: widget.work,
-            source: widget.isLocal
-                ? NodeSource.localWork
-                : NodeSource.asmrServer,
-          );
-        }
-      },
     );
 
-    if (node.isAudio) {
+    if (node.isAudio && widget.config.enableAudioContextMenu) {
       return ContextMenuWrapper(
         items: const [
           PopupMenuItem(
@@ -257,22 +222,169 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
               }
             }
-            ref
-                .read(playerControllerProvider.notifier)
-                .addSingleInQueue(
+            ref.read(playerControllerProvider.notifier).addSingleInQueue(
                   nodeToAdd,
-                  widget.work,
-                  source: widget.isLocal
-                      ? NodeSource.localWork
-                      : NodeSource.asmrServer,
+                  _resolveWork(node),
+                  source: _resolveSource(node),
                 );
-            KikoenaiToast.success("已添加到播放列表");
+            KikoenaiToast.success('已添加到播放列表');
           }
         },
         child: tile,
       );
     }
     return tile;
+  }
+
+  Widget _buildLeading(FileNode node) {
+    if (widget.config.showFolderStatus) {
+      // 本地媒体样式：按文件扩展名映射图标 + 颜色
+      if (node.isFolder) {
+        final isArchiveFolder = FileExtensions.isArchive(node.title);
+        return Icon(
+          isArchiveFolder ? Icons.folder_zip : Icons.folder,
+          color: isArchiveFolder ? Colors.purpleAccent : Colors.amber,
+        );
+      }
+      final fileType = FileExtensions.getFileType(node.title);
+      return Icon(
+        _localStyleIcon(fileType),
+        color: _localStyleIconColor(fileType),
+      );
+    }
+    // 专辑详情样式：简单按类型图标
+    return Icon(_albumStyleIcon(node));
+  }
+
+  Widget? _buildSubtitle(FileNode node) {
+    if (widget.config.showFolderStatus) {
+      if (node.isFolder) {
+        final itemCount = node.subItemsCount;
+        final itemCountText = '$itemCount 项';
+        return Text(
+          node.workId != null ? 'RJ0${node.workId}  •  $itemCountText' : itemCountText,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        );
+      }
+      return Text(
+        node.mediaStreamUrl ?? '',
+        style: const TextStyle(fontSize: 10, color: Colors.grey),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    // 专辑详情样式
+    return Text(
+      '${node.isAudio ? '时长:' : '类型：'}'
+      '${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}',
+    );
+  }
+
+  Widget? _buildTrailing(FileNode node, bool isDownloaded) {
+    if (widget.config.showFolderStatus && node.isFolder) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          NodeStatusPill(status: node.nodeStatus),
+          const SizedBox(width: 8),
+          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        ],
+      );
+    }
+    if (isDownloaded) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, size: 12, color: Color(0xFF16A34A)),
+            SizedBox(width: 4),
+            Text(
+              '本地',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF16A34A),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return null;
+  }
+
+  Future<void> _handleTap(
+    BuildContext context,
+    FileNode node,
+    List<FileNode> contextNodes,
+    Map<String, TaskRecord> downloadedTaskMap,
+  ) async {
+    if (node.isFolder) {
+      widget.onEnterFolder(node);
+      return;
+    }
+
+    // 字幕模式：复制路径
+    if (widget.config.subtitlesCopyMode) {
+      Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ''));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已复制路径: ${node.title}'),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 图片预览
+    if (node.isImage && widget.config.enableImagePreview) {
+      _handleImagePreview(context, node, contextNodes);
+      return;
+    }
+
+    // 文本预览
+    if (node.isText && widget.config.enableTextPreview) {
+      _handleTextPreview(context, node);
+      return;
+    }
+
+    // 播放
+    final playerController = ref.read(playerControllerProvider.notifier);
+    List<FileNode> processedList = contextNodes;
+    FileNode targetNode = node;
+    if (widget.config.showDownloadBadge) {
+      processedList = await _resolveLocalPathNodes(contextNodes, downloadedTaskMap);
+      targetNode = processedList.firstWhere(
+        (n) => n.hash == node.hash,
+        orElse: () => node,
+      );
+    }
+    playerController.handleFileTap(
+      targetNode,
+      processedList,
+      work: _resolveWork(node),
+      source: _resolveSource(node),
+    );
+  }
+
+  Work _resolveWork(FileNode node) {
+    final resolved = widget.workResolver?.call(node);
+    if (resolved != null) return resolved;
+    return widget.work ?? Work(id: node.workId ?? 0);
+  }
+
+  NodeSource _resolveSource(FileNode node) {
+    return widget.sourceResolver?.call(node) ?? widget.source;
   }
 
   void _handleImagePreview(
@@ -282,7 +394,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   ) {
     final imageNodes = currentNodes.where((n) => n.isImage).toList();
     final imageUrls = imageNodes
-        .map((n) => n.mediaStreamUrl ?? "")
+        .map((n) => n.mediaStreamUrl ?? '')
         .where((url) => url.isNotEmpty)
         .toList();
     final initialIndex = imageNodes.indexOf(node);
@@ -298,122 +410,55 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) =>
-            TextPreviewPage(url: node.mediaStreamUrl ?? "", title: node.title),
+            TextPreviewPage(url: node.mediaStreamUrl ?? '', title: node.title),
       ),
     );
   }
 
-  IconData _iconByType(FileNode node) {
+  // --- 图标映射助手 ---
+
+  IconData _albumStyleIcon(FileNode node) {
     if (node.isAudio) return Icons.audiotrack;
     if (node.isImage) return Icons.image;
     if (node.isText) return Icons.text_snippet;
     return Icons.folder;
   }
-}
 
-class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final List<FileNode> breadcrumb;
-  final List<FileNode> rootNodes;
-  final VoidCallback onRootTap;
-  final Work work;
-  final double height;
-  final Set<String> downloadedIds;
-  final void Function(int index) onCrumbTap;
-
-  BreadcrumbHeaderDelegate({
-    required this.work,
-    required this.rootNodes,
-    required this.downloadedIds,
-    required this.breadcrumb,
-    required this.onRootTap,
-    required this.onCrumbTap,
-    this.height = 64,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return _BreadcrumbHeader(
-      work: work,
-      breadcrumb: breadcrumb,
-      rootNodes: rootNodes,
-      onRootTap: onRootTap,
-      onCrumbTap: onCrumbTap,
-      downloadedIds: downloadedIds,
-      height: height,
-    );
+  IconData _localStyleIcon(FileType fileType) {
+    switch (fileType) {
+      case FileType.audio:
+        return Icons.audiotrack;
+      case FileType.video:
+        return Icons.videocam;
+      case FileType.subtitle:
+        return Icons.subtitles;
+      case FileType.image:
+        return Icons.image;
+      case FileType.archive:
+        return Icons.folder_zip;
+      case FileType.document:
+        return Icons.description;
+      case FileType.unknown:
+        return Icons.insert_drive_file;
+    }
   }
 
-  @override
-  double get maxExtent => height;
-  @override
-  double get minExtent => height;
-  @override
-  bool shouldRebuild(covariant BreadcrumbHeaderDelegate oldDelegate) => true;
-}
-
-class _BreadcrumbHeader extends ConsumerWidget {
-  final Set<String> downloadedIds;
-  final List<FileNode> breadcrumb;
-  final List<FileNode> rootNodes;
-  final VoidCallback onRootTap;
-  final Work work;
-  final double height;
-  final void Function(int index) onCrumbTap;
-
-  const _BreadcrumbHeader({
-    required this.downloadedIds,
-    required this.work,
-    required this.rootNodes,
-    required this.breadcrumb,
-    required this.onRootTap,
-    required this.onCrumbTap,
-    this.height = 64,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = ref.watch(explicitDarkModeProvider);
-    return Container(
-      height: height,
-      color: Theme.of(context).scaffoldBackgroundColor,
-      // 调整外层 padding，配合 BreadcrumbBar 内部的 padding
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            // 直接使用通用组件
-            child: BreadcrumbBar(
-              paths: breadcrumb.map((node) => node.title).toList(),
-              onHomeTap: onRootTap,
-              onPathTap: onCrumbTap,
-              // 根据需要调整样式，这里去掉了背景和边框，更接近原版 FileNodeBrowser 的样式
-              backgroundColor: Colors.transparent,
-              borderColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            ),
-          ),
-          IconButton(
-            iconSize: 18,
-            splashRadius: 20,
-            padding: const EdgeInsets.all(8),
-            icon: Icon(
-              Icons.library_music,
-              color: isDark ? Colors.white70 : Colors.grey,
-            ),
-            onPressed: () {
-              FileTreeWoltSheet.show(
-                context: context,
-                roots: rootNodes,
-                work: work,
-              );
-            },
-          ),
-        ],
-      ),
-    );
+  Color _localStyleIconColor(FileType fileType) {
+    switch (fileType) {
+      case FileType.audio:
+        return Colors.blue;
+      case FileType.video:
+        return Colors.orange;
+      case FileType.subtitle:
+        return Colors.teal;
+      case FileType.image:
+        return Colors.purple;
+      case FileType.archive:
+        return Colors.brown;
+      case FileType.document:
+        return Colors.blueGrey;
+      case FileType.unknown:
+        return Colors.grey;
+    }
   }
 }

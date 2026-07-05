@@ -135,4 +135,7 @@ class StorageKeys {
   static const String wrapperExpiry = 'exp';
 
   static get audioOutputMode => 'audio_output_mode';
+
+  /// 窗口关闭行为：null=每次询问，'minimize'=最小化到托盘，'exit'=退出程序
+  static const String windowCloseBehavior = 'window_close_behavior';
 }
