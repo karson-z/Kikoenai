@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/utils/window/window_close_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../layout/provider/main_scaffold_provider.dart';
@@ -142,9 +143,16 @@ class _WindowControlButtonsState extends ConsumerState<WindowControlButtons> wit
           tooltip: '关闭',
           icon: Icon(Icons.close, size: widget.iconSize, color: color),
           padding: widget.padding,
-          onPressed: () => windowManager.close(),
+          onPressed: () => WindowCloseHandler.handleClose(context),
         ),
       ],
     );
+  }
+
+  /// 系统级关闭（标题栏 X / Alt+F4）：因 setPreventClose(true) 触发，
+  /// 走与关闭按钮相同的逻辑，保证已记住的选择 / 弹窗一致。
+  @override
+  void onWindowClose() {
+    WindowCloseHandler.handleClose(context);
   }
 }

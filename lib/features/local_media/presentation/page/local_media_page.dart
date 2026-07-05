@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
+import 'package:kikoenai/features/album/presentation/widget/file_box.dart';
 import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
 import '../../../../core/utils/scraper/scraper_storage.dart';
 import '../provider/file_scanner_notifier.dart';
-import '../widget/file_scanner_panel.dart';
 import '../widget/parsed_works_view.dart';
 import '../widget/path_sheet.dart';
 import '../../../../../../core/model/file_node.dart';
@@ -178,7 +178,7 @@ class ScannerPage extends ConsumerWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildPendingView(context, scannerState, currentMode),
+                  _buildPendingView(context, ref, scannerState, currentMode),
                   ParseWorksView(work: ScraperStorage().getAllWorks()),
                 ],
               ),
@@ -199,6 +199,7 @@ class ScannerPage extends ConsumerWidget {
 
   Widget _buildPendingView(
     BuildContext context,
+    WidgetRef ref,
     FileBrowserState scannerState,
     ScanMode currentMode,
   ) {
@@ -206,9 +207,40 @@ class ScannerPage extends ConsumerWidget {
       return _buildEmptyStateView(context);
     }
 
-    return FileBrowserPanel(
-      rootNodes: scannerState.children, // 对齐模型字段，投喂当前层级下已被索引转换好的直接子节点列表
-      scanMode: currentMode,
+    final scannerNotifier = ref.read(fileScannerProvider.notifier);
+
+    // 本地媒体复用统一 FileNodeBrowser：导航委托给 FileScannerNotifier
+    // （其内部已持有 FileNodeLibraryIndex），面包屑由页面顶栏单独渲染。
+    return PopScope(
+      canPop: scannerState.isHome,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
+        scannerNotifier.stepOut();
+      },
+      child: CustomScrollView(
+        slivers: [
+          FileNodeBrowser(
+            currentNodes: scannerState.children,
+            work: null,
+            source: NodeSource.localSingle,
+            config: FileBrowserConfig(
+              showFolderStatus: true,
+              subtitlesCopyMode: currentMode == ScanMode.subtitles,
+              enableFolderLongPress: true,
+            ),
+            onEnterFolder: (node) {
+              if (node.path != null) {
+                scannerNotifier.stepIn(NodeFolder(node.path!));
+              }
+            },
+            workResolver: (node) =>
+                node.workId == null ? null : ScraperStorage().getWork(node.workId!),
+            sourceResolver: (node) => node.workId == null
+                ? NodeSource.localSingle
+                : NodeSource.localWork,
+          ),
+        ],
+      ),
     );
   }
 

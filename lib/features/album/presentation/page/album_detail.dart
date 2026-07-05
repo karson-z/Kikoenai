@@ -24,9 +24,6 @@ import 'package:kikoenai/core/widgets/card/work_single_col_card.dart';
 
 import '../../data/model/user_work_status.dart';
 
-// ---------------------------------------------------------------------------
-// 承接层（路由参数解析 + 抽屉壳）
-// ---------------------------------------------------------------------------
 
 class AlbumDetailPage extends StatefulWidget {
   const AlbumDetailPage({super.key, required this.extra});
@@ -72,7 +69,12 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         backgroundColor: isDark ? Colors.black : Colors.white,
         controller: _drawerController,
         edgeDragWidth: 300,
-        drawer: AlbumDetailSimilarWorkDrawer(circleName: work?.circle?.name),
+        drawer: AlbumDetailSimilarWorkDrawer(
+          circleName: work?.circle?.name,
+          workId: workId,
+          hasInitialWork: work != null,
+          isLocal: isLocal,
+        ),
         child: AlbumDetailContainer(
           workId: workId,
           initialWork: work,
@@ -83,18 +85,36 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 相似作品抽屉
-// ---------------------------------------------------------------------------
-
 class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
-  const AlbumDetailSimilarWorkDrawer({super.key, required this.circleName});
+  const AlbumDetailSimilarWorkDrawer({
+    super.key,
+    required this.circleName,
+    required this.workId,
+    this.hasInitialWork = false,
+    this.isLocal = false,
+  });
+
   final String? circleName;
+  final int workId;
+
+  /// 进入时是否已携带完整 Work（列表跳转场景）。为 true 则无需等待详情接口。
+  final bool hasInitialWork;
+
+  /// 本地作品：无需拉详情接口，直接视为就绪。
+  final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (circleName == null || circleName!.isEmpty) {
       return const Center(child: Text('暂无相关作品'));
+    }
+
+    // 就绪判定：本地 / 已有 initialWork 直接就绪；
+    // 否则监听 workDetailProvider，等详情接口成功返回后才发起 /search。
+    final bool ready = isLocal || hasInitialWork || _isDetailLoaded(ref);
+
+    if (!ready) {
+      return const Center(child: CircularProgressIndicator());
     }
 
     final workListAsync = ref.watch(similarWorkProvider(circleName));
@@ -128,6 +148,14 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
       error: (error, stackTrace) => Center(child: Text('加载失败: $error')),
     );
   }
+
+  /// 监听详情接口状态：仅当 hasValue（成功加载过）时返回 true。
+  /// 注意：仅监听是否有值，不监听是否正在刷新，避免下拉刷新时抽屉闪烁。
+  bool _isDetailLoaded(WidgetRef ref) {
+    if (isLocal || hasInitialWork) return true;
+    final asyncValue = ref.watch(workDetailProvider(workId));
+    return asyncValue.hasValue;
+  }
 }
 class AlbumDetailContainer extends ConsumerWidget {
   const AlbumDetailContainer({
@@ -160,37 +188,30 @@ class AlbumDetailContainer extends ConsumerWidget {
           );
 
     // 选择文件区段子类，不在视图层用 if 切换
-    final AlbumFileSection fileSection = switch (isLocal) {
+    final Widget fileSection = switch (isLocal) {
       true => LocalAlbumFileSection(work: work),
       false => RemoteAlbumFileSection(work: work),
     };
 
     return AlbumDetailView(
-      // 封面
       heroTag: work.effectiveHeroTag,
       thumbnailCoverUrl: work.thumbnailCoverUrl,
       mainCoverUrl: work.mainCoverUrl,
-      // 头部
       workId: work.id,
       title: work.title,
       circleName: work.name,
-      // 价格 / 销量
       price: work.price,
       dlCount: work.dlCount,
-      // 评分
       rateAverage2dp: work.rateAverage2dp,
       reviewCount: work.reviewCount,
       duration: work.duration,
       userRating: isLocal ? 0 : (workStatus?.value?.userRating ?? 0),
-      // 标签
       vas: work.vas,
       tags: work.tags,
-      // 顶部操作
       isLocal: isLocal,
       reviewLabel: reviewLabel,
       onReviewTap: isLocal ? null : () => _showReviewSheet(context, ref, work, workStatus),
       onDrawerOpen: () => KikoenaiInnerDrawerScope.of(context).open(),
-      // 交互回调
       onCircleTap: () => _navigateToCategory(context, ref, work.name),
       onRatingUpdate: isLocal
           ? (int _) => ScaffoldMessenger.of(context).showSnackBar(
@@ -202,7 +223,7 @@ class AlbumDetailContainer extends ConsumerWidget {
       // 下拉刷新（仅网络）
       onRefresh: isLocal
           ? null
-          : () => ref.refresh(trackFileNodeProvider(work.id).future),
+          : () => ref.refresh(trackFileNodeIndexProvider(work.id).future),
     );
   }
 
