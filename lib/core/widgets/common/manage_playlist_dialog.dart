@@ -125,13 +125,11 @@ class FileTreeWoltSheet {
                                 )
                                 .toList();
 
-                            // 下载服务需要完整的树结构来保留目录层级，
-                            // 从索引还原为树节点列表。
-                            final roots = index.toTreeChildren();
-
+                            // 直接传 index 进去，下载服务内部通过 index 树
+                            // 递归计算路径，不再依赖 List<FileNode> 树。
                             DownloadService.instance.enqueueBatch(
                               selectedFiles: filesToDownload,
-                              rootNodes: roots,
+                              index: index,
                               title: work?.title ?? '未知作品',
                               metaData: work?.toJson(),
                             );
@@ -225,7 +223,20 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
   Widget _buildNodeItem(FileNode node) {
     final downloadedIds = ref.watch(completedTasksProvider).map((t) => t.task.taskId).toSet();
     final bool isDownloaded = !node.isFolder && downloadedIds.contains(node.hash);
-    final bool? checkboxState = ref.read(fileSelectionProvider.notifier).getNodeState(node);
+    // 选中状态：通过 index 拿到 folder 下的递归叶子。
+    final bool? checkboxState =
+        ref.read(fileSelectionProvider.notifier).getNodeStateForIndex(node, widget.index);
+
+    // 文件夹子项数：通过 index 实时统计。
+    // folder 节点的 path 是自己的路径，folderPath 是父路径，必须用 path。
+    int subItemCount = 0;
+    if (node.isFolder) {
+      final selfPath = node.path ?? node.mediaStreamUrl;
+      if (selfPath != null && selfPath.isNotEmpty) {
+        final selfFolder = NodeFolder(selfPath);
+        subItemCount = widget.index.directItemCount(selfFolder).total;
+      }
+    }
 
     return InkWell(
       onTap: () {
@@ -233,7 +244,7 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
           // 点击文件夹，触发 Provider 更新状态
           ref.read(breadcrumbProvider(BreadCrumbBarType.player).notifier).enterFolder(node);
         } else {
-          ref.read(fileSelectionProvider.notifier).toggleNode(node);
+          ref.read(fileSelectionProvider.notifier).toggleNodeForIndex(node, widget.index);
         }
       },
       child: Padding(
@@ -243,7 +254,9 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
             Checkbox(
               tristate: true,
               value: checkboxState,
-              onChanged: (_) => ref.read(fileSelectionProvider.notifier).toggleNode(node),
+              onChanged: (_) => ref
+                  .read(fileSelectionProvider.notifier)
+                  .toggleNodeForIndex(node, widget.index),
               visualDensity: VisualDensity.compact,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             ),
@@ -279,7 +292,7 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
                   if (!node.isFolder && node.size != null)
                     Text(OtherUtil.formatBytes(node.size ?? 0), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                   if (node.isFolder)
-                    Text('${node.children?.length ?? 0} 项', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Text('$subItemCount 项', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                 ],
               ),
             ),
@@ -310,9 +323,6 @@ class FileTreeStickyHeader extends ConsumerWidget {
       breadcrumbProvider(BreadCrumbBarType.player).notifier,
     );
 
-    // 当前层级的节点直接取自索引（导航后经由 Provider 状态变化触发重建）。
-    final currentNodes = index.currentChildren;
-
     final selectionNotifier = ref.read(fileSelectionProvider.notifier);
     ref.watch(fileSelectionProvider); // 监听选中变化
 
@@ -328,9 +338,9 @@ class FileTreeStickyHeader extends ConsumerWidget {
               children: [
                 Checkbox(
                   tristate: true,
-                  value: selectionNotifier.getRootState(currentNodes),
+                  value: selectionNotifier.getRootStateForIndex(index),
                   onChanged: (_) =>
-                      selectionNotifier.toggleSelectAll(currentNodes),
+                      selectionNotifier.toggleSelectAllForIndex(index),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),

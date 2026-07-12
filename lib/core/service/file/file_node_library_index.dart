@@ -210,6 +210,44 @@ class FileNodeLibraryIndex {
     return files;
   }
 
+  /// 获取某个 folder 下的直接子项统计（不递归）。
+  ({int folders, int files, int total}) directItemCount(NodeFolder folder) {
+    final treeNode = rootNode.lookup(
+      folder,
+      stopAtRootPath: normalizePath(rootPath),
+    );
+    final folders = treeNode?.children.length ?? 0;
+    final files = folderMap[folder]?.length ?? 0;
+    return (folders: folders, files: files, total: folders + files);
+  }
+
+  /// 获取 folder 下的所有递归文件（含子文件夹中的文件）。
+  List<FileNode> recursiveFilesOf(NodeFolder folder) {
+    return getFilesInFolder(folder, recursive: true);
+  }
+
+  /// 递归遍历 folder 树，依次访问每个 folder 节点（含其本身）。
+  ///
+  /// [visit] 接收当前 folder 的 [NodeFolder] 与其在 [folderMap] 中的直接文件列表。
+  void walkFolders(void Function(NodeFolder folder, List<FileNode> directFiles) visit) {
+    void visitTree(FolderTreeNode treeNode) {
+      final folder = treeNode.folder;
+      if (folder != null) {
+        visit(folder, folderMap[folder] ?? const []);
+        for (final child in treeNode.children.values) {
+          visitTree(child);
+        }
+      } else {
+        // rootNode：仅遍历子级
+        for (final child in treeNode.children.values) {
+          visitTree(child);
+        }
+      }
+    }
+
+    visitTree(rootNode);
+  }
+
   List<FileNode> toTreeChildren() {
     return _childrenFor(rootNode);
   }

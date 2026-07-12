@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/v4.dart';
 
 import '../../model/file_node.dart';
+import '../../service/file/file_node_library_index.dart';
 import '../../storage/hive_storage.dart';
 import 'package:path/path.dart' as p;
 
@@ -113,11 +114,11 @@ class DownloadService {
 
   /// 批量下载
   /// [selectedFiles]: 用户选中的文件列表
-  /// [rootNodes]: 原始的文件树根节点（用于计算相对路径）
+  /// [index]: 文件库索引（提供 folder 树 + folderMap 映射）
   /// [title]: 任务组名
   Future<void> enqueueBatch({
     required List<FileNode> selectedFiles,
-    required List<FileNode> rootNodes,
+    required FileNodeLibraryIndex index,
     required String title,
     dynamic metaData,
   }) async {
@@ -156,51 +157,77 @@ class DownloadService {
     KikoenaiLogger().i('文件下载路径为：$workFileDirectory');
     List<DownloadTask> tasksToEnqueue = [];
 
-    // --- 核心逻辑：递归遍历树，构建带路径的任务 ---
-    void traverseAndBuildTasks(
-      List<FileNode> nodes,
-      String currentRelativePath,
-    ) {
-      for (var node in nodes) {
-        if (node.isFolder) {
-          final nextPath = p.join(currentRelativePath, node.title);
-          if (node.children != null) {
-            traverseAndBuildTasks(node.children!, nextPath);
-          }
-        } else {
-          // 如果是文件，检查是否在选中列表中
-          if (selectedSet.contains(node)) {
-            final String? downloadUrl =
-                node.mediaDownloadUrl ?? node.mediaStreamUrl;
-
-            if (downloadUrl != null && downloadUrl.isNotEmpty) {
-              final finalDirectory = p.join(
-                workFileDirectory,
-                currentRelativePath,
-              );
-              tasksToEnqueue.add(
-                DownloadTask(
-                  taskId: node.hash,
-                  url: downloadUrl,
-                  filename: node.title,
-                  directory: finalDirectory,
-                  baseDirectory: BaseDirectory.root,
-                  group: dynamicGroupName,
-                  metaData: metaData == null ? '' : jsonEncode(metaData),
-                  updates: Updates.statusAndProgress,
-                  allowPause: true,
-                  displayName: node.title,
-                  retries: 3,
-                ),
-              );
-            }
-          }
-        }
+    // --- 核心逻辑：完全依靠 FileNodeLibraryIndex 递归遍历 tree ---
+    // 收集每个 folder 内被选中的 file（通过 node.folder 定位所属 folder）。
+    // 文件夹路径通过 FolderTreeNode 树回溯得到。
+    final Map<NodeFolder, List<FileNode>> selectedByFolder = {};
+    final List<FileNode> orphanSelected = []; // 没有 folder 信息的孤立文件
+    for (final node in selectedSet) {
+      if (node.isFolder) continue;
+      final folder = node.folder;
+      if (folder == null) {
+        orphanSelected.add(node);
+      } else {
+        selectedByFolder.putIfAbsent(folder, () => []).add(node);
       }
     }
 
-    // 从根节点开始遍历，初始相对路径为空
-    traverseAndBuildTasks(rootNodes, "");
+    // 通过 index 的 rootNode 树递归构建任务
+    void walkTree(FolderTreeNode treeNode, String currentRelativePath) {
+      for (final child in treeNode.children.values) {
+        if (child.folder == null) continue;
+        final nextPath = p.join(currentRelativePath, child.folder!.name);
+        final selectedHere = selectedByFolder[child.folder!];
+        if (selectedHere != null && selectedHere.isNotEmpty) {
+          for (final file in selectedHere) {
+            final String? downloadUrl =
+                file.mediaDownloadUrl ?? file.mediaStreamUrl;
+            if (downloadUrl == null || downloadUrl.isEmpty) continue;
+            final finalDirectory = p.join(workFileDirectory, nextPath);
+            tasksToEnqueue.add(
+              DownloadTask(
+                taskId: file.hash,
+                url: downloadUrl,
+                filename: file.title,
+                directory: finalDirectory,
+                baseDirectory: BaseDirectory.root,
+                group: dynamicGroupName,
+                metaData: metaData == null ? '' : jsonEncode(metaData),
+                updates: Updates.statusAndProgress,
+                allowPause: true,
+                displayName: file.title,
+                retries: 3,
+              ),
+            );
+          }
+        }
+        // 递归下钻
+        walkTree(child, nextPath);
+      }
+    }
+
+    walkTree(index.rootNode, "");
+
+    // 孤立文件（无法定位 folder）直接平铺到根
+    for (final file in orphanSelected) {
+      final String? downloadUrl = file.mediaDownloadUrl ?? file.mediaStreamUrl;
+      if (downloadUrl == null || downloadUrl.isEmpty) continue;
+      tasksToEnqueue.add(
+        DownloadTask(
+          taskId: file.hash,
+          url: downloadUrl,
+          filename: file.title,
+          directory: workFileDirectory,
+          baseDirectory: BaseDirectory.root,
+          group: dynamicGroupName,
+          metaData: metaData == null ? '' : jsonEncode(metaData),
+          updates: Updates.statusAndProgress,
+          allowPause: true,
+          displayName: file.title,
+          retries: 3,
+        ),
+      );
+    }
 
     if (tasksToEnqueue.isNotEmpty) {
       debugPrint("准备入队 ${tasksToEnqueue.length} 个任务");
