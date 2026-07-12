@@ -11,6 +11,8 @@ import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/provider/audio_file_provider.dart';
 import 'package:kikoenai/features/album/presentation/widget/file_box.dart';
+import 'package:kikoenai/features/file_sort/presentation/provider/file_sort_provider.dart';
+import 'package:kikoenai/features/file_sort/presentation/widget/file_sort_dialog.dart';
 
 /// 本地作品文件区段：直接从 [FileScannerStorage] 读取已扫描的本地文件树，
 /// 一次性构建 [FileNodeLibraryIndex] 并缓存。
@@ -147,6 +149,10 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
 
   @override
   Widget build(BuildContext context) {
+    final sortOption = ref.watch(fileSortProvider);
+    // 排序配置变更时重新应用排序
+    _index.applySort(sortOption);
+
     final breadcrumb = _index.breadcrumbPath;
     final currentNodes = _index.currentChildren;
     final bool isRoot = _index.isHome;
@@ -265,6 +271,16 @@ class _BreadcrumbHeader extends ConsumerWidget {
               borderColor: Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             ),
+          ),
+          IconButton(
+            iconSize: 18,
+            splashRadius: 20,
+            padding: const EdgeInsets.all(8),
+            icon: Icon(
+              Icons.sort,
+              color: isDark ? Colors.white70 : Colors.grey,
+            ),
+            onPressed: () => FileSortDialog.show(context),
           ),
           IconButton(
             iconSize: 18,

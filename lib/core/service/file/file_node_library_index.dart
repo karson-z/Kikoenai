@@ -1,4 +1,5 @@
 import '../../model/file_node.dart';
+import '../../../features/file_sort/domain/file_sort_option.dart';
 
 class FileNodeLibraryIndex {
   final String rootPath;
@@ -6,6 +7,9 @@ class FileNodeLibraryIndex {
 
   final Map<NodeFolder, List<FileNode>> folderMap = {};
   final Map<String, FileNode> nodeByKey = {};
+
+  /// 当前排序配置，默认按 title 升序。
+  FileSortOption _currentSort = FileSortOption.defaultOption;
 
   late FolderTreeNode rootNode;
 
@@ -295,7 +299,7 @@ class FileNodeLibraryIndex {
       }
     }
 
-    _sort();
+    _sort(_currentSort);
   }
 
   FileNode _normalizeNode(FileNode node, String normalizedRoot) {
@@ -343,23 +347,131 @@ class FileNodeLibraryIndex {
     );
   }
 
-  void _sort() {
-    for (final files in folderMap.values) {
-      files.sort(
-        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-      );
-    }
+  /// 应用新的排序配置并重排文件树。
+  void applySort(FileSortOption option) {
+    _currentSort = option;
+    _sort(option);
+  }
 
+  void _sort(FileSortOption option) {
+    // folder 树始终按 title 升序保持稳定（folder 无 duration/size 字段）
     rootNode.walkIncludingSelf((node) {
       final entries = node.children.entries.toList()
-        ..sort(
-          (a, b) =>
-              a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()),
-        );
+        ..sort((a, b) =>
+            a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()));
       node.children
         ..clear()
         ..addEntries(entries);
     });
+
+    // 文件列表按 option.field 排序
+    for (final files in folderMap.values) {
+      files.sort((a, b) {
+        final cmp = _compareByField(a, b, option.field);
+        return option.descending ? -cmp : cmp;
+      });
+    }
+  }
+
+  int _compareByField(FileNode a, FileNode b, FileSortField field) {
+    switch (field) {
+      case FileSortField.title:
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      case FileSortField.titleNumber:
+        // 优先按标题前缀序号（"1." "10." "Episode 03" 等）数值比较；
+        // 解析不到序号时回退到 title 字母序，保证顺序稳定。
+        final aNum = _parseLeadingNumber(a.title);
+        final bNum = _parseLeadingNumber(b.title);
+        if (aNum != null && bNum != null) {
+          final cmp = aNum.compareTo(bNum);
+          if (cmp != 0) return cmp;
+        } else if (aNum != null) {
+          return -1;
+        } else if (bNum != null) {
+          return 1;
+        }
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      case FileSortField.duration:
+        return (a.duration ?? 0).compareTo(b.duration ?? 0);
+      case FileSortField.size:
+        return (a.size ?? 0).compareTo(b.size ?? 0);
+    }
+  }
+
+  /// 从 title 解析前缀数字序号。
+  /// 匹配模式（不区分大小写）：
+  ///   "1." "10." "001_"  → 返回 1, 10, 1
+  ///   "Episode 03" "EP.12" "Track 5" "第03话"  → 返回 3, 12, 5, 3
+  /// 解析不到返回 null。
+  static int? _parseLeadingNumber(String title) {
+    final t = title.trimLeft();
+    if (t.isEmpty) return null;
+
+    // 1) 纯数字开头（带可选分隔符 . _ - 空格）
+    final numPrefix = RegExp(r'^\d+');
+    final m1 = numPrefix.firstMatch(t);
+    if (m1 != null) {
+      // 数字后必须是分隔符或字符串结束，避免把 "100%" 之类当成序号
+      final after = m1.end;
+      if (after >= t.length) return int.tryParse(m1.group(0)!);
+      final sep = t[after];
+      if (sep == '.' || sep == '_' || sep == '-' || sep == ' ' || sep == '、') {
+        return int.tryParse(m1.group(0)!);
+      }
+    }
+
+    // 2) 带前缀的关键字：episode/ep/track/chapter/集/话/回
+    final keywordPrefix = RegExp(
+      r'^(?:ep(?:isode)?|track|chapter|ch|集|话|回)\s*[\.\-_\s]?\s*0*(\d+)',
+      caseSensitive: false,
+    );
+    final m2 = keywordPrefix.firstMatch(t);
+    if (m2 != null) return int.tryParse(m2.group(1)!);
+
+    // 3) 中文数字前缀："第一集" "第三话" 等
+    const cnDigits = '零一二三四五六七八九十百千';
+    if (cnDigits.contains(t[0])) {
+      final cnNum = RegExp(r'^[零一二三四五六七八九十百千]+');
+      final m3 = cnNum.firstMatch(t);
+      if (m3 != null) {
+        final n = _chineseToInt(m3.group(0)!);
+        if (n != null && n > 0) return n;
+      }
+    }
+
+    return null;
+  }
+
+  /// 简单中文数字转 int（支持一到九十九，覆盖"第X集"常见场景）。
+  static int? _chineseToInt(String s) {
+    const digits = {
+      '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+      '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+    };
+    if (s.isEmpty) return null;
+    if (s == '十') return 10;
+
+    int result = 0;
+    int current = 0;
+    bool hasTen = false;
+    for (int i = 0; i < s.length; i++) {
+      final c = s[i];
+      if (c == '十') {
+        hasTen = true;
+        if (current == 0) current = 1;
+        result += current * 10;
+        current = 0;
+      } else if (c == '百') {
+        result += (current == 0 ? 1 : current) * 100;
+        current = 0;
+      } else if (digits.containsKey(c)) {
+        current = digits[c]!;
+      } else {
+        return null;
+      }
+    }
+    result += current;
+    return result > 0 ? result : (hasTen ? 10 : null);
   }
 
   static String normalizePath(String path) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/features/album/presentation/widget/file_box.dart';
+import 'package:kikoenai/features/file_sort/presentation/widget/file_sort_dialog.dart';
 import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
 import '../../../../core/utils/scraper/scraper_storage.dart';
@@ -219,6 +220,19 @@ class ScannerPage extends ConsumerWidget {
       },
       child: CustomScrollView(
         slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => FileSortDialog.show(context),
+                  icon: const Icon(Icons.sort, size: 18),
+                  label: const Text('排序'),
+                ),
+              ),
+            ),
+          ),
           FileNodeBrowser(
             currentNodes: scannerState.children,
             work: null,

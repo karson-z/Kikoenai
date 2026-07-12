@@ -138,4 +138,10 @@ class StorageKeys {
 
   /// 窗口关闭行为：null=每次询问，'minimize'=最小化到托盘，'exit'=退出程序
   static const String windowCloseBehavior = 'window_close_behavior';
+
+  /// 文件树排序字段（FileSortField 枚举的 index）
+  static const String fileSortField = 'file_sort_field';
+
+  /// 文件树排序是否倒序
+  static const String fileSortDescending = 'file_sort_descending';
 }
