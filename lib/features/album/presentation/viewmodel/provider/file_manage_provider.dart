@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/model/file_node.dart';
+import '../../../../../core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 
 
@@ -113,7 +114,134 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
 
     state = newState; // 赋值新 Set 触发 UI 刷新
   }
-  /// 获取文件列表下的所有叶子节点
+
+
+  // ============================================================
+  // Index-aware 视图：folder 节点由 [FileNodeLibraryIndex] 提供，
+  // 其 `children` 字段为 null，因此需要借助 index 拿子文件。
+  //
+  // 选中规则：
+  //   - 选文件 → 选单文件
+  //   - 选 folder → 选中该 folder 子树下所有递归文件（含子文件夹内的文件）
+  //   - "全选"勾选框 → 选中整棵树所有文件
+  //
+  // 注意：folder 节点的 `node.folder` 返回的是父 folder 路径，
+  // 必须用 `node.path` 才能拿到 folder 自己的路径标识。
+  // ============================================================
+
+  /// 从 folder 节点拿到它"自身"的 [NodeFolder] 标识。
+  /// folder 节点的 `folderPath` 是父 folder，`path` 才是自己。
+  NodeFolder? _folderSelf(FileNode node) {
+    if (!node.isFolder) return null;
+    final p = node.path ?? node.mediaStreamUrl;
+    if (p == null || p.isEmpty) return null;
+    return NodeFolder(p);
+  }
+
+  /// Index 视图下的节点勾选状态。
+  bool? getNodeStateForIndex(FileNode node, FileNodeLibraryIndex index) {
+    if (!node.isFolder) {
+      return state.contains(node);
+    }
+
+    final self = _folderSelf(node);
+    if (self == null) return false;
+
+    // 拿该 folder 子树下所有递归文件（含子文件夹里的文件）
+    final allLeaves = index.recursiveFilesOf(self);
+    if (allLeaves.isEmpty) return false;
+
+    int selectedCount = 0;
+    for (final leaf in allLeaves) {
+      if (state.contains(leaf)) selectedCount++;
+    }
+
+    if (selectedCount == 0) return false;
+    if (selectedCount == allLeaves.length) return true;
+    return null;
+  }
+
+  /// Index 视图下切换节点选中状态。
+  void toggleNodeForIndex(FileNode node, FileNodeLibraryIndex index) {
+    if (!node.isFolder) {
+      // 单文件：直接切换
+      final newState = Set<FileNode>.from(state);
+      if (state.contains(node)) {
+        newState.remove(node);
+      } else {
+        newState.add(node);
+      }
+      state = newState;
+      return;
+    }
+
+    // folder：切换该 folder 子树下所有递归文件
+    final self = _folderSelf(node);
+    if (self == null) return;
+
+    final allLeaves = index.recursiveFilesOf(self);
+    if (allLeaves.isEmpty) return;
+
+    int selectedCount = 0;
+    for (final leaf in allLeaves) {
+      if (state.contains(leaf)) selectedCount++;
+    }
+
+    final bool shouldSelect = selectedCount != allLeaves.length;
+    final newState = Set<FileNode>.from(state);
+    if (shouldSelect) {
+      newState.addAll(allLeaves);
+    } else {
+      newState.removeAll(allLeaves);
+    }
+    state = newState;
+  }
+
+  /// Index 视图下整个根的选中状态（用于顶部"全选"复选框）。
+  /// true: 全选, false: 全不选, null: 半选
+  bool? getRootStateForIndex(FileNodeLibraryIndex index) {
+    final allLeaves = <FileNode>[];
+    index.walkFolders((folder, directFiles) {
+      allLeaves.addAll(directFiles);
+    });
+
+    if (allLeaves.isEmpty) return false;
+
+    int selectedCount = 0;
+    for (final leaf in allLeaves) {
+      if (state.contains(leaf)) selectedCount++;
+    }
+
+    if (selectedCount == 0) return false;
+    if (selectedCount == allLeaves.length) return true;
+    return null;
+  }
+
+  /// Index 视图下全选/取消全选当前根列表。
+  void toggleSelectAllForIndex(FileNodeLibraryIndex index) {
+    final allLeaves = <FileNode>[];
+    index.walkFolders((folder, directFiles) {
+      allLeaves.addAll(directFiles);
+    });
+
+    if (allLeaves.isEmpty) return;
+
+    int selectedCount = 0;
+    for (final leaf in allLeaves) {
+      if (state.contains(leaf)) selectedCount++;
+    }
+
+    final bool shouldSelect = selectedCount != allLeaves.length;
+    final newState = Set<FileNode>.from(state);
+    if (shouldSelect) {
+      newState.addAll(allLeaves);
+    } else {
+      newState.removeAll(allLeaves);
+    }
+    state = newState;
+  }
+
+  /// 文件列表下的所有叶子节点
   List<FileNode> _getAllLeavesFromList(List<FileNode> nodes) {
     List<FileNode> leaves = [];
     for (var node in nodes) {
