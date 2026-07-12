@@ -163,7 +163,7 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
             pinned: true,
             delegate: BreadcrumbHeaderDelegate(
               work: widget.work,
-              rootNodes: _index.toTreeChildren(),
+              rootNodes: _index,
               breadcrumb: breadcrumb,
               onRootTap: _goHome,
               onCrumbTap: _jumpToBreadcrumb,
@@ -191,7 +191,7 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
 
 class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
   final List<FileNode> breadcrumb;
-  final List<FileNode> rootNodes;
+  final FileNodeLibraryIndex rootNodes;
   final VoidCallback onRootTap;
   final Work work;
   final double height;
@@ -232,7 +232,7 @@ class BreadcrumbHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 class _BreadcrumbHeader extends ConsumerWidget {
   final List<FileNode> breadcrumb;
-  final List<FileNode> rootNodes;
+  final FileNodeLibraryIndex rootNodes;
   final VoidCallback onRootTap;
   final Work work;
   final double height;
@@ -277,7 +277,7 @@ class _BreadcrumbHeader extends ConsumerWidget {
             onPressed: () {
               FileTreeWoltSheet.show(
                 context: context,
-                roots: rootNodes,
+                index: rootNodes,
                 work: work,
               );
             },

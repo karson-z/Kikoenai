@@ -9,9 +9,9 @@ import 'package:kikoenai/features/player/presentation/widget/other/player_lyrics
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/features/player/presentation/widget/lyrics/player_lyrics_mapping_sheet.dart';
 import 'package:kikoenai/features/player/presentation/widget/other/player_more_widget.dart';
-import '../../../../../core/model/file_node.dart';
 import '../../../../../core/routes/app_routes.dart';
 import '../../../../../core/service/audio/audio_service_ctrl.dart';
+import '../../../../../core/service/file/file_node_library_index.dart';
 import '../../../../../core/service/file/file_scanner_storage.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
@@ -193,25 +193,24 @@ class _MoreOptionsContent extends ConsumerWidget {
             return;
           }
           try {
-            // 2. 异步获取 roots 数据
-            List<FileNode> roots;
+            // 直接获取 FileNodeLibraryIndex，无需再 fromTree 转换
+            FileNodeLibraryIndex index;
             if (track.isLocal) {
               // 处理本地逻辑
-              final localRoots = FileScannerStorage()
-                  .getWorkFileTreeLocally(workId)
-                  ?.children;
-              if (localRoots == null) {
+              final localIndex = FileScannerStorage()
+                  .getWorkFileIndexLocally(workId);
+              if (localIndex == null) {
                 KikoenaiToast.warning("当前拿不到本地的音频数据，请查看音频是否被删除,或扫描是否完成");
                 return; // 提前退出
               }
-              roots = localRoots;
+              index = localIndex;
             } else {
-              roots = await ref.read(trackFileNodeProvider(workId).future);
+              index = await ref.read(trackFileNodeIndexProvider(workId).future);
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
               context,
-              roots: roots,
+              index: index,
               work: work,
               isFirstPage: false,
             );

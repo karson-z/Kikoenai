@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
+import 'package:kikoenai/core/service/permission/permission_service.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../data/model/file_scanner_state.dart';
 import 'file_path_notifier.dart';
@@ -81,10 +82,18 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   }
 
   /// 开始/切换扫描路径（用户在路径管理弹窗里选中了某一条路径）
+  ///
+  /// 发起扫描前会先检查文件管理权限，未授权则请求；权限被拒则中止扫描。
   Future<void> startScan(
     ScanTarget scanTarget, {
     bool forceSync = false,
   }) async {
+    // 扫描前确保已获得文件管理权限，否则无法读取本地目录
+    if (!await _ensureStoragePermission()) {
+      state = state.copyWith(isScanning: false);
+      return;
+    }
+
     try {
       final didSync = await _service.startScan(
         scanTarget,
@@ -99,6 +108,12 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
       debugPrint('FileScannerNotifier: 扫描失败: $e');
       state = state.copyWith(isScanning: false);
     }
+  }
+
+  /// 确保已获得文件管理权限。已授权直接返回 true；未授权则发起请求。
+  Future<bool> _ensureStoragePermission() async {
+    if (await PermissionService.checkStoragePermission()) return true;
+    return PermissionService.requestStoragePermission();
   }
 
   Future<void> refreshCurrentTarget() async {
