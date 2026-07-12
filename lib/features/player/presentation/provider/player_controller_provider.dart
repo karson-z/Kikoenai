@@ -394,7 +394,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
       historyController.upsert(history);
 
-      debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
+      // debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }

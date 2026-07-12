@@ -6,6 +6,7 @@ import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../provider/player_controller_provider.dart';
 import 'dart:io';
+import 'package:cached_network_image_ce/cached_network_image.dart' as cnimage;
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -94,8 +95,8 @@ class BlurredImageService {
     }
 
     try {
-      // 4. 复用全局 CacheManager 的原图缓存（与 CachedNetworkImage / 列表共用），
-      //    避免重复下载；缓存未命中才走带重试的网络下载。
+      // 4. 从 cached_network_image_ce 的缓存中取原图（CachedNetworkImage 已缓存），
+      //    缓存命中失败才走带重试的网络下载。
       final Uint8List imageBytes = await _fetchOriginalBytes(url);
       if (imageBytes.isEmpty) return null;
 
@@ -125,24 +126,31 @@ class BlurredImageService {
     return null;
   }
 
-  /// 取原图字节数据。优先复用 [DefaultCacheManager] 已缓存文件，
+  /// 取原图字节数据。优先复用 [cnimage.CachedNetworkImageProvider.defaultCacheManager]
+  /// 已缓存文件（与 CachedNetworkImage / 列表共用同一份缓存），
   /// 未命中则带指数退避重试下载（应对服务端偶发断连 / 限流）。
   Future<Uint8List> _fetchOriginalBytes(String url) async {
-    final cacheManager = DefaultCacheManager();
+    // 使用 cached_network_image_ce 的默认缓存管理器，
+    // 直接复用 CachedNetworkImage 已缓存的原图，避免重复下载。
+    final cacheManager = cnimage.CachedNetworkImageProvider.defaultCacheManager;
 
-    // 4.1 先查磁盘缓存（命中即返回，不触发任何网络请求）
+    // 1. 先查磁盘缓存（命中即返回，不触发任何网络请求）
+    //    CachedNetworkImage 显示过这张图后此处必然命中。
     final cached = await cacheManager.getFileFromCache(url);
     if (cached != null && await cached.file.exists()) {
       return cached.file.readAsBytes();
     }
 
-    // 4.2 缓存未命中，带重试下载
+    // 2. 缓存未命中，带重试下载（下载后会被 cacheManager 自动缓存）
     Object? lastError;
     for (var attempt = 0; attempt < _kMaxFetchAttempts; attempt++) {
       try {
-        final File file = await cacheManager.getSingleFile(url);
-        if (await file.exists()) {
-          return file.readAsBytes();
+        await for (final response in cacheManager.getFileStream(url)) {
+          if (response is cnimage.FileInfo) {
+            if (await response.file.exists()) {
+              return response.file.readAsBytes();
+            }
+          }
         }
       } catch (e) {
         lastError = e;

@@ -24,7 +24,7 @@ class FileTreeWoltSheet {
   // ==========================================
   static Future<void> show({
     required BuildContext context,
-    required List<FileNode> roots,
+    required FileNodeLibraryIndex index,
     Work? work,
     bool isFirstPage = true,
   }) async {
@@ -37,28 +37,26 @@ class FileTreeWoltSheet {
             : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
-        return [buildPage(modalContext, roots: roots, work: work,isFirstPage: isFirstPage)];
+        return [buildPage(modalContext, index: index, work: work,isFirstPage: isFirstPage)];
       },
     );
   }
 
   static SliverWoltModalSheetPage buildPage(
       BuildContext context, {
-        required List<FileNode> roots,
+        required FileNodeLibraryIndex index,
         required Work? work,
         required bool isFirstPage
       }) {
     final theme = Theme.of(context);
-    // 将传入的文件树规整为 FileNodeLibraryIndex，统一供面包屑与列表导航使用。
-    final index = FileNodeLibraryIndex.fromTree(roots: roots);
     return SliverWoltModalSheetPage(
       backgroundColor: theme.scaffoldBackgroundColor,
       surfaceTintColor: Colors.transparent,
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
-      leadingNavBarWidget: FileTreeStickyHeader(index: index, roots: roots, work: work),
-      stickyActionBar: _buildInternalActionBar(roots, work,isFirstPage),
+      leadingNavBarWidget: FileTreeStickyHeader(index: index, work: work),
+      stickyActionBar: _buildInternalActionBar(index, work,isFirstPage),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
 
@@ -71,7 +69,7 @@ class FileTreeWoltSheet {
         ),
 
         // 2. 真正的 Sliver 内容直接放在数组里，不要套 BoxAdapter
-        _SliverFileTreeContent(index: index, roots: roots, work: work),
+        _SliverFileTreeContent(index: index, work: work),
 
         const SliverPadding(padding: EdgeInsets.only(bottom: 90)),
       ],
@@ -79,7 +77,7 @@ class FileTreeWoltSheet {
   }
 
   /// 内部业务逻辑：下载操作
-  static Widget _buildInternalActionBar(List<FileNode> roots, Work? work, bool isFirstPage) {
+  static Widget _buildInternalActionBar(FileNodeLibraryIndex index, Work? work, bool isFirstPage) {
     return Consumer(
       builder: (context, ref, _) {
         final theme = Theme.of(context);
@@ -127,6 +125,10 @@ class FileTreeWoltSheet {
                                 )
                                 .toList();
 
+                            // 下载服务需要完整的树结构来保留目录层级，
+                            // 从索引还原为树节点列表。
+                            final roots = index.toTreeChildren();
+
                             DownloadService.instance.enqueueBatch(
                               selectedFiles: filesToDownload,
                               rootNodes: roots,
@@ -158,12 +160,10 @@ class FileTreeWoltSheet {
 }
 
 class _SliverFileTreeContent extends ConsumerStatefulWidget {
-  final List<FileNode> roots;
   final Work? work;
   final FileNodeLibraryIndex index;
 
   const _SliverFileTreeContent({
-    required this.roots,
     required this.index,
     this.work,
   });
@@ -292,13 +292,11 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
 }
 
 class FileTreeStickyHeader extends ConsumerWidget {
-  final List<FileNode> roots;
   final Work? work;
   final FileNodeLibraryIndex index;
 
   const FileTreeStickyHeader({
     super.key,
-    required this.roots,
     required this.index,
     this.work,
   });
