@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:kikoenai/features/file_sort/presentation/widget/file_sort_dialog.dart';
+import 'package:kikoenai/features/file_sort/presentation/provider/file_sort_provider.dart';
 
 import '../../../features/album/data/model/work.dart';
 import '../../../features/download/presentation/provider/download_provider.dart';
@@ -197,6 +199,8 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
     ref.watch(fileSelectionProvider);
     // 监听面包屑路径，导航后自动重建并取最新 currentChildren。
     ref.watch(breadcrumbProvider(BreadCrumbBarType.player));
+    final sortOption = ref.watch(fileSortProvider);
+    widget.index.applySort(sortOption);
     final List<FileNode> currentNodes = widget.index.currentChildren;
 
     return SliverMainAxisGroup(
@@ -348,6 +352,12 @@ class FileTreeStickyHeader extends ConsumerWidget {
                 _buildSelectionInfo(theme, selectionNotifier),
                 const Spacer(),
                 _buildQueueButton(ref, selectionNotifier),
+                IconButton(
+                  icon: const Icon(Icons.sort, size: 20),
+                  tooltip: '排序',
+                  onPressed: () => FileSortDialog.show(context),
+                  visualDensity: VisualDensity.compact,
+                ),
               ],
             ),
           ),

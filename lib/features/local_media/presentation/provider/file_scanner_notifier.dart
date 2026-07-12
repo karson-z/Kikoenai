@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/service/permission/permission_service.dart';
+import 'package:kikoenai/features/file_sort/presentation/provider/file_sort_provider.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
 import '../../data/model/file_scanner_state.dart';
 import 'file_path_notifier.dart';
@@ -29,9 +30,14 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
 
   @override
   FileBrowserState build() {
+    final sortOption = ref.watch(fileSortProvider);
     _service = FileScannerService.instance;
     ref.onDispose(_cleanupService);
     _initializeService();
+    if (_libraryIndex != null) {
+      _libraryIndex!.applySort(sortOption);
+      _updateStateFromIndex();
+    }
     final targetsNotifier = ref.read(scanTargetsProvider.notifier);
     final ScanTarget? activeTarget = targetsNotifier.getActiveTarget();
     if (activeTarget == null) {
@@ -62,6 +68,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
           flatNodes: batch.flatNodes,
           rootPath: batch.rootPath,
         );
+        _libraryIndex!.applySort(ref.read(fileSortProvider));
         if (state.currentFolderPath != null &&
             state.currentFolderPath != batch.rootPath) {
           _libraryIndex!.stepIn(NodeFolder(state.currentFolderPath!));
