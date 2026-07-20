@@ -1,183 +1,146 @@
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
 
 class MoreOptionsBottomSheet extends StatelessWidget {
-  final MediaItem track;
+  final PlaybackItem track;
   final List<QuickActionItem> quickActions;
   final List<ListActionItem> listActions;
 
-  const MoreOptionsBottomSheet(
-      {super.key,
-      required this.track,
-      required this.quickActions,
-      required this.listActions});
+  const MoreOptionsBottomSheet({
+    super.key,
+    required this.track,
+    required this.quickActions,
+    required this.listActions,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 判断是否深色模式
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // 背景色
-    final bgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    // 主要文字颜色
-    final primaryTextColor = isDark ? Colors.white : const Color(0xFF333333);
-    // 次要文字颜色
-    final secondaryTextColor = isDark ? Colors.white70 : Colors.grey[600];
-    // 图标颜色
-    final iconColor = isDark ? Colors.white70 : Colors.grey[800];
-    // 分割线颜色
-    final dividerColor = isDark ? Colors.white10 : Colors.grey[200];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 顶部把手
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[700] : Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
+    // 只需要拿到 theme，所有的颜色都会自动派生
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final secondaryColor = colorScheme.onSurface.withValues(alpha: 0.6);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 1. 歌曲信息头部
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              // 专辑封面
+              SimpleExtendedImage(
+                borderRadius: BorderRadius.circular(8),
+                track.coverUrl ?? track.smallCoverUrl ?? "",
+                width: 60,
+                height: 60,
+              ),
+              const SizedBox(width: 16),
+              // 标题和歌手
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      // 使用主题的 titleMedium，自动适配黑白字
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      track.artist ?? '未知作者',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      // 使用衍生出的次要颜色
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            // 1. 歌曲信息头部
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  // 专辑封面
-                  SimpleExtendedImage(
-                    borderRadius: BorderRadius.circular(8),
-                    track.extras?['mainCoverUrl'] ?? "",
-                    width: 60,
-                    height: 60,
-                  ),
-                  const SizedBox(width: 16),
-                  // 标题和歌手
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          track.artist ?? '未知作者',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: secondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: dividerColor),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: quickActions.map((action) {
-                  return _buildActionButton(
-                    action,
-                    iconColor!,
-                    primaryTextColor,
-                  );
-                }).toList(),
-              ),
-            ),
-            Divider(height: 1, color: dividerColor),
-            ...listActions.map((item) {
-              return _buildListItem(
-                item,
-                iconColor!,
-                primaryTextColor,
-                secondaryTextColor!,
-              );
-            }),
-            const SizedBox(height: 20),
-          ],
+            ],
+          ),
         ),
-      ),
+        const Divider(),
+
+        // 2. 快捷操作按钮区 (收藏、文件管理等)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: quickActions.map((action) {
+              return _buildActionButton(action, theme);
+            }).toList(),
+          ),
+        ),
+
+        const Divider(),
+
+        // 3. 列表菜单区
+        ...listActions.map((item) {
+          return _buildListItem(item, theme, secondaryColor);
+        }),
+        const SizedBox(height: 20),
+      ],
     );
   }
 
-  // 构建功能按钮 (收藏、下载等)
-  Widget _buildActionButton(QuickActionItem action, Color iconColor, Color textColor) {
+  // 构建功能按钮
+  Widget _buildActionButton(QuickActionItem action, ThemeData theme) {
     return InkWell(
-      onTap: action.onTap, // 直接绑定传入的回调
+      onTap: action.onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(action.icon, size: 28, color: iconColor),
+            // Icon 默认就会使用当前主题的颜色，无需手动传色
+            Icon(action.icon, size: 28),
             const SizedBox(height: 8),
-            Text(
-              action.label,
-              style: TextStyle(fontSize: 12, color: textColor),
-            ),
+            Text(action.label, style: theme.textTheme.bodySmall),
           ],
         ),
       ),
     );
   }
 
-  // 内部组件构建方法 - 接收 ListActionItem 对象
-// 内部组件构建方法 - 接收 ListActionItem 对象
-  Widget _buildListItem(ListActionItem item, Color iconColor, Color titleColor, Color subtitleColor) {
-    // 提取初始状态（闭包外声明，防止 StatefulBuilder 重绘时重置）
+  // 内部组件构建方法
+  Widget _buildListItem(
+    ListActionItem item,
+    ThemeData theme,
+    Color secondaryColor,
+  ) {
     bool currentSwitchValue = item.initialSwitchValue;
 
     return StatefulBuilder(
       builder: (context, setState) {
         return InkWell(
-          // 如果是开关模式，点击整行也能切换开关；否则执行常规 onTap
           onTap: item.hasSwitch
               ? () {
-            setState(() {
-              currentSwitchValue = !currentSwitchValue;
-            });
-            item.onSwitchChanged?.call(currentSwitchValue);
-          }
+                  setState(() => currentSwitchValue = !currentSwitchValue);
+                  item.onSwitchChanged?.call(currentSwitchValue);
+                }
               : item.onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0), // 包含 Switch 时稍微缩小垂直 padding
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 12.0,
+            ),
             child: Row(
               children: [
-                Icon(item.icon, size: 24, color: iconColor),
+                Icon(item.icon, size: 24),
                 const SizedBox(width: 16),
-                // 使用 Expanded 撑开中间区域，将 Switch 推到最右侧
                 Expanded(
                   child: Row(
                     children: [
-                      Text(
-                        item.title,
-                        style: TextStyle(fontSize: 16, color: titleColor),
-                      ),
+                      Text(item.title, style: theme.textTheme.titleSmall),
                       if (item.subtitle != null) ...[
                         const SizedBox(width: 12),
                         Expanded(
@@ -185,29 +148,29 @@ class MoreOptionsBottomSheet extends StatelessWidget {
                             item.subtitle!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 14, color: subtitleColor),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: secondaryColor,
+                            ),
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                // 如果启用了开关，则在右侧渲染 Switch
                 if (item.hasSwitch)
                   Transform.scale(
                     scale: 0.75,
                     child: Switch(
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       value: currentSwitchValue,
-                      activeTrackColor: Theme.of(context).primaryColor,
+                      // 主题色高亮，直接读 colorScheme.primary
+                      activeTrackColor: theme.colorScheme.primary,
                       onChanged: (val) {
-                        setState(() {
-                          currentSwitchValue = val;
-                        });
+                        setState(() => currentSwitchValue = val);
                         item.onSwitchChanged?.call(val);
                       },
                     ),
-                  )
+                  ),
               ],
             ),
           ),
@@ -217,7 +180,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
   }
 }
 
-// 数据驱动模型
+// 数据驱动模型保持不变...
 class QuickActionItem {
   final IconData icon;
   final String label;
@@ -230,14 +193,11 @@ class QuickActionItem {
   });
 }
 
-// 用于底部列表项（专辑、歌手、百科）
 class ListActionItem {
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
-
-  // --- 新增开关相关属性 ---
   final bool hasSwitch;
   final bool initialSwitchValue;
   final ValueChanged<bool>? onSwitchChanged;

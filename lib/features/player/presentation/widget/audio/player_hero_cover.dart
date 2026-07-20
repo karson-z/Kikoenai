@@ -10,19 +10,11 @@ class FloatingCoverImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radiusValue),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 10))
-        ],
-      ),
-      child: SimpleExtendedImage(
-          url ?? '',
-          borderRadius: BorderRadius.circular(radiusValue),
-          fit: BoxFit.cover,
-          loadingSize: 20,
-      ),
+    return SimpleExtendedImage(
+      url ?? '',
+      borderRadius: BorderRadius.circular(radiusValue),
+      fit: BoxFit.cover,
+      loadingSize: 20,
     );
   }
 }

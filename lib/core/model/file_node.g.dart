@@ -27,16 +27,25 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       workTitle: fields[7] as String?,
       artist: fields[8] as String?,
       lastModified: fields[9] == null ? 0 : (fields[9] as num).toInt(),
-      nodeStatus:
-          fields[10] == null ? NodeStatus.normal : fields[10] as NodeStatus,
-      rjCode: fields[11] as String?,
+      nodeStatus: fields[10] == null
+          ? NodeStatus.normal
+          : fields[10] as NodeStatus,
+      workId: (fields[11] as num?)?.toInt(),
+      source: fields[12] == null
+          ? NodeSource.asmrServer
+          : fields[12] as NodeSource,
+      path: fields[13] as String?,
+      folderPath: fields[14] as String?,
+      rootPath: fields[15] as String?,
+      parentPath: fields[16] as String?,
+      depth: fields[17] == null ? 0 : (fields[17] as num).toInt(),
     );
   }
 
   @override
   void write(BinaryWriter writer, FileNode obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.type)
       ..writeByte(1)
@@ -60,7 +69,19 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
       ..writeByte(10)
       ..write(obj.nodeStatus)
       ..writeByte(11)
-      ..write(obj.rjCode);
+      ..write(obj.workId)
+      ..writeByte(12)
+      ..write(obj.source)
+      ..writeByte(13)
+      ..write(obj.path)
+      ..writeByte(14)
+      ..write(obj.folderPath)
+      ..writeByte(15)
+      ..write(obj.rootPath)
+      ..writeByte(16)
+      ..write(obj.parentPath)
+      ..writeByte(17)
+      ..write(obj.depth);
   }
 
   @override
@@ -70,6 +91,51 @@ class FileNodeAdapter extends TypeAdapter<FileNode> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is FileNodeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class NodeSourceAdapter extends TypeAdapter<NodeSource> {
+  @override
+  final typeId = 15;
+
+  @override
+  NodeSource read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return NodeSource.asmrServer;
+      case 1:
+        return NodeSource.localWork;
+      case 2:
+        return NodeSource.localSingle;
+      case 3:
+        return NodeSource.cloudDrive;
+      default:
+        return NodeSource.asmrServer;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, NodeSource obj) {
+    switch (obj) {
+      case NodeSource.asmrServer:
+        writer.writeByte(0);
+      case NodeSource.localWork:
+        writer.writeByte(1);
+      case NodeSource.localSingle:
+        writer.writeByte(2);
+      case NodeSource.cloudDrive:
+        writer.writeByte(3);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeSourceAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
@@ -180,41 +246,57 @@ class NodeStatusAdapter extends TypeAdapter<NodeStatus> {
 // JsonSerializableGenerator
 // **************************************************************************
 
-FileNode _$FileNodeFromJson(Map<String, dynamic> json) => FileNode(
-      type: $enumDecode(_$NodeTypeEnumMap, json['type']),
-      title: json['title'] as String,
-      children: (json['children'] as List<dynamic>?)
-          ?.map((e) => FileNode.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      hash: json['hash'] as String?,
-      mediaStreamUrl: json['mediaStreamUrl'] as String?,
-      mediaDownloadUrl: json['mediaDownloadUrl'] as String?,
-      duration: (json['duration'] as num?)?.toDouble(),
-      size: (json['size'] as num?)?.toInt(),
-      workTitle: json['workTitle'] as String?,
-      artist: json['artist'] as String?,
-      lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
-      nodeStatus:
-          $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
-              NodeStatus.normal,
-      rjCode: json['rjCode'] as String?,
-    );
+_FileNode _$FileNodeFromJson(Map<String, dynamic> json) => _FileNode(
+  type: $enumDecode(_$NodeTypeEnumMap, json['type']),
+  title: json['title'] as String,
+  children: (json['children'] as List<dynamic>?)
+      ?.map((e) => FileNode.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  hash: json['hash'] as String?,
+  mediaStreamUrl: json['mediaStreamUrl'] as String?,
+  mediaDownloadUrl: json['mediaDownloadUrl'] as String?,
+  duration: (json['duration'] as num?)?.toDouble(),
+  size: (json['size'] as num?)?.toInt(),
+  workTitle: json['workTitle'] as String?,
+  artist: json['artist'] as String?,
+  lastModified: (json['lastModified'] as num?)?.toInt() ?? 0,
+  nodeStatus:
+      $enumDecodeNullable(_$NodeStatusEnumMap, json['nodeStatus']) ??
+      NodeStatus.normal,
+  workId: (json['workId'] as num?)?.toInt(),
+  source:
+      $enumDecodeNullable(_$NodeSourceEnumMap, json['source']) ??
+      NodeSource.asmrServer,
+  path: json['path'] as String?,
+  folderPath: json['folderPath'] as String?,
+  rootPath: json['rootPath'] as String?,
+  parentPath: json['parentPath'] as String?,
+  depth: (json['depth'] as num?)?.toInt() ?? 0,
+  subItemsCount: (json['subItemsCount'] as num?)?.toInt() ?? 0,
+);
 
-Map<String, dynamic> _$FileNodeToJson(FileNode instance) => <String, dynamic>{
-      'type': _$NodeTypeEnumMap[instance.type]!,
-      'title': instance.title,
-      'children': instance.children,
-      'hash': instance.hash,
-      'mediaStreamUrl': instance.mediaStreamUrl,
-      'mediaDownloadUrl': instance.mediaDownloadUrl,
-      'duration': instance.duration,
-      'size': instance.size,
-      'workTitle': instance.workTitle,
-      'artist': instance.artist,
-      'lastModified': instance.lastModified,
-      'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
-      'rjCode': instance.rjCode,
-    };
+Map<String, dynamic> _$FileNodeToJson(_FileNode instance) => <String, dynamic>{
+  'type': _$NodeTypeEnumMap[instance.type]!,
+  'title': instance.title,
+  'children': instance.children,
+  'hash': instance.hash,
+  'mediaStreamUrl': instance.mediaStreamUrl,
+  'mediaDownloadUrl': instance.mediaDownloadUrl,
+  'duration': instance.duration,
+  'size': instance.size,
+  'workTitle': instance.workTitle,
+  'artist': instance.artist,
+  'lastModified': instance.lastModified,
+  'nodeStatus': _$NodeStatusEnumMap[instance.nodeStatus]!,
+  'workId': instance.workId,
+  'source': _$NodeSourceEnumMap[instance.source]!,
+  'path': instance.path,
+  'folderPath': instance.folderPath,
+  'rootPath': instance.rootPath,
+  'parentPath': instance.parentPath,
+  'depth': instance.depth,
+  'subItemsCount': instance.subItemsCount,
+};
 
 const _$NodeTypeEnumMap = {
   NodeType.folder: 'folder',
@@ -231,4 +313,11 @@ const _$NodeStatusEnumMap = {
   NodeStatus.pending: 'pending',
   NodeStatus.parsing: 'parsing',
   NodeStatus.parsed: 'parsed',
+};
+
+const _$NodeSourceEnumMap = {
+  NodeSource.asmrServer: 'asmrServer',
+  NodeSource.localWork: 'localWork',
+  NodeSource.localSingle: 'localSingle',
+  NodeSource.cloudDrive: 'cloudDrive',
 };

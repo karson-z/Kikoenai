@@ -1,8 +1,10 @@
 import 'package:flutter/cupertino.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_list.dart';
 
-import '../../../../config/work_layout_strategy.dart';
+import '../../../../config/work_layout_config.dart';
 
 class ResponsiveListGrid extends StatelessWidget {
   final List<Work> work;
@@ -11,22 +13,26 @@ class ResponsiveListGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.list);
-
-    final columns = layoutStrategy.getColumnsCount(context);
-    final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
-    final verticalSpacing = layoutStrategy.getRowSpacing(context);
+    final layout = WorkLayoutConfig.list(context);
 
     return SliverGrid.builder(
       itemCount: work.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: horizontalSpacing,
-        mainAxisSpacing: verticalSpacing,
+        crossAxisCount: layout.columns,
+        crossAxisSpacing: layout.horizontalSpacing,
+        mainAxisSpacing: layout.verticalSpacing,
         childAspectRatio: 2.6, // 横向大于纵向
       ),
       itemBuilder: (context, index) {
-        return WorkListItem(workInfo: work[index]);
+        final item = work[index];
+        return WorkListItem(
+          imageUrl: item.mainCoverUrl,
+          title: item.title,
+          name: item.name,
+          onTap: () {
+            context.push(AppRoutes.detail, extra: {'work': item});
+          },
+        );
       },
     );
   }

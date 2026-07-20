@@ -3,44 +3,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
-import '../../../features/category/presentation/viewmodel/provider/category_data_provider.dart';
+import 'package:kikoenai/features/category/presentation/viewmodel/provider/category_data_provider.dart';
+
 import '../../enums/age_rating.dart';
 import '../../enums/tag_enum.dart';
+import '../filter/provider/filter_search_notifier.dart';
 
 class WorkCard extends ConsumerWidget {
-  final Work work;
-  final bool? isLocalMedia;
-  final String? lastTrackTitle;
-  final DateTime? lastPlayedAt;
+  final int id;
+  final String? title;
+  final String? name;
+  final String? circleName;
+  final String? mainCoverUrl;
+  final String heroTag;
+  final bool? hasSubtitle;
+  final String? ageCategoryString;
+  final String? release;
+  final List<dynamic>? vas;
+  final List<dynamic>? tags;
+  final VoidCallback? onTap;
+
   static const double kTitleFontSize = 13.0;
   static const double kSubtitleFontSize = 11.0;
-  static const double kInfoFontSize = 10.0;
 
   const WorkCard({
     super.key,
-    required this.work,
-    this.lastTrackTitle,
-    this.lastPlayedAt,
-    this.isLocalMedia
+    required this.id,
+    this.title,
+    this.name,
+    this.circleName,
+    this.mainCoverUrl,
+    required this.heroTag,
+    this.hasSubtitle,
+    this.ageCategoryString,
+    this.release,
+    this.vas,
+    this.tags,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final showHistoryInfo = lastTrackTitle != null && lastPlayedAt != null;
-    final isSubTitle = work.hasSubtitle ?? false;
+    final isSubTitle = hasSubtitle ?? false;
+    final displayName = name ?? circleName ?? '';
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: () {
-        context.push(AppRoutes.detail, extra: {'work': work,'isLocal': isLocalMedia});
-      },
+      onTap: onTap,
       child: Card(
         clipBehavior: Clip.hardEdge,
         elevation: 2,
         shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4))
+          borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,37 +66,39 @@ class WorkCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   Hero(
-                    tag: work.heroTag!,
-                    child: SimpleExtendedImage(
-                      work.mainCoverUrl ?? '',
-                      width: 240,
-                    ),
+                    tag: heroTag,
+                    child: SimpleExtendedImage(mainCoverUrl ?? '', width: 240),
                   ),
                   _PositionedBadge(
-                    top: 8, left: 8,
-                    text: "RJ${work.id}",
+                    top: 8,
+                    left: 8,
+                    text: 'RJ$id',
                     color: Colors.black.withAlpha(60),
                   ),
-                  if(work.ageCategoryString != null)
-                  _PositionedBadge(
-                    top: 8, right: 8,
-                    text: AgeRatingEnum.labelFromValue(work.ageCategoryString),
-                    color: AgeRatingEnum.ageRatingColorByValue(work.ageCategoryString),
-                  ),
+                  if (ageCategoryString != null)
+                    _PositionedBadge(
+                      top: 8,
+                      right: 8,
+                      text: AgeRatingEnum.labelFromValue(ageCategoryString),
+                      color: AgeRatingEnum.ageRatingColorByValue(
+                        ageCategoryString,
+                      ),
+                    ),
                   Positioned(
-                    bottom: 2, left: 8,
+                    bottom: 2,
+                    left: 8,
                     child: _AppIconBadge(isSubTitle: isSubTitle),
                   ),
-                  if(work.release != null)
-                  _PositionedBadge(
-                    bottom: 0, right: 0,
-                    text: work.release.toString(),
-                    color: Colors.black.withAlpha(90),
-                  ),
+                  if (release != null)
+                    _PositionedBadge(
+                      bottom: 0,
+                      right: 0,
+                      text: release.toString(),
+                      color: Colors.black.withAlpha(90),
+                    ),
                 ],
               ),
             ),
-
             Flexible(
               fit: FlexFit.tight,
               child: Padding(
@@ -89,9 +106,8 @@ class WorkCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 标题
                     Text(
-                      work.title ?? "",
+                      title ?? '',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: kTitleFontSize,
@@ -100,26 +116,25 @@ class WorkCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-
                     const SizedBox(height: 4),
-
-                    // 社团名称 (使用 MouseRegion 包裹 GestureDetector)
                     MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
-                        // 直接使用 build 方法传入的 ref
                         onTap: () {
-                          if (work.name != null) {
-                            ref.read(categoryUiProvider.notifier).toggleTag(
-                                TagType.circle.stringValue,
-                                work.name!,
-                                refreshData: true
-                            );
+                          if (name != null) {
+                            ref
+                                .read(
+                                  searchFilterProvider(
+                                    FilterModule.category,
+                                  ).notifier,
+                                )
+                                .toggleTag(TagType.circle.stringValue, name!);
+                            ref.invalidate(categoryProvider);
                             context.go(AppRoutes.category);
                           }
                         },
                         child: Text(
-                          work.name ?? work.circle?.name ?? '',
+                          displayName,
                           style: TextStyle(
                             fontSize: kSubtitleFontSize,
                             color: Colors.grey[700],
@@ -131,14 +146,7 @@ class WorkCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    if (showHistoryInfo)
-                      _HistoryInfo(
-                        trackTitle: lastTrackTitle,
-                        playedAt: lastPlayedAt,
-                        fontSize: kInfoFontSize,
-                      )
-                    else
-                      _TagsInfo(work: work),
+                    _TagsInfo(vas: vas, tags: tags),
                   ],
                 ),
               ),
@@ -150,7 +158,6 @@ class WorkCard extends ConsumerWidget {
   }
 }
 
-
 class _PositionedBadge extends StatelessWidget {
   final double? top;
   final double? bottom;
@@ -160,7 +167,10 @@ class _PositionedBadge extends StatelessWidget {
   final Color color;
 
   const _PositionedBadge({
-    this.top, this.bottom, this.left, this.right,
+    this.top,
+    this.bottom,
+    this.left,
+    this.right,
     required this.text,
     required this.color,
   });
@@ -168,7 +178,10 @@ class _PositionedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: top, bottom: bottom, left: left, right: right,
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
       child: Container(
         decoration: BoxDecoration(
           color: color,
@@ -213,45 +226,11 @@ class _AppIconBadge extends StatelessWidget {
   }
 }
 
-class _HistoryInfo extends StatelessWidget {
-  final String? trackTitle;
-  final DateTime? playedAt;
-  final double fontSize;
-
-  const _HistoryInfo({
-    required this.trackTitle,
-    required this.playedAt,
-    required this.fontSize,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          "当前: $trackTitle",
-          style: TextStyle(fontSize: fontSize, color: Colors.blueAccent),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          "上次: ${playedAt.toString().split('.')[0]}",
-          style: TextStyle(fontSize: fontSize, color: Colors.green),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-}
-
 class _TagsInfo extends StatelessWidget {
-  final Work work;
+  final List<dynamic>? vas;
+  final List<dynamic>? tags;
 
-  const _TagsInfo({required this.work});
+  const _TagsInfo({required this.vas, required this.tags});
 
   @override
   Widget build(BuildContext context) {
@@ -259,9 +238,9 @@ class _TagsInfo extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TagRow(tags: work.vas ?? [], type: TagType.va),
+        TagRow(tags: vas ?? [], type: TagType.va),
         const SizedBox(height: 4),
-        TagRow(tags: work.tags ?? [], type: TagType.tag),
+        TagRow(tags: tags ?? [], type: TagType.tag),
       ],
     );
   }

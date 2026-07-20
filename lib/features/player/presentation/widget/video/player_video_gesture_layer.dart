@@ -73,7 +73,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
     }
 
     if (event.scrollDelta.dy != 0) {
-      final screenWidth = MediaQuery.of(context).size.width;
+      final screenWidth = MediaQuery.sizeOf(context).width;
       final delta = event.scrollDelta.dy < 0 ? 0.05 : -0.05;
 
       if (event.localPosition.dx < screenWidth / 2) {
@@ -101,7 +101,6 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          widget.child,
           Positioned.fill(
             child: Listener(
               onPointerSignal: _handlePointerSignal,
@@ -133,9 +132,8 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     : (details) {
                   final total = state.progressBarState.total.inSeconds;
                   if (total <= 0) return;
-
                   final deltaSeconds = details.primaryDelta! /
-                      (MediaQuery.of(context).size.width / total * 0.5);
+                      (MediaQuery.sizeOf(context).width / total * 0.5);
                   _dragValue += deltaSeconds;
                   _dragValue = _dragValue.clamp(0, total.toDouble());
 
@@ -149,12 +147,14 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     controller.seek(Duration(seconds: _dragValue.toInt()));
                   }
                 },
+
+                // 3. 实际的业务逻辑：调节音量和亮度
                 onVerticalDragUpdate: isDesktop
                     ? null
                     : (details) {
-                  final screenWidth = MediaQuery.of(context).size.width;
+                  final screenWidth = MediaQuery.sizeOf(context).width;
                   final localPosition = details.localPosition.dx;
-                  final delta = -details.primaryDelta! / 200;
+                  final delta = -(details.primaryDelta ?? 0) / 200;
 
                   if (localPosition < screenWidth / 2) {
                     _currentBrightness = (_currentBrightness + delta).clamp(0.0, 1.0);
@@ -165,7 +165,14 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     _showFeedback(GestureFeedbackType.volume);
                   }
                 },
-                child: const SizedBox.expand(),
+
+                // 4. 宣告对拖拽结束感兴趣 (拦截关键)
+                onVerticalDragEnd: isDesktop ? null : (_) {},
+
+                // 5. 宣告对拖拽取消感兴趣 (拦截关键)
+                onVerticalDragCancel: isDesktop ? null : () {},
+
+                child: widget.child,
               ),
             ),
           ),
@@ -208,7 +215,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
           color: Colors.white,
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          decoration: TextDecoration.none,
+          decoration: TextDecoration.none, // 防止被上层组件强制覆盖样式
         ),
       ),
     );

@@ -12,10 +12,9 @@ class ScraperStorage {
   /// 获取 Hive Box 引用 (请替换为实际的存放路径)
   Box<Work> get _box => AppStorage.scraperWorkBox;
 
-  /// 根据 RJ 码获取单个作品元数据
-  Work? getWork(String rjCode) {
-    if (rjCode.isEmpty) return null;
-    return _box.get(rjCode.toUpperCase());
+  /// 根据作品 ID 获取单个作品元数据
+  Work? getWork(int workId) {
+    return _box.get(workId) ?? _box.get('RJ0$workId') ?? _box.get('RJ$workId');
   }
 
   /// 获取所有已保存的作品元数据
@@ -25,16 +24,14 @@ class ScraperStorage {
 
   /// 检查是否已存在该作品的元数据
   /// 场景：刮削器执行解析前，判断本地是否已有缓存，避免重复发起 API 请求
-  bool hasWork(String rjCode) {
-    if (rjCode.isEmpty) return false;
-    return _box.containsKey(rjCode.toUpperCase());
+  bool hasWork(int workId) {
+    return getWork(workId) != null;
   }
 
   /// 保存单个作品元数据
   /// 场景：解析器 (Parser) 成功拿到 API 数据后，将其落盘
-  Future<void> saveWork(String rjCode, Work work) async {
-    if (rjCode.isEmpty) return;
-    await _box.put(rjCode.toUpperCase(), work);
+  Future<void> saveWork(int workId, Work work) async {
+    await _box.put(workId, work);
   }
 
   /// 批量保存作品元数据
@@ -42,18 +39,16 @@ class ScraperStorage {
   Future<void> saveWorks(Map<String, Work> worksMap) async {
     if (worksMap.isEmpty) return;
 
-    // 确保所有 Key 都符合大写规范
-    final normalizedMap = worksMap.map(
-            (key, value) => MapEntry(key.toUpperCase(), value)
-    );
+    final normalizedMap = {
+      for (final work in worksMap.values) work.id: work,
+    };
     await _box.putAll(normalizedMap);
   }
 
   /// 删除单个作品元数据
   /// 场景：用户手动解除本地文件夹与作品的关联，或清除指定错误数据
-  Future<void> deleteWork(String rjCode) async {
-    if (rjCode.isEmpty) return;
-    await _box.delete('RJ0${rjCode.toUpperCase()}');
+  Future<void> deleteWork(int workId) async {
+    await _box.deleteAll([workId, 'RJ0$workId', 'RJ$workId']);
   }
 
   /// 清空所有作品元数据 (慎用)

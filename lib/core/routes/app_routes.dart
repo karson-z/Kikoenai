@@ -26,7 +26,16 @@ class AppRoutes {
   static String get settingsCache => '$settings/cache';
   static String get settingsAccount => '$settings/account';
   static String get settingsComment => '$settings/comment';
+  static String get settingsLog => '$settings/log';
+  static String get settingsGlobalFilter => '$settings/filter';
 
+  static List<String> get mainPages => [
+    AppRoutes.home,
+    AppRoutes.category,
+    AppRoutes.localMedia,
+    AppRoutes.user,
+    AppRoutes.test,
+  ];
   static String toRelative(String path) {
     // 比如把 '/settings/permission' 变成 'permission'
     return path.split('/').last;

@@ -7,7 +7,7 @@ import 'package:kikoenai/features/marked/presentation/page/review_page.dart';
 import 'package:kikoenai/features/playlist/presentation/page/playlist_page.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
 import '../../../download/presentation/page/download_page.dart';
-import 'history_page.dart';
+import '../../../history/presentation/page/history_page.dart';
 
 class UserPage extends ConsumerStatefulWidget {
   const UserPage({super.key});
@@ -69,7 +69,7 @@ class _UserPageState extends ConsumerState<UserPage>
                             const SimpleExtendedImage.avatar(
                               width: 32,
                               height: 32,
-                              'assets/images/138787745_p0_master1200.jpg',
+                              'assets/images/app_icon.jpg',
                             ),
                             const SizedBox(width: 12),
                             Flexible(
@@ -114,7 +114,7 @@ class _UserPageState extends ConsumerState<UserPage>
                           const SimpleExtendedImage.avatar(
                             width: 80,
                             height: 80,
-                            'assets/images/138787745_p0_master1200.jpg',
+                            'assets/images/app_icon.jpg',
                           ),
                           const SizedBox(width: 16),
                           Expanded(

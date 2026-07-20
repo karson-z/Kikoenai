@@ -14,41 +14,38 @@ class PlayerProgressBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(playerControllerProvider);
-    final progressBarState = state.progressBarState;
-    final bool isBuffering = state.loading;
+    final progressBarState = ref.watch(playerControllerProvider.select((p) => p.progressBarState));
+    final bool isBuffering = ref.watch(playerControllerProvider.select((p) => p.loading));
     const double barHeight = 3.0;
     const double thumbRadius = 6.0;
 
     return Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ProgressBar(
-              isLoading: isBuffering,
-              barHeight: barHeight,
-              baseBarColor: const Color.fromARGB(197, 255, 255, 255),
-              timeLabelLocation: showTimeLabel
-                  ? TimeLabelLocation.below
-                  : TimeLabelLocation.none,
-              timeLabelTextStyle: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
-              thumbColor: Colors.white,
-              progressBarColor: Colors.white,
-              thumbGlowColor: Colors.white70,
-              thumbGlowRadius: 12,
-              thumbRadius: thumbRadius,
-              progress: progressBarState.current,
-              buffered: progressBarState.buffered,
-              total: progressBarState.total,
-              onSeek: (progressBarState.total != Duration.zero)
-                  ? ref.read(playerControllerProvider.notifier).seek
-                  : null,
-            ),
-          ],
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: ProgressBar(
+          barCapShape: BarCapShape.round,
+          isLoading: isBuffering,
+          barHeight: barHeight,
+          baseBarColor: const Color.fromARGB(197, 255, 255, 255),
+          timeLabelLocation: showTimeLabel
+              ? TimeLabelLocation.below
+              : TimeLabelLocation.none,
+          timeLabelTextStyle: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+          ),
+          thumbColor: Colors.white,
+          progressBarColor: Colors.white,
+          thumbGlowColor: Colors.white70,
+          thumbCanPaintOutsideBar: true,
+          draggingThumbRadius: 6,
+          thumbGlowRadius: 6,
+          thumbRadius: thumbRadius,
+          progress: progressBarState.current,
+          buffered: progressBarState.buffered,
+          total: progressBarState.total,
+          onSeek: (progressBarState.total != Duration.zero)
+              ? ref.read(playerControllerProvider.notifier).seek
+              : null,
         ));
   }
 }

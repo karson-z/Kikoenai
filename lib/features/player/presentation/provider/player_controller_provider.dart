@@ -1,40 +1,39 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:kikoenai/core/constants/app_file_extensions.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
-import 'package:kikoenai/core/service/lyrics/search_lyrics_service.dart';
-import 'package:kikoenai/core/utils/data/other.dart';
+import 'package:hive_ce/hive.dart' hide IsolateNameServer;
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/history/presentation/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../../../core/constants/app_player.dart';
 import '../../../../core/service/audio/audio_service.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/model/file_node.dart';
-import '../../../../core/service/lyrics/match_lyrics_service.dart';
 import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/utils/window/display_util.dart';
+import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
+import '../../data/model/playback_session.dart';
 import '../../data/model/player_state.dart';
 import '../../data/model/progress_state.dart';
-import '../widget/lyrics/player_lyrics_mapping_sheet.dart';
-
 
 final playerControllerProvider =
-NotifierProvider<PlayerController, AppPlayerState>(() {
-  return PlayerController();
-});
+    NotifierProvider<PlayerController, AppPlayerState>(() {
+      return PlayerController();
+    });
 
 class PlayerController extends Notifier<AppPlayerState> {
+  Timer? _playbackTicker;
+
   ReceivePort? _overlayReceivePort;
 
   Timer? _controlsHideTimer;
@@ -45,20 +44,32 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   CacheService get _cacheService => CacheService.instance;
 
+  Box<dynamic> get _settingsBox => AppStorage.settingsBox;
+
+  HistoryController get historyController => ref.read(historyControllerProvider.notifier);
+
   @override
   AppPlayerState build() {
     _listen();
 
     _listenToPlayer();
 
-    Future.microtask(() {
-      _loadPlayerState();
+    _playbackTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state.playing) {
+        _saveCurrentHistory();
+      }
+    });
+
+    Future.microtask(() async {
+      await _loadPlayerState();
     });
     startControlsHideTimer();
 
     ref.onDispose(() {
       _closeOverlayPort();
       _controlsHideTimer?.cancel();
+      _playbackTicker?.cancel();
+      stop();
     });
     return const AppPlayerState();
   }
@@ -69,9 +80,11 @@ class PlayerController extends Notifier<AppPlayerState> {
       state = state.copyWith(isVideoControlsVisible: false);
     });
   }
+
   void cancelControlsHideTimer() {
     _controlsHideTimer?.cancel();
   }
+
   // 翻转控制面板显隐状态
   void toggleControlsVisibility() {
     final isVisible = !state.isVideoControlsVisible;
@@ -82,52 +95,59 @@ class PlayerController extends Notifier<AppPlayerState> {
       _controlsHideTimer?.cancel();
     }
   }
+
   void showControlsAndResetTimer() {
     if (!state.isVideoControlsVisible) {
       state = state.copyWith(isVideoControlsVisible: true);
     }
     startControlsHideTimer();
   }
-  /// 改变字幕匹配状态
-  void changeSubtitleMapping(Map<String, FileNode?> mapping) {
-    state = state.copyWith(subtitleMapping: mapping);
-  }
+
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
-    final savedState = _cacheService.getPlayerState();
-    if (savedState == null) return;
+    final volume = _settingsBox.get(StorageKeys.playerVolume, defaultValue: 1.0) as double;
 
-    // 1. 恢复播放列表
-    final playList = savedState.playlist;
+    final repeatModeIndex = _settingsBox.get(StorageKeys.playerRepeatMode, defaultValue: 0) as int;
 
-    // 2. 恢复当前索引
-    // 加入空值判断，避免程序崩溃
-    final progress = savedState.progressBarState.current;
-    if (savedState.currentTrack != null) {
-      final currentIndex = playList.indexWhere(
-            (item) => item.id == savedState.currentTrack!.id,
-      );
-      await (_handler as MyAudioHandler).initPlayback(
-        initialPlaylist: playList,
-        initialIndex: currentIndex,
-        initialPosition: progress,
-        volume: savedState.volume,
-        repeatMode: savedState.repeatMode,
-        shuffleEnabled: savedState.shuffleEnabled,
-      );
+    final repeatMode = AudioServiceRepeatMode.values[repeatModeIndex];
+
+    final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false) as bool;
+
+    final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false) as bool;
+
+    // 2. 将配置应用到底层播放引擎
+    if (isAudioOnly) {
+      _handler.customAction('toggleVideoDecoding', {
+        'enable': !isAudioOnly,
+      });
     }
 
-    // 恢复仅音频模式到底层播放引擎
-    if (savedState.isAudioOnly) {
-      _handler.customAction(
-        'toggleVideoDecoding',
-        {'enable': !savedState.isAudioOnly},
-      );
-    }
+    // 3. 从历史记录恢复播放队列与进度
+    final previousState = historyController.getLatestOne();
+    PlaybackSession? session;
 
+    if (previousState != null) {
+      session = previousState.session;
+      final progress = previousState.lastProgressMs ?? 0;
+
+      if (session.queue.isNotEmpty) {
+        await (_handler as MyAudioHandler).initPlayback(
+          initialPlaylist: session.mediaItems,
+          initialIndex: session.currentIndex,
+          initialPosition: Duration(milliseconds: progress),
+          volume: volume,
+          repeatMode: repeatMode,
+          shuffleEnabled: shuffleEnabled,
+        );
+      }
+    }
+    // 4. 同步状态到 Riverpod
     state = state.copyWith(
-      subtitleMapping: savedState.subtitleMapping,
-      isAudioOnly: savedState.isAudioOnly,
+      session: session,
+      isAudioOnly: isAudioOnly,
+      repeatMode: repeatMode,
+      shuffleEnabled: shuffleEnabled,
+      volume: volume,
     );
   }
 
@@ -136,33 +156,24 @@ class PlayerController extends Notifier<AppPlayerState> {
     bool isCompleted = false,
     MediaItem? mediaItem,
   }) {
-    final item = mediaItem ?? state.currentTrack;
+    final item = mediaItem == null
+        ? state.currentItem
+        : PlaybackItem.fromMediaItem(mediaItem);
 
     final finalIsPlaying = isCompleted ? false : (isPlaying ?? state.playing);
 
     if (item == null) {
       return;
     }
-    // 3. 解析 WorkID
-    String? workId;
-    try {
-      final workDataStr = item.extras?['workData'];
-      if (workDataStr != null) {
-        // 兼容 String 和 Map 两种格式
-        final workJson =
-        workDataStr is String ? jsonDecode(workDataStr) : workDataStr;
-        workId = workJson['id']?.toString();
-      }
-    } catch (e) {
-      debugPrint("埋点解析 WorkID 失败: $e");
-    }
+    final workId = item.source == NodeSource.asmrServer
+        ? item.workId?.toString()
+        : null;
 
     // 4. 通知 Provider
     if (workId != null && workId.isNotEmpty) {
-      ref.read(playbackTrackerProvider.notifier).updatePlaybackStatus(
-        workId: workId,
-        isPlaying: finalIsPlaying,
-      );
+      ref
+          .read(playbackTrackerProvider.notifier)
+          .updatePlaybackStatus(workId: workId, isPlaying: finalIsPlaying);
     }
   }
 
@@ -172,7 +183,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     _overlayReceivePort = null;
   }
 
-  void _listenToPlayer () {
+  void _listenToPlayer() {
     _player.stream.videoParams.listen((params) {
       final width = params.dw ?? params.w ?? 0;
       final height = params.dh ?? params.h ?? 0;
@@ -197,9 +208,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       );
     });
     _player.stream.audioParams.listen((params) {
-        state = state.copyWith(
-            audioParams: params.toString()
-        );
+      state = state.copyWith(audioParams: params.toString());
     });
   }
 
@@ -251,7 +260,6 @@ class PlayerController extends Notifier<AppPlayerState> {
             previous();
             break;
           case PlayerConstants.closeOverlay:
-          // 由主应用统一执行隐藏，这会同时销毁窗口并休眠字幕同步服务
             lyricsNotifier.hide(isUserAction: true);
             break;
           case PlayerConstants.toggleLock:
@@ -294,11 +302,11 @@ class PlayerController extends Notifier<AppPlayerState> {
         buffered: p.bufferedPosition,
         total: _handler.mediaItem.value?.duration ?? Duration.zero,
       );
-
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
-        loading: p.processingState == AudioProcessingState.loading ||
+        loading:
+            p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -306,59 +314,38 @@ class PlayerController extends Notifier<AppPlayerState> {
       if (isCompleted) {
         _updateTrackerStatus(isPlaying: false, isCompleted: true);
       }
-
-      if (state.currentTrack != null) {
-        _saveState();
-        _saveHistory();
-      }
     });
+
     // 低频流：处理播放与暂停状态切换
-    _handler.playbackState
-        .map((p) => p.playing)
-        .distinct()
-        .listen((isPlaying) {
+    _handler.playbackState.map((p) => p.playing).distinct().listen((isPlaying) {
       state = state.copyWith(playing: isPlaying);
-
       _updateTrackerStatus(isPlaying: isPlaying, isCompleted: false);
-
       ref.read(subtitleManagerProvider).syncBusinessState({
         'isPlaying': isPlaying,
       });
-
-      if (state.currentTrack != null) {
-        _saveState();
-      }
     });
+
     // 当前播放曲目
     _handler.mediaItem.listen((item) {
-      _updateSubtitleState(item);
-      if (state.currentTrack?.id != item?.id) {
-        state = state.copyWith(
-          currentTrack: item,
-        );
-      }
+      if (item == null) return;
+
+      state = state.copyWith(session: _sessionWithCurrentMediaItem(item));
+
       _updateSkipInfo();
-      if (state.currentTrack != null) {
-        _saveState();
-        _saveHistory();
-      }
+
       _updateTrackerStatus(mediaItem: item, isPlaying: state.playing);
     });
-
     // 播放列表变化
     _handler.queue.listen((queue) {
-      state = state.copyWith(playlist: queue);
+      state = state.copyWith(session: _sessionFromMediaQueue(queue));
       _updateSkipInfo();
-      if (state.currentTrack != null) {
-        _saveState();
-      }
     });
 
     // 音量变化
     if (_handler is MyAudioHandler) {
       (_handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
-        if (state.currentTrack != null) {
+        if (state.currentItem != null) {
           _saveState();
         }
       });
@@ -367,53 +354,52 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _updateSkipInfo() {
-    final playlist = state.playlist;
+    final playlist = state.playbackQueue;
     final current = _handler.mediaItem.value;
+
+    final isLooping = state.repeatMode != AudioServiceRepeatMode.none;
 
     if (playlist.isEmpty || current == null) {
       state = state.copyWith(isFirst: true, isLast: true);
       return;
     }
 
-    final i = playlist.indexOf(current);
+    final i = playlist.indexWhere((item) => item.id == current.id);
+
     state = state.copyWith(
-      isFirst: i <= 0,
-      isLast: i >= playlist.length - 1,
+      isFirst: isLooping ? false : i <= 0,
+      isLast: isLooping ? false : i >= playlist.length - 1,
     );
   }
 
-  // 保存播放器状态
+  // 保存播放器状态 (队列、模式配置等)
   void _saveState() {
     _cacheService.savePlayerState(state);
   }
 
-  // 保存播放历史
-  void _saveHistory() {
-    final currentItem = state.currentTrack;
-    if (currentItem == null) return;
+  void _saveCurrentHistory() {
+    final session = state.session;
+    final currentItem = state.currentItem;
 
-    final workData = currentItem.extras?['workData'];
-    if (workData == null) return;
+    if (session == null || currentItem == null) return;
+    final currentProgressMs = state.progressBarState.current.inMilliseconds;
 
     try {
-      final workJson = workData is String ? jsonDecode(workData) : workData;
-      final currentWork = Work.fromJson(workJson);
-
-      if (currentWork.id == null) return;
-
       final history = HistoryEntry(
-        work: currentWork,
-        lastTrackId: currentItem.id,
-        currentTrackTitle: currentItem.title,
-        lastProgressMs: state.progressBarState.current.inMilliseconds,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        session: session,
+        lastItemId: currentItem.id,
+        lastProgressMs: currentProgressMs,
+        lastPlayTime: DateTime.now().millisecondsSinceEpoch,
       );
 
-      _cacheService.addToHistory(history);
+      historyController.upsert(history);
+
+      // debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }
   }
+
   Future<void> play() async => _handler.play();
 
   Future<void> pause() async => _handler.pause();
@@ -431,7 +417,12 @@ class PlayerController extends Notifier<AppPlayerState> {
       await (_handler as MyAudioHandler).setVolume(v);
     }
   }
-  Future<void> loadExternalSubtitle(String uri, {String? title, String? language}) async {
+
+  Future<void> loadExternalSubtitle(
+    String uri, {
+    String? title,
+    String? language,
+  }) async {
     final externalTrack = SubtitleTrack.uri(
       uri,
       title: title ?? 'External Subtitle',
@@ -445,7 +436,11 @@ class PlayerController extends Notifier<AppPlayerState> {
     await setSubtitleTrack(externalTrack);
   }
 
-  Future<void> loadExternalAudioTrack(String uri, {String? title, String? language}) async {
+  Future<void> loadExternalAudioTrack(
+    String uri, {
+    String? title,
+    String? language,
+  }) async {
     final externalTrack = AudioTrack.uri(
       uri,
       title: title ?? 'External Audio',
@@ -458,6 +453,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     await setAudioTrack(externalTrack);
   }
+
   Future<void> setAudioTrack(AudioTrack track) async {
     try {
       await _player.setAudioTrack(track);
@@ -473,13 +469,13 @@ class PlayerController extends Notifier<AppPlayerState> {
       debugPrint("切换字幕轨道失败: $e");
     }
   }
+
   /// 切换纯音频模式
   Future<void> toggleAudioOnlyMode(bool isAudioOnly) async {
     state = state.copyWith(isAudioOnly: isAudioOnly);
-    await _handler.customAction(
-      'toggleVideoDecoding',
-      {'enable': !isAudioOnly},
-    );
+    await _handler.customAction('toggleVideoDecoding', {
+      'enable': !isAudioOnly,
+    });
     _saveState();
   }
 
@@ -487,7 +483,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     final enabled = !state.shuffleEnabled;
     state = state.copyWith(shuffleEnabled: enabled);
     await _handler.setShuffleMode(
-        enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+      enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+    );
     _saveState();
   }
 
@@ -520,103 +517,30 @@ class PlayerController extends Notifier<AppPlayerState> {
     await (_handler as MyAudioHandler).clearPlaylist();
   }
 
-  // 私有方法，交给监听器触发
-  void _updateSubtitleState(MediaItem? currentItem) async {
-    // 1. 基础空值处理
-    if (currentItem == null) {
-      state = state.copyWith(currentTrack: null);
-      return;
-    }
-    if (currentItem.id == state.currentTrack?.id) return;
-
-    // 2. 获取 ID 进行比对
-    final int? lastWorkId = _getWorkIdFromItem(state.currentTrack);
-    final int? newWorkId = _getWorkIdFromItem(currentItem);
-    List<FileNode> targetSubtitleList = [];
-    bool isWorkChanged = newWorkId != lastWorkId;
-
-    if (isWorkChanged && newWorkId != null) {
-      debugPrint(
-          "检测到作品变化或列表为空 (Old: $lastWorkId -> New: $newWorkId)，开始查找字幕...");
-
-      targetSubtitleList = await SearchLyricsService.findLyrics(newWorkId, ref);
-
-      // 过滤播放列表，仅保留当前作品的音频
-      final currentWorkPlaylist = state.playlist
-          .where((item) => _getWorkIdFromItem(item) == newWorkId)
-          .toList();
-
-      // 处理过滤后的播放列表数据
-      final playListProcessed =
-      LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
-
-      // 处理字幕数据
-      final lyricListProcessed =
-      LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
-
-      // 匹配字幕并处理手动匹配回调
-      final matches = MatchLyrics.match(playListProcessed, lyricListProcessed,
-          onShowManualMatchDialog:
-              (playlist, availableSubtitles, currentMapping) async {
-            final manualResult = await LyricsMappingSheet.show(
-              playlist: playlist,
-              initialMapping: currentMapping,
-              availableSubtitles: availableSubtitles,
-            );
-            if (manualResult != null) {
-              final validManualMapping = <String, FileNode>{};
-              manualResult.forEach((key, value) {
-                if (value != null) {
-                  validManualMapping[key] = value;
-                } else {
-                  AppStorage.lyricMatchBox.delete(key);
-                }
-              });
-              MatchLyrics.persistMatchResults(validManualMapping);
-              state = state.copyWith(subtitleMapping: validManualMapping);
-            }
-          });
-
-      state = state.copyWith(
-          lyricsList: targetSubtitleList, subtitleMapping: matches);
-
-      if (kDebugMode) {
-        if (matches.isEmpty) {
-          KikoenaiLogger().i('本次扫描未匹配到任何字幕。');
-        } else {
-          final buffer = StringBuffer();
-          buffer.writeln('匹配成功报告 (共 ${matches.length} 条):');
-
-          // 创建一个临时 Map 用于通过 Hash 反查音频标题
-          final audioTitleMap = {
-            for (var node in playListProcessed) node.id: node.title
-          };
-
-          matches.forEach((audioHash, subtitleNode) {
-            final audioTitle = audioTitleMap[audioHash] ?? "Hash: $audioHash";
-            buffer.writeln('  🎵 $audioTitle');
-            buffer.writeln('   └── 📝 ${subtitleNode.title}');
-          });
-
-          KikoenaiLogger().i(buffer.toString());
-        }
-      }
-    }
+  Future<void> addSingleInQueue(
+    FileNode node,
+    Work work, {
+    NodeSource? source,
+  }) async {
+    final item = _fileNodeToPlaybackItem(node, work, source: source);
+    await add(item.toMediaItem());
   }
 
-  Future<void> addSingleInQueue(FileNode node, Work work) async {
-    final mediaItem = _fileNodeToMediaItem(node, work);
-    await add(mediaItem);
-  }
-
-  Future<void> handleFileTap(FileNode node, List<FileNode> currentNodes,
-      {HistoryEntry? history, Work? work}) async {
+  Future<void> handleFileTap(
+    FileNode node,
+    List<FileNode> currentNodes, {
+    HistoryEntry? history,
+    Work? work,
+    NodeSource? source,
+  }) async {
     if (node.isAudio || node.isVideo) {
-      final audioFiles =
-      currentNodes.where((n) => n.isAudio || n.isVideo).toList();
-      final mediaList = audioFiles.map((n) {
-        return _fileNodeToMediaItem(n, work ?? Work());
+      final audioFiles = currentNodes
+          .where((n) => n.isAudio || n.isVideo)
+          .toList();
+      final playbackItems = audioFiles.map((n) {
+        return _fileNodeToPlaybackItem(n, work, source: source);
       }).toList();
+      final mediaList = playbackItems.toMediaItems();
 
       // 2. 计算目标索引
       final audioTapIndex = audioFiles.indexOf(node);
@@ -631,7 +555,7 @@ class PlayerController extends Notifier<AppPlayerState> {
           mediaList,
           initialIndex: audioTapIndex,
           initialPosition: startPosition,
-          autoPlay: true, // 点击通常意味着想直接播放
+          autoPlay: true,
         );
       } else {
         await clear();
@@ -644,61 +568,65 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  Future<HistoryEntry?> checkHistoryForWork(Work work) async {
-    final historyList = CacheService.instance.getHistoryList();
-    try {
-      final history = historyList.firstWhere(
-            (h) => h.work.id == work.id,
+  Future<void> restoreHistory(HistoryEntry history) async {
+    final savedSession = history.restoreSession;
+    if (savedSession.queue.isNotEmpty) {
+      final mediaItems = savedSession.mediaItems;
+      final initialIndex = savedSession.queue.indexWhere(
+        (item) => item.id == history.lastItemId,
       );
-      return history;
-    } catch (e) {
-      debugPrint('checkHistoryForWork: 当前作品暂无历史记录');
-    }
-    return null;
-  }
+      final safeIndex = initialIndex < 0 ? 0 : initialIndex;
+      final startPosition = history.lastProgressMs == null
+          ? Duration.zero
+          : Duration(milliseconds: history.lastProgressMs!);
 
-  Map<String, dynamic>? findTrackParentAndIndex(
-      List<FileNode> nodes, String trackId) {
-    for (var node in nodes) {
-      if (node.isAudio && node.hash.toString() == trackId) {
-        // 当前节点就在根层级
-        return {'parentList': nodes, 'index': nodes.indexOf(node)};
+      if (_handler is MyAudioHandler) {
+        await (_handler as MyAudioHandler).loadPlaylist(
+          mediaItems,
+          initialIndex: safeIndex,
+          initialPosition: startPosition,
+          autoPlay: true,
+        );
+      } else {
+        await clear();
+        await addAll(mediaItems);
+        await skipTo(safeIndex);
+        if (startPosition > Duration.zero) {
+          await seek(startPosition);
+        }
       }
-      if (node.children != null && node.children!.isNotEmpty) {
-        final result = findTrackParentAndIndex(node.children!, trackId);
-        if (result != null) return result;
-      }
+      state = state.copyWith(session: savedSession.withCurrentIndex(safeIndex));
+      return;
     }
-    return null; // 未找到
-  }
-
-  Future<void> restoreHistory(
-      List<FileNode> nodes, Work work, HistoryEntry history) async {
-    if (history.lastTrackId == null) return;
-
-    final found = findTrackParentAndIndex(nodes, history.lastTrackId!);
-    if (found == null) return;
-
-    final parentList = found['parentList'] as List<FileNode>;
-    final index = found['index'] as int;
-    final currentNode = parentList[index];
-    await handleFileTap(currentNode, parentList, history: history, work: work);
   }
 
   Future<void> removeMediaItemInQueue(int index) async {
+    final queueLength = state.playbackQueue.length;
+    if (index < 0 || index >= queueLength) return;
+    final willClearQueue = queueLength <= 1;
     await _handler.removeQueueItemAt(index);
-    if (state.playlist.isEmpty) {
+    if (willClearQueue) {
       state = const AppPlayerState();
     }
     _saveState();
   }
 
-  Future<void> addMultiInQueue(List<FileNode> nodes, Work work) async {
-    final mediaList = nodes.map((node) {
-      return _fileNodeToMediaItem(node, work);
-    }).toList();
-    await addAll(mediaList);
+  Future<void> addMultiInQueue(
+    List<FileNode> nodes,
+    Work work, {
+    NodeSource? source,
+  }) async {
+    try {
+      final items = nodes.map((node) {
+        return _fileNodeToPlaybackItem(node, work, source: source);
+      }).toList();
+      await addAll(items.toMediaItems());
+      KikoenaiToast.success("已加入播放队列");
+    } catch (e) {
+      KikoenaiLogger().e("加入播放队列失败");
+    }
   }
+
   Future<void> toggleVideoFullScreen() async {
     final currentIsFull = ref.read(mainScaffoldProvider).isFullScreen;
     final targetIsFull = !currentIsFull;
@@ -706,7 +634,9 @@ class PlayerController extends Notifier<AppPlayerState> {
     ref.read(mainScaffoldProvider.notifier).setFullScreen(targetIsFull);
 
     if (targetIsFull) {
-      debugPrint('currentPortrait: ${state.isVideoPortrait} dw: ${state.videoWidth} dh: ${state.videoHeight} rotate: ${state.videoRotate}');
+      debugPrint(
+        'currentPortrait: ${state.isVideoPortrait} dw: ${state.videoWidth} dh: ${state.videoHeight} rotate: ${state.videoRotate}',
+      );
       await DisplayUtils.enterFullScreen(state.isVideoPortrait);
     } else {
       await DisplayUtils.exitFullScreen();
@@ -714,29 +644,22 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> cyclePlayMode() async {
-    // 1. 如果当前是随机模式
     if (state.shuffleEnabled) {
-      // 点击后：关闭随机 -> 切换到列表循环 (回到最基础的状态)
-      await toggleShuffle(); // 关闭随机
+      await toggleShuffle();
       await setRepeat(AudioServiceRepeatMode.all);
       return;
     }
 
-    // 2. 如果当前不是随机模式，检查循环状态
     switch (state.repeatMode) {
       case AudioServiceRepeatMode.all:
-      // 当前是列表循环 -> 切换到单曲循环
         await setRepeat(AudioServiceRepeatMode.one);
         break;
 
       case AudioServiceRepeatMode.one:
-      // 当前是单曲循环 -> 切换到不循环
         await setRepeat(AudioServiceRepeatMode.none);
         break;
 
       case AudioServiceRepeatMode.none:
-      // 当前是不循环 -> 切换到随机播放
-      // 开启随机时，通常将循环模式设为 all (意味着随机播放整个列表直到手动停止，或者你想随机播完一轮停止也可以设为 none)
         await setRepeat(AudioServiceRepeatMode.all);
         await toggleShuffle();
         break;
@@ -747,41 +670,73 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  MediaItem _fileNodeToMediaItem(FileNode node, Work work) {
-    String? imagePath;
-
-    final url = node.mediaStreamUrl ?? '';
-    final isVideo =
-        FileExtensions.video.any((ext) => url.toLowerCase().endsWith(ext)) ||
-            node.isVideo == true;
-
-    return MediaItem(
-      id: node.hash.toString(),
-      album: node.workTitle,
-      title: node.title,
-      artist: work.vas == null ? node.artist : OtherUtil.joinVAs(work.vas),
-      artUri: work.mainCoverUrl != null ? Uri.parse(work.mainCoverUrl!) : null,
-      extras: {
-        'url': url,
-        'mainCoverUrl': work.mainCoverUrl ?? imagePath,
-        'samCorverUrl': work.samCoverUrl ?? imagePath,
-        'workData': jsonEncode(work),
-        'isVideo': isVideo, // 将视频标记存入 extras
-      },
+  PlaybackItem _fileNodeToPlaybackItem(
+    FileNode node,
+    Work? work, {
+    NodeSource? source,
+  }) {
+    return PlaybackItem.fromFileNode(
+      node,
+      work: work,
+      source: source ?? node.source,
     );
   }
 
-  int? _getWorkIdFromItem(MediaItem? item) {
-    if (item == null) return null;
-    final workData = item.extras?['workData'];
-    if (workData == null) return null;
-    try {
-      // 兼容 JSON String 和 Map
-      final workJson = workData is String ? jsonDecode(workData) : workData;
-      return workJson['id'];
-    } catch (e) {
-      debugPrint("解析 WorkID 异常: $e");
-      return null;
+  PlaybackSession? _sessionFromMediaQueue(List<MediaItem> queue) {
+    if (queue.isEmpty) return null;
+
+    final current = _handler.mediaItem.value;
+    final currentIndex = current == null
+        ? _handler.playbackState.value.queueIndex ??
+              state.session?.currentIndex ??
+              0
+        : queue.indexWhere((item) => item.id == current.id);
+    final previousItems = {
+      for (final item in state.playbackQueue) item.id: item,
+    };
+    final items = queue.map((mediaItem) {
+      final previous = previousItems[mediaItem.id];
+      if (previous == null) return PlaybackItem.fromMediaItem(mediaItem);
+      return previous.copyWith(
+        durationMs: mediaItem.duration?.inMilliseconds ?? previous.durationMs,
+      );
+    }).toList();
+
+    final previous = state.session;
+    if (previous == null) {
+      return PlaybackSession.fromQueue(
+        items,
+        initialIndex: currentIndex < 0 ? 0 : currentIndex,
+      );
     }
+    return previous.withQueue(
+      items,
+      nextIndex: currentIndex < 0 ? previous.currentIndex : currentIndex,
+    );
+  }
+
+  PlaybackSession? _sessionWithCurrentMediaItem(MediaItem? mediaItem) {
+    if (mediaItem == null) return state.session;
+    final session = state.session;
+    final index =
+        session?.queue.indexWhere((item) => item.id == mediaItem.id) ?? -1;
+
+    if (session != null && index >= 0) {
+      final queue = [...session.queue];
+      final current = queue[index];
+      queue[index] = current.copyWith(
+        durationMs: mediaItem.duration?.inMilliseconds ?? current.durationMs,
+      );
+      return session.withQueue(queue, nextIndex: index);
+    }
+
+    final item = PlaybackItem.fromMediaItem(mediaItem);
+    if (session == null) {
+      return PlaybackSession.fromQueue([item]);
+    }
+    return session.withQueue([
+      ...session.queue,
+      item,
+    ], nextIndex: session.queue.length);
   }
 }

@@ -1,40 +1,19 @@
-import 'package:json_annotation/json_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/constants/app_typeIds.dart';
 
+part 'work_info.freezed.dart';
 part 'work_info.g.dart';
 
-@JsonSerializable()
-class WorkInfo {
-  final int id;
+@freezed
+@HiveType(typeId: TypeIds.workInfo, adapterName: 'WorkInfoAdapter')
+abstract class WorkInfo with _$WorkInfo {
+  const factory WorkInfo({
+    @HiveField(0) required int id,
+    @HiveField(1) @JsonKey(name: 'source_type') String? sourceType,
+    @HiveField(2) @JsonKey(name: 'source_id') String? sourceId,
+  }) = _WorkInfo;
 
-  @JsonKey(name: 'source_type')
-  final String? sourceType;
-
-  @JsonKey(name: 'source_id')
-  final String? sourceId;
-
-  const WorkInfo({
-    required this.id,
-    this.sourceType,
-    this.sourceId,
-  });
-
-  /// JSON → WorkInfo
   factory WorkInfo.fromJson(Map<String, dynamic> json) =>
       _$WorkInfoFromJson(json);
-
-  /// WorkInfo → JSON
-  Map<String, dynamic> toJson() => _$WorkInfoToJson(this);
-
-  /// 可选的 copyWith（手写）
-  WorkInfo copyWith({
-    int? id,
-    String? sourceType,
-    String? sourceId,
-  }) {
-    return WorkInfo(
-      id: id ?? this.id,
-      sourceType: sourceType ?? this.sourceType,
-      sourceId: sourceId ?? this.sourceId,
-    );
-  }
 }

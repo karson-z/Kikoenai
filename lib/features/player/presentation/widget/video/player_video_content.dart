@@ -7,7 +7,12 @@ import '../../provider/player_controller_provider.dart';
 import '../../../../../core/service/player/player_service.dart';
 
 class PlayerVideoContent extends ConsumerStatefulWidget {
-  const PlayerVideoContent({super.key});
+  final bool isMini;
+
+  const PlayerVideoContent({
+    super.key,
+    this.isMini = false,
+  });
 
   @override
   ConsumerState<PlayerVideoContent> createState() => _PlayerVideoContentState();
@@ -24,24 +29,24 @@ class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.read(playerControllerProvider.notifier);
-
     return Container(
-      color: Colors.black,
+      color: widget.isMini ? Colors.transparent : Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Center(
-            child: VideoGestureLayer(
-              child: Video(
-                controller: _videoController,
-                controls: NoVideoControls,
-                fit: BoxFit.contain,
-                fill: Colors.transparent,
-              ),
-            ),
+          Video(
+            controller: _videoController,
+            controls: NoVideoControls,
+            fit: widget.isMini ? BoxFit.contain : BoxFit.contain,
+            fill: Colors.transparent,
           ),
-          const PlayerVideoControlsOverlay(),
+
+          if (!widget.isMini) ...[
+            const VideoGestureLayer(
+              child: SizedBox.expand(),
+            ),
+            const PlayerVideoControlsOverlay(),
+          ],
         ],
       ),
     );

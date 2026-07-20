@@ -37,7 +37,29 @@ class StorageKeys {
   /// 用法示例: "${StorageKeys.scanPrefixItem}$itemId"
   static const String scanPrefixItem = 'item_';
 
+  /// 本地媒体库是否开启自动静默同步
+  /// 类型: bool
+  static const String localMediaAutoSyncEnabled =
+      'local_media_auto_sync_enabled';
+
+  /// 本地媒体库自动静默同步阈值，单位小时
+  /// 类型: int
+  static const String localMediaAutoSyncThresholdHours =
+      'local_media_auto_sync_threshold_hours';
+
   // ==================== Option Keys (Settings Box - 用户偏好) ====================
+
+  /// 播放器偏好：音量大小 (double)
+  static const String playerVolume = 'player_volume';
+
+  /// 播放器偏好：循环模式 (AudioServiceRepeatMode 的 index)
+  static const String playerRepeatMode = 'player_repeat_mode';
+
+  /// 播放器偏好：是否开启随机播放 (bool)
+  static const String playerShuffleEnabled = 'player_shuffle_enabled';
+
+  /// 播放器偏好：是否开启仅音频模式 (bool)
+  static const String playerIsAudioOnly = 'player_is_audio_only';
 
   /// 标签(Tag)筛选或显示选项
   static const String tagOption = 'tag_option';
@@ -68,7 +90,7 @@ class StorageKeys {
   static const String lyricsStyleConfig = 'lyrics_style_config';
 
   /// 忽略音频焦点
-  static const String  ignoreAudioFocus ='ignore_audio_focus';
+  static const String ignoreAudioFocus = 'ignore_audio_focus';
 
   /// 是否自动跳出字幕匹配弹窗
   static const String autoManualLyricsMatch = 'manual_lyrics_match';
@@ -85,12 +107,23 @@ class StorageKeys {
   /// 悬浮窗字体颜色
   static const String overlayLyricsFontColor = 'overlay_lyrics_font_color';
 
+  /// 全局主题字体预设
+  static const String themeFontPreset = 'theme_font_preset';
 
+  /// 桌面字幕位置 X轴
   static const String overlayLyricsPositionX = 'overlay_lyrics_positionX';
 
-
+  /// 桌面字幕位置 Y轴
   static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
 
+  /// 播放器背景模糊程度
+  static const String blurBackground = 'blur_background';
+
+  /// 播放器背景图片缩放比例
+  static const String backgroundScale = 'background_scale';
+
+  /// 播放器背景图片编码质量
+  static const String backgroundQuality = 'background_quality';
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key
@@ -103,5 +136,12 @@ class StorageKeys {
 
   static get audioOutputMode => 'audio_output_mode';
 
+  /// 窗口关闭行为：null=每次询问，'minimize'=最小化到托盘，'exit'=退出程序
+  static const String windowCloseBehavior = 'window_close_behavior';
 
+  /// 文件树排序字段（FileSortField 枚举的 index）
+  static const String fileSortField = 'file_sort_field';
+
+  /// 文件树排序是否倒序
+  static const String fileSortDescending = 'file_sort_descending';
 }

@@ -1,26 +1,31 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/album/data/model/user_work_status.dart';
-import '../../../../core/common/result.dart';
 import '../../../../core/enums/work_progress.dart';
 import '../../../../core/utils/network/api_client.dart';
 
 abstract class WorkRepository {
-  Future<Result<Map<String,dynamic>>> getWorks({
+  // 获取最新作品， 按DL发布日期排
+  Future<Map<String,dynamic>> getWorks({
     int page = 1,
+    String? keyword,
     String? order,
     String? sort,
     int? subtitle,
     int? seed,
   });
-  Future<Result<Map<String, dynamic>>> getPopularWorks({
+
+  // 获取热门作品
+  Future<Map<String, dynamic>> getPopularWorks({
     int page = 1,
     int pageSize = 20,
     String? keyword,
     int? subtitle,
     List<String>? withPlaylistStatus,
   });
-  Future<Result<Map<String, dynamic>>> getRecommendedWorks({
+
+  // 获取个性化推荐作品
+  Future<Map<String, dynamic>> getRecommendedWorks({
     String? recommenderUuid,
     int page = 1,
     int pageSize = 20,
@@ -28,9 +33,18 @@ abstract class WorkRepository {
     int? subtitle,
     List<String>? withPlaylistStatus,
   });
-  Future<Result<List<dynamic>>> getWorkTracks(int workId);
-  Future<Result<Map<String, dynamic>>>  getWorkDetail(int workId);
-  Future<Result<Map<String, dynamic>>> getReviews(UserWorkStatus workStatus);
+
+  // 获取相似作品
+  // Future<Map<String, dynamic>> getSimilarWorks();
+
+  // 获取作品中的音频信息，也就说作品原档
+  Future<List<dynamic>> getWorkTracks(int workId);
+
+  // 获取作品详细信息
+  Future<Map<String, dynamic>>  getWorkDetail(int workId);
+
+  // 获取标记状态
+  Future<Map<String, dynamic>> getReviews(UserWorkStatus workStatus);
 }
 
 class WorkRepositoryImpl implements WorkRepository {
@@ -39,16 +53,17 @@ class WorkRepositoryImpl implements WorkRepository {
   WorkRepositoryImpl(this.api);
 
   @override
-  Future<Result<Map<String, dynamic>>> getWorks({
+  Future<Map<String, dynamic>> getWorks({
     int page = 1,
     int pageSize = 20,
+    String? keyword,
     String? order,
     String? sort,
     int? subtitle,
     int? seed,
   }) async {
-    final response = await api.get<Map<String, dynamic>>(
-      "/works",
+    return api.get<Map<String, dynamic>>(
+      "/search/$keyword",
       queryParameters: {
         "page": page,
         "pageSize": pageSize,
@@ -58,12 +73,10 @@ class WorkRepositoryImpl implements WorkRepository {
         if (seed != null) "seed": seed,
       },
     );
-    // ApiClient 已经返回 Result<Map<String,dynamic>>
-    return response;
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> getPopularWorks({
+  Future<Map<String, dynamic>> getPopularWorks({
     int page = 1,
     int pageSize = 30,
     String? keyword,
@@ -78,15 +91,14 @@ class WorkRepositoryImpl implements WorkRepository {
       'localSubtitledWorks': [],
       'withPlaylistStatus': withPlaylistStatus ?? [],
     };
-    final response = await api.post<Map<String, dynamic>>(
+    return api.post<Map<String, dynamic>>(
       '/recommender/popular',
       data: data,
     );
-    return response;
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> getRecommendedWorks({
+  Future<Map<String, dynamic>> getRecommendedWorks({
     String? recommenderUuid,
     int page = 1,
     int pageSize = 30,
@@ -96,7 +108,7 @@ class WorkRepositoryImpl implements WorkRepository {
   }) async {
     final data = {
       'keyword': keyword ?? ' ',
-      'recommenderUuid': recommenderUuid ?? "172bd570-a894-475b-8a20-9241d0d314e8",
+      'recommenderUuid': recommenderUuid ?? "",
       'page': page,
       'pageSize': pageSize,
       'subtitle': subtitle ?? 0,
@@ -104,32 +116,29 @@ class WorkRepositoryImpl implements WorkRepository {
       'withPlaylistStatus': withPlaylistStatus ?? [],
     };
 
-    final response = await api.post<Map<String, dynamic>>(
+    return api.post<Map<String, dynamic>>(
       '/recommender/recommend-for-user',
       data: data,
     );
-    return response;
   }
 
   @override
-  Future<Result<List<dynamic>>> getWorkTracks(int workId) async {
+  Future<List<dynamic>> getWorkTracks(int workId) async {
     final data = {
       'v': 2,
     };
-    final response = await api.get<List<dynamic>>('/tracks/$workId',queryParameters: data);
-    return response;
+    return api.get<List<dynamic>>('/tracks/$workId', queryParameters: data);
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> getWorkDetail(int workId) async {
-    final response = await api.get<Map<String, dynamic>>(
+  Future<Map<String, dynamic>> getWorkDetail(int workId) async {
+    return api.get<Map<String, dynamic>>(
       '/work/$workId',
     );
-    return response;
   }
 
   @override
-  Future<Result<Map<String, dynamic>>> getReviews(UserWorkStatus workStatus) async {
+  Future<Map<String, dynamic>> getReviews(UserWorkStatus workStatus) async {
     // 1. 创建一个可变的 Map，仅包含必填项 (例如 work_id)
     final Map<String, dynamic> requestData = {
       'work_id': workStatus.workId,
@@ -152,12 +161,10 @@ class WorkRepositoryImpl implements WorkRepository {
 
     // 5. 发送请求
     // 注意：Dio 的 data 参数可以直接接收 Map，它会自动序列化为 JSON
-    final response = await api.put<Map<String, dynamic>>(
+    return api.put<Map<String, dynamic>>(
       '/review',
       data: requestData,
     );
-
-    return response;
   }
 }
 final workRepositoryProvider = Provider<WorkRepository>((ref) {

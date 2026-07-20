@@ -17,7 +17,10 @@ migrate_working_dir/
 *.ipr
 *.iws
 .idea/
+*.g.dart
 
+# 排除 Freezed 框架自动生成的 *.freezed.dart 状态不可变模型文件
+*.freezed.dart
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.

@@ -16,6 +16,10 @@ class BoxNames {
   static const String scraper = 'scraper_work';
   /// 抓取的作品元数据
   static const String lyricsMatch = 'lyrics_match';
+  /// 筛选盒子
+  static const String globalFilterTags = 'global_filter_tags';
+  /// 扫描目标
+  static const String scanTarget = 'scan_target';
 
   static const List<String> values = [
     settings,
@@ -26,5 +30,6 @@ class BoxNames {
     scanner,
     scraper,
     lyricsMatch,
+    globalFilterTags
   ];
 }

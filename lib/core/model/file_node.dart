@@ -1,8 +1,22 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:json_annotation/json_annotation.dart';
+import 'package:path/path.dart' as p;
 import '../constants/app_typeIds.dart';
 
+part 'file_node.freezed.dart';
 part 'file_node.g.dart';
+
+@HiveType(typeId: TypeIds.nodeSource)
+enum NodeSource {
+  @HiveField(0)
+  asmrServer,
+  @HiveField(1)
+  localWork,
+  @HiveField(2)
+  localSingle,
+  @HiveField(3)
+  cloudDrive,
+}
 
 @HiveType(typeId: TypeIds.nodeType)
 enum NodeType {
@@ -21,73 +35,53 @@ enum NodeType {
   @HiveField(6)
   unknown,
 }
-// 基础枚举结构，保留 Hive 注解
+
 @HiveType(typeId: TypeIds.nodeStatus)
 enum NodeStatus {
   @HiveField(0)
   normal,
-
   @HiveField(1)
-  pending,  // 扫描发现，等待用户确认加入队列
-
+  pending,
   @HiveField(2)
-  parsing,  // 正在发起网络请求爬取中
-
+  parsing,
   @HiveField(3)
-  parsed;   // 爬取完成
+  parsed;
 
-
-  /// 扩展一些常用的状态判断，提升代码可读性
   bool get isPending => this == NodeStatus.pending;
   bool get isProcessing => this == NodeStatus.parsing;
   bool get isCompleted => this == NodeStatus.parsed;
 }
 
-@JsonSerializable()
-@HiveType(typeId: TypeIds.fileNode) // Hive 适配器 ID，确保唯一
-class FileNode extends HiveObject {
-  @HiveField(0)
-  final NodeType type;
+@freezed
+@HiveType(typeId: TypeIds.fileNode, adapterName: 'FileNodeAdapter')
+abstract class FileNode extends HiveObject with _$FileNode {
+  factory FileNode({
+    @HiveField(0) required NodeType type,
+    @HiveField(1) required String title,
+    List<FileNode>? children,
+    @HiveField(2) String? hash,
+    @HiveField(3) String? mediaStreamUrl,
+    @HiveField(4) String? mediaDownloadUrl,
+    @HiveField(5) double? duration,
+    @HiveField(6) int? size,
+    @HiveField(7) String? workTitle,
+    @HiveField(8) String? artist,
+    @HiveField(9) @Default(0) int lastModified,
+    @HiveField(10) @Default(NodeStatus.normal) NodeStatus nodeStatus,
+    @HiveField(11) int? workId,
+    @HiveField(12) @Default(NodeSource.asmrServer) NodeSource source,
 
-  @HiveField(1)
-  final String title;
+    // Media-library index fields.
+    @HiveField(13) String? path,
+    @HiveField(14) String? folderPath,
+    @HiveField(15) String? rootPath,
+    @HiveField(16) String? parentPath,
+    @HiveField(17) @Default(0) int depth,
+    @Default(0) int subItemsCount,
+  }) = _FileNode;
 
-  List<FileNode>? children;
+  FileNode._();
 
-  @HiveField(2)
-  final String? hash;
-
-  @HiveField(3)
-  final String? mediaStreamUrl; // 通常作为文件的唯一标识（路径）
-
-  @HiveField(4)
-  final String? mediaDownloadUrl;
-
-  @HiveField(5)
-  final double? duration;
-
-  @HiveField(6)
-  final int? size;
-
-  @HiveField(7)
-  final String? workTitle;
-
-  @HiveField(8)
-  final String? artist;
-
-  ///最后修改时间
-  @HiveField(9)
-  final int lastModified;
-
-  /// 解析状态标志位
-  @HiveField(10)
-  final NodeStatus nodeStatus;
-
-  /// 关联的作品 RJ 码
-  @HiveField(11)
-  final String? rjCode;
-
-  // --- 便捷判断属性 ---
   bool get isFolder => type == NodeType.folder;
   bool get isAudio => type == NodeType.audio;
   bool get isImage => type == NodeType.image;
@@ -95,75 +89,150 @@ class FileNode extends HiveObject {
   bool get isVideo => type == NodeType.video;
   bool get isOther => type == NodeType.other;
 
-  /// 辅助属性：获取唯一 ID (使用路径)
-  String get keyId => mediaStreamUrl ?? hash ?? "";
+  bool get isPlayable => isAudio || isVideo;
 
-  bool get isLocal {
-    final url = mediaStreamUrl;
-    if (url == null || url.isEmpty) return false;
+  /// Stable identity for cache/index lookup.
+  /// Prefer path, then playable URL, then hash.
+  String get keyId => hash ?? path ?? mediaStreamUrl ?? '';
 
-    // 处理标准 URI 格式
-    if (url.startsWith('file://')) return true;
+  /// Actual playback/read path. Local file path or remote URL.
+  String get playablePath => mediaStreamUrl ?? path ?? '';
 
-    // 处理常见的网络协议
-    if (url.startsWith('http://') || url.startsWith('https://')) return false;
+  /// Internal path used by folder index.
+  String get effectivePath => path ?? mediaStreamUrl ?? hash ?? title;
 
-    // 兜底逻辑：在移动端/桌面端，绝对路径通常以 / 开头，且不包含网络特征
-    return url.startsWith('/');
+  NodeFolder? get folder {
+    final p = folderPath;
+    if (p == null || p.isEmpty) return null;
+    return NodeFolder(p);
   }
 
-  /// 判断是否为远程网络文件
-  bool get isRemote => !isLocal && (mediaStreamUrl?.startsWith('http') ?? false);
-  FileNode({
-    required this.type,
-    required this.title,
-    this.children,
-    this.hash,
-    this.mediaStreamUrl,
-    this.mediaDownloadUrl,
-    this.duration,
-    this.size,
-    this.workTitle,
-    this.artist,
-    this.lastModified = 0, // 默认为 0
-    this.nodeStatus = NodeStatus.normal, // 默认状态
-    this.rjCode,
-  });
+  bool get isLocal =>
+      source == NodeSource.localWork || source == NodeSource.localSingle;
+  bool get isRemote =>
+      source == NodeSource.asmrServer || source == NodeSource.cloudDrive;
 
-  FileNode copyWith({
-    NodeType? type,
-    String? title,
-    List<FileNode>? children,
-    String? hash,
-    String? mediaStreamUrl,
-    String? mediaDownloadUrl,
-    double? duration,
-    int? size,
-    String? workTitle,
-    String? artist,
-    int? lastModified,
-    NodeStatus? nodeStatus,
-    String? rjCode,
-  }) {
-    return FileNode(
-      type: type ?? this.type,
-      title: title ?? this.title,
-      children: children ?? this.children,
-      hash: hash ?? this.hash,
-      mediaStreamUrl: mediaStreamUrl ?? this.mediaStreamUrl,
-      mediaDownloadUrl: mediaDownloadUrl ?? this.mediaDownloadUrl,
-      duration: duration ?? this.duration,
-      size: size ?? this.size,
-      workTitle: workTitle ?? this.workTitle,
-      artist: artist ?? this.artist,
-      lastModified: lastModified ?? this.lastModified,
-      nodeStatus: nodeStatus ?? this.nodeStatus,
-      rjCode: rjCode ?? this.rjCode,
-    );
-  }
-  // 自动生成
+  bool get isAsmrServer => source == NodeSource.asmrServer;
+  bool get isLocalWork => source == NodeSource.localWork;
+  bool get isLocalSingle => source == NodeSource.localSingle;
+  bool get isCloudDrive => source == NodeSource.cloudDrive;
+
   factory FileNode.fromJson(Map<String, dynamic> json) =>
       _$FileNodeFromJson(json);
+}
 
-  Map<String, dynamic> toJson() => _$FileNodeToJson(this);
+class NodeFolder {
+  final String path;
+
+  const NodeFolder(this.path);
+
+  String get normalized {
+    return normalizePath(path);
+  }
+
+  String get key => normalized.toLowerCase();
+
+  String get name {
+    return baseName(normalized);
+  }
+
+  NodeFolder? get parent {
+    final parentPath = dirName(normalized);
+    if (parentPath == normalized || parentPath == '.') return null;
+    return NodeFolder(parentPath);
+  }
+
+  List<NodeFolder> buildInbetweenFolders({String? stopAtRootPath}) {
+    final rootFolder = stopAtRootPath == null
+        ? null
+        : NodeFolder(stopAtRootPath);
+    if (rootFolder != null) {
+      final normalizedRoot = rootFolder.normalized;
+      final normalizedRootLower = normalizedRoot.toLowerCase();
+      final normalizedLower = normalized.toLowerCase();
+      if (normalizedLower == normalizedRootLower) return const [];
+      if (normalizedLower.startsWith('$normalizedRootLower/')) {
+        final relative = normalized.substring(normalizedRoot.length);
+        final parts = relative.split('/').where((e) => e.isNotEmpty);
+        final result = <NodeFolder>[];
+        var currentPath = normalizedRoot;
+
+        for (final part in parts) {
+          currentPath = joinPath(currentPath, part);
+          result.add(NodeFolder(currentPath));
+        }
+
+        return result;
+      }
+    }
+
+    final result = <NodeFolder>[];
+    NodeFolder? cursor = this;
+    while (cursor != null) {
+      result.insert(0, cursor);
+      cursor = cursor.parent;
+    }
+
+    return result;
+  }
+
+  bool hasSamePathAs(String path) => key == NodeFolder(path).key;
+
+  static String normalizePath(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedSeparators = path.replaceAll('\\', '/');
+    final uriMatch = _uriPathPattern.firstMatch(normalizedSeparators);
+    if (uriMatch != null) {
+      final prefix = uriMatch.group(1)!;
+      final body = uriMatch.group(2)!;
+      final normalizedBody = posix
+          .normalize(body)
+          .replaceFirst(RegExp(r'^/+'), '');
+      return '$prefix$normalizedBody';
+    }
+    return posix.normalize(normalizedSeparators);
+  }
+
+  static String dirName(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedPath = normalizePath(path);
+    final uriMatch = _uriPathPattern.firstMatch(normalizedPath);
+    if (uriMatch != null) {
+      final prefix = uriMatch.group(1)!;
+      final body = uriMatch.group(2)!;
+      final parent = posix.dirname(body);
+      if (parent == '.' || parent == body) return normalizedPath;
+      return '$prefix$parent';
+    }
+    return posix.dirname(normalizedPath);
+  }
+
+  static String baseName(String path) {
+    final posix = p.Context(style: p.Style.posix);
+    final normalizedPath = normalizePath(path);
+    final uriMatch = _uriPathPattern.firstMatch(normalizedPath);
+    if (uriMatch != null) {
+      return posix.basename(uriMatch.group(2)!);
+    }
+    return posix.basename(normalizedPath);
+  }
+
+  static String joinPath(String parent, String child) {
+    final normalizedParent = normalizePath(parent);
+    final normalizedChild = child.replaceAll('\\', '/');
+    return normalizePath('$normalizedParent/$normalizedChild');
+  }
+
+  static final _uriPathPattern = RegExp(r'^([a-zA-Z][a-zA-Z0-9+.-]*://)(.*)$');
+
+  @override
+  bool operator ==(Object other) {
+    return other is NodeFolder && other.key == key;
+  }
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  String toString() => 'NodeFolder($normalized)';
 }

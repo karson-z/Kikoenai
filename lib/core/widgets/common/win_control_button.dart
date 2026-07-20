@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/utils/window/window_close_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../layout/provider/main_scaffold_provider.dart';
@@ -80,6 +83,28 @@ class _WindowControlButtonsState extends ConsumerState<WindowControlButtons> wit
     return Row(
       children: [
         IconButton(
+          tooltip: '搜索',
+          icon: Icon(
+            Icons.search_rounded,
+            size: widget.iconSize,
+            color: color,
+          ),
+          padding: widget.padding,
+          onPressed: () {
+            context.push(AppRoutes.search);
+          },
+        ),
+        const SizedBox(width: 8),
+        const SizedBox(
+          height: 20, // 限制垂直线的绝对高度
+          child: VerticalDivider(
+            width: 1, // 占用的水平空间
+            thickness: 1, // 线的物理粗细
+            color: Colors.grey, // 线的颜色，可替换为 Theme.of(context).dividerColor
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
           tooltip: isFullScreen ? '退出全屏' : '全屏',
           icon: Icon(
             isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
@@ -118,9 +143,16 @@ class _WindowControlButtonsState extends ConsumerState<WindowControlButtons> wit
           tooltip: '关闭',
           icon: Icon(Icons.close, size: widget.iconSize, color: color),
           padding: widget.padding,
-          onPressed: () => windowManager.close(),
+          onPressed: () => WindowCloseHandler.handleClose(context),
         ),
       ],
     );
+  }
+
+  /// 系统级关闭（标题栏 X / Alt+F4）：因 setPreventClose(true) 触发，
+  /// 走与关闭按钮相同的逻辑，保证已记住的选择 / 弹窗一致。
+  @override
+  void onWindowClose() {
+    WindowCloseHandler.handleClose(context);
   }
 }

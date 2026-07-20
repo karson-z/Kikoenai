@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_worker.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import '../../../../../../core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
+import 'package:kikoenai/features/album/presentation/widget/file_box.dart';
+import 'package:kikoenai/features/file_sort/presentation/widget/file_sort_dialog.dart';
+import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import '../../../../core/utils/scraper/scraper_controller.dart';
-import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
-import '../../data/model/file_scanner_state.dart';
+import '../../../../core/utils/scraper/scraper_storage.dart';
 import '../provider/file_scanner_notifier.dart';
-import '../widget/file_scanner_panel.dart';
 import '../widget/parsed_works_view.dart';
 import '../widget/path_sheet.dart';
 import '../../../../../../core/model/file_node.dart';
@@ -19,23 +19,34 @@ class ScannerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 1. 订阅最新的由对象驱动的单层切片文件树状态
     final scannerState = ref.watch(fileScannerProvider);
+    final scannerNotifier = ref.read(fileScannerProvider.notifier);
+
     final queueState = ref.watch(scraperQueueProvider);
-
-    final isScanning = scannerState.status == WorkerState.scanning;
     final currentMode = scannerState.scanMode;
-    // 1. 获取全局的面包屑数据和控制器
-    final breadcrumbs = ref.watch(breadcrumbProvider);
-    final breadcrumbNotifier = ref.read(breadcrumbProvider.notifier);
-
     final queueCount = queueState.pending.length + queueState.processing.length;
+    final root = scannerState.rootPath;
 
-    ref.listen<FileScannerState>(fileScannerProvider, (previous, next) {
-      final wasScanning = previous?.status == WorkerState.scanning;
-      final isNowIdle = next.status == WorkerState.idle || next.status == WorkerState.done;
-      if (wasScanning && isNowIdle) {
-        final pendingNodes = _extractPendingNodes(next.roots);
-        if (pendingNodes.isNotEmpty) {
+    // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
+    final breadcrumbNodes = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
+    final breadcrumbNotifier = ref.read(
+      breadcrumbProvider(BreadCrumbBarType.local).notifier,
+    );
+    final List<String> breadcrumbPaths =
+        breadcrumbNodes.map((node) => node.title).toList();
+
+    // 3. 监听扫描流异步完成的副作用（仅在扫描状态由 true 变为 false 且存在有效节点时触发弹窗）
+    ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
+      final wasScanning = previous?.isScanning ?? false;
+      final isNowDone = !next.isScanning;
+
+      if (wasScanning &&
+          isNowDone &&
+          scannerNotifier.didLastResultCompleteSync &&
+          next.rootPath.isNotEmpty) {
+        final pendingNodes = scannerNotifier.getPendingWorkNodesInActiveRoot();
+        if (pendingNodes.isNotEmpty && next.scanMode != ScanMode.subtitles) {
           _showScanCompleteDialog(context, ref, pendingNodes);
         }
       }
@@ -46,39 +57,53 @@ class ScannerPage extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 66,
-          title: Column(
+          title: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '媒体库',
                 style: TextStyle(fontSize: 18),
                 overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _getStatusText(scannerState.status, scannerState.scannedCount),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isScanning
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
               ),
             ],
           ),
           actions: [
             Builder(
               builder: (context) {
-                return  Padding(padding: const EdgeInsets.only(right: 12),
-                  child: IconButton(
-                    tooltip: '解析队列',
-                    icon: Badge(
-                      isLabelVisible: queueCount > 0,
-                      label: Text(queueCount.toString()),
-                      child: const Icon(Icons.swap_vert_circle_outlined),
-                    ),
-                    onPressed: () {
-                      Scaffold.of(context).openEndDrawer();
-                    },
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: '同步媒体库',
+                        icon: scannerState.isScanning
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.sync),
+                        onPressed:
+                            scannerState.rootPath.isEmpty ||
+                                scannerState.isScanning
+                            ? null
+                            : () => scannerNotifier.refreshCurrentTarget(),
+                      ),
+                      IconButton(
+                        tooltip: '解析队列',
+                        icon: Badge(
+                          isLabelVisible: queueCount > 0,
+                          label: Text(queueCount.toString()),
+                          child: const Icon(Icons.swap_vert_circle_outlined),
+                        ),
+                        onPressed: () {
+                          Scaffold.of(context).openEndDrawer();
+                        },
+                      ),
+                    ],
                   ),
                 );
               },
@@ -88,27 +113,26 @@ class ScannerPage extends ConsumerWidget {
         endDrawer: const ScraperQueueDrawer(),
         body: Column(
           children: [
-            // 1. 固定在顶部的控制栏（面包屑 + 药丸 TabBar）
+            // 固定在顶部的控制栏（面包屑导航 + 药丸式切换 TabBar）
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                   Expanded(
-                    child: BreadcrumbBar(
-                      // 提取标题集合
-                      paths: breadcrumbs.map((node) => node.title).toList(),
-                      // 绑定点击根目录事件
-                      onHomeTap: () => breadcrumbNotifier.jumpTo(-1),
-                      // 绑定点击具体层级事件
-                      onPathTap: (index) => breadcrumbNotifier.jumpTo(index),
-
-                      // 可选：在此处覆盖默认样式
-                      // backgroundColor: Colors.transparent,
-                    ),// 左侧：面包屑无限延伸
+                  Expanded(
+                    child: root.isEmpty
+                        ? const SizedBox.shrink()
+                        : BreadcrumbBar(
+                            paths: breadcrumbPaths,
+                            // 点击 Home 图标：直接移回根目录
+                            onHomeTap: () => breadcrumbNotifier.goHome(),
+                            // 点击任意中间面包屑节点：按层级索引瞬移跳转
+                            onPathTap: (index) =>
+                                breadcrumbNotifier.jumpTo(index),
+                          ),
                   ),
                   const SizedBox(width: 12),
-                  // 右侧：药丸 TabBar
+                  // 右侧：“待解析 / 已解析”切换小药丸
                   Container(
                     width: 150,
                     height: 44,
@@ -123,9 +147,14 @@ class ScannerPage extends ConsumerWidget {
                         indicatorSize: TabBarIndicatorSize.tab,
                         labelColor: Colors.black87,
                         unselectedLabelColor: Colors.grey.shade600,
-                        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        labelStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                         unselectedLabelStyle: const TextStyle(fontSize: 13),
-                        overlayColor: WidgetStateProperty.all(Colors.transparent),
+                        overlayColor: WidgetStateProperty.all(
+                          Colors.transparent,
+                        ),
                         indicator: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(15),
@@ -150,14 +179,13 @@ class ScannerPage extends ConsumerWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildPendingView(context, scannerState, currentMode),
+                  _buildPendingView(context, ref, scannerState, currentMode),
                   ParseWorksView(work: ScraperStorage().getAllWorks()),
                 ],
               ),
             ),
           ],
         ),
-
         floatingActionButton: FloatingActionButton.extended(
           icon: const Icon(Icons.folder_copy_outlined),
           label: const Text("管理路径"),
@@ -170,27 +198,64 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildPendingView(BuildContext context, scannerState, ScanMode currentMode) {
-    if (scannerState.roots.isEmpty) {
+  Widget _buildPendingView(
+    BuildContext context,
+    WidgetRef ref,
+    FileBrowserState scannerState,
+    ScanMode currentMode,
+  ) {
+    if (scannerState.rootPath.isEmpty) {
       return _buildEmptyStateView(context);
     }
-    return FileBrowserPanel(
-      rootNodes: scannerState.roots,
-      scanMode: currentMode,
-    );
-  }
 
-  String _getStatusText(WorkerState status, int count) {
-    switch (status) {
-      case WorkerState.idle:
-        return count > 0 ? '共 $count 个文件' : '准备就绪';
-      case WorkerState.scanning:
-        return '正在扫描中... ($count)';
-      case WorkerState.done:
-        return '扫描完成，共 $count 个文件';
-      case WorkerState.error:
-        return '扫描出错，请重试';
-    }
+    final scannerNotifier = ref.read(fileScannerProvider.notifier);
+
+    // 本地媒体复用统一 FileNodeBrowser：导航委托给 FileScannerNotifier
+    // （其内部已持有 FileNodeLibraryIndex），面包屑由页面顶栏单独渲染。
+    return PopScope(
+      canPop: scannerState.isHome,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
+        scannerNotifier.stepOut();
+      },
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => FileSortDialog.show(context),
+                  icon: const Icon(Icons.sort, size: 18),
+                  label: const Text('排序'),
+                ),
+              ),
+            ),
+          ),
+          FileNodeBrowser(
+            currentNodes: scannerState.children,
+            work: null,
+            source: NodeSource.localSingle,
+            config: FileBrowserConfig(
+              showFolderStatus: true,
+              subtitlesCopyMode: currentMode == ScanMode.subtitles,
+              enableFolderLongPress: true,
+            ),
+            onEnterFolder: (node) {
+              if (node.path != null) {
+                scannerNotifier.stepIn(NodeFolder(node.path!));
+              }
+            },
+            workResolver: (node) =>
+                node.workId == null ? null : ScraperStorage().getWork(node.workId!),
+            sourceResolver: (node) => node.workId == null
+                ? NodeSource.localSingle
+                : NodeSource.localWork,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEmptyStateView(BuildContext context) {
@@ -204,13 +269,10 @@ class ScannerPage extends ConsumerWidget {
             color: Theme.of(context).colorScheme.surfaceTint,
           ),
           const SizedBox(height: 16),
-          Text(
-            "这里空空如也",
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text("这里空空如也", style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(
-            "点击下方按钮管理文件夹",
+            "点击下方按钮管理并添加文件夹",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -228,29 +290,19 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  List<FileNode> _extractPendingNodes(List<FileNode> nodes) {
-    final pendingNodes = <FileNode>[];
-    void findPending(List<FileNode> currentLevel) {
-      for (var node in currentLevel) {
-        if (node.nodeStatus == NodeStatus.pending && node.rjCode != null) {
-          pendingNodes.add(node);
-        }
-        if (node.isFolder && node.children != null) {
-          findPending(node.children!);
-        }
-      }
-    }
-    findPending(nodes);
-    return pendingNodes;
-  }
-
-  void _showScanCompleteDialog(BuildContext context, WidgetRef ref, List<FileNode> pendingNodes) {
+  void _showScanCompleteDialog(
+    BuildContext context,
+    WidgetRef ref,
+    List<FileNode> pendingNodes,
+  ) {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('扫描完成'),
-          content: Text('一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？'),
+          content: Text(
+            '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -261,9 +313,9 @@ class ScannerPage extends ConsumerWidget {
                 Navigator.pop(dialogContext);
                 ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
                 ref.read(scraperQueueProvider.notifier).start();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('已全部加入后台队列并开始解析')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
               },
               child: const Text('一键加入并开始'),
             ),

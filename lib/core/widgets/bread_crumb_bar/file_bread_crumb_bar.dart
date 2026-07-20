@@ -57,56 +57,85 @@ class _BreadcrumbBarState extends State<BreadcrumbBar> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultBgColor = isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50];
-    final defaultBorderColor = isDark ? Colors.white10 : Colors.black12;
+
+    // 强化视觉对比度，防止与 Scaffold 页面色融为一体
+    final defaultBgColor = isDark ? Colors.white.withOpacity(0.08) : Colors.grey[100];
+    final defaultBorderColor = isDark ? Colors.white10 : Colors.grey[300]!;
 
     return Container(
       width: double.infinity,
-      padding: widget.padding ?? const EdgeInsets.all(12),
+      padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? defaultBgColor,
-        borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
+        borderRadius: widget.borderRadius ?? BorderRadius.circular(16), // 使用更精致的圆角弧度
         border: widget.borderColor != null
             ? Border.all(color: widget.borderColor!)
             : Border.all(color: defaultBorderColor),
       ),
-      child: SingleChildScrollView(
-        controller: _scrollController, // 绑定 ScrollController
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            InkWell(
-              onTap: widget.onHomeTap,
-              borderRadius: BorderRadius.circular(4),
-              child: Icon(
-                Icons.home_outlined,
-                size: 18,
-                color: widget.paths.isEmpty ? Colors.blue : Colors.grey[500],
-              ),
-            ),
-            for (int i = 0; i < widget.paths.length; i++) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-              ),
+      child: IconTheme(
+        // 显式规范内部图标主题，确保在 AppBar 等特殊环境下颜色不被系统强行覆盖
+        data: IconThemeData(color: isDark ? Colors.white70 : Colors.black54),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(), // 开启干净不溢出的非回弹物理滚动
+          child: Row(
+            mainAxisSize: MainAxisSize.min, // 严格限制 Row 宽度仅包裹实际内容
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 根路径主页图标
               InkWell(
-                onTap: () => widget.onPathTap(i),
-                borderRadius: BorderRadius.circular(4),
-                child: Text(
-                  widget.paths[i],
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: i == widget.paths.length - 1
-                        ? (isDark ? Colors.white : Colors.black87)
-                        : Colors.blue,
-                    fontWeight: i == widget.paths.length - 1
-                        ? FontWeight.w500
-                        : FontWeight.normal,
+                onTap: widget.onHomeTap,
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Icon(
+                    Icons.home_rounded, // 升级为极具科技感的圆角图标
+                    size: 18,
+                    color: widget.paths.isEmpty
+                        ? Theme.of(context).colorScheme.primary
+                        : (isDark ? Colors.white70 : Colors.black54),
                   ),
                 ),
               ),
+
+              // 循环渲染相对层级面包屑数组
+              for (int i = 0; i < widget.paths.length; i++) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
+                  child: Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey),
+                ),
+
+                // 精准鉴权可点击项
+                InkWell(
+                  // ==========================================
+                  // 【逻辑修复二】：最后一层（代表当前目录）时，强行将 onTap 设为 null 封禁交互
+                  // 只有中间层级的父文件夹才允许触发点击回溯跳转事件
+                  // ==========================================
+                  onTap: i == widget.paths.length - 1 ? null : () => widget.onPathTap(i),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    // 补充合理的内边距，扩大点击热区的同时，避免文字紧贴 chevron 图标
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Text(
+                      widget.paths[i],
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 13,
+                        // 可点击项对齐系统 Primary 主题色，不可点击的当前层级自动标黑/标白加粗
+                        color: i == widget.paths.length - 1
+                            ? (isDark ? Colors.white : Colors.black87)
+                            : Theme.of(context).colorScheme.primary,
+                        fontWeight: i == widget.paths.length - 1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

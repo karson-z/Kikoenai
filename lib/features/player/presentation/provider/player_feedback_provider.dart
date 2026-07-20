@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playback_enum.dart';
-import 'package:kikoenai/core/service/audio/audio_extension.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/utils/network/api_client.dart';
 import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
@@ -20,6 +19,7 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
     // 返回初始状态
     return const PlaybackTrackerState();
   }
+
   void updatePlaybackStatus({required String workId, required bool isPlaying}) {
     if (state.currentWorkId != workId) {
       _resetTracker(workId);
@@ -58,8 +58,10 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
   }
 
   void _checkAndReportStart() {
-    final isLocal = ref.read(playerControllerProvider).currentTrack?.isLocal;
-    if (!state.hasReportedStart && state.currentWorkId != null && !isLocal!  ) {
+    final isLocal = ref.read(playerControllerProvider).currentItem?.isLocal;
+    if (!state.hasReportedStart &&
+        state.currentWorkId != null &&
+        isLocal == false) {
       final recommendUuid = CacheService.instance.getOrGenerateRecommendUuid();
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
@@ -67,21 +69,20 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
       final data = {
         'itemId': state.currentWorkId,
         'recommendUuid': currentUser.recommenderUuid ?? recommendUuid,
-        'type': ListenEventType.start.type
+        'type': ListenEventType.start.type,
       };
       final api = ref.read(apiClientProvider);
-      api.post(
-        '/recommender/feedback',
-        data: data
-      );
+      api.post('/recommender/feedback', data: data);
       debugPrint("[埋点] 开始播放作品: ${state.currentWorkId}");
       state = state.copyWith(hasReportedStart: true);
     }
   }
 
   void _checkAndReport5Mins() {
-    final isLocal = ref.read(playerControllerProvider).currentTrack?.isLocal;
-    if (!state.hasReported5Mins && state.currentWorkId != null  && !isLocal!) {
+    final isLocal = ref.read(playerControllerProvider).currentItem?.isLocal;
+    if (!state.hasReported5Mins &&
+        state.currentWorkId != null &&
+        isLocal == false) {
       final authSession = CacheService.instance.getAuthSession();
       final currentUser = authSession?.user;
       if (currentUser == null) return;
@@ -89,13 +90,10 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
       final data = {
         'itemId': state.currentWorkId,
         'recommendUuid': currentUser.recommenderUuid ?? recommendUuid,
-        'type': ListenEventType.fiveMinutes.type
+        'type': ListenEventType.fiveMinutes.type,
       };
       final api = ref.read(apiClientProvider);
-      api.post(
-          '/recommender/feedback',
-          data: data
-      );
+      api.post('/recommender/feedback', data: data);
 
       debugPrint("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
 
@@ -105,6 +103,6 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
 }
 
 final playbackTrackerProvider =
-NotifierProvider<PlaybackTrackerNotifier, PlaybackTrackerState>(() => PlaybackTrackerNotifier());
-
-
+    NotifierProvider<PlaybackTrackerNotifier, PlaybackTrackerState>(
+      () => PlaybackTrackerNotifier(),
+    );

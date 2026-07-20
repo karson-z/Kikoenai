@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-import 'package:kikoenai/features/playlist/presentation/provider/playlist_filter_provider.dart';
 import '../../../../core/enums/playlist_filter.dart';
+import '../../../../core/enums/sort_options.dart';
 import '../../../auth/presentation/view_models/provider/auth_provider.dart';
+import '../../data/model/playlist_request.dart';
 import '../../data/model/playlist_response.dart';
 import '../../data/model/playlist_work_response.dart';
 import '../../data/service/playlist_repository.dart';
@@ -53,21 +55,31 @@ class PlaylistWorksNotifier extends AsyncNotifier<PlaylistWorksResponse> {
     required String playlistId,
   }) async {
     final repository = ref.read(playlistRepositoryProvider);
-    final uiState = ref.read(playlistUiProvider);
-    final request = uiState.request;
-    final shouldPost = request.tags.isNotEmpty ||
-        request.textKeyword.isNotEmpty ||
-        request.subtitlesOnly == true ||
-        request.orderBy.value != 'create_date'; // 检查是否非默认排序
+    final state = ref.read(searchFilterProvider(FilterModule.playlist));
 
-    if (shouldPost) {
-      final pagedRequest = request.copyWith(
+    // 1. 检查是否处于筛选/搜索状态
+    // 逻辑：标签不为空、关键字不为空、开启了字幕筛选、或排序不是默认的“创建日期”
+    final isFiltered = state.selectedTags.isNotEmpty ||
+        state.localSearchKeyword.isNotEmpty ||
+        state.subtitleFilter != 0 || // 假设 0 是“全部”，1 是“仅字幕”
+        state.sortOption != SortOrder.createDate;
+
+    if (isFiltered) {
+      // 2. 将 UI 状态（SearchFilterState）转换为请求对象（PlaylistWorksRequest）
+      final pagedRequest = PlaylistWorksRequest(
         id: playlistId,
         page: page,
         pageSize: _pageSize,
+        tags: state.selectedTags,
+        textKeyword: state.localSearchKeyword,
+        orderBy: state.sortOption,
+        sort: state.sortDirection,
+        subtitlesOnly: state.subtitleFilter == 1,
       );
+
       return repository.fetchPlaylistWorksByKeyword(pagedRequest);
     } else {
+      // 3. 默认请求（无任何筛选条件）
       return repository.fetchPlaylistWorks(
         playlistId: playlistId,
         page: page,

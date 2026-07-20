@@ -8,7 +8,6 @@ import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import '../../service/cache/cache_service.dart';
 import '../../common/errors.dart';
 import '../../common/global_exception.dart';
-import '../../common/result.dart';
 import '../../constants/app_constants.dart';
 
 class ApiClient {
@@ -80,15 +79,10 @@ class ApiClient {
   }
 
   /// 泛型请求核心方法
-  Future<Result<T>> _request<T>(Future<Response> Function() request) async {
+  Future<T> _request<T>(Future<Response> Function() request) async {
     try {
       final response = await request();
-
-      return Result.success(
-        data: response.data as T,
-        code: response.statusCode ?? -1,
-        message: 'success',
-      );
+      return response.data as T;
     } catch (e, st) {
       final exception = mapToGlobalException(e);
       throw GlobalException(
@@ -103,64 +97,89 @@ class ApiClient {
 
   /// HTTP 方法封装（已添加 options 参数）
 
-  Future<Result<T>> get<T>(
-      String path, {
-        Map<String, dynamic>? queryParameters,
-        Options? options,
-      }) =>
+  Future<T> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) =>
       _request<T>(
-            () => _dio.get(
+        () => _dio.get(
           path,
           queryParameters: queryParameters,
           options: options,
         ),
       );
 
-  Future<Result<T>> post<T>(
-      String path, {
-        dynamic data,
-        Options? options,
-      }) =>
+  Future<T> post<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) =>
       _request<T>(
-            () => _dio.post(
+        () => _dio.post(
           path,
           data: data,
           options: options,
         ),
       );
 
-  Future<Result<T>> put<T>(
-      String path, {
-        dynamic data,
-        Options? options,
-      }) =>
+  Future<T> put<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) =>
       _request<T>(
-            () => _dio.put(
+        () => _dio.put(
           path,
           data: data,
           options: options,
         ),
       );
 
-  Future<Result<T>> delete<T>(
-      String path, {
-        dynamic data,
-        Options? options,
-      }) =>
+  Future<T> delete<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) =>
       _request<T>(
-            () => _dio.delete(
+        () => _dio.delete(
           path,
           data: data,
           options: options,
         ),
       );
+
+  Future<Response<List<int>>> getBytes(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        path,
+        queryParameters: queryParameters,
+        options:
+            (options ?? Options()).copyWith(responseType: ResponseType.bytes),
+      );
+      return response;
+    } catch (e, st) {
+      final exception = mapToGlobalException(e);
+      throw GlobalException(
+        exception.message,
+        originalError: exception.originalError,
+        stackTrace: st,
+        code: exception.code,
+        context: exception.context,
+      );
+    }
+  }
 }
 
 /// 拦截器注册
 void _setupInterceptors(
-    Dio dio,
-    Future<String?> Function()? tokenProvider,
-    ) {
+  Dio dio,
+  Future<String?> Function()? tokenProvider,
+) {
   final customInterceptor = InterceptorsWrapper(
     onRequest: (options, handler) async {
       KikoenaiLogger().i('[API] REQ ${options.method} ${options.uri}');
@@ -231,6 +250,7 @@ void _setupInterceptors(
   //   },
   // ));
 }
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient.instance;
 });

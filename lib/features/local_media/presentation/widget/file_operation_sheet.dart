@@ -1,8 +1,8 @@
-// 记得引入你实际的类路径
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 
@@ -16,12 +16,24 @@ class FolderActionBottomSheet extends ConsumerWidget {
 
   const FolderActionBottomSheet({super.key, required this.node});
 
+  static Future<void> show(BuildContext context, FileNode node) {
+    return KikoenaiDialog.showBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => FolderActionBottomSheet(node: node),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 1. 尝试从本地数据库获取该作品的详细信息
     Work? work;
-    if (node.rjCode != null && node.rjCode!.isNotEmpty) {
-      work = ScraperStorage().getWork(node.rjCode!);
+    if (node.workId != null) {
+      work = ScraperStorage().getWork(node.workId!);
     }
 
     return SafeArea(
@@ -58,11 +70,13 @@ class FolderActionBottomSheet extends ConsumerWidget {
                   subtitle: node.mediaStreamUrl,
                   onTap: () {
                     Navigator.pop(context);
-                    Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? ""));
+                    Clipboard.setData(
+                      ClipboardData(text: node.mediaStreamUrl ?? ""),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("已复制路径: ${node.title}")),
                     );
-                  },
+                    },
                 ),
                 _buildActionTile(
                   context: context,
@@ -81,7 +95,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
                   subtitle: "手动将此文件夹加入后台元数据刮削",
                   onTap: () {
                     Navigator.pop(context);
-                    if (node.rjCode == null) {
+                    if (node.workId == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("未检测到有效 RJ 码，无法解析")),
                       );
@@ -91,7 +105,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
                     ref.read(scraperQueueProvider.notifier).addTasks([node]);
                     ref.read(scraperQueueProvider.notifier).start();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("已将 ${node.rjCode} 加入解析队列")),
+                      SnackBar(content: Text("已将 RJ0${node.workId} 加入解析队列")),
                     );
                   },
                 ),
@@ -109,7 +123,7 @@ class FolderActionBottomSheet extends ConsumerWidget {
     // 如果没有解析数据，使用节点自身的标题作为占位
     final String title = work?.title ?? node.title;
     // 副标题：优先使用社团名(name)，其次 RJ码，最后是保底文本
-    final String subtitle = work?.name ?? node.rjCode ?? '本地文件夹';
+    final String subtitle = work?.name ?? (node.workId == null ? null : 'RJ0${node.workId}') ?? '本地文件夹';
     // 封面图
     final String? imageUrl = work?.thumbnailCoverUrl ?? work?.mainCoverUrl;
 
@@ -122,14 +136,12 @@ class FolderActionBottomSheet extends ConsumerWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: imageUrl != null
-                ? CachedNetworkImage(
-              imageUrl: imageUrl,
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => _buildFallbackIcon(context),
-              errorWidget: (context, url, error) => _buildFallbackIcon(context),
-            )
+                ? SimpleExtendedImage(
+                    imageUrl,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                  )
                 : _buildFallbackIcon(context),
           ),
           const SizedBox(width: 12),
@@ -150,10 +162,9 @@ class FolderActionBottomSheet extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontSize: 13),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -173,7 +184,9 @@ class FolderActionBottomSheet extends ConsumerWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Icon(
         FileExtensions.isArchive(node.title) ? Icons.folder_zip : Icons.folder,
-        color: FileExtensions.isArchive(node.title) ? Colors.purpleAccent : Colors.amber,
+        color: FileExtensions.isArchive(node.title)
+            ? Colors.purpleAccent
+            : Colors.amber,
       ),
     );
   }
@@ -187,15 +200,24 @@ class FolderActionBottomSheet extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, size: 24, color: Theme.of(context).colorScheme.onSurfaceVariant),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      leading: Icon(
+        icon,
+        size: 24,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      ),
       subtitle: subtitle != null
           ? Text(
-        subtitle,
-        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      )
+              subtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
           : null,
       onTap: onTap,
     );

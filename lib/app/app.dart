@@ -16,19 +16,31 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 当用户开启桌面字幕的时候再挂起监听
-    AppStorage.settingsBox.get(StorageKeys.desktopLyricsEnabled,defaultValue: false) ? ref.listen(lyricsControllerProvider, (_, __) {}) : null;
+    AppStorage.settingsBox.get(
+          StorageKeys.desktopLyricsEnabled,
+          defaultValue: false,
+        )
+        ? ref.listen(lyricsControllerProvider, (_, __) {})
+        : null;
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
     final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);
     if (ref.read(defaultMarkTargetPlaylistProvider) == null) {
-       notifier.fetchAndCacheDefault();
+      notifier.fetchAndCacheDefault();
     }
+
     return MaterialApp.router(
       scrollBehavior: MyCustomScrollBehavior(),
       debugShowCheckedModeBanner: false,
       title: VersionConfig.appName,
-      theme: AppTheme.light(themeState.seedColor),
-      darkTheme: AppTheme.dark(themeState.seedColor),
+      theme: AppTheme.light(
+        themeState.seedColor,
+        fontPreset: themeState.fontPreset,
+      ),
+      darkTheme: AppTheme.dark(
+        themeState.seedColor,
+        fontPreset: themeState.fontPreset,
+      ),
       themeMode: themeState.mode,
       routerConfig: router,
     );

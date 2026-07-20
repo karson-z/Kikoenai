@@ -1,25 +1,40 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/model/file_node.dart';
+import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/features/album/data/service/work_repository.dart';
 
-final trackFileNodeProvider = FutureProvider.family<List<FileNode>, int>((ref, workId) async {
-  final repo = ref.read(workRepositoryProvider);
-  final response = await repo.getWorkTracks(workId);
-  final data = response.data;
-  if (data == null) return [];
-  final nodes = data
-      .map<FileNode>((json) => FileNode.fromJson(json as Map<String, dynamic>))
-      .toList();
-  return nodes;
+final trackFileNodeIndexProvider =
+    FutureProvider.family<FileNodeLibraryIndex, int>((ref, workId) async {
+      final repo = ref.read(workRepositoryProvider);
+      final response = await repo.getWorkTracks(workId);
+      const currentSource = NodeSource.asmrServer;
+
+      final nodes = response.map<FileNode>((json) {
+        final baseNode = FileNode.fromJson(json as Map<String, dynamic>);
+        return baseNode.copyWith(source: currentSource);
+      }).toList();
+
+      return FileNodeLibraryIndex.fromRemoteTree(
+        roots: nodes,
+        workId: workId,
+        source: currentSource,
+      );
+    });
+
+final trackFileNodeProvider = FutureProvider.family<List<FileNode>, int>((
+  ref,
+  workId,
+) async {
+  final index = await ref.watch(trackFileNodeIndexProvider(workId).future);
+  return index.toTreeChildren();
 });
-final workDetailProvider = FutureProvider.family.autoDispose<Work,int>((ref,workId) async {
+final workDetailProvider = FutureProvider.family.autoDispose<Work?, int>((
+  ref,
+  workId,
+) async {
   final repo = ref.read(workRepositoryProvider);
+
   final response = await repo.getWorkDetail(workId);
-  final workJson = response.data;
-  if(workJson == null){
-    return Work();
-  }
-  final work = Work.fromJson(workJson);
-  return work;
+  return Work.fromJson(response);
 });

@@ -31,7 +31,6 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
 
         return ShowLyric(
           key: ValueKey(lyricContent.hashCode),
-          initStyle: LyricStyles.default2,
           progress: progressNotifier,
           initController: (controller) {
             controller.setOnTapLineCallback(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/loading/lottie_loading.dart';
 import '../../../core/enums/sort_options.dart';
-import '../../album/presentation/widget/skeleton/skeleton_grid.dart';
 import '../../album/presentation/widget/work_grid_layout.dart';
 import '../presentation/viewmodel/provider/category_data_provider.dart';
 import '../presentation/viewmodel/provider/category_keep_alive.dart';
@@ -72,7 +72,7 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
             SliverOverlapInjector(
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
             ),
-            ..._buildCommonContent(worksAsync, categoryController),
+            ..._buildCommonContent(ref),
             const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
           ],
         ),
@@ -81,12 +81,11 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
   }
 
   List<Widget> _buildCommonContent(
-      AsyncValue worksAsync, dynamic controller) {
+      WidgetRef ref) {
+    final categoryWorks = ref.watch(categoryProvider(widget.sortOrder));
+    final categoryController = ref.read(categoryProvider(widget.sortOrder).notifier);
     return [
-      worksAsync.when(
-        // 6. 【关键优化】: skipLoadingOnRefresh: true
-        // 这样在下拉刷新时，数据会保持在 data 状态，而不会跳到 loading 状态
-        // 从而避免页面闪烁成“骨架屏”，用户只会看到头部的刷新圈圈在转。
+      categoryWorks.when(
         skipLoadingOnRefresh: true,
 
         data: (data) {
@@ -98,14 +97,24 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
           return ResponsiveCardGrid(
             work: data.works,
             hasMore: data.hasMore,
+            isLoading: categoryWorks.isLoading,
             onLoadMore: () {
-              controller.loadMore();
+              categoryController.loadMore();
             },
           );
         },
 
-        // 7. 只有在【首次初始化】且没有数据时，才会显示骨架屏
-        loading: () => const ResponsiveCardGridSkeleton(),
+        loading: () => const SliverToBoxAdapter(
+          child: SizedBox(
+            height: 280,
+            child: Center(
+              child: LottieLoadingIndicator(
+                size: 76,
+                message: '加载中...',
+              ),
+            ),
+          ),
+        ),
 
         error: (e, _) => SliverToBoxAdapter(
           child: SizedBox(

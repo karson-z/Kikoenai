@@ -25,9 +25,10 @@ class PlayerControls extends ConsumerWidget {
             const PlayModeButton(),
             const SizedBox(width: 24),
             IconButton(
+                color: Colors.white,
+                disabledColor: Colors.white30,
                 onPressed: isFirst ? null : controller.previous,
-                icon: const Icon(Icons.skip_previous_rounded,
-                    color: Colors.white, size: 36)),
+                icon: const Icon(Icons.skip_previous_rounded, size: 36)),
             const SizedBox(width: 16),
             GestureDetector(
               onTap: () => playing ? controller.pause() : controller.play(),
@@ -41,12 +42,13 @@ class PlayerControls extends ConsumerWidget {
             ),
             const SizedBox(width: 16),
             IconButton(
+                color: Colors.white,
+                disabledColor: Colors.white30,
                 onPressed: isLast ? null : controller.next,
-                icon: const Icon(Icons.skip_next_rounded,
-                    color: Colors.white, size: 36)),
+                icon: const Icon(Icons.skip_next_rounded, size: 36)),
             const SizedBox(width: 24),
             IconButton(
-                onPressed: () => PlayerPlaylistSheet.show(context, isDark: Theme.brightnessOf(context) == Brightness.dark),
+                onPressed: () => PlayerPlaylistSheet.show(context),
                 icon: const Icon(Icons.queue_music_sharp, color: Colors.white)),
           ],
         ),
@@ -100,16 +102,24 @@ class MiniControlButtons extends ConsumerWidget {
 
     return Row(
       mainAxisSize: MainAxisSize.min,
+      spacing: 6.0,
       children: [
-        IconButton(
-            icon: const Icon(Icons.skip_previous),
-            onPressed: controller.previous),
-        IconButton(
-            icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-            onPressed: () => playing ? controller.pause() : controller.play()),
-        IconButton(
-            icon: const Icon(Icons.skip_next_rounded),
-            onPressed: controller.next),
+        GestureDetector(
+          // 增加点击命中率，确保图标透明区域也能响应点击
+          behavior: HitTestBehavior.opaque,
+          onTap: controller.previous,
+          child: const Icon(Icons.skip_previous),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => playing ? controller.pause() : controller.play(),
+          child: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 36),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: controller.next,
+          child: const Icon(Icons.skip_next_rounded),
+        ),
       ],
     );
   }

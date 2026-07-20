@@ -26,7 +26,6 @@ class CategoryWorksPage extends StatelessWidget {
         slivers: [
           const SliverPadding(padding: EdgeInsets.only(top: 16)),
 
-          // ★ 核心：根据传入的 source，自动绑定对应的 Riverpod Provider 和分页逻辑
           SmartWorksSliverGrid(source: source),
 
           const SliverPadding(padding: EdgeInsets.only(bottom: 40)),

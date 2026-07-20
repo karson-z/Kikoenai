@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/theme/app_font_preset.dart';
 import '../../../../core/constants/app_player.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../data/model/lyrics_state.dart';
@@ -17,9 +18,10 @@ final subtitleManagerProvider = Provider<SubtitleManager>((ref) {
   return manager;
 });
 
-final lyricsControllerProvider = NotifierProvider<LyricsController, LyricsState>(() {
-  return LyricsController();
-});
+final lyricsControllerProvider =
+    NotifierProvider<LyricsController, LyricsState>(() {
+      return LyricsController();
+    });
 
 class LyricsController extends Notifier<LyricsState> {
   StreamSubscription<Map<String, dynamic>>? _eventSubscription;
@@ -32,11 +34,22 @@ class LyricsController extends Notifier<LyricsState> {
     ref.onDispose(() {
       _eventSubscription?.cancel();
     });
-
-    final isDesktopModeEnabled = setting.get(StorageKeys.desktopLyricsEnabled, defaultValue: false);
-    final isLocked = setting.get(StorageKeys.overlayLyricsIsLocked, defaultValue: false);
-    final fontSize = setting.get(StorageKeys.overlayLyricsFontSize, defaultValue: 24.0);
-    final fontColorInt = setting.get(StorageKeys.overlayLyricsFontColor, defaultValue: 0xFFFFFFFF);
+    final isDesktopModeEnabled = setting.get(
+      StorageKeys.desktopLyricsEnabled,
+      defaultValue: false,
+    );
+    final isLocked = setting.get(
+      StorageKeys.overlayLyricsIsLocked,
+      defaultValue: false,
+    );
+    final fontSize = setting.get(
+      StorageKeys.overlayLyricsFontSize,
+      defaultValue: 24.0,
+    );
+    final fontColorInt = setting.get(
+      StorageKeys.overlayLyricsFontColor,
+      defaultValue: 0xFFFFFFFF,
+    );
     if (isDesktopModeEnabled) {
       Future.microtask(() async {
         await show();
@@ -61,10 +74,15 @@ class LyricsController extends Notifier<LyricsState> {
       switch (action) {
         case PlayerConstants.syncBusinessState:
           if (payload is Map) {
+            final fontPresetKey = payload['fontPreset'] as String?;
+            if (fontPresetKey != null && fontPresetKey.isNotEmpty) {
+              setting.put(StorageKeys.themeFontPreset, fontPresetKey);
+            }
             state = state.copyWith(
               isPlaying: payload['isPlaying'] ?? state.isPlaying,
               text: payload['text'] ?? state.text,
-              isWindowVisible: payload['isWindowVisible'] ?? state.isWindowVisible,
+              isWindowVisible:
+                  payload['isWindowVisible'] ?? state.isWindowVisible,
             );
           }
           break;
@@ -92,10 +110,19 @@ class LyricsController extends Notifier<LyricsState> {
 
   Future<void> show() async {
     if (state.isDesktopModeEnabled && state.isWindowVisible) return;
-    final isLocked = setting.get(StorageKeys.overlayLyricsIsLocked, defaultValue: false);
-    final posX = setting.get(StorageKeys.overlayLyricsPositionX, defaultValue: 0.0);
-    final posY = setting.get(StorageKeys.overlayLyricsPositionY, defaultValue: 0.0);
-    await _manager.showOverlay(isLocked: isLocked,posX: posX,posY: posY);
+    final isLocked = setting.get(
+      StorageKeys.overlayLyricsIsLocked,
+      defaultValue: false,
+    );
+    final posX = setting.get(
+      StorageKeys.overlayLyricsPositionX,
+      defaultValue: 0.0,
+    );
+    final posY = setting.get(
+      StorageKeys.overlayLyricsPositionY,
+      defaultValue: 0.0,
+    );
+    await _manager.showOverlay(isLocked: isLocked, posX: posX, posY: posY);
     state = state.copyWith(isDesktopModeEnabled: true, isWindowVisible: true);
     await setting.put(StorageKeys.desktopLyricsEnabled, true);
     ref.read(overlayLyricSyncProvider).startSync();
@@ -120,11 +147,11 @@ class LyricsController extends Notifier<LyricsState> {
     await _manager.resizeOverlay(width, height);
   }
 
-  Future<void> toggleLock(bool isLock,{bool isMain = false}) async {
+  Future<void> toggleLock(bool isLock, {bool isMain = false}) async {
     updateLockState(isLock);
-    if(isLock){
+    if (isLock) {
       await _manager.lock(isMain: isMain);
-    }else{
+    } else {
       await _manager.unlock(isMain: isMain);
     }
   }
@@ -138,7 +165,9 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   void sendPlayToggle() {
-    _manager.sendCommand(state.isPlaying ? PlayerConstants.pause : PlayerConstants.play);
+    _manager.sendCommand(
+      state.isPlaying ? PlayerConstants.pause : PlayerConstants.play,
+    );
   }
 
   void sendNext() {
@@ -151,21 +180,23 @@ class LyricsController extends Notifier<LyricsState> {
 
   void updateFontSize(double size) {
     state = state.copyWith(fontSize: size);
-    _manager.sendCommand(PlayerConstants.updateFontSize, {
-      'size': size,
-    });
+    _manager.sendCommand(PlayerConstants.updateFontSize, {'size': size});
   }
 
   void toggleOrientation() {
-    final newOrientation = state.orientation == Axis.horizontal ? Axis.vertical : Axis.horizontal;
+    final newOrientation = state.orientation == Axis.horizontal
+        ? Axis.vertical
+        : Axis.horizontal;
     state = state.copyWith(orientation: newOrientation);
   }
 
   void setTextColor(Color color) {
     state = state.copyWith(textColor: color);
-    _manager.sendCommand(PlayerConstants.color, {
-      'color': color.toARGB32(),
-    });
+    _manager.sendCommand(PlayerConstants.color, {'color': color.toARGB32()});
   }
 
+  void updateFontPreset(AppFontPreset preset) {
+    setting.put(StorageKeys.themeFontPreset, preset.storageKey);
+    _manager.syncBusinessState({'fontPreset': preset.storageKey});
+  }
 }

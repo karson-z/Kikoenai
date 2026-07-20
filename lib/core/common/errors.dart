@@ -46,7 +46,7 @@ GlobalException mapToGlobalException(dynamic error) {
           originalError: error,
           code: 'UNKNOWN_NETWORK_ERROR',
         );
-    }
+      }
   }
 
   if (error is FormatException || error is TypeError) {

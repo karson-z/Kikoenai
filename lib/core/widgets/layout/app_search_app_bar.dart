@@ -49,8 +49,6 @@ class SearchAppBar extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 12),
-
-              // --- 右侧搜索按钮 ---
               TextButton(
                 onPressed: () {
                   if (onSubmitted != null) {

@@ -55,9 +55,6 @@ class FileExtensions {
     }
     return false;
   }
-
-  // --- 4. 组合工具 ---
-
   /// 合并多个集合
   static Set<String> merge(List<Set<String>> sets) {
     return sets.expand((s) => s).toSet();

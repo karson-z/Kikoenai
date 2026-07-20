@@ -21,6 +21,7 @@ abstract class SubtitleManager {
   Stream<Map<String, dynamic>> get eventStream;
 
   // 初始化底层环境与权限
+  /// 这里由主应用初始化
   Future<void> init();
 
   // 显示字幕悬浮窗
@@ -85,7 +86,7 @@ class AndroidSubtitleManager implements SubtitleManager {
   }
 
   @override
-  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 550,double posX = 0 , double posY = 0}) async {
+  Future<void> showOverlay({bool isLocked = false, double width = -1, double height = 750,double posX = 0 , double posY = 0}) async {
     bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
     if (!isGranted) {
       await FlutterOverlayWindow.requestPermission();

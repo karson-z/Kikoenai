@@ -46,6 +46,10 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
       }
     });
     _itemPositionsListener.itemPositions.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(allTasksProvider.notifier).refreshTasks();
+    });
   }
 
   @override

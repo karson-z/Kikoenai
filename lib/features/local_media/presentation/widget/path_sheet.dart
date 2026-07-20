@@ -1,52 +1,56 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
+import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/service/file/file_scanner_worker.dart';
-import '../../../../core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
-import '../../data/model/file_scanner_state.dart';
+import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
+import '../../data/repository/scanner_path_repository.dart';
+import '../provider/file_path_notifier.dart';
 import '../provider/file_scanner_notifier.dart';
 
-class PathManagerSheet extends ConsumerWidget {
-  // 由于 KikoenaiDialog 内部管理了弹窗上下文，这里不再需要外部传入 ScrollController
-  // 我们会在 ListView 内部创建 controller
+class PathManagerSheet extends ConsumerStatefulWidget {
   const PathManagerSheet({super.key});
 
-  /// 对外暴露的静态调用方法，替代原来的 show 方法
   static Future<void> show(BuildContext context) {
     return KikoenaiDialog.showBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: true, // 支持全屏或自定义高度
+      isScrollControlled: true,
       useSafeArea: true,
       builder: (context) => const PathManagerSheet(),
     );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(fileScannerProvider);
-    final notifier = ref.read(fileScannerProvider.notifier);
+  ConsumerState<PathManagerSheet> createState() => _PathManagerSheetState();
+}
 
-    final paths = state.savedPaths;
-    final currentPath = state.currentPath;
-    final currentMode = state.scanMode;
-    final isScanning = state.status == WorkerState.scanning;
+class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
+  late ScanMode _currentMode;
 
-    // 计算初始 Tab 索引
-    final initialIndex = switch (currentMode) {
+  @override
+  void initState() {
+    super.initState();
+    final activeTarget = ref.read(scanTargetsProvider.notifier).getActiveTarget();
+    _currentMode = activeTarget?.scanMode ?? ScanMode.audio;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(scanTargetsProvider);
+    final notifier = ref.read(scanTargetsProvider.notifier);
+    final currentTargets = notifier.getTargetsByMode(_currentMode);
+    final ScanTarget? activeTarget = notifier.getActiveTarget();
+
+    final initialIndex = switch (_currentMode) {
       ScanMode.audio => 0,
       ScanMode.video => 1,
       ScanMode.subtitles => 2,
     };
 
     return Container(
-      // 模拟原来 DraggableScrollableSheet 的视觉效果，设定固定高度或自适应
-      // 这里建议使用约束或固定高度，配合 isScrollControlled: true
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.65,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.65,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -56,36 +60,23 @@ class PathManagerSheet extends ConsumerWidget {
         length: 3,
         initialIndex: initialIndex,
         child: Column(
-          mainAxisSize: MainAxisSize.min, // 重要：Column 高度随内容自适应
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. 顶部把手
             _buildDragHandle(context),
-
-            // 2. 标题栏
-            _buildHeader(context, notifier, paths),
-
-            // 3. 药丸型 TabBar
-            _buildPillTabBar(context, notifier, isScanning),
-
+            _buildHeader(context, notifier, currentTargets),
+            _buildPillTabBar(context),
             const SizedBox(height: 8),
-
-            // 4. 列表区域 (使用 Expanded 撑满剩余空间)
-            // 如果不想要固定高度，可以用 Flexible
             Expanded(
-              child: paths.isEmpty
+              child: currentTargets.isEmpty
                   ? _buildEmptyManager(context)
-                  : _buildPathList(context, ref, notifier, state, paths, currentPath),
+                  : _buildPathList(context, ref, currentTargets, activeTarget),
             ),
-
-            // 5. 底部按钮
-            _buildBottomButton(notifier),
+            _buildBottomButton(ref),
           ],
         ),
       ),
     );
   }
-
-  // --- UI 组件拆分 ---
 
   Widget _buildDragHandle(BuildContext context) {
     return Center(
@@ -101,30 +92,21 @@ class PathManagerSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, FileScannerNotifier notifier, List<String> paths) {
+  Widget _buildHeader(BuildContext context, dynamic notifier, List<dynamic> currentTargets) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("扫描路径管理", style: Theme.of(context).textTheme.titleMedium),
-              Text(
-                "点击列表切换路径",
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-            ],
-          ),
+          Text("文件夹管理", style: Theme.of(context).textTheme.titleMedium),
           TextButton(
-            onPressed: paths.isEmpty ? null : () => _showClearConfirmation(context, notifier),
+            onPressed: currentTargets.isEmpty
+                ? null
+                : () => _showClearConfirmation(context, ref),
             child: Text(
               "清空",
               style: TextStyle(
-                color: paths.isEmpty
+                color: currentTargets.isEmpty
                     ? Theme.of(context).disabledColor
                     : Theme.of(context).colorScheme.error,
               ),
@@ -135,7 +117,7 @@ class PathManagerSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildPillTabBar(BuildContext context, FileScannerNotifier notifier, bool isScanning) {
+  Widget _buildPillTabBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Container(
@@ -147,6 +129,7 @@ class PathManagerSheet extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(4.0),
           child: TabBar(
+            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
             dividerColor: Colors.transparent,
             indicatorSize: TabBarIndicatorSize.tab,
             labelColor: Colors.black87,
@@ -163,14 +146,14 @@ class PathManagerSheet extends ConsumerWidget {
               ],
             ),
             onTap: (index) {
-              if (isScanning) return;
-              final targetMode = switch (index) {
-                0 => ScanMode.audio,
-                1 => ScanMode.video,
-                2 => ScanMode.subtitles,
-                _ => ScanMode.audio,
-              };
-              notifier.switchMode(targetMode);
+              setState(() {
+                _currentMode = switch (index) {
+                  0 => ScanMode.audio,
+                  1 => ScanMode.video,
+                  2 => ScanMode.subtitles,
+                  _ => ScanMode.audio,
+                };
+              });
             },
             tabs: const [
               Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.music_note, size: 16), SizedBox(width: 4), Text("音频")])),
@@ -186,22 +169,22 @@ class PathManagerSheet extends ConsumerWidget {
   Widget _buildPathList(
       BuildContext context,
       WidgetRef ref,
-      FileScannerNotifier notifier,
-      FileScannerState state,
-      List<String> paths,
-      String? currentPath,
+      List<ScanTarget> targets,
+      ScanTarget? scanTarget,
       ) {
     return ListView.separated(
-      // 注意：这里移除了外部传入的 scrollController，由 ListView 自己管理
-      // 如果需要拦截返回键，可以结合 ScrollController 做额外逻辑
-      itemCount: paths.length,
+      itemCount: targets.length,
       padding: const EdgeInsets.only(bottom: 80, top: 0),
       separatorBuilder: (c, i) => const Divider(height: 1, indent: 72),
       itemBuilder: (context, index) {
-        final path = paths[index];
-        final folderName = path.split(Platform.pathSeparator).last;
-        final parentPath = File(path).parent.path;
-        final isSelected = path == currentPath;
+        final target = targets[index];
+        final path = target.path;
+        final normalizedPath = path.replaceAll('\\', '/');
+        final folderName = normalizedPath.split('/').last;
+
+        final isSelected = scanTarget != null &&
+            path == scanTarget.path &&
+            target.scanMode == scanTarget.scanMode;
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
@@ -225,10 +208,19 @@ class PathManagerSheet extends ConsumerWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text(parentPath, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-          onTap: () {
-            ref.read(breadcrumbProvider.notifier).jumpTo(-1);
-            notifier.startScan(path);
+          subtitle: Text(
+            _formatRelativeTime(target.lastScannedAt),
+            style: TextStyle(
+              fontSize: 11,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                  : Theme.of(context).colorScheme.inversePrimary,
+            ),
+          ),
+          onTap: () async {
+            await ref.read(scanTargetsProvider.notifier).selectTarget(path: path, mode: target.scanMode);
+            ref.read(fileScannerProvider.notifier).changeActiveTarget(target);
+            if (!context.mounted) return;
             Navigator.pop(context);
           },
           trailing: IconButton(
@@ -236,8 +228,7 @@ class PathManagerSheet extends ConsumerWidget {
             color: Theme.of(context).colorScheme.error,
             tooltip: "移除此路径",
             onPressed: () async {
-              await notifier.removeDirectory(path);
-              await FileScannerStorage().clearByRootPath(state.scanMode, path);
+              await ref.read(scanTargetsProvider.notifier).removeTarget(path: path, mode: _currentMode);
             },
           ),
         );
@@ -245,13 +236,22 @@ class PathManagerSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildBottomButton(FileScannerNotifier notifier) {
+  Widget _buildBottomButton(WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 48),
         child: FilledButton.icon(
-          onPressed: () => notifier.addDirectory(),
+          onPressed: () async {
+            final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+            if (selectedDirectory == null) return;
+            final scanTarget = await ref.read(scanTargetsProvider.notifier).addTarget(path: selectedDirectory, mode: _currentMode);
+            if (scanTarget == null) return;
+            await ref.read(scanTargetsProvider.notifier).selectTarget(path: scanTarget.path, mode: scanTarget.scanMode);
+            if (!mounted) return;
+            ref.read(fileScannerProvider.notifier).changeActiveTarget(scanTarget);
+            Navigator.pop(context);
+          },
           icon: const Icon(Icons.add_rounded),
           label: const Text("添加新目录"),
           style: FilledButton.styleFrom(
@@ -282,23 +282,36 @@ class PathManagerSheet extends ConsumerWidget {
     );
   }
 
-  // --- 逻辑处理 ---
-
-  void _showClearConfirmation(BuildContext context, FileScannerNotifier notifier) {
-    // 这里也可以考虑使用 KikoenaiDialog.show 来统一风格
+  void _showClearConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("清空所有路径?"),
-        content: const Text("这将移除当前模式下所有已添加的文件夹及缓存数据，此操作无法撤销。"),
+        title: const Text("清空当前模式路径?"),
+        content: const Text("这将移除当前选定模式下所有已添加的文件夹及缓存数据，此操作无法撤销。"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("取消"),
           ),
           TextButton(
-            onPressed: () {
-              notifier.clearAllDirectories();
+            onPressed: () async {
+              final fileScannerNotifier = ref.read(fileScannerProvider.notifier);
+              final activeState = ref.watch(fileScannerProvider);
+
+              if (activeState.scanMode == _currentMode && activeState.rootPath.isNotEmpty) {
+                fileScannerNotifier.handleCurrentPathRemoved();
+              }
+
+              final notifier = ref.read(scanTargetsProvider.notifier);
+              final currentTargets = notifier.getTargetsByMode(_currentMode);
+
+              for (final target in currentTargets) {
+                await ScannerPathRepository.instance.deleteTarget(target.path, _currentMode);
+              }
+
+              await notifier.refreshTargets();
+
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(
@@ -309,5 +322,30 @@ class PathManagerSheet extends ConsumerWidget {
         ],
       ),
     );
+  }
+  String _formatRelativeTime(int? timestamp) {
+    if (timestamp == null || timestamp == 0) {
+      return "状态：从未扫描";
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final difference = now - timestamp;
+
+    if (difference < 0) return "状态：刚刚扫描";
+
+    final seconds = difference ~/ 1000;
+    if (seconds < 60) return "上次扫描：刚刚";
+
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return "上次扫描：$minutes 分钟前";
+
+    final hours = minutes ~/ 60;
+    if (hours < 24) return "上次扫描：$hours 小时前";
+
+    final days = hours ~/ 24;
+    if (days < 30) return "上次扫描：$days 天前";
+
+    final months = days ~/ 30;
+    return "上次扫描：$months 个月前";
   }
 }

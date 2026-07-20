@@ -14,7 +14,9 @@ class PlayerVideoControlsOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isVisible = ref.watch(playerControllerProvider).isVideoControlsVisible;
+    final isVisible = ref.watch(
+      playerControllerProvider.select((p) => p.isVideoControlsVisible),
+    );
     const duration = Duration(milliseconds: 250);
     const curve = Curves.easeOutCubic;
 
@@ -57,13 +59,13 @@ class PlayerVideoControlsOverlay extends ConsumerWidget {
 }
 
 class VideoTopBar extends ConsumerWidget {
-  const VideoTopBar({
-    super.key,
-  });
+  const VideoTopBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.read(playerControllerProvider);
+    final currentItem = ref.watch(
+      playerControllerProvider.select((p) => p.currentItem),
+    );
     final controller = ref.read(playerControllerProvider.notifier);
 
     return MouseRegion(
@@ -83,15 +85,23 @@ class VideoTopBar extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
                 onPressed: () {
                   ref.read(panelControllerProvider).close();
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.more_horiz, color: Colors.white, size: 28),
+                icon: const Icon(
+                  Icons.more_horiz,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 onPressed: () {
-                  showMoreOptions(context, state.currentTrack);
+                  showMoreOptions(context, ref, currentItem);
                 },
               ),
             ],
@@ -140,9 +150,7 @@ class VideoBottomBar extends ConsumerWidget {
               onPointerMove: (_) => controller.startControlsHideTimer(),
               onPointerUp: (_) => controller.startControlsHideTimer(),
               onPointerCancel: (_) => controller.startControlsHideTimer(),
-              child: const PlayerProgressBar(
-                showTimeLabel: false,
-              ),
+              child: const PlayerProgressBar(showTimeLabel: false),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
@@ -155,9 +163,9 @@ class VideoBottomBar extends ConsumerWidget {
                     onPressed: state.isFirst
                         ? null
                         : () {
-                      controller.startControlsHideTimer();
-                      controller.previous();
-                    },
+                            controller.startControlsHideTimer();
+                            controller.previous();
+                          },
                   ),
                   IconButton(
                     icon: Icon(
@@ -179,9 +187,9 @@ class VideoBottomBar extends ConsumerWidget {
                     onPressed: state.isLast
                         ? null
                         : () {
-                      controller.startControlsHideTimer();
-                      controller.next();
-                    },
+                            controller.startControlsHideTimer();
+                            controller.next();
+                          },
                   ),
                   const SizedBox(width: 8),
                   if (defaultTargetPlatform == TargetPlatform.windows ||
@@ -189,14 +197,16 @@ class VideoBottomBar extends ConsumerWidget {
                       defaultTargetPlatform == TargetPlatform.linux) ...[
                     IconButton(
                       padding: EdgeInsets.zero,
-                      constraints:
-                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                       icon: Icon(
                         state.volume == 0
                             ? Icons.volume_off_rounded
                             : (state.volume < 0.5
-                            ? Icons.volume_down_rounded
-                            : Icons.volume_up_rounded),
+                                  ? Icons.volume_down_rounded
+                                  : Icons.volume_up_rounded),
                         color: Colors.white,
                         size: 20,
                       ),
@@ -211,9 +221,11 @@ class VideoBottomBar extends ConsumerWidget {
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 2,
                           thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 5),
+                            enabledThumbRadius: 5,
+                          ),
                           overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 10),
+                            overlayRadius: 10,
+                          ),
                         ),
                         child: Slider(
                           value: state.volume,
@@ -236,8 +248,10 @@ class VideoBottomBar extends ConsumerWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.format_list_bulleted_rounded,
-                        color: Colors.white),
+                    icon: const Icon(
+                      Icons.format_list_bulleted_rounded,
+                      color: Colors.white,
+                    ),
                     onPressed: () {
                       controller.startControlsHideTimer();
                       PlayerPlaylistSheet.show(context);
@@ -262,19 +276,24 @@ class VideoBottomBar extends ConsumerWidget {
                           right: -6,
                           bottom: -4,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 3,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black54, // 半透明背景以适应不同视频画面
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: isFullScreen ? null : Text(
-                              state.isVideoPortrait ? '竖' : '横',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: Colors.white,
-                                height: 1.1,
-                              ),
-                            ),
+                            child: isFullScreen
+                                ? null
+                                : Text(
+                                    state.isVideoPortrait ? '竖' : '横',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.white,
+                                      height: 1.1,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],

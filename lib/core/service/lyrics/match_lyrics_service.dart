@@ -11,8 +11,10 @@ import '../../model/file_node.dart';
 /// 通过静态方法 [match] 按责任链顺序执行策略，逐步提高匹配覆盖率。
 abstract class MatchLyrics {
 
-  Box<dynamic> get settingBox => AppStorage.settingsBox;
 
+  Box<dynamic> get settingBox => AppStorage.settingsBox;
+  /// 给个唯一标识，TODO 后续可以直接用其做成多语言的Key
+  String get strategyId;
   /// 检查该策略是否适用
   bool isMatch(List<MediaItem> playList, List<FileNode> lyricList);
 
@@ -20,65 +22,57 @@ abstract class MatchLyrics {
   /// [currentMatches] : 上一轮策略已匹配的结果 (Key: audio.id, Value: lyricNode)
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
-      List<FileNode> lyricList, [
-        Map<String, FileNode> currentMatches = const {}
-      ]);
-
-  /// 统一入口：按顺序执行策略链
-  /// [onShowManualMatchDialog] : 当存在未匹配的音频且设置允许时，触发手动匹配弹窗的回调
+      List<FileNode> lyricList);
+  /// 默认匹配策略
+  static List<MatchLyrics> _defaultStrategies = [
+    CacheMatch(),
+    AccurateMatch(),
+    FuzzyMatch(),
+    SequenceMatch(),
+  ];
+  /// 暴露当前全局生效的策略链
+  static List<MatchLyrics> get defaultStrategies => _defaultStrategies;
+  /// 覆写全局默认策略
+  /// 可在应用初始化时调用此方法，注入自定义策略或调整执行顺序
+  static void overrideDefaultStrategies(List<MatchLyrics> strategies) {
+    _defaultStrategies = strategies;
+  }
+  /// 匹配入口，执行责任链进行匹配
   static Map<String, FileNode> match(
       List<MediaItem> playList,
-      List<FileNode> lyricList, {
-        List<MatchLyrics>? strategies,
-        void Function(
-            List<MediaItem> playlist,
-            List<FileNode> availableSubtitles,
-            Map<String, FileNode> currentMapping,
-            )? onShowManualMatchDialog,
-      }) {
-    final runStrategies = strategies ??
-        [
-          CacheMatch(),
-          AccurateMatch(),
-          FuzzyMatch(),
-          SequenceMatch(),
-        ];
+      List<FileNode> lyricList) {
+
+    final runStrategies = defaultStrategies;
 
     final Map<String, FileNode> finalResults = {};
+    // 拷贝一份播放列表，用于在责任链中逐步剔除已匹配的音频
+    final List<MediaItem> pendingPlayList = List.of(playList);
 
     for (final strategy in runStrategies) {
-      if (strategy.isMatch(playList, lyricList)) {
-        var newMatches = strategy.matchLyrics(playList, lyricList, finalResults);
-        newMatches.forEach((audioId, lyricNode) {
-          if (!finalResults.containsKey(audioId)) {
-            finalResults[audioId] = lyricNode;
-          }
-        });
+      // 待匹配列表为空时提前结束责任链
+      if (pendingPlayList.isEmpty) break;
+
+      if (strategy.isMatch(pendingPlayList, lyricList)) {
+        var newMatches = strategy.matchLyrics(pendingPlayList, lyricList);
+
+        if (newMatches.isNotEmpty) {
+          finalResults.addAll(newMatches);
+          // 从待匹配列表中剔除刚刚匹配成功的音频
+          pendingPlayList.removeWhere((audio) => newMatches.containsKey(audio.id));
+        }
       }
     }
 
-    persistMatchResults(finalResults);
-
-    final unmatchedAudios = playList
-        .where((audio) => !finalResults.containsKey(audio.id))
-        .toList();
-
-    if (unmatchedAudios.isNotEmpty) {
+    if (pendingPlayList.isNotEmpty) {
       final bool shouldAutoShow = AppStorage.settingsBox.get(
         StorageKeys.autoManualLyricsMatch,
         defaultValue: false,
       ) as bool;
 
-      if (shouldAutoShow && onShowManualMatchDialog != null) {
-        // 传递完整数据源给 UI 层弹窗使用
-        onShowManualMatchDialog(
-          playList,
-          lyricList,
-          Map<String, FileNode>.from(finalResults),
-        );
+      if (shouldAutoShow) {
+        /// TODO 不再通过回调触发匹配未完成时跳出弹窗。
       }
     }
-
     return finalResults;
   }
   static void persistMatchResults(Map<String, FileNode> currentResults) {
@@ -99,6 +93,21 @@ abstract class MatchLyrics {
       box.putAll(entriesToUpdate);
     }
   }
+  /// 提供策略入口，用于用户选择某种具体策略进行快速手动粗排。(供字幕匹配弹窗使用）
+  /// 直接接收由调用方传入的策略实例，方便后续策略拓展
+  static Map<String, FileNode> matchBySingleStrategy({
+    required List<MediaItem> playList,
+    required List<FileNode> lyricList,
+    required MatchLyrics strategy, // 核心改变：直接接收基类实例
+  }) {
+    if (playList.isEmpty || lyricList.isEmpty) return {};
+
+    if (strategy.isMatch(playList, lyricList)) {
+      return strategy.matchLyrics(playList, lyricList);
+    }
+
+    return {};
+  }
 }
 /// 缓存匹配策略。
 /// 优先读取本地持久化的匹配记录，跳过已匹配过的音频，避免重复计算。
@@ -107,81 +116,77 @@ abstract class MatchLyrics {
 class CacheMatch extends MatchLyrics {
 
   Box<FileNode> get matchBox => AppStorage.lyricMatchBox;
-
+  @override
+  String get strategyId => "缓存策略";
   @override
   bool isMatch(List<MediaItem> playList, List<FileNode> lyricList) {
-    return playList.isNotEmpty && matchBox.isNotEmpty;
+    if (playList.isEmpty || matchBox.isEmpty) return false;
+
+    return playList.any((audio) => matchBox.containsKey(audio.id));
   }
 
   @override
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
-      List<FileNode> lyricList, [
-        Map<String, FileNode> currentMatches = const {}
-      ]) {
+      List<FileNode> lyricList) {
     final results = <String, FileNode>{};
 
-    for (var audio in playList) {
-      if (currentMatches.containsKey(audio.id)) continue;
+    final availableLyricHashes = lyricList.map((node) => node.hash).toSet();
 
+    for (var audio in playList) {
       final cachedLyricNode = matchBox.get(audio.id);
-      if (cachedLyricNode != null) {
+
+      if (cachedLyricNode != null && availableLyricHashes.contains(cachedLyricNode.hash)) {
         results[audio.id] = cachedLyricNode;
       }
     }
     return results;
   }
+
+
 }
 /// 精确标题匹配策略。
 ///
-/// **目的**: 找出音频与字幕标题完全一致的配对。
-/// **机制**: 将字幕列表转换为哈希表（Hash Map），以字幕标题为键，从而将匹配的时间复杂度从 O(N*M) 降低到 O(N)。
+/// 目的: 找出音频与字幕标题完全一致的配对。
+/// 机制: 将字幕列表转换为哈希表（Hash Map），以字幕标题为键，从而将匹配的时间复杂度从 O(N*M) 降低到 O(N)。
 /// 匹配时严格保证一对一关系，已被占用的字幕不会被重复分配。
-/// **适用条件**: 音频列表和字幕列表均不为空即可启用。
+/// 适用条件: 音频列表和字幕列表均不为空即可启用。
 class AccurateMatch extends MatchLyrics {
   @override
   bool isMatch(List<MediaItem> playList, List<FileNode> lyricList) {
     return playList.isNotEmpty && lyricList.isNotEmpty;
   }
-
+  
   @override
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
-      List<FileNode> lyricList, [
-        Map<String, FileNode>? currentMatches,
-      ]) {
+      List<FileNode> lyricList) {
     final results = <String, FileNode>{};
-    // 追踪“已经被分配给某首音频的字幕”，防止多个同名音频抢走同一个字幕
-    final usedLyrics = currentMatches?.values.toSet() ?? <FileNode>{};
 
     final lyricMap = {
       for (var node in lyricList) node.title: node
     };
 
     for (var audio in playList) {
-      // 守卫 1：跳过已匹配的音频
-      if (currentMatches?.containsKey(audio.id) ?? false) continue;
-
-      // 守卫 2：直接用 Title 查找，并且确保该字幕还未被占用
       if (lyricMap.containsKey(audio.title)) {
-        final matchedLyric = lyricMap[audio.title]!;
-        if (!usedLyrics.contains(matchedLyric)) {
-          results[audio.id] = matchedLyric;
-          usedLyrics.add(matchedLyric); // 在当前循环中标记为已使用
-        }
+        results[audio.id] = lyricMap[audio.title]!;
       }
     }
     return results;
   }
+
+  @override
+  
+  String get strategyId => "精确匹配";
 }
 
 /// 模糊相似度匹配策略。
 ///
-/// **目的**: 处理因文件名带有冗余信息（如 "Song_Name_Lyric" vs "Song Name"）导致精确匹配失败的情况。
-/// **机制**: 采用 Sørensen–Dice 系数算法，通过提取字符串的相邻双字符组合（Bigrams）来计算文本相似度。
+/// 目的: 处理因文件名带有冗余信息（如 "Song_Name_Lyric" vs "Song Name"）导致精确匹配失败的情况。
+/// 机制: 采用 Sørensen–Dice 系数算法，通过提取字符串的相邻双字符组合（Bigrams）来计算文本相似度。
 /// 分数在 0.0 到 1.0 之间，若超过设定的 [threshold] 且为当前最高分，则认为匹配成功。
 /// 为提高性能，在遍历前统一预计算所有可用字幕的 Bigrams 集合。
-/// **适用条件**: 音频列表和字幕列表均不为空即可启用。
+/// 适用条件: 音频列表和字幕列表均不为空即可启用。
 class FuzzyMatch extends MatchLyrics {
   /// 相似度阈值。默认为 0.6。
   /// 设置过低可能导致错误匹配，设置过高会导致容错率降低。
@@ -197,48 +202,26 @@ class FuzzyMatch extends MatchLyrics {
   @override
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
-      List<FileNode> lyricList, [
-        Map<String, FileNode>? currentMatches,
-      ]) {
+      List<FileNode> lyricList) {
     final results = <String, FileNode>{};
-    final usedLyrics = currentMatches?.values.toSet() ?? <FileNode>{};
-
-    // 1. 过滤出还没匹配的音频
-    final pendingAudio = playList.where((a) =>
-    !(currentMatches?.containsKey(a.id) ?? false));
-
-    // 2. 核心修复：只在“尚未被前面的音频或策略使用过”的字幕里进行搜索
-    final availableLyrics = lyricList.where((l) => !usedLyrics.contains(l)).toList();
-
-    // 3. 性能优化：预先计算所有未被使用的字幕的 Bigrams Set
     final lyricBigramsMap = <FileNode, Set<String>>{};
-    for (var lyric in availableLyrics) {
+    for (var lyric in lyricList) {
       lyricBigramsMap[lyric] = _getBigrams(lyric.title);
     }
-
-    for (var audio in pendingAudio) {
+    for (var audio in playList) {
       FileNode? bestMatch;
       double highestScore = 0.0;
-
-      // 计算当前音频的 Bigrams
       final audioBigrams = _getBigrams(audio.title);
-
-      for (var lyric in availableLyrics) {
-        // 核心修复：即使在前期的过滤中排除了，如果前面的循环刚用过这个字幕，也要跳过
-        if (usedLyrics.contains(lyric)) continue;
-
+      for (var lyric in lyricList) {
         final lyricBigrams = lyricBigramsMap[lyric]!;
         final score = _calculateDiceCoefficient(s1Bigrams: audioBigrams, s2Bigrams: lyricBigrams);
-
         if (score > highestScore && score >= threshold) {
           highestScore = score;
           bestMatch = lyric;
         }
       }
-
       if (bestMatch != null) {
         results[audio.id] = bestMatch;
-        usedLyrics.add(bestMatch); // 标记此字幕为已占用！
       }
     }
     return results;
@@ -278,14 +261,18 @@ class FuzzyMatch extends MatchLyrics {
     }
     return bigrams;
   }
+
+  @override
+  
+  String get strategyId => "模糊匹配";
 }
 
 /// 序号提取匹配策略 (兜底策略)。
 ///
-/// **目的**: 提取音频和字幕文件名中包含的数字序号（如 "01", "Track 2"）进行匹配。
-/// **机制**: 利用正则表达式提取标题中出现的首组数字并转化为整型（抹平 "01" 与 "1" 的差异）。
+/// 目的: 提取音频和字幕文件名中包含的数字序号（如 "01", "Track 2"）进行匹配。
+/// 机制: 利用正则表达式提取标题中出现的首组数字并转化为整型（抹平 "01" 与 "1" 的差异）。
 /// 若未匹配音频和未使用字幕具有相同的序号，则进行绑定。
-/// **适用条件**: 一轮匹配下来如果还有未匹配的音频，且未匹配的字幕不为空的话则进行序号强行绑定，后续提供手动匹配交给用户进行匹配
+/// 适用条件: 一轮匹配下来如果还有未匹配的音频，且未匹配的字幕不为空的话则进行序号强行绑定，后续提供手动匹配交给用户进行匹配
 class SequenceMatch extends MatchLyrics {
 
   // 匹配字符串中的连续数字
@@ -307,17 +294,12 @@ class SequenceMatch extends MatchLyrics {
   @override
   Map<String, FileNode> matchLyrics(
       List<MediaItem> playList,
-      List<FileNode> lyricList, [
-        Map<String, FileNode>? currentMatches,
-      ]) {
+      List<FileNode> lyricList) {
     final results = <String, FileNode>{};
-    final usedLyrics = currentMatches?.values.toSet() ?? <FileNode>{};
 
-    // 预处理尚未被使用的字幕，建立 [序号 -> 字幕节点] 的映射表
+    // 预处理字幕，建立 [序号 -> 字幕节点] 的映射表
     final lyricSequenceMap = <int, FileNode>{};
     for (var lyric in lyricList) {
-      if (usedLyrics.contains(lyric)) continue;
-
       final seq = _extractSequenceNumber(lyric.title);
       // 遇到重复的序号时，仅保留第一个遍历到的字幕，避免字典覆盖乱序
       if (seq != null && !lyricSequenceMap.containsKey(seq)) {
@@ -328,19 +310,15 @@ class SequenceMatch extends MatchLyrics {
     if (lyricSequenceMap.isEmpty) return results;
 
     for (var audio in playList) {
-      if (currentMatches?.containsKey(audio.id) ?? false) continue;
-
       final audioSeq = _extractSequenceNumber(audio.title);
       if (audioSeq != null && lyricSequenceMap.containsKey(audioSeq)) {
-        final matchedLyric = lyricSequenceMap[audioSeq]!;
-
-        if (!usedLyrics.contains(matchedLyric)) {
-          results[audio.id] = matchedLyric;
-          usedLyrics.add(matchedLyric);
-        }
+        results[audio.id] = lyricSequenceMap[audioSeq]!;
       }
     }
 
     return results;
   }
+
+  @override
+  String get strategyId => "序号匹配";
 }

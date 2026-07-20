@@ -1,34 +1,42 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
+import 'package:kikoenai/core/model/search_tag.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
+import 'package:kikoenai/features/local_media/data/model/file_scanner_state.dart';
 import 'package:kikoenai/features/user/data/models/user.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:kikoenai/features/album/data/model/circle.dart';
+import 'package:kikoenai/features/album/data/model/other_language_edition.dart';
+import 'package:kikoenai/features/album/data/model/rank.dart';
+import 'package:kikoenai/features/album/data/model/rate_count_detail.dart';
+import 'package:kikoenai/features/album/data/model/tag.dart';
+import 'package:kikoenai/features/album/data/model/va.dart';
+import 'package:kikoenai/features/album/data/model/work_info.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
+import 'package:kikoenai/features/history/data/model/history_entry.dart';
+import 'package:kikoenai/features/player/data/model/playback_session.dart';
+import 'package:kikoenai/core/service/file/scan_mode.dart';
 import '../../features/player/data/model/player_state.dart';
-import '../adapter/audio_service_repeat_mode_adapter.dart';
-import '../adapter/history_adapter.dart';
-import '../adapter/media_item_adapter.dart';
-import '../adapter/progressbar_state_adapter.dart';
-import '../adapter/work_adapter.dart';
-import '../adapter/work_info_adapter.dart';
+import '../../features/player/data/model/progress_state.dart';
 import '../model/lyric_model.dart';
-
 
 class AppStorage {
   // 1. 定义强类型的 Box
-  static late Box<AuthResponse> authBox;       // 登录信息
-  static late Box<HistoryEntry> historyBox;    // 播放历史 (Key: WorkId)
-  static late Box<AppPlayerState> playerBox;   // 播放器状态
-  static late Box<dynamic> settingsBox;        // 通用设置/缓存
-  static late Box<FileNode> scannerBox;        // 扫描结果
-  static late Box<Work> scraperWorkBox;        // 爬取作品元数据
-  static late Box<FileNode> lyricMatchBox;     // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<AuthResponse> authBox; // 登录信息
+  static late Box<HistoryEntry> historyBox; // 播放历史 (Key: WorkId)
+  static late Box<AppPlayerState> playerBox; // 播放器状态
+  static late Box<dynamic> settingsBox; // 通用设置/缓存
+  static late Box<FileNode> scannerBox; // 扫描结果
+  static late Box<Work> scraperWorkBox; // 爬取作品元数据
+  static late Box<FileNode> lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<SearchTag> filterTagsBox; // 全局筛选
+  static late Box<ScanTarget> scanTargetBox; // 扫描目标
 
   static late final String _hiveRootPath;
+
   /// 初始化 Hive 和所有 Box
   static Future<void> init() async {
     final appDocDir = await getApplicationSupportDirectory();
@@ -41,24 +49,44 @@ class AppStorage {
     Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(LyricConfigModelAdapter());
     Hive.registerAdapter(AuthResponseAdapter());
-    Hive.registerAdapter(MediaItemAdapter());
     Hive.registerAdapter(WorkInfoAdapter());
     Hive.registerAdapter(NodeTypeAdapter());
     Hive.registerAdapter(NodeStatusAdapter());
     Hive.registerAdapter(FileNodeAdapter());
-    Hive.registerAdapter(AudioServiceRepeatModeAdapter());
+    Hive.registerAdapter(PlaybackItemAdapter());
+    Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(AppPlayerStateAdapter());
+    Hive.registerAdapter(CircleAdapter());
+    Hive.registerAdapter(RankAdapter());
+    Hive.registerAdapter(TagAdapter());
+    Hive.registerAdapter(VAAdapter());
+    Hive.registerAdapter(RateCountDetailAdapter());
+    Hive.registerAdapter(OtherLanguageEditionAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
+    Hive.registerAdapter(NodeSourceAdapter());
+    Hive.registerAdapter(SearchTagAdapter());
+    Hive.registerAdapter(ScanModeAdapter());
+    Hive.registerAdapter(ScanTargetAdapter());
     // 3. 并行打开 Box
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
       _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
-      _openBox<AppPlayerState>(BoxNames.playerState).then((val) => playerBox = val),
+      _openBox<AppPlayerState>(
+        BoxNames.playerState,
+      ).then((val) => playerBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
-      _openBox<FileNode>(BoxNames.lyricsMatch).then((val) => lyricMatchBox = val),
+      _openBox<FileNode>(
+        BoxNames.lyricsMatch,
+      ).then((val) => lyricMatchBox = val),
+      _openBox<SearchTag>(
+        BoxNames.globalFilterTags,
+      ).then((val) => filterTagsBox = val),
+      _openBox<ScanTarget>(
+        BoxNames.scanTarget,
+      ).then((val) => scanTargetBox = val),
     ]);
   }
 
@@ -106,30 +134,30 @@ class AppStorage {
   }
 
   /// 智能合并历史记录 (Patch Logic)
-  static Future<void> patchHistory(String backupPath) async {
-    final file = File(backupPath);
-    if (!await file.exists()) return;
-
-    final bytes = await file.readAsBytes();
-    // 打开临时 Box
-    final tempBox = await Hive.openBox<HistoryEntry>(
-        'temp_history_${DateTime.now().millisecondsSinceEpoch}',
-        bytes: bytes
-    );
-
-    // 遍历合并
-    for (var entry in tempBox.toMap().entries) {
-      final key = entry.key;
-      final backupItem = entry.value;
-      final localItem = historyBox.get(key);
-
-      // 如果本地没有，或者备份比本地新，则写入
-      if (localItem == null || backupItem.updatedAt > localItem.updatedAt) {
-        await historyBox.put(key, backupItem);
-      }
-    }
-    await tempBox.close();
-  }
+  // static Future<void> patchHistory(String backupPath) async {
+  //   final file = File(backupPath);
+  //   if (!await file.exists()) return;
+  //
+  //   final bytes = await file.readAsBytes();
+  //   // 打开临时 Box
+  //   final tempBox = await Hive.openBox<HistoryEntry>(
+  //       'temp_history_${DateTime.now().millisecondsSinceEpoch}',
+  //       bytes: bytes
+  //   );
+  //
+  //   // 遍历合并
+  //   for (var entry in tempBox.toMap().entries) {
+  //     final key = entry.key;
+  //     final backupItem = entry.value;
+  //     final localItem = historyBox.get(key);
+  //
+  //     // 如果本地没有，或者备份比本地新，则写入
+  //     if (localItem == null || backupItem.updatedAt > localItem.updatedAt) {
+  //       await historyBox.put(key, backupItem);
+  //     }
+  //   }
+  //   await tempBox.close();
+  // }
 
   /// 获取 Box 文件大小
   static Future<int> getBoxSize(String boxName) async {
@@ -161,7 +189,7 @@ class AppStorage {
         await scraperWorkBox.clear();
         break;
       default:
-      // 兜底逻辑：处理那些没有定义为静态变量、或者确实是 dynamic 类型的临时 Box
+        // 兜底逻辑：处理那些没有定义为静态变量、或者确实是 dynamic 类型的临时 Box
         if (Hive.isBoxOpen(boxName)) {
           await Hive.box(boxName).clear();
         }

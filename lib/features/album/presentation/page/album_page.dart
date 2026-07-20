@@ -1,36 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/features/album/presentation/widget/skeleton/skeleton_grid.dart';
-import '../../../../config/work_layout_strategy.dart';
 import '../../../../core/enums/device_type.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
+import '../../../../core/widgets/loading/lottie_loading.dart';
 import '../viewmodel/provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
-import '../widget/skeleton/h_card_list_skeleton.dart';
-import '../widget/skeleton/work_list_h_skeleton.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
-// TODO: 请确保引入了刚才定义的智能容器和枚举
 import '../widget/smart_works_sliver_grid.dart';
 
-class AlbumPage extends ConsumerStatefulWidget {
-  const AlbumPage({Key? key}) : super(key: key);
+class AlbumPage extends ConsumerWidget {
+  const AlbumPage({super.key});
 
   @override
-  ConsumerState<AlbumPage> createState() => _AlbumPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deviceType = context.deviceType;
 
-class _AlbumPageState extends ConsumerState<AlbumPage> {
-  @override
-  Widget build(BuildContext context) {
-    final deviceType = const WorkListLayout(layoutType: WorkListLayoutType.card)
-        .getDeviceType(context);
-    final hotState = ref.watch(hotWorksProvider);
-    final recState = ref.watch(recommendedWorksProvider);
-    final newState = ref.watch(newWorksProvider);
+    final isEmpty = ref.watch(albumAllEmptyProvider);
 
     return Scaffold(
       appBar: deviceType == DeviceType.mobile
@@ -38,16 +27,14 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
         preferredSize: const Size.fromHeight(80),
         child: MobileSearchAppBar(
           onSearchTap: () {
-            debugPrint("跳转到搜索页面");
+            debugPrint('跳转到搜索页面');
             context.push(AppRoutes.search);
           },
         ),
       )
           : null,
-      // 添加下拉刷新，同时控制三个 Provider
       body: RefreshIndicator(
         onRefresh: () async {
-          // 并行刷新，效率更高
           await Future.wait([
             ref.refresh(hotWorksProvider.future),
             ref.refresh(recommendedWorksProvider.future),
@@ -56,122 +43,227 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
         },
         child: CustomScrollView(
           slivers: [
-            // 1. 热门作品区域
-            ..._buildHotSection(hotState, context),
-
-            // 2. 推荐作品区域
-            ..._buildRecommendSection(recState, context),
-
-            // 3. 最新作品区域 (带分页)
-            ..._buildNewSection(newState),
-
-            // 底部留白，防止内容贴底
-            const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
+            if (isEmpty)
+            // 全局空状态占位符
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        '暂无任何作品',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              const _HotWorksSection(),
+              const _RecommendedWorksSection(),
+              const _NewestWorksSection(),
+            ],
           ],
         ),
       ),
     );
   }
+}
 
-  // --- 热门作品构建逻辑 ---
-  // 传入 context 以便使用 GoRouter 跳转
-  List<Widget> _buildHotSection(AsyncValue hotState, BuildContext context) {
-    return [
-      SectionHeader(
-        title: '热门作品',
-        isShowMoreButton: true,
-        onMore: () {
-          // 跳转并传递路由参数
-          context.push(
-            AppRoutes.hotAndRecommend,
-            extra: {
-              'title': '热门作品',
-              'source': WorkDataSource.hot,
-            },
-          );
-        },
-      ),
-      hotState.when(
-        data: (state) => SliverToBoxAdapter(
-          child: ResponsiveHorizontalCardList(
-            items: state.works,
-          ),
-        ),
-        loading: () => const SliverToBoxAdapter(
-          child: ResponsiveHorizontalCardListSkeleton(),
-        ),
-        error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(
-            height: 120,
-            child: Center(child: Text('加载失败: $e')),
-          ),
-        ),
-      ),
-    ];
-  }
+class _HotWorksSection extends ConsumerWidget {
+  const _HotWorksSection();
 
-  // --- 推荐作品构建逻辑 ---
-  List<Widget> _buildRecommendSection(AsyncValue recState, BuildContext context) {
-    return [
-      SectionHeader(
-        title: '推荐作品',
-        isShowMoreButton: true,
-        onMore: () {
-          // 跳转并传递路由参数
-          context.push(
-            AppRoutes.hotAndRecommend,
-            extra: {
-              'title': '推荐作品',
-              'source': WorkDataSource.recommended,
-            },
-          );
-        },
-      ),
-      recState.when(
-        data: (state) {
-          if (state.works.isEmpty) {
-            return const SliverToBoxAdapter(child: SizedBox.shrink());
-          }
-          return SliverToBoxAdapter(
-            child: WorkListHorizontal(
-              items: state.works,
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hotState = ref.watch(hotWorksProvider);
+
+    return hotState.when(
+      data: (state) {
+        if (state.works.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        return SliverMainAxisGroup(
+          slivers: [
+            SectionHeader(
+              title: '热门作品',
+              isShowMoreButton: true,
+              onMore: () {
+                context.push(
+                  AppRoutes.hotAndRecommend,
+                  extra: {
+                    'title': '热门作品',
+                    'source': WorkDataSource.hot,
+                  },
+                );
+              },
             ),
-          );
-        },
-        loading: () => const SliverToBoxAdapter(
-          child: WorkListHorizontalSkeleton(),
-        ),
-        error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(
-            height: 120,
-            child: Center(child: Text('加载失败: $e')),
+            SliverToBoxAdapter(
+              child: ResponsiveHorizontalCardList(items: state.works),
+            ),
+          ],
+        );
+      },
+      loading: () => const SliverMainAxisGroup(
+        slivers: [
+          SectionHeader(title: '热门作品', isShowMoreButton: false),
+          SliverToBoxAdapter(
+            child: _SectionLoadingBox(message: '热门作品加载中...'),
           ),
-        ),
+        ],
       ),
-    ];
+      error: (error, _) => SliverMainAxisGroup(
+        slivers: [
+          const SectionHeader(title: '热门作品', isShowMoreButton: false),
+          _SectionErrorSliver(error: error),
+        ],
+      ),
+    );
   }
+}
 
-  // --- 最新作品构建逻辑 ---
-  List<Widget> _buildNewSection(AsyncValue newState) {
-    return [
-      const SectionHeader(title: '最新作品'),
-      newState.when(
-        data: (state) => ResponsiveCardGrid(
-          work: state.works,
-          hasMore: state.hasMore,
-          onLoadMore: () {
-            // 直接调用 newWorksProvider 的 loadMore
-            ref.read(newWorksProvider.notifier).loadMore();
-          },
-        ),
-        loading: () => const ResponsiveCardGridSkeleton(),
-        error: (e, _) => SliverToBoxAdapter(
-          child: SizedBox(
-            height: 120,
-            child: Center(child: Text('加载失败: $e')),
+class _RecommendedWorksSection extends ConsumerWidget {
+  const _RecommendedWorksSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recommendedState = ref.watch(recommendedWorksProvider);
+
+    return recommendedState.when(
+      data: (state) {
+        // 如果数据为空，彻底隐藏
+        if (state.works.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        return SliverMainAxisGroup(
+          slivers: [
+            SectionHeader(
+              title: '推荐作品',
+              isShowMoreButton: true,
+              onMore: () {
+                context.push(
+                  AppRoutes.hotAndRecommend,
+                  extra: {
+                    'title': '推荐作品',
+                    'source': WorkDataSource.recommended,
+                  },
+                );
+              },
+            ),
+            SliverToBoxAdapter(
+              child: WorkListHorizontal(items: state.works),
+            ),
+          ],
+        );
+      },
+      loading: () => const SliverMainAxisGroup(
+        slivers: [
+          SectionHeader(title: '推荐作品', isShowMoreButton: false),
+          SliverToBoxAdapter(
+            child: _SectionLoadingBox(message: '推荐作品加载中...'),
+          ),
+        ],
+      ),
+      error: (error, _) => SliverMainAxisGroup(
+        slivers: [
+          const SectionHeader(title: '推荐作品', isShowMoreButton: false),
+          _SectionErrorSliver(error: error),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewestWorksSection extends ConsumerWidget {
+  const _NewestWorksSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final newestState = ref.watch(newWorksProvider);
+
+    return newestState.when(
+      data: (state) {
+        // 如果数据为空，彻底隐藏
+        if (state.works.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        return SliverMainAxisGroup(
+          slivers: [
+            const SectionHeader(title: '最新作品'),
+            ResponsiveCardGrid(
+              work: state.works,
+              hasMore: state.hasMore,
+              isLoading: state.isLoading,
+              onLoadMore: () {
+                ref.read(newWorksProvider.notifier).loadMore();
+              },
+            ),
+          ],
+        );
+      },
+      loading: () => const SliverMainAxisGroup(
+        slivers: [
+          SectionHeader(title: '最新作品'),
+          SliverToBoxAdapter(
+            child: _SectionLoadingBox(
+              message: '最新作品加载中...',
+              minHeight: 260,
+            ),
+          ),
+        ],
+      ),
+      error: (error, _) => SliverMainAxisGroup(
+        slivers: [
+          const SectionHeader(title: '最新作品'),
+          _SectionErrorSliver(error: error),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionErrorSliver extends StatelessWidget {
+  final Object error;
+
+  const _SectionErrorSliver({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            '加载失败: $error',
+            style: TextStyle(color: Colors.red[300]),
           ),
         ),
       ),
-    ];
+    );
+  }
+}
+
+class _SectionLoadingBox extends StatelessWidget {
+  final String message;
+  final double minHeight;
+
+  const _SectionLoadingBox({
+    required this.message,
+    this.minHeight = 180,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: minHeight,
+      child: Center(
+        child: LottieLoadingIndicator(
+          size: 72,
+          message: message,
+        ),
+      ),
+    );
   }
 }

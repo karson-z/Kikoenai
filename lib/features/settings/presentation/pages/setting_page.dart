@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_ce/hive.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import '../../../../config/app_version_config.dart';
@@ -31,10 +31,7 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '设置',
-          style: TextStyle(fontSize: 22),
-        ),
+        title: const Text('设置', style: TextStyle(fontSize: 22)),
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -57,20 +54,23 @@ class SettingsPage extends ConsumerWidget {
                 title: '主题',
                 onTap: () {
                   context.push(AppRoutes.settingsTheme);
-                }
+                },
               ),
               _ChevronTile(
                 title: '存储空间',
                 onTap: () {
                   context.push(AppRoutes.settingsCache);
-                }
+                },
               ),
-              _ChevronTile(title: '邮箱',
-                trailingText: isLoggedIn ? authState.value?.currentUser?.email : null,
-                onTap: (){
+              _ChevronTile(
+                title: '邮箱',
+                trailingText: isLoggedIn
+                    ? authState.value?.currentUser?.email
+                    : null,
+                onTap: () {
                   //TODO 等待实现邮箱绑定功能
                 },
-              )
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -78,6 +78,7 @@ class SettingsPage extends ConsumerWidget {
             title: '播放与内容',
             children: [
               const DefaultPlaylistSettingTile(),
+              const _LocalMediaSyncSettingsTile(),
               const HiveSwitchTile(
                 title: '忽略音频焦点',
                 storageKey: StorageKeys.ignoreAudioFocus,
@@ -120,6 +121,41 @@ class SettingsPage extends ConsumerWidget {
                   // TODO: 弹出选择逻辑
                 },
               ),
+              const HiveSwitchTile(
+                title: '是否NSFW',
+                storageKey: StorageKeys.nsfwKey,
+                defaultValue: false,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _SettingsSection(
+            title: '背景处理与性能',
+            children: [
+              HiveSliderTile(
+                title: '模糊半径 (Blur Radius)',
+                storageKey: StorageKeys.blurBackground,
+                defaultValue: 10,
+                min: 0,
+                max: 50,
+                divisions: 50,
+              ),
+              HiveSliderTile(
+                title: '缩放分辨率 (Resize Width)',
+                storageKey: StorageKeys.backgroundScale,
+                defaultValue: 100,
+                min: 10,
+                max: 500,
+                divisions: 49,
+              ),
+              HiveSliderTile(
+                title: '编码质量 (JPEG Quality)',
+                storageKey: StorageKeys.backgroundQuality,
+                defaultValue: 70,
+                min: 10,
+                max: 100,
+                divisions: 90,
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -130,7 +166,7 @@ class SettingsPage extends ConsumerWidget {
                 title: '全局筛选',
                 trailingText: '筛选/屏蔽关键词',
                 onTap: () {
-                  // TODO: 弹出选择逻辑
+                  context.push(AppRoutes.settingsGlobalFilter);
                 },
               ),
             ],
@@ -147,6 +183,10 @@ class SettingsPage extends ConsumerWidget {
               _ChevronTile(
                 title: '系统权限',
                 onTap: () => context.push(AppRoutes.settingsPermission),
+              ),
+              _ChevronTile(
+                title: '系统日志',
+                onTap: () => context.push(AppRoutes.settingsLog),
               ),
             ],
           ),
@@ -173,7 +213,11 @@ class SettingsPage extends ConsumerWidget {
   }
 
   /// 构建退出登录按钮
-  Widget _buildLogoutButton(BuildContext context, WidgetRef ref, ThemeData theme) {
+  Widget _buildLogoutButton(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () async {
@@ -191,10 +235,7 @@ class SettingsPage extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
         child: Text(
           '退出登录',
-          style: TextStyle(
-            fontSize: 16,
-            color: theme.colorScheme.error,
-          ),
+          style: TextStyle(fontSize: 16, color: theme.colorScheme.error),
         ),
       ),
     );
@@ -209,10 +250,7 @@ class SettingsPage extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
         child: Text(
           '立即登录',
-          style: TextStyle(
-            fontSize: 16,
-            color: theme.colorScheme.primary,
-          ),
+          style: TextStyle(fontSize: 16, color: theme.colorScheme.primary),
         ),
       ),
     );
@@ -251,9 +289,7 @@ class _SettingsSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            child: Column(
-              children: children,
-            ),
+            child: Column(children: children),
           ),
         ),
       ],
@@ -266,11 +302,7 @@ class _ChevronTile extends StatelessWidget {
   final String? trailingText;
   final VoidCallback? onTap;
 
-  const _ChevronTile({
-    required this.title,
-    this.trailingText,
-    this.onTap,
-  });
+  const _ChevronTile({required this.title, this.trailingText, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -330,6 +362,216 @@ class _ServerSelectionTile extends ConsumerWidget {
           builder: (context) => const ServerSelectionModal(),
         );
       },
+    );
+  }
+}
+
+class _LocalMediaSyncSettingsTile extends StatefulWidget {
+  const _LocalMediaSyncSettingsTile();
+
+  @override
+  State<_LocalMediaSyncSettingsTile> createState() =>
+      _LocalMediaSyncSettingsTileState();
+}
+
+class _LocalMediaSyncSettingsTileState
+    extends State<_LocalMediaSyncSettingsTile> {
+  Box<dynamic> get _settingBox => AppStorage.settingsBox;
+
+  bool get _enabled =>
+      _settingBox.get(StorageKeys.localMediaAutoSyncEnabled, defaultValue: true)
+          as bool;
+
+  int get _thresholdHours =>
+      _settingBox.get(
+            StorageKeys.localMediaAutoSyncThresholdHours,
+            defaultValue: 24,
+          )
+          as int;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ValueListenableBuilder(
+      valueListenable: _settingBox.listenable(
+        keys: [
+          StorageKeys.localMediaAutoSyncEnabled,
+          StorageKeys.localMediaAutoSyncThresholdHours,
+        ],
+      ),
+      builder: (context, box, child) {
+        final enabled = _enabled;
+        final thresholdHours = _thresholdHours.clamp(1, 168);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '本地媒体自动同步',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '进入媒体库时先显示缓存，超过阈值后后台同步磁盘',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: enabled,
+                    onChanged: (value) async {
+                      await _settingBox.put(
+                        StorageKeys.localMediaAutoSyncEnabled,
+                        value,
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '同步阈值',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: enabled
+                            ? theme.colorScheme.onSurface
+                            : theme.disabledColor,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$thresholdHours 小时',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: enabled
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                value: thresholdHours.toDouble(),
+                min: 1,
+                max: 168,
+                divisions: 167,
+                onChanged: enabled
+                    ? (value) {
+                        setState(() {
+                          _settingBox.put(
+                            StorageKeys.localMediaAutoSyncThresholdHours,
+                            value.round(),
+                          );
+                        });
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class HiveSliderTile extends StatefulWidget {
+  final String title;
+  final String storageKey;
+  final int defaultValue;
+  final double min;
+  final double max;
+  final int divisions;
+
+  const HiveSliderTile({
+    super.key,
+    required this.title,
+    required this.storageKey,
+    required this.defaultValue,
+    required this.min,
+    required this.max,
+    required this.divisions,
+  });
+
+  @override
+  State<HiveSliderTile> createState() => _HiveSliderTileState();
+}
+
+class _HiveSliderTileState extends State<HiveSliderTile> {
+  late double _currentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    final rawValue = AppStorage.settingsBox.get(
+      widget.storageKey,
+      defaultValue: widget.defaultValue,
+    );
+    _currentValue = (rawValue as num).toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.title,
+                style: theme.textTheme.bodyLarge?.copyWith(fontSize: 16),
+              ),
+              Text(
+                _currentValue.toInt().toString(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            ),
+            child: Slider(
+              value: _currentValue,
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              onChanged: (val) {
+                setState(() {
+                  _currentValue = val;
+                });
+              },
+              onChangeEnd: (val) {
+                AppStorage.settingsBox.put(widget.storageKey, val.toInt());
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

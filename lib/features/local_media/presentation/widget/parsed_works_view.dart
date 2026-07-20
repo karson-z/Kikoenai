@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:kikoenai/config/work_layout_strategy.dart';
-import 'package:kikoenai/core/model/file_node.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/config/work_layout_config.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/album/data/model/work.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
@@ -8,13 +9,8 @@ import '../../../../core/utils/scraper/scraper_storage.dart';
 
 class ParseWorksView extends StatefulWidget {
   final List<Work> work;
-  final List<FileNode>? nodes;
 
-  const ParseWorksView({
-    super.key,
-    required this.work,
-    this.nodes
-  });
+  const ParseWorksView({super.key, required this.work});
 
   @override
   State<ParseWorksView> createState() => _ParseWorksViewState();
@@ -47,29 +43,25 @@ class _ParseWorksViewState extends State<ParseWorksView> {
     if (_localWorks.isEmpty) {
       return CustomScrollView(
         slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _buildEmptyView(),
-          ),
+          SliverFillRemaining(hasScrollBody: false, child: _buildEmptyView()),
         ],
       );
     }
 
-    const layoutStrategy = WorkListLayout(layoutType: WorkListLayoutType.card);
-    final horizontalSpacing = layoutStrategy.getColumnSpacing(context);
-    final verticalSpacing = layoutStrategy.getRowSpacing(context);
+    final layout = WorkLayoutConfig.card(context);
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: _buildActionBar(context),
-        ),
+        SliverToBoxAdapter(child: _buildActionBar(context)),
 
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
           sliver: SliverGrid.builder(
             itemCount: _localWorks.length,
-            gridDelegate: _getGridDelegate(horizontalSpacing, verticalSpacing),
+            gridDelegate: _getGridDelegate(
+              layout.horizontalSpacing,
+              layout.verticalSpacing,
+            ),
             itemBuilder: (context, index) {
               final currentWork = _localWorks[index];
               return _buildEditableCard(currentWork);
@@ -78,9 +70,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
         ),
 
         // 3. 底部 Footer
-        SliverToBoxAdapter(
-          child: _buildFooter(context),
-        ),
+        SliverToBoxAdapter(child: _buildFooter(context)),
       ],
     );
   }
@@ -106,7 +96,10 @@ class _ParseWorksViewState extends State<ParseWorksView> {
                 TextButton.icon(
                   onPressed: _handleClearAll,
                   icon: const Icon(Icons.delete_sweep, color: Colors.red),
-                  label: const Text("全部清空", style: TextStyle(color: Colors.red)),
+                  label: const Text(
+                    "全部清空",
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ),
               // 编辑/完成 切换按钮
               TextButton.icon(
@@ -133,7 +126,25 @@ class _ParseWorksViewState extends State<ParseWorksView> {
         // 底层：原来的作品卡片。如果是编辑模式，屏蔽其点击事件防止误触播放
         IgnorePointer(
           ignoring: _isEditing,
-          child: WorkCard(work: currentWork,isLocalMedia: true),
+          child: WorkCard(
+            id: currentWork.id,
+            title: currentWork.title,
+            name: currentWork.name,
+            circleName: currentWork.circle?.name,
+            mainCoverUrl: currentWork.mainCoverUrl,
+            heroTag: currentWork.effectiveHeroTag,
+            hasSubtitle: currentWork.hasSubtitle,
+            ageCategoryString: currentWork.ageCategoryString,
+            release: currentWork.release,
+            vas: currentWork.vas,
+            tags: currentWork.tags,
+            onTap: () {
+              context.push(
+                AppRoutes.detail,
+                extra: {'work': currentWork, 'isLocal': true},
+              );
+            },
+          ),
         ),
 
         // 顶层：编辑模式下的删除按钮
@@ -142,7 +153,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
             top: 6,
             right: 6,
             child: Material(
-              color: Colors.black.withOpacity(0.6), // 半透明黑色背景让白色图标更清晰
+              color: Colors.black.withValues(alpha: 0.6), // 半透明黑色背景让白色图标更清晰
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -160,25 +171,23 @@ class _ParseWorksViewState extends State<ParseWorksView> {
 
   /// 处理单个删除
   void _handleDeleteSingle(Work work) {
-    if (work.id != null) {
-      // 1. 删底层数据库
-      ScraperStorage().deleteWork(work.id.toString());
-      setState(() {
-        _localWorks.removeWhere((w) => w.id == work.id);
+    // 1. 删底层数据库
+    ScraperStorage().deleteWork(work.id);
+    setState(() {
+      _localWorks.removeWhere((w) => w.id == work.id);
 
-        // 可选：如果删光了，自动退出编辑模式
-        if (_localWorks.isEmpty) {
-          _isEditing = false;
-        }
-      });
+      // 可选：如果删光了，自动退出编辑模式
+      if (_localWorks.isEmpty) {
+        _isEditing = false;
+      }
+    });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已移除 ${work.id} 的缓存数据'),
-            duration: const Duration(seconds: 2),
-          )
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已移除 ${work.id} 的缓存数据'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   /// 处理全部清空
@@ -213,14 +222,17 @@ class _ParseWorksViewState extends State<ParseWorksView> {
           _isEditing = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已清空全部解析缓存'))
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已清空全部解析缓存')));
       }
     }
   }
 
-  SliverGridDelegate _getGridDelegate(double horizontalSpacing, double verticalSpacing) {
+  SliverGridDelegate _getGridDelegate(
+    double horizontalSpacing,
+    double verticalSpacing,
+  ) {
     return SliverGridDelegateWithMaxCrossAxisExtent(
       maxCrossAxisExtent: 240,
       crossAxisSpacing: horizontalSpacing,
@@ -236,10 +248,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
         children: [
           const Icon(Icons.search_off, size: 54, color: Colors.grey),
           const SizedBox(height: 16),
-          Text(
-            "这里什么都没有哦",
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
+          Text("这里什么都没有哦", style: TextStyle(color: Colors.grey.shade500)),
         ],
       ),
     );

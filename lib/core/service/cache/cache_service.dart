@@ -6,12 +6,11 @@ import 'package:uuid/uuid.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/data/other.dart';
 import 'package:kikoenai/features/auth/data/model/auth_response.dart';
-import 'package:kikoenai/core/model/history_entry.dart';
 import '../../../features/player/data/model/player_state.dart';
 // 引入新定义的 Key 常量类
 import '../../storage/hive_key.dart';
 import '../../../features/playlist/data/model/playlist.dart';
-import '../file/file_scanner_service.dart';
+import '../file/scan_mode.dart';
 
 class CacheService {
   // 单例模式
@@ -26,14 +25,16 @@ class CacheService {
   Future<void> saveQuickMarkTargetPlaylist(Playlist playlist) async {
     // 假设 Playlist 使用 Freezed/JsonSerializable 生成了 toJson 方法
     await AppStorage.settingsBox.put(
-        StorageKeys.quickMarkTargetPlaylist,
-        playlist.toJson()
+      StorageKeys.quickMarkTargetPlaylist,
+      playlist.toJson(),
     );
   }
 
   /// 获取目标列表
   Playlist? getQuickMarkTargetPlaylist() {
-    final data = AppStorage.settingsBox.get(StorageKeys.quickMarkTargetPlaylist);
+    final data = AppStorage.settingsBox.get(
+      StorageKeys.quickMarkTargetPlaylist,
+    );
 
     if (data != null && data is Map) {
       try {
@@ -125,50 +126,23 @@ class CacheService {
     return AppStorage.playerBox.get(StorageKeys.playerLastState);
   }
 
-  // ==================== 5. 播放历史 ====================
-
-  /// 获取历史列表 (按时间倒序)
-  List<HistoryEntry> getHistoryList() {
-    final list = AppStorage.historyBox.values.toList();
-    list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return list;
-  }
-
-  /// 添加历史记录
-  Future<void> addToHistory(HistoryEntry entry) async {
-    // HistoryBox 的 Key 是动态的 (WorkId)，所以这里保持原样
-    await AppStorage.historyBox.put(entry.work.id, entry);
-
-    if (AppStorage.historyBox.length > _maxHistory) {
-      _trimHistory();
-    }
-  }
-
-  Future<void> _trimHistory() async {
-    final list = getHistoryList();
-    if (list.length <= _maxHistory) return;
-
-    final keysToDelete = list
-        .sublist(_maxHistory)
-        .map((e) => e.work.id);
-
-    await AppStorage.historyBox.deleteAll(keysToDelete);
-  }
-
-  Future<void> clearHistory() async {
-    await AppStorage.historyBox.clear();
-  }
-
   // ==================== 获取用户选择的扫描路径 ====================
 
   /// [Refactored] 动态 Key 生成逻辑现在使用常量前缀
   String _getScanKey(ScanMode mode, bool isPath) {
-    final prefix = isPath ? StorageKeys.scanPrefixPath : StorageKeys.scanPrefixItem;
+    final prefix = isPath
+        ? StorageKeys.scanPrefixPath
+        : StorageKeys.scanPrefixItem;
     return '${prefix}_${mode.name}';
   }
-  Future<void> saveScanRootPaths(List<String> paths, {required ScanMode mode}) async {
+
+  Future<void> saveScanRootPaths(
+    List<String> paths, {
+    required ScanMode mode,
+  }) async {
     await AppStorage.settingsBox.put(_getScanKey(mode, true), paths);
   }
+
   List<String> getScanRootPaths({
     List<ScanMode> allModes = ScanMode.values,
     ScanMode? mode,
@@ -195,7 +169,9 @@ class CacheService {
   Future<void> _saveOption(String key, dynamic value) async {
     final data = {
       StorageKeys.wrapperValue: value,
-      StorageKeys.wrapperExpiry: DateTime.now().add(const Duration(days: 1)).millisecondsSinceEpoch
+      StorageKeys.wrapperExpiry: DateTime.now()
+          .add(const Duration(days: 1))
+          .millisecondsSinceEpoch,
     };
     await AppStorage.settingsBox.put(key, data);
   }
@@ -218,14 +194,20 @@ class CacheService {
     return null;
   }
 
-  Future<void> saveTagsOption(List<Map<String, dynamic>> val) => _saveOption(StorageKeys.tagOption, val);
-  Future<List<Map<String, dynamic>>?> getTagsOption() async => _getOption(StorageKeys.tagOption);
+  Future<void> saveTagsOption(List<Map<String, dynamic>> val) =>
+      _saveOption(StorageKeys.tagOption, val);
+  Future<List<Map<String, dynamic>>?> getTagsOption() async =>
+      _getOption(StorageKeys.tagOption);
 
-  Future<void> saveVasOption(List<Map<String, dynamic>> val) => _saveOption(StorageKeys.vasOption, val);
-  Future<List<Map<String, dynamic>>?> getVasOption() async => _getOption(StorageKeys.vasOption);
+  Future<void> saveVasOption(List<Map<String, dynamic>> val) =>
+      _saveOption(StorageKeys.vasOption, val);
+  Future<List<Map<String, dynamic>>?> getVasOption() async =>
+      _getOption(StorageKeys.vasOption);
 
-  Future<void> saveCirclesOption(List<Map<String, dynamic>> val) => _saveOption(StorageKeys.circleOption, val);
-  Future<List<Map<String, dynamic>>?> getCirclesOption() async => _getOption(StorageKeys.circleOption);
+  Future<void> saveCirclesOption(List<Map<String, dynamic>> val) =>
+      _saveOption(StorageKeys.circleOption, val);
+  Future<List<Map<String, dynamic>>?> getCirclesOption() async =>
+      _getOption(StorageKeys.circleOption);
 
   // ==================== 8. 工具方法 ====================
 

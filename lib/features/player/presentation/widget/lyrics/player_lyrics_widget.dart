@@ -15,12 +15,10 @@ class ShowLyric extends ConsumerStatefulWidget {
     required this.progress,
     this.beforeLyricBuilder,
     this.afterLyricBuilder,
-    this.initStyle,
     this.initController,
   });
   final String lyricText;
   final Duration progress;
-  final LyricStyle? initStyle;
   final Function(LyricController)? initController;
   final List<Widget> Function(LyricController, LyricStyle)? beforeLyricBuilder;
   final List<Widget> Function(LyricController, LyricStyle)? afterLyricBuilder;
