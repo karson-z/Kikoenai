@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/presentation/viewmodel/provider/audio_file_provider.dart';
@@ -15,7 +16,6 @@ import '../../../../../core/service/file/file_node_library_index.dart';
 import '../../../../../core/service/file/file_scanner_storage.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
-import '../../../../../core/utils/log/kikoenai_log.dart';
 import '../../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../../core/widgets/common/kikoenai_dialog.dart';
 import '../../../../../core/widgets/common/custom_bottom_type.dart';
@@ -25,6 +25,7 @@ import '../../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../../../../core/widgets/layout/app_toast.dart';
 import '../../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../../album/data/model/work.dart';
+import '../../../../local_media/presentation/provider/file_scanner_notifier.dart';
 import '../../../../overly-lyrics/presentation/widget/overly_setting_panel.dart';
 import '../../provider/player_controller_provider.dart';
 
@@ -140,6 +141,12 @@ class _MoreOptionsContent extends ConsumerWidget {
     }
 
     dynamicListActions.addAll([
+      if (track.isLocal && FileExtensions.isMedia(track.url))
+        ListActionItem(
+          icon: Icons.drive_file_move_outline,
+          title: '跳转到所在文件夹',
+          onTap: () => _handleContainingFolderTap(context, ref, track),
+        ),
       if (!track.isLocal && workId != null)
         ListActionItem(
           icon: Icons.album_outlined,
@@ -197,8 +204,9 @@ class _MoreOptionsContent extends ConsumerWidget {
             FileNodeLibraryIndex index;
             if (track.isLocal) {
               // 处理本地逻辑
-              final localIndex = FileScannerStorage()
-                  .getWorkFileIndexLocally(workId);
+              final localIndex = FileScannerStorage().getWorkFileIndexLocally(
+                workId,
+              );
               if (localIndex == null) {
                 KikoenaiToast.warning("当前拿不到本地的音频数据，请查看音频是否被删除,或扫描是否完成");
                 return; // 提前退出
@@ -248,6 +256,27 @@ class _MoreOptionsContent extends ConsumerWidget {
         'isLocal': track.isLocal,
       },
     );
+  }
+
+  Future<void> _handleContainingFolderTap(
+    BuildContext context,
+    WidgetRef ref,
+    PlaybackItem track,
+  ) async {
+    final didOpen = ref
+        .read(fileScannerProvider.notifier)
+        .jumpToMediaFile(track.url);
+    if (!didOpen) {
+      KikoenaiToast.warning('无法在本地媒体库中找到该文件');
+      return;
+    }
+    if (!context.mounted) return;
+
+    final router = GoRouter.of(context);
+    final panelController = ref.read(panelControllerProvider);
+    Navigator.pop(context);
+    router.go(AppRoutes.localMedia);
+    if (panelController.isPanelOpen) await panelController.close();
   }
 
   void _handleSubtitleConfig(BuildContext context) {

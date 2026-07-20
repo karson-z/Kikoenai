@@ -46,6 +46,9 @@ GlobalException mapToGlobalException(dynamic error) {
           originalError: error,
           code: 'UNKNOWN_NETWORK_ERROR',
         );
+      case DioExceptionType.transformTimeout:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 

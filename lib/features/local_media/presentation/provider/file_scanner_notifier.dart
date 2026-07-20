@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/constants/app_file_extensions.dart';
 import 'package:kikoenai/core/model/file_node.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
+import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import 'package:kikoenai/core/service/permission/permission_service.dart';
 import 'package:kikoenai/features/file_sort/presentation/provider/file_sort_provider.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
@@ -157,6 +159,83 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
 
     // 刷新 UI 视图切片状态
     _updateStateFromIndex();
+  }
+
+  /// 在本地媒体库中打开指定音频或视频文件所在的文件夹。
+  ///
+  /// 会自动选择包含该文件的最长扫描根目录，并同步切换音频/视频扫描模式。
+  /// 文件不是受支持的媒体类型、未被任何扫描目标收录或缓存中已不存在时返回
+  /// `false`。
+  bool jumpToMediaFile(String filePath) {
+    final mode = FileExtensions.isAudio(filePath)
+        ? ScanMode.audio
+        : FileExtensions.isVideo(filePath)
+        ? ScanMode.video
+        : null;
+    if (mode == null) return false;
+
+    final normalizedFilePath = FileNodeLibraryIndex.normalizePath(filePath);
+    final targets =
+        ref
+            .read(scanTargetsProvider.notifier)
+            .getTargetsByMode(mode)
+            .where(
+              (target) => _isPathInsideRoot(normalizedFilePath, target.path),
+            )
+            .toList()
+          ..sort((a, b) {
+            final aLength = FileNodeLibraryIndex.normalizePath(a.path).length;
+            final bLength = FileNodeLibraryIndex.normalizePath(b.path).length;
+            return bLength.compareTo(aLength);
+          });
+
+    for (final target in targets) {
+      final isCurrentTarget =
+          state.scanMode == mode &&
+          NodeFolder(state.rootPath).hasSamePathAs(target.path);
+      final currentIndex = isCurrentTarget ? _libraryIndex : null;
+
+      if (currentIndex != null &&
+          currentIndex.jumpToFilePath(normalizedFilePath)) {
+        _updateStateFromIndex();
+        return true;
+      }
+
+      final cachedNodes = FileScannerStorage().getNodesByRootPath(
+        mode,
+        target.path,
+      );
+      if (cachedNodes.isEmpty) continue;
+
+      final index = FileNodeLibraryIndex(
+        flatNodes: cachedNodes,
+        rootPath: target.path,
+      )..applySort(ref.read(fileSortProvider));
+      if (!index.jumpToFilePath(normalizedFilePath)) continue;
+
+      unawaited(
+        ref
+            .read(scanTargetsProvider.notifier)
+            .selectTarget(path: target.path, mode: target.scanMode),
+      );
+      _libraryIndex = index;
+      _lastResultPhase = FileScannerResultPhase.cacheLoaded;
+      _updateStateFromIndex(isScanning: false);
+      return true;
+    }
+
+    return false;
+  }
+
+  bool _isPathInsideRoot(String filePath, String rootPath) {
+    final normalizedFilePath = FileNodeLibraryIndex.normalizePath(
+      filePath,
+    ).toLowerCase();
+    final normalizedRootPath = FileNodeLibraryIndex.normalizePath(
+      rootPath,
+    ).toLowerCase();
+    return normalizedFilePath == normalizedRootPath ||
+        normalizedFilePath.startsWith('$normalizedRootPath/');
   }
 
   /// 按面包屑层级跳转（-1 代表根目录）。
