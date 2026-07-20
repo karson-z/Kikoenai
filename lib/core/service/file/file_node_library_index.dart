@@ -7,6 +7,7 @@ class FileNodeLibraryIndex {
 
   final Map<NodeFolder, List<FileNode>> folderMap = {};
   final Map<String, FileNode> nodeByKey = {};
+  final Map<String, FileNode> nodeByPath = {};
 
   /// 当前排序配置，默认按 title 升序。
   FileSortOption _currentSort = FileSortOption.defaultOption;
@@ -162,6 +163,34 @@ class FileNodeLibraryIndex {
     }
   }
 
+  /// 根据音频或视频文件路径跳转到该文件所在的文件夹。
+  ///
+  /// 只有索引中路径完全匹配的音频/视频节点可以触发跳转。文件不存在、
+  /// 节点不可播放或父文件夹不在当前索引中时返回 `false`，并保持当前位置不变。
+  bool jumpToFilePath(String filePath) {
+    final normalizedFilePath = normalizePath(filePath);
+    final file = nodeByPath[normalizedFilePath.toLowerCase()];
+    if (file == null || !file.isPlayable) return false;
+
+    final folder = file.folder;
+    if (folder == null) return false;
+
+    if (folder.hasSamePathAs(rootPath)) {
+      goHome();
+      return true;
+    }
+
+    final targetNode = rootNode.lookup(
+      folder,
+      stopAtRootPath: normalizePath(rootPath),
+    );
+    if (targetNode == null) return false;
+
+    _currentNode = targetNode;
+    _currentFolder = folder;
+    return true;
+  }
+
   /// 当前从根目录（不含）到当前位置的文件夹链，作为面包屑路径。
   ///
   /// 处于根目录（home）时返回空列表。每项为对应层级的文件夹 [FileNode]。
@@ -233,7 +262,9 @@ class FileNodeLibraryIndex {
   /// 递归遍历 folder 树，依次访问每个 folder 节点（含其本身）。
   ///
   /// [visit] 接收当前 folder 的 [NodeFolder] 与其在 [folderMap] 中的直接文件列表。
-  void walkFolders(void Function(NodeFolder folder, List<FileNode> directFiles) visit) {
+  void walkFolders(
+    void Function(NodeFolder folder, List<FileNode> directFiles) visit,
+  ) {
     void visitTree(FolderTreeNode treeNode) {
       final folder = treeNode.folder;
       if (folder != null) {
@@ -283,6 +314,7 @@ class FileNodeLibraryIndex {
       if (folder == null) continue;
 
       nodeByKey[normalizedNode.keyId] = normalizedNode;
+      nodeByPath[normalizedNode.effectivePath.toLowerCase()] = normalizedNode;
       folderMap.putIfAbsent(folder, () => []).add(normalizedNode);
     }
 
@@ -357,8 +389,10 @@ class FileNodeLibraryIndex {
     // folder 树始终按 title 升序保持稳定（folder 无 duration/size 字段）
     rootNode.walkIncludingSelf((node) {
       final entries = node.children.entries.toList()
-        ..sort((a, b) =>
-            a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()));
+        ..sort(
+          (a, b) =>
+              a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()),
+        );
       node.children
         ..clear()
         ..addEntries(entries);
@@ -445,8 +479,16 @@ class FileNodeLibraryIndex {
   /// 简单中文数字转 int（支持一到九十九，覆盖"第X集"常见场景）。
   static int? _chineseToInt(String s) {
     const digits = {
-      '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
-      '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+      '零': 0,
+      '一': 1,
+      '二': 2,
+      '三': 3,
+      '四': 4,
+      '五': 5,
+      '六': 6,
+      '七': 7,
+      '八': 8,
+      '九': 9,
     };
     if (s.isEmpty) return null;
     if (s == '十') return 10;
