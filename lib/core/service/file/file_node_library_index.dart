@@ -1,4 +1,5 @@
 import '../../model/file_node.dart';
+import '../../constants/app_file_extensions.dart';
 import '../../../features/file_sort/domain/file_sort_option.dart';
 
 class FileNodeLibraryIndex {
@@ -386,13 +387,19 @@ class FileNodeLibraryIndex {
   }
 
   void _sort(FileSortOption option) {
-    // folder 树始终按 title 升序保持稳定（folder 无 duration/size 字段）
+    // 文件夹没有 duration/size，这两种模式下继续按标题升序。
+    // 标题和标题序号模式则与文件使用相同规则，否则纯文件夹目录会看起来“排序失效”。
     rootNode.walkIncludingSelf((node) {
       final entries = node.children.entries.toList()
-        ..sort(
-          (a, b) =>
-              a.key.name.toLowerCase().compareTo(b.key.name.toLowerCase()),
-        );
+        ..sort((a, b) {
+          final cmp = option.field == FileSortField.titleNumber
+              ? _compareTitlesByNumber(a.key.name, b.key.name)
+              : _compareTitles(a.key.name, b.key.name);
+          final followsDirection =
+              option.field == FileSortField.title ||
+              option.field == FileSortField.titleNumber;
+          return option.descending && followsDirection ? -cmp : cmp;
+        });
       node.children
         ..clear()
         ..addEntries(entries);
@@ -410,21 +417,13 @@ class FileNodeLibraryIndex {
   int _compareByField(FileNode a, FileNode b, FileSortField field) {
     switch (field) {
       case FileSortField.title:
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        return _compareTitles(a.title, b.title);
       case FileSortField.titleNumber:
-        // 优先按标题前缀序号（"1." "10." "Episode 03" 等）数值比较；
-        // 解析不到序号时回退到 title 字母序，保证顺序稳定。
-        final aNum = _parseLeadingNumber(a.title);
-        final bNum = _parseLeadingNumber(b.title);
-        if (aNum != null && bNum != null) {
-          final cmp = aNum.compareTo(bNum);
-          if (cmp != 0) return cmp;
-        } else if (aNum != null) {
-          return -1;
-        } else if (bNum != null) {
-          return 1;
-        }
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        return _compareTitlesByNumber(
+          a.title,
+          b.title,
+          stripKnownFileExtension: true,
+        );
       case FileSortField.duration:
         return (a.duration ?? 0).compareTo(b.duration ?? 0);
       case FileSortField.size:
@@ -432,56 +431,190 @@ class FileNodeLibraryIndex {
     }
   }
 
-  /// 从 title 解析前缀数字序号。
-  /// 匹配模式（不区分大小写）：
-  ///   "1." "10." "001_"  → 返回 1, 10, 1
-  ///   "Episode 03" "EP.12" "Track 5" "第03话"  → 返回 3, 12, 5, 3
-  /// 解析不到返回 null。
-  static int? _parseLeadingNumber(String title) {
-    final t = title.trimLeft();
-    if (t.isEmpty) return null;
+  static int _compareTitles(String a, String b) =>
+      a.toLowerCase().compareTo(b.toLowerCase());
 
-    // 1) 纯数字开头（带可选分隔符 . _ - 空格）
-    final numPrefix = RegExp(r'^\d+');
-    final m1 = numPrefix.firstMatch(t);
-    if (m1 != null) {
-      // 数字后必须是分隔符或字符串结束，避免把 "100%" 之类当成序号
-      final after = m1.end;
-      if (after >= t.length) return int.tryParse(m1.group(0)!);
-      final sep = t[after];
-      if (sep == '.' || sep == '_' || sep == '-' || sep == ' ' || sep == '、') {
-        return int.tryParse(m1.group(0)!);
-      }
-    }
-
-    // 2) 带前缀的关键字：episode/ep/track/chapter/集/话/回
-    final keywordPrefix = RegExp(
-      r'^(?:ep(?:isode)?|track|chapter|ch|集|话|回)\s*[\.\-_\s]?\s*0*(\d+)',
-      caseSensitive: false,
+  static int _compareTitlesByNumber(
+    String a,
+    String b, {
+    bool stripKnownFileExtension = false,
+  }) {
+    final normalizedA = _normalizeNumericTitle(
+      a,
+      stripKnownFileExtension: stripKnownFileExtension,
     );
-    final m2 = keywordPrefix.firstMatch(t);
-    if (m2 != null) return int.tryParse(m2.group(1)!);
+    final normalizedB = _normalizeNumericTitle(
+      b,
+      stripKnownFileExtension: stripKnownFileExtension,
+    );
+    final aSequence = _extractTitleSequence(normalizedA);
+    final bSequence = _extractTitleSequence(normalizedB);
 
-    // 3) 中文数字前缀："第一集" "第三话" 等
-    const cnDigits = '零一二三四五六七八九十百千';
-    if (cnDigits.contains(t[0])) {
-      final cnNum = RegExp(r'^[零一二三四五六七八九十百千]+');
-      final m3 = cnNum.firstMatch(t);
-      if (m3 != null) {
-        final n = _chineseToInt(m3.group(0)!);
-        if (n != null && n > 0) return n;
+    if (aSequence != null && bSequence != null) {
+      final sequenceCmp = aSequence.compareTo(bSequence);
+      if (sequenceCmp != 0) return sequenceCmp;
+    } else if (aSequence != null) {
+      return -1;
+    } else if (bSequence != null) {
+      return 1;
+    }
+
+    final naturalCmp = _compareNaturally(normalizedA, normalizedB);
+    if (naturalCmp != 0) return naturalCmp;
+    return _compareTitles(a.toLowerCase(), b.toLowerCase());
+  }
+
+  /// 按优先级提取标题中最可能的序号：序号关键字、中日文“第 N 话”、
+  /// 装饰后的开头数字、独立数字，最后才使用任意位置的数字作为兼容兜底。
+  static BigInt? _extractTitleSequence(String title) {
+    final labeled = _labeledSequencePattern.firstMatch(title);
+    if (labeled != null && !_isPercentage(title, labeled.end)) {
+      return BigInt.tryParse(labeled.group(1)!);
+    }
+
+    final ordinal = _ordinalSequencePattern.firstMatch(title);
+    if (ordinal != null) return BigInt.tryParse(ordinal.group(1)!);
+
+    final leading = _leadingSequencePattern.firstMatch(title);
+    if (leading != null && !_isPercentage(title, leading.end)) {
+      return BigInt.tryParse(leading.group(1)!);
+    }
+
+    for (final match in _standaloneSequencePattern.allMatches(title)) {
+      if (!_isPercentage(title, match.end)) {
+        return BigInt.tryParse(match.group(1)!);
       }
     }
 
+    for (final match in _numberPattern.allMatches(title)) {
+      if (!_isPercentage(title, match.end)) {
+        return BigInt.tryParse(match.group(0)!);
+      }
+    }
     return null;
   }
 
-  /// 简单中文数字转 int（支持一到九十九，覆盖"第X集"常见场景）。
+  /// 序号相同时继续比较标题中的后续数字段，例如 1-2 会排在 1-10 之前。
+  /// 数字通过有效位数和文本比较，不转换成 int，因此不会溢出。
+  static int _compareNaturally(String a, String b) {
+    final aParts = _naturalPartPattern.allMatches(a).map((m) => m.group(0)!);
+    final bParts = _naturalPartPattern.allMatches(b).map((m) => m.group(0)!);
+    final aIterator = aParts.iterator;
+    final bIterator = bParts.iterator;
+
+    while (true) {
+      final hasA = aIterator.moveNext();
+      final hasB = bIterator.moveNext();
+      if (!hasA || !hasB) {
+        if (hasA) return 1;
+        if (hasB) return -1;
+        return _compareTitles(a, b);
+      }
+
+      final aPart = aIterator.current;
+      final bPart = bIterator.current;
+      final aIsNumber = _isAsciiDigit(aPart.codeUnitAt(0));
+      final bIsNumber = _isAsciiDigit(bPart.codeUnitAt(0));
+      int cmp;
+      if (aIsNumber && bIsNumber) {
+        cmp = _compareNumericText(aPart, bPart);
+      } else if (aIsNumber != bIsNumber) {
+        cmp = aIsNumber ? -1 : 1;
+      } else {
+        cmp = aPart.compareTo(bPart);
+      }
+      if (cmp != 0) return cmp;
+    }
+  }
+
+  static int _compareNumericText(String a, String b) {
+    final significantA = a.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final significantB = b.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final lengthCmp = significantA.length.compareTo(significantB.length);
+    if (lengthCmp != 0) return lengthCmp;
+    return significantA.compareTo(significantB);
+  }
+
+  static String _normalizeNumericTitle(
+    String title, {
+    bool stripKnownFileExtension = false,
+  }) {
+    final buffer = StringBuffer();
+    for (final rune in title.toLowerCase().runes) {
+      if (rune >= 0xff10 && rune <= 0xff19) {
+        buffer.writeCharCode(rune - 0xfee0);
+      } else {
+        buffer.writeCharCode(rune);
+      }
+    }
+
+    var normalized = buffer.toString();
+    if (stripKnownFileExtension) {
+      final extension = _knownFileExtensions.firstWhere(
+        normalized.endsWith,
+        orElse: () => '',
+      );
+      if (extension.isNotEmpty) {
+        normalized = normalized.substring(
+          0,
+          normalized.length - extension.length,
+        );
+      }
+    }
+
+    return normalized.replaceAllMapped(_chineseOrdinalPattern, (match) {
+      final value = _chineseToInt(match.group(1)!);
+      return value == null ? match.group(0)! : '第$value${match.group(2)!}';
+    });
+  }
+
+  static bool _isPercentage(String title, int numberEnd) {
+    var index = numberEnd;
+    while (index < title.length && title[index].trim().isEmpty) {
+      index++;
+    }
+    return index < title.length && (title[index] == '%' || title[index] == '％');
+  }
+
+  static bool _isAsciiDigit(int codeUnit) =>
+      codeUnit >= 0x30 && codeUnit <= 0x39;
+
+  static final RegExp _labeledSequencePattern = RegExp(
+    r'(?:^|[^a-z0-9])(?:episode|ep|track|trk|chapter|chap|ch|part|pt|disc|disk|cd|volume|vol|scene|file|no|音轨|音軌|トラック|チャプター)\s*(?:no\.?\s*)?[#._:\-]?\s*0*(\d+)',
+    caseSensitive: false,
+  );
+  static final RegExp _ordinalSequencePattern = RegExp(
+    r'第\s*0*(\d+)\s*(?:集|话|話|章|回|幕|轨|軌|首)',
+  );
+  static final RegExp _leadingSequencePattern = RegExp(
+    r'^\s*[\[\(\{（【「『]?\s*0*(\d+)',
+  );
+  static final RegExp _standaloneSequencePattern = RegExp(
+    r'(?:^|[^a-z0-9])0*(\d+)(?=$|[^a-z0-9])',
+    caseSensitive: false,
+  );
+  static final RegExp _numberPattern = RegExp(r'\d+');
+  static final RegExp _naturalPartPattern = RegExp(r'\d+|\D+');
+  static final RegExp _chineseOrdinalPattern = RegExp(
+    r'第([零〇一二两三四五六七八九十百千]+)(集|话|話|章|回|幕|轨|軌|首)',
+  );
+  static final Set<String> _knownFileExtensions = {
+    ...FileExtensions.archives,
+    ...FileExtensions.subtitles,
+    ...FileExtensions.images,
+    ...FileExtensions.video,
+    ...FileExtensions.audio,
+    ...FileExtensions.documents,
+  };
+
+  /// 中文数字转 int（支持零到九千九百九十九）。
   static int? _chineseToInt(String s) {
     const digits = {
       '零': 0,
+      '〇': 0,
       '一': 1,
       '二': 2,
+      '两': 2,
       '三': 3,
       '四': 4,
       '五': 5,
@@ -491,20 +624,18 @@ class FileNodeLibraryIndex {
       '九': 9,
     };
     if (s.isEmpty) return null;
-    if (s == '十') return 10;
-
     int result = 0;
     int current = 0;
-    bool hasTen = false;
     for (int i = 0; i < s.length; i++) {
       final c = s[i];
-      if (c == '十') {
-        hasTen = true;
-        if (current == 0) current = 1;
-        result += current * 10;
-        current = 0;
-      } else if (c == '百') {
-        result += (current == 0 ? 1 : current) * 100;
+      final unit = switch (c) {
+        '十' => 10,
+        '百' => 100,
+        '千' => 1000,
+        _ => null,
+      };
+      if (unit != null) {
+        result += (current == 0 ? 1 : current) * unit;
         current = 0;
       } else if (digits.containsKey(c)) {
         current = digits[c]!;
@@ -513,7 +644,7 @@ class FileNodeLibraryIndex {
       }
     }
     result += current;
-    return result > 0 ? result : (hasTen ? 10 : null);
+    return result;
   }
 
   static String normalizePath(String path) {
