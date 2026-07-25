@@ -1,0 +1,32 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/utils/network/api_client.dart';
+import 'package:kikoenai_core/kikoenai_core.dart';
+
+abstract class ReviewService {
+  Future<Map<String, dynamic>> fetchReviews(ReviewQueryParams params);
+}
+class ReviewServiceImpl implements ReviewService {
+  final ApiClient api;
+
+  ReviewServiceImpl(this.api);
+
+  @override
+  Future<Map<String, dynamic>> fetchReviews(ReviewQueryParams params) async {
+    final queryMap = <String, dynamic>{
+      'order': params.order,
+      'sort': params.sort,
+      'page': params.page,
+      'filter': params.filter,
+    };
+
+    queryMap.removeWhere((key, value) => value == null);
+    return api.get<Map<String, dynamic>>(
+      '/review',
+      queryParameters: queryMap,
+    );
+  }
+}
+final reviewServiceProvider = Provider<ReviewService>((ref) {
+  final apiClient = ref.read(apiClientProvider);
+  return ReviewServiceImpl(apiClient);
+});

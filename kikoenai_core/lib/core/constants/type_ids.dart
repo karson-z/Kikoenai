@@ -1,0 +1,52 @@
+/// 全局唯一的 Hive TypeId 集中管理。
+///
+/// 任何会被 Hive 持久化的类必须使用本类中声明的 TypeId。
+/// 严禁在不同包内使用重复或冲突的 TypeId，TypeId 一旦分配不允许修改，
+/// 否则会清空用户本地的 Hive 数据。
+///
+/// 范围划分：
+/// - 10-29   核心 / 元数据
+/// - 30-49   认证与用户
+/// - 50-69   播放器与状态
+/// - 70-89   歌词与配置
+/// - 90-100  本地路径与扫描
+/// - 100-119 作品嵌套模型
+class TypeIds {
+  // --- 核心/元数据 (10-29) ---
+  static const int fileNode = 10;
+  static const int work = 11;
+  static const int workInfo = 12;
+  static const int nodeType = 13;
+  static const int nodeStatus = 14;
+  static const int nodeSource = 15;
+  static const int searchTag = 16;
+
+  // --- 认证与用户 (30-49) ---
+  static const int authResponse = 30;
+  static const int user = 31;
+  static const int historyEntry = 32;
+  static const int historyEntryType = 33;
+
+  // --- 播放器与状态 (50-69) ---
+  static const int appPlayerState = 50;
+  static const int progressBarState = 51;
+  static const int mediaItem = 52;
+  static const int repeatMode = 53;
+  static const int playbackItem = 54;
+  static const int playbackSession = 55;
+
+  // --- 歌词与配置 (70-89) ---
+  static const int lyricConfig = 70;
+
+  // --- 本地路径 (90-100) ---
+  static const int scanTarget = 90;
+  static const int scanMode = 91;
+
+  // --- 作品嵌套模型 (100-119) ---
+  static const int circle = 100;
+  static const int rank = 101;
+  static const int tag = 102;
+  static const int va = 103;
+  static const int rateCountDetail = 104;
+  static const int otherLanguageEdition = 105;
+}

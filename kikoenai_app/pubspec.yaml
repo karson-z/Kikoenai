@@ -1,0 +1,88 @@
+name: kikoenai
+description: A new Flutter project.
+
+version: 1.1.0+1
+
+environment:
+  sdk: '3.11.5'
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/animation/
+    - assets/icons/
+dependencies:
+  flutter:
+    sdk: flutter
+  kikoenai_core:
+    path: ../kikoenai_core
+  kikoenai_sites:
+    path: ../kikoenai_sites
+  hive_ce: ^2.15.1
+  hive_ce_flutter: ^2.3.3
+  path: ^1.9.1
+  path_provider: ^2.1.2
+  cupertino_icons: ^1.0.2
+  flutter_riverpod: ^3.0.3
+  flutter_colorpicker: ^1.0.3
+  palette_generator_master: ^1.0.1
+  extended_image: ^10.0.1
+  dio: ^5.9.0
+  text_scroll: ^0.2.0
+#  bitsdojo_window: ^0.1.6
+  google_fonts: ^6.3.2
+  json_annotation: ^4.9.0
+  go_router: ^16.0.0
+  logging: ^1.2.0
+  equatable: ^2.0.5
+  freezed_annotation: ^3.0.0
+  cached_network_image_ce: ^4.6.4
+  flutter_svg: ^2.2.1
+  flutter_cache_manager: ^3.4.0
+  uuid: ^4.5.2
+  wolt_modal_sheet: ^0.11.0
+  audio_service: ^0.18.12
+  audio_session: ^0.2.2
+  rxdart: ^0.28.0
+  permission_handler: ^12.0.1
+  device_info_plus: ^10.1.0
+  scroll_to_index: ^3.0.1
+  archive: ^4.0.7
+  file_picker: ^10.3.7   # 用于选择文件/文件夹
+  scrollable_positioned_list: ^0.3.8
+  lottie: ^3.3.2
+  logger: ^2.4.0
+  url_launcher: ^6.3.2
+  crypto: ^3.0.7
+  open_filex: ^4.7.0
+  back_button_interceptor: ^8.0.4
+  native_flutter_proxy: ^0.3.1
+  background_downloader: ^9.5.2
+  watcher: ^1.2.1
+  html: ^0.15.0
+  flutter_slidable: ^3.1.0
+  charset_converter: ^2.1.1
+  flutter_lyric:
+    git:
+      url: https://github.com/karson-z/flutter_lyric.git
+      ref: 2380e0523ec2687485416e0ffe9ada43f20a8ab1
+  disk_space_2: ^1.0.12
+  visibility_detector: ^0.4.0+2
+  flutter_overlay_window: ^0.5.0
+  window_manager: ^0.4.3
+  tray_manager: ^0.2.2
+  media_kit: ^1.2.6 # Primary package.
+  media_kit_video: ^2.0.1 # For video rendering.
+  media_kit_libs_video: ^1.0.7 # Native video dependencies.
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.6
+  flutter_lints: ^2.0.0
+  json_serializable: ^6.7.1
+  riverpod_lint: ^3.0.3
+  freezed: ^3.0.0
+  hive_ce_generator: ^1.9.3
