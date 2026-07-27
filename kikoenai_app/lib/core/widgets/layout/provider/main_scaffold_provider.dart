@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../features/player/presentation/provider/player_controller_provider.dart';
+import '../../../../features/player/provider/player_controller_provider.dart';
 import '../../../utils/window/display_util.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 

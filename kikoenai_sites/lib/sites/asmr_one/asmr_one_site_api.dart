@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
+import '../../api/listen_event_type.dart';
 import '../../api/server_health.dart';
 import '../../api/server_info.dart';
 import '../../api/site_api.dart';
@@ -35,6 +36,9 @@ class AsmrOneSiteApi extends SiteApi {
         _currentServer = initialServer ?? _defaultServers.first;
 
   final SitesHttpClient _http;
+
+  /// 暴露 HTTP 客户端（供业务层直接 getBytes 等场景使用）
+  SitesHttpClient get httpClient => _http;
 
   /// 当前使用的服务器
   ServerInfo _currentServer;
@@ -102,6 +106,8 @@ class AsmrOneSiteApi extends SiteApi {
         // 认证
         SiteFeature.login,
         SiteFeature.register,
+        // 埋点
+        SiteFeature.feedback,
         // 服务器管理
         SiteFeature.serverSwitch,
         SiteFeature.healthCheck,
@@ -111,11 +117,11 @@ class AsmrOneSiteApi extends SiteApi {
 
   @override
   Future<PagedResult<Work>> searchWorks(SearchWorksRequest req) async {
-    final searchQuery = (req.keyword == null || req.keyword!.isEmpty)
-        ? ''
-        : '/${req.keyword}';
+    // 有 keyword 时走 /search/{keyword}，无 keyword 时走 /works
+    final hasKeyword = req.keyword != null && req.keyword!.isNotEmpty;
+    final path = hasKeyword ? '/search/${req.keyword}' : '/works';
     final response = await _http.get<Map<String, dynamic>>(
-      '/search$searchQuery',
+      path,
       queryParameters: {
         'page': req.page,
         'pageSize': req.pageSize,
@@ -356,6 +362,24 @@ class AsmrOneSiteApi extends SiteApi {
       data: reg.toJson(),
     );
     return _parseAuthResponse(response, fallbackMessage: '注册失败');
+  }
+
+  // ─── 埋点 ──────────────────────────────────────────
+
+  @override
+  Future<void> submitPlaybackFeedback({
+    required String workId,
+    required String recommendUuid,
+    required ListenEventType type,
+  }) async {
+    await _http.post<Map<String, dynamic>>(
+      '/recommender/feedback',
+      data: {
+        'itemId': workId,
+        'recommendUuid': recommendUuid,
+        'type': type.type,
+      },
+    );
   }
 
   // ─── 服务器管理 ──────────────────────────────────────

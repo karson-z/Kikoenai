@@ -5,18 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/service/download/download_service.dart';
+import 'package:kikoenai/core/service/site/site_api_setup.dart';
 import 'package:kikoenai/core/theme/app_font_preset.dart';
 import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:media_kit/media_kit.dart';
 import 'app/app.dart';
-import 'config/environment_config.dart';
 import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/service/file/local_media_sync_scheduler.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
-import 'features/overly-lyrics/presentation/page/overly_lyrics_panel.dart';
+import 'features/overly-lyrics/page/overly_lyrics_panel.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
@@ -74,8 +74,8 @@ void main() async {
   await AudioServiceSingleton.init();
   await ProxyService.init();
   await DownloadService.init();
-  debugPrint('开始检测最优服务器...');
-  await EnvironmentConfig.selectBestServer();
+  debugPrint('开始初始化站点 API 并检测最优服务器...');
+  await setupSiteApi();
   // 每次冷启动检查上次是否有临终遗言
   final detachLog = AppStorage.settingsBox.get('debug_detach_time');
   if (detachLog != null) {
@@ -85,7 +85,7 @@ void main() async {
   } else {
     print('【○调试提示】未检测到上次的 detach 记录');
   }
-  debugPrint('最终使用的 API 地址: ${EnvironmentConfig.baseUrl}');
+  debugPrint('最终使用的 API 地址: ${siteApi.currentServer.baseUrl}');
   setupDesktopWindow();
   unawaited(LocalMediaSyncScheduler.instance.runStartupCheck());
   runApp(const ProviderScope(child: MyApp()));

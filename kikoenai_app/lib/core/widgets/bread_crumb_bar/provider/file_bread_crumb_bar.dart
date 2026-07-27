@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
-import 'package:kikoenai/features/local_media/presentation/provider/file_scanner_notifier.dart';
+import 'package:kikoenai/features/local_media/provider/file_scanner_notifier.dart';
 
 /// 面包屑所属界面：本地媒体库 / 作品详情 / 播放器文件管理弹窗。
 enum BreadCrumbBarType { local, detail, player }

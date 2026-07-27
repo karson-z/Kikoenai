@@ -9,6 +9,7 @@ library;
 export 'package:kikoenai_core/kikoenai_core.dart';
 
 // ---- Site API 抽象层 ----
+export 'api/listen_event_type.dart';
 export 'api/server_health.dart';
 export 'api/server_info.dart';
 export 'api/site_api.dart';
@@ -22,6 +23,7 @@ export 'network/exception.dart';
 export 'network/http_client.dart';
 export 'network/interceptor.dart';
 export 'network/request_config.dart';
+export 'network/unauthorized_interceptor.dart';
 
 // ---- Scraper（外部站点元数据爬取） ----
 export 'scraper/dlsite_scraper.dart';

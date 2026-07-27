@@ -6,9 +6,9 @@ import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
-import 'package:kikoenai/features/overly-lyrics/presentation/provider/overly_lyrics_provider.dart';
+import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_provider.dart';
 import '../core/theme/theme_view_model.dart';
-import '../features/settings/presentation/provider/setting_provider.dart';
+import '../features/settings/provider/setting_provider.dart';
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});

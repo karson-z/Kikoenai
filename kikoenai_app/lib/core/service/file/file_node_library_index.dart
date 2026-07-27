@@ -1,6 +1,6 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/file_sort/domain/file_sort_option.dart';
+import '../../../features/file_sort/provider/file_sort_option.dart';
 
 class FileNodeLibraryIndex {
   final String rootPath;

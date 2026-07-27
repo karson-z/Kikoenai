@@ -1,5 +1,6 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
 
+import 'listen_event_type.dart';
 import 'server_health.dart';
 import 'server_info.dart';
 import 'site_feature.dart';
@@ -154,6 +155,20 @@ abstract class SiteApi {
   /// 注册
   Future<AuthResponse> register(RegisterRequestModel reg) =>
       throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.register}');
+
+  // ─── 埋点 ──────────────────────────────────────────
+
+  /// 上报播放反馈埋点（如开始播放 / 播放满 5 分钟）。
+  ///
+  /// [workId] 当前播放的作品 ID
+  /// [recommendUuid] 推荐算法 UUID
+  /// [type] 事件类型
+  Future<void> submitPlaybackFeedback({
+    required String workId,
+    required String recommendUuid,
+    required ListenEventType type,
+  }) =>
+      throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.feedback}');
 
   // ─── 服务器管理 ──────────────────────────────────────
 

@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/core/model/local_media/file_scanner_state.dart';
-import 'package:kikoenai/features/local_media/data/repository/scanner_path_repository.dart';
+import 'package:kikoenai/features/local_media/provider/scanner_path_repository.dart';
 
 import 'file_scan_sync_engine.dart';
 

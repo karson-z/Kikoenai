@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/album/data/service/work_repository.dart';
+import '../../service/site/site_api_provider.dart';
 import '../../widgets/common/kikoenai_dialog.dart';
 import '../../widgets/layout/app_toast.dart';
 
@@ -18,7 +18,7 @@ class HandleSubmit {
 
     try {
       // 2. 获取 API 客户端
-      await ref.read(workRepositoryProvider).getReviews(newStatus);
+      await ref.read(siteApiProvider).submitReview(newStatus);
       // 4. 关闭加载框
       KikoenaiDialog.dismiss();
       KikoenaiToast.success("标记成功");

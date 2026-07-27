@@ -1,3 +1,5 @@
+import 'unauthorized_interceptor.dart';
+
 /// 站点请求配置
 ///
 /// 统一管理 [SitesHttpClient] 的基础参数：baseUrl、超时时间、默认请求头等。
@@ -32,6 +34,11 @@ class RequestConfig {
   /// 是否启用 Cookie 管理
   final bool enableCookie;
 
+  /// 401 未授权回调（业务侧注入，用于跳登录 / 清 token 等）
+  ///
+  /// 非 null 时自动启用 [UnauthorizedInterceptor]。
+  final OnUnauthorized? onUnauthorized;
+
   const RequestConfig({
     required this.baseUrl,
     this.connectTimeout = const Duration(seconds: 10),
@@ -43,6 +50,7 @@ class RequestConfig {
     this.extraHeaders = const {},
     this.enableLogger = true,
     this.enableCookie = true,
+    this.onUnauthorized,
   });
 
   /// 默认配置
@@ -64,6 +72,7 @@ class RequestConfig {
     Map<String, String>? extraHeaders,
     bool? enableLogger,
     bool? enableCookie,
+    OnUnauthorized? onUnauthorized,
   }) {
     return RequestConfig(
       baseUrl: baseUrl ?? this.baseUrl,
@@ -76,6 +85,7 @@ class RequestConfig {
       extraHeaders: extraHeaders ?? this.extraHeaders,
       enableLogger: enableLogger ?? this.enableLogger,
       enableCookie: enableCookie ?? this.enableCookie,
+      onUnauthorized: onUnauthorized ?? this.onUnauthorized,
     );
   }
 

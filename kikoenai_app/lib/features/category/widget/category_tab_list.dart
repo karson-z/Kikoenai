@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../album/presentation/widget/work_grid_layout.dart';
-import '../presentation/viewmodel/provider/category_data_provider.dart';
-import '../presentation/viewmodel/provider/category_keep_alive.dart';
+import '../../album/widget/work_grid_layout.dart';
+import '../provider/category_data_provider.dart';
+import '../provider/category_keep_alive.dart';
 
 class CategoryListTab extends ConsumerStatefulWidget {
   final SortOrder sortOrder;

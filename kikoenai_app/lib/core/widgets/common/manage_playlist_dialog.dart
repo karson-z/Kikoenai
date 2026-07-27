@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai/features/file_sort/presentation/widget/file_sort_dialog.dart';
-import 'package:kikoenai/features/file_sort/presentation/provider/file_sort_provider.dart';
+import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
+import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
 
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/download/presentation/provider/download_provider.dart';
-import '../../../features/player/presentation/provider/player_controller_provider.dart';
+import '../../../features/download/provider/download_provider.dart';
+import '../../../features/player/provider/player_controller_provider.dart';
 import '../../service/download/download_service.dart';
 import '../../service/file/file_node_library_index.dart';
 import '../bread_crumb_bar/file_bread_crumb_bar.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/album/presentation/viewmodel/provider/file_manage_provider.dart';
+import '../../../features/album/provider/file_manage_provider.dart';
 
 import '../../../../../core/widgets/common/custom_bottom_type.dart';
 import '../../../../../core/widgets/common/custom_side_sheet_type.dart';

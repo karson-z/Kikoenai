@@ -4,6 +4,7 @@ import 'cookie_manager.dart';
 import 'exception.dart';
 import 'interceptor.dart';
 import 'request_config.dart';
+import 'unauthorized_interceptor.dart';
 
 /// 站点 HTTP 客户端
 ///
@@ -103,7 +104,14 @@ class SitesHttpClient {
       _dio.interceptors.add(CookieInterceptor(cookieManager));
     }
 
-    // 4. Logger
+    // 4. Unauthorized (401 处理)
+    if (config.onUnauthorized != null) {
+      _dio.interceptors.add(
+        UnauthorizedInterceptor(onUnauthorized: config.onUnauthorized),
+      );
+    }
+
+    // 5. Logger
     if (config.enableLogger) {
       _dio.interceptors.add(
         LoggerInterceptor(

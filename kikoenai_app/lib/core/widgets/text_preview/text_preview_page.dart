@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 用于剪贴板
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../features/user/presentation/view_models/provider/file_preview_provider.dart';
+import '../../../features/user/provider/file_preview_provider.dart';
 
 class TextPreviewPage extends ConsumerWidget {
   final String url;

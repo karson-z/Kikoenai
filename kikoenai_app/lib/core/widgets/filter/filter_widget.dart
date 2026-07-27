@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/filter/special_search.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/category/presentation/viewmodel/provider/category_option_provider.dart';
+import '../../../features/category/provider/category_option_provider.dart';
+import '../loading/lottie_loading.dart';
 import 'provider/filter_search_notifier.dart';
 import '../common/kikoenai_dialog.dart';
 import 'filter_bottom_panel.dart';
@@ -89,19 +90,16 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
     super.dispose();
   }
 
-  List<SelectorItem> _getCurrentCategoryItems(CategoryType category) {
+  AsyncValue<List<SelectorItem>> _watchCurrentCategoryItems(CategoryType category) {
     switch (category) {
       case CategoryType.tag:
-        final tags = ref.watch(tagsProvider).value ?? [];
-        return tags.map((e) => e.toSelectorItem()).toList();
+        return ref.watch(tagsProvider).whenData((tags) => tags.map((e) => e.toSelectorItem()).toList());
       case CategoryType.circle:
-        final circles = ref.watch(circlesProvider).value ?? [];
-        return circles.map((e) => e.toSelectorItem()).toList();
+        return ref.watch(circlesProvider).whenData((circles) => circles.map((e) => e.toSelectorItem()).toList());
       case CategoryType.va:
-        final vas = ref.watch(vasProvider).value ?? [];
-        return vas.map((e) => e.toSelectorItem()).toList();
+        return ref.watch(vasProvider).whenData((vas) => vas.map((e) => e.toSelectorItem()).toList());
       default:
-        return [];
+        return AsyncData<List<SelectorItem>>([]);
     }
   }
 
@@ -111,7 +109,11 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
     final controller = ref.read(searchFilterProvider(widget.type).notifier);
     final currentCategory = CategoryType.values[state.selectedFilterIndex];
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    List<SelectorItem> currentItems = _getCurrentCategoryItems(currentCategory);
+
+    final asyncItems = _watchCurrentCategoryItems(currentCategory);
+    // 首次加载（无缓存数据）时显示加载动画，刷新时保留之前数据
+    final isLoading = asyncItems.isLoading && !asyncItems.hasValue;
+    List<SelectorItem> currentItems = asyncItems.value ?? [];
 
     if (state.localSearchKeyword.isNotEmpty) {
       currentItems = currentItems.where((item) {
@@ -132,6 +134,15 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             },
             fillColor: isDark ? const Color(0xFF212529) : const Color(0xFFF9FAFB),
             textColor: isDark ? const Color(0xFF8492A6) : const Color(0xFF4B5563),
+          ),
+        ),
+      );
+    } else if (isLoading) {
+      rightContent = const Expanded(
+        child: Center(
+          child: LottieLoadingIndicator(
+            size: 76,
+            message: '加载中...',
           ),
         ),
       );

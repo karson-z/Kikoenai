@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import 'package:kikoenai/features/album/presentation/widget/work_tag.dart';
+import 'package:kikoenai/features/album/widget/work_tag.dart';
 
 import '../../enums/tag_enum.dart';
 

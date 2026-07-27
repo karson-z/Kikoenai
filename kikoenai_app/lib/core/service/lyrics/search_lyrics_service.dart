@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../features/album/presentation/viewmodel/provider/audio_file_provider.dart';
+import '../../../features/album/provider/audio_file_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../file/file_scanner_storage.dart';

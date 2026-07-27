@@ -10,8 +10,8 @@ import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dar
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
-import 'package:kikoenai/features/player/presentation/provider/player_controller_provider.dart';
-import '../../../features/player/presentation/page/player_view.dart';
+import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
+import '../../../features/player/page/player_view.dart';
 import '../../utils/window/display_util.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/player_sheet_panel.dart';
