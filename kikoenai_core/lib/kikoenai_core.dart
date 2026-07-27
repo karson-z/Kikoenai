@@ -19,6 +19,7 @@ export 'core/enums/sort_options.dart';
 
 // ---- Common ----
 export 'core/common/pagination.dart';
+export 'core/common/paged_result.dart';
 
 // ---- Utils ----
 export 'core/utils/other.dart';
@@ -40,6 +41,7 @@ export 'core/model/album/rate_count_detail.dart';
 export 'core/model/album/other_language_edition.dart';
 export 'core/model/album/translation_info.dart';
 export 'core/model/album/translation_status.dart';
+export 'core/model/album/search_works_request.dart';
 
 // ---- Models: filter ----
 export 'core/model/filter/filter_data_state.dart';
