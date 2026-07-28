@@ -3,15 +3,21 @@ import 'package:html/parser.dart' show parse;
 import 'scraper_http_client.dart';
 import 'scraper_utils.dart';
 
-/// HVDB 爬虫（迁移自 `kikoenai_app/lib/core/utils/scraper/scraper_hvdb.dart`）。
+/// HVDB 元数据爬虫。
 class HvdbScraper {
   HvdbScraper._();
 
-  static Future<Map<String, dynamic>> scrapeWorkMetadata(int id) async {
+  static Future<Map<String, dynamic>> scrapeWorkMetadata(
+    int id, {
+    ScraperCancellationToken? cancellationToken,
+  }) async {
     final url = 'https://hvdb.me/Dashboard/WorkDetails/$id';
 
     try {
-      final response = await ScraperHttpClient.retryGet(url);
+      final response = await ScraperHttpClient.retryGet(
+        url,
+        cancellationToken: cancellationToken,
+      );
       final document = parse(response.data);
 
       final Map<String, dynamic> work = {

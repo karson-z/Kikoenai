@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/core/model/local_media/file_node.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
-enum _QueueItemType { processing, pending, failed, completed }
+
+enum _QueueItemType { processing, pending, paused, failed, completed }
+
 class _QueueItem {
   final FileNode node;
   final _QueueItemType type;
   _QueueItem(this.node, this.type);
 }
+
 class ScraperQueueDrawer extends ConsumerWidget {
   const ScraperQueueDrawer({super.key});
 
@@ -17,12 +20,17 @@ class ScraperQueueDrawer extends ConsumerWidget {
     final queueState = ref.watch(scraperQueueProvider);
     final notifier = ref.read(scraperQueueProvider.notifier);
 
-    // 将四个队列按优先级合并为一个展示列表
+    // 将各状态队列按优先级合并为一个展示列表
     final displayList = [
-      ...queueState.processing.map((n) => _QueueItem(n, _QueueItemType.processing)),
+      ...queueState.processing.map(
+        (n) => _QueueItem(n, _QueueItemType.processing),
+      ),
       ...queueState.pending.map((n) => _QueueItem(n, _QueueItemType.pending)),
+      ...queueState.paused.map((n) => _QueueItem(n, _QueueItemType.paused)),
       ...queueState.failed.map((n) => _QueueItem(n, _QueueItemType.failed)),
-      ...queueState.completed.map((n) => _QueueItem(n, _QueueItemType.completed)),
+      ...queueState.completed.map(
+        (n) => _QueueItem(n, _QueueItemType.completed),
+      ),
     ];
 
     return Drawer(
@@ -34,29 +42,21 @@ class ScraperQueueDrawer extends ConsumerWidget {
             // 1. 抽屉头部与控制台
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "后台解析队列",
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        queueState.isIdle
-                            ? "当前无排队任务"
-                            : "排队中: ${queueState.pending.length}  处理中: ${queueState.processing.length}",
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
-                      ),
-                    ],
-                  ),
                   Row(
                     children: [
+                      Expanded(
+                        child: Text(
+                          "后台解析队列",
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
                       // 清空队列按钮
-                      if (!queueState.isIdle || queueState.completed.isNotEmpty || queueState.failed.isNotEmpty)
+                      if (!queueState.isIdle ||
+                          queueState.completed.isNotEmpty ||
+                          queueState.failed.isNotEmpty)
                         IconButton(
                           tooltip: '清空列表',
                           icon: const Icon(Icons.clear_all, size: 22),
@@ -66,21 +66,39 @@ class ScraperQueueDrawer extends ConsumerWidget {
                         ),
                       // 播放/暂停控制按钮
                       IconButton(
-                        tooltip: queueState.isRunning ? '暂停解析' : '开始解析',
+                        tooltip: queueState.isRunning ? '全部暂停' : '全部开始',
                         icon: Icon(
-                          queueState.isRunning ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                          queueState.isRunning
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_fill,
                           size: 36,
-                          color: queueState.isRunning ? Colors.orange : Theme.of(context).colorScheme.primary,
+                          color: queueState.isRunning
+                              ? Colors.orange
+                              : Theme.of(context).colorScheme.primary,
                         ),
-                        onPressed: () {
-                          if (queueState.isRunning) {
-                            notifier.pause();
-                          } else {
-                            notifier.start();
-                          }
-                        },
+                        onPressed: queueState.canPause || queueState.canStart
+                            ? () {
+                                if (queueState.isRunning) {
+                                  notifier.pauseAll();
+                                } else {
+                                  notifier.start();
+                                }
+                              }
+                            : null,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    queueState.isIdle
+                        ? "当前无排队任务"
+                        : "排队: ${queueState.pending.length}  处理中: ${queueState.processing.length}  暂停: ${queueState.paused.length}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -90,7 +108,9 @@ class ScraperQueueDrawer extends ConsumerWidget {
             if (!queueState.isIdle)
               LinearProgressIndicator(
                 value: queueState.progress,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
               )
             else
               const Divider(height: 1),
@@ -99,22 +119,34 @@ class ScraperQueueDrawer extends ConsumerWidget {
             Expanded(
               child: displayList.isEmpty
                   ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
-                    const SizedBox(height: 16),
-                    Text("队列空空如也", style: TextStyle(color: Colors.grey.shade600)),
-                  ],
-                ),
-              )
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "队列空空如也",
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    )
                   : ListView.separated(
-                itemCount: displayList.length,
-                separatorBuilder: (context, index) => const Divider(height: 1, indent: 16),
-                itemBuilder: (context, index) {
-                  return _buildTaskTile(displayList[index], context);
-                },
-              ),
+                      itemCount: displayList.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, indent: 16),
+                      itemBuilder: (context, index) {
+                        return _buildTaskTile(
+                          displayList[index],
+                          context,
+                          notifier,
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -123,7 +155,11 @@ class ScraperQueueDrawer extends ConsumerWidget {
   }
 
   /// 构建单个任务卡片
-  Widget _buildTaskTile(_QueueItem item, BuildContext context) {
+  Widget _buildTaskTile(
+    _QueueItem item,
+    BuildContext context,
+    ScraperQueueNotifier notifier,
+  ) {
     Color statusColor;
     String statusText;
     Widget? leadingIcon;
@@ -142,6 +178,15 @@ class ScraperQueueDrawer extends ConsumerWidget {
         statusColor = Colors.grey.shade600;
         statusText = '排队中';
         leadingIcon = Icon(Icons.schedule, color: statusColor, size: 22);
+        break;
+      case _QueueItemType.paused:
+        statusColor = Colors.orange;
+        statusText = '已暂停';
+        leadingIcon = Icon(
+          Icons.pause_circle_outline,
+          color: statusColor,
+          size: 22,
+        );
         break;
       case _QueueItemType.failed:
         statusColor = Colors.red;
@@ -171,16 +216,44 @@ class ScraperQueueDrawer extends ConsumerWidget {
       subtitle: item.node.workId != null
           ? Text('RJ0${item.node.workId}', style: const TextStyle(fontSize: 12))
           : null,
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          statusText,
-          style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w500),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              statusText,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (item.type == _QueueItemType.processing ||
+              item.type == _QueueItemType.pending)
+            IconButton(
+              tooltip: '暂停此任务',
+              icon: const Icon(Icons.pause_circle_outline),
+              onPressed: () => notifier.pauseTask(item.node.keyId),
+            )
+          else if (item.type == _QueueItemType.paused)
+            IconButton(
+              tooltip: '继续此任务',
+              icon: const Icon(Icons.play_circle_outline),
+              onPressed: () => notifier.resumeTask(item.node.keyId),
+            )
+          else if (item.type == _QueueItemType.failed)
+            IconButton(
+              tooltip: '重试此任务',
+              icon: const Icon(Icons.refresh),
+              onPressed: () => notifier.retryTask(item.node.keyId),
+            ),
+        ],
       ),
     );
   }

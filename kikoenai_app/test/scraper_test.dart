@@ -1,13 +1,9 @@
-import 'package:kikoenai/core/utils/scraper/scraper.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_dio.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_util.dart';
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 
 void main() {
   group('DLsite Scraper 逻辑测试', () {
-
     test('测试完整抓取流程 (Static + Dynamic)', () async {
-      DioClient.init(proxyHost: '127.0.0.1',proxyPort: 7890);
       // 示例作品 ID (对应 RJ322055)
       const int testId = 01059771;
       const String lang = 'zh-cn';
@@ -15,7 +11,7 @@ void main() {
       print('开始测试抓取 RJ${testId.toString().padLeft(7, '0')}...');
 
       try {
-        // 调用复刻的 scrapeAll 方法
+        // 通过 kikoenai_sites 的公开入口抓取元数据
         final result = await DlSiteScraper.scrapeAll(testId, language: lang);
 
         // 验证基本元数据是否存在
@@ -27,7 +23,9 @@ void main() {
         // 打印结果以供人工核对
         print('--- 抓取结果 ---');
         print('标题: ${result['title']}');
-        print('社团: ${result['circle']?['name']} (ID: ${result['circle']?['id']})');
+        print(
+          '社团: ${result['circle']?['name']} (ID: ${result['circle']?['id']})',
+        );
         print('贩卖日: ${result['release']}');
         print('NSFW: ${result['nsfw']}');
         print('标签数: ${(result['tags'] as List).length}');
@@ -35,7 +33,6 @@ void main() {
         print('售出数: ${result['dl_count']}');
         print('价格: ${result['price']}');
         print('----------------');
-
       } catch (e) {
         fail('抓取过程中发生异常: $e');
       }
@@ -51,6 +48,5 @@ void main() {
       expect(uuid, isA<String>());
       expect(uuid.length, equals(36));
     });
-
   });
 }

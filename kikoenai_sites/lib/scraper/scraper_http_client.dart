@@ -4,9 +4,47 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 
-/// 爬虫专用 HTTP 客户端（迁移自
-/// `kikoenai_app/lib/core/utils/scraper/scraper_dio.dart`）。
-///
+class ScraperCancelledException implements Exception {
+  const ScraperCancelledException([this.reason]);
+
+  final Object? reason;
+
+  @override
+  String toString() => reason == null
+      ? 'Scraper request cancelled'
+      : 'Scraper request cancelled: $reason';
+}
+
+/// Cancellation shared by every HTTP request in one scrape operation.
+class ScraperCancellationToken {
+  final Completer<Object?> _cancelled = Completer<Object?>();
+  Object? _reason;
+
+  bool get isCancelled => _cancelled.isCompleted;
+  Object? get reason => _reason;
+  Future<Object?> get whenCancelled => _cancelled.future;
+
+  void cancel([Object? reason]) {
+    if (isCancelled) return;
+    _reason = reason;
+    _cancelled.complete(reason);
+  }
+
+  void throwIfCancelled() {
+    if (isCancelled) throw ScraperCancelledException(reason);
+  }
+
+  Future<void> wait(Duration duration) async {
+    throwIfCancelled();
+    await Future.any<void>([
+      Future<void>.delayed(duration),
+      whenCancelled.then<void>((_) {}),
+    ]);
+    throwIfCancelled();
+  }
+}
+
+/// 爬虫专用 HTTP 客户端。
 /// 与 [SitesHttpClient] 区分：本客户端面向外部站点（DLSite / HVDB），
 /// 不携带 ASMR 站点的 Referer / Origin / Auth 头，支持重试与代理。
 class ScraperHttpClient {
@@ -27,7 +65,6 @@ class ScraperHttpClient {
         createHttpClient: () {
           final client = HttpClient();
           client.findProxy = (uri) => 'PROXY $proxyHost:$proxyPort';
-          client.badCertificateCallback = (cert, host, port) => true;
           return client;
         },
       );
@@ -49,7 +86,9 @@ class ScraperHttpClient {
     Map<String, dynamic>? headers,
     int retryCount = 0,
     Map<String, dynamic>? customRetryConfig,
+    ScraperCancellationToken? cancellationToken,
   }) async {
+    cancellationToken?.throwIfCancelled();
     int timeout = 10000;
     if (url.contains('dlsite') || url.contains('hvdb')) {
       timeout = 10000;
@@ -58,21 +97,34 @@ class ScraperHttpClient {
     final int limit = customRetryConfig?['limit'] ?? defaultRetryLimit;
     final int delay = customRetryConfig?['retryDelay'] ?? defaultRetryDelay;
 
-    final cancelToken = CancelToken();
+    final requestCancelToken = CancelToken();
     final timer = Timer(Duration(milliseconds: timeout), () {
-      cancelToken.cancel('Timeout of ${timeout}ms.');
+      requestCancelToken.cancel('Timeout of ${timeout}ms.');
     });
+    if (cancellationToken != null) {
+      unawaited(
+        cancellationToken.whenCancelled.then((reason) {
+          if (!requestCancelToken.isCancelled) {
+            requestCancelToken.cancel(ScraperCancelledException(reason));
+          }
+        }),
+      );
+    }
 
     try {
       final response = await _dio.get(
         url,
         options: Options(headers: headers),
-        cancelToken: cancelToken,
+        cancelToken: requestCancelToken,
       );
       timer.cancel();
+      cancellationToken?.throwIfCancelled();
       return response;
     } catch (e) {
       timer.cancel();
+      if (cancellationToken?.isCancelled ?? false) {
+        throw ScraperCancelledException(cancellationToken?.reason);
+      }
 
       bool shouldRetry = false;
       if (e is DioException) {
@@ -83,12 +135,18 @@ class ScraperHttpClient {
       }
 
       if (shouldRetry) {
-        await Future.delayed(Duration(milliseconds: delay));
+        final retryDelay = Duration(milliseconds: delay);
+        if (cancellationToken == null) {
+          await Future<void>.delayed(retryDelay);
+        } else {
+          await cancellationToken.wait(retryDelay);
+        }
         return retryGet(
           url,
           headers: headers,
           retryCount: retryCount + 1,
           customRetryConfig: customRetryConfig,
+          cancellationToken: cancellationToken,
         );
       } else {
         rethrow;

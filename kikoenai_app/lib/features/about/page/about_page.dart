@@ -153,7 +153,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
             context,
             icon: Icons.bug_report_rounded,
             title: 'Scraper 测试',
-            subtitle: '测试 Utils 下的 Scraper 实现',
+            subtitle: '测试 Sites 中的 Scraper 实现',
             onTap: () {
               context.push(AppRoutes.test);
             },

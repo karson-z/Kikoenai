@@ -5,7 +5,7 @@ import 'hvdb_scraper.dart';
 import 'scraper_http_client.dart';
 import 'scraper_utils.dart';
 
-/// DLSite 爬虫（迁移自 `kikoenai_app/lib/core/utils/scraper/scraper.dart`）。
+/// DLSite 元数据爬虫。
 ///
 /// 提供静态 HTML 元数据与动态 JSON 元数据的抓取，并支持合并为完整结果。
 class DlSiteScraper {
@@ -14,14 +14,20 @@ class DlSiteScraper {
   /// 抓取静态页面元数据（标题、社团、标签、声优等）
   static Future<Map<String, dynamic>> scrapeStatic(
     int id,
-    String language,
-  ) async {
+    String language, {
+    ScraperCancellationToken? cancellationToken,
+  }) async {
     final String rjcode = ScraperUtils.toRjCode(id);
     final String url =
         'https://www.dlsite.com/maniax/work/=/product_id/$rjcode.html';
     debugPrint('当前页面请求路径为：$url');
 
-    String ageLabel, genreLabel, vaLabel, releaseLabel, seriesLabel, cookieLocale;
+    String ageLabel,
+        genreLabel,
+        vaLabel,
+        releaseLabel,
+        seriesLabel,
+        cookieLocale;
     switch (language) {
       case 'ja-jp':
         cookieLocale = 'locale=ja-jp';
@@ -51,6 +57,7 @@ class DlSiteScraper {
     final response = await ScraperHttpClient.retryGet(
       url,
       headers: {'cookie': cookieLocale},
+      cancellationToken: cancellationToken,
     );
     final document = parse(response.data);
 
@@ -62,8 +69,9 @@ class DlSiteScraper {
     };
 
     // 标题解析与清洗
-    var title =
-        document.querySelector('meta[property="og:title"]')?.attributes['content'];
+    var title = document
+        .querySelector('meta[property="og:title"]')
+        ?.attributes['content'];
     title ??= document.querySelector('a[href="$url"] span')?.text;
     work['title'] = title?.replaceFirst(RegExp(r' \[.+\] \| DLsite$'), '');
 
@@ -130,7 +138,10 @@ class DlSiteScraper {
     // 声优兜底：DLSite 解析为空时尝试 HVDB
     if ((work['vas'] as List).isEmpty) {
       try {
-        final hvdbData = await HvdbScraper.scrapeWorkMetadata(id);
+        final hvdbData = await HvdbScraper.scrapeWorkMetadata(
+          id,
+          cancellationToken: cancellationToken,
+        );
         final hvdbVas = hvdbData['vas'] as List;
         if (hvdbVas.length <= 1) {
           work['vas'] = hvdbVas;
@@ -142,6 +153,8 @@ class DlSiteScraper {
             }
           }
         }
+      } on ScraperCancelledException {
+        rethrow;
       } catch (_) {}
     }
 
@@ -149,13 +162,19 @@ class DlSiteScraper {
   }
 
   /// 抓取动态 JSON 元数据（封面、评分、销量、价格等）
-  static Future<Map<String, dynamic>> scrapeDynamic(int id) async {
+  static Future<Map<String, dynamic>> scrapeDynamic(
+    int id, {
+    ScraperCancellationToken? cancellationToken,
+  }) async {
     final String rjcode = ScraperUtils.toRjCode(id);
     final String url =
         'https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=$rjcode';
     debugPrint('当前JSON请求路径为：$url');
 
-    final response = await ScraperHttpClient.retryGet(url);
+    final response = await ScraperHttpClient.retryGet(
+      url,
+      cancellationToken: cancellationToken,
+    );
     final data = response.data[rjcode];
 
     final Map<String, dynamic> work = {
@@ -180,10 +199,11 @@ class DlSiteScraper {
   static Future<Map<String, dynamic>> scrapeAll(
     int id, {
     String language = 'zh-cn',
+    ScraperCancellationToken? cancellationToken,
   }) async {
     final results = await Future.wait([
-      scrapeStatic(id, language),
-      scrapeDynamic(id),
+      scrapeStatic(id, language, cancellationToken: cancellationToken),
+      scrapeDynamic(id, cancellationToken: cancellationToken),
     ]);
     return {...results[0], ...results[1]};
   }
