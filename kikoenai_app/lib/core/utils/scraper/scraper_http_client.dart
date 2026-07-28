@@ -45,8 +45,8 @@ class ScraperCancellationToken {
 }
 
 /// 爬虫专用 HTTP 客户端。
-/// 与 [SitesHttpClient] 区分：本客户端面向外部站点（DLSite / HVDB），
-/// 不携带 ASMR 站点的 Referer / Origin / Auth 头，支持重试与代理。
+/// 本客户端只面向 DLSite / HVDB，不携带站点 API 的
+/// Referer / Origin / Auth 头，支持重试与代理。
 class ScraperHttpClient {
   ScraperHttpClient._();
 
