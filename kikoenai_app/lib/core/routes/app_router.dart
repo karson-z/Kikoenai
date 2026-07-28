@@ -20,6 +20,8 @@ import '../../features/search/page/search_page.dart';
 import '../../features/settings/page/theme_setting_page.dart';
 import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
+import '../widgets/common/site_feature_gate.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
@@ -28,9 +30,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: AppConstants.rootNavigatorKey,
     initialLocation: AppRoutes.home,
-    observers: [
-      KikoenaiDialog.observer,
-    ],
+    observers: [KikoenaiDialog.observer],
     debugLogDiagnostics: true,
     routes: [
       StatefulShellRoute.indexedStack(
@@ -42,9 +42,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: AlbumPage(),
-                ),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: AlbumPage()),
               ),
               GoRoute(
                 path: AppRoutes.hotAndRecommend,
@@ -52,7 +51,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   // 从 extra 中解析参数
                   final args = state.extra as Map<String, dynamic>?;
                   final title = args?['title'] as String? ?? '更多作品';
-                  final source = args?['source'] as WorkDataSource? ?? WorkDataSource.newest;
+                  final source =
+                      args?['source'] as WorkDataSource? ??
+                      WorkDataSource.newest;
                   return SlideRightTransitionPage(
                     key: state.pageKey,
                     child: CategoryWorksPage(title: title, source: source),
@@ -63,9 +64,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.detail,
                 pageBuilder: (context, state) {
                   final extra = state.extra as Map<String, dynamic>? ?? {};
-                  return MaterialPage(
-                    child: AlbumDetailPage(extra: extra),
-                  );
+                  return MaterialPage(child: AlbumDetailPage(extra: extra));
                 },
               ),
             ],
@@ -75,7 +74,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.category,
                 pageBuilder: (context, state) => const MaterialPage(
-                  child: CategoryPage(),
+                  child: SiteFeatureGate(
+                    feature: SiteFeature.search,
+                    child: CategoryPage(),
+                  ),
                 ),
               ),
             ],
@@ -84,9 +86,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.localMedia,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: ScannerPage(),
-                ),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: ScannerPage()),
               ),
             ],
           ),
@@ -94,9 +95,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.user,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: UserPage(),
-                ),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: UserPage()),
               ),
             ],
           ),
@@ -114,68 +114,65 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.login,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: AuthPage(),
-        ),
+        pageBuilder: (context, state) => const MaterialPage(child: AuthPage()),
       ),
       GoRoute(
-          path: AppRoutes.settings,
-          pageBuilder: (context, state) => SlideRightTransitionPage(
-            key: state.pageKey,
-            child: const SettingsPage(),
+        path: AppRoutes.settings,
+        pageBuilder: (context, state) => SlideRightTransitionPage(
+          key: state.pageKey,
+          child: const SettingsPage(),
+        ),
+        routes: [
+          // 1. 关于页面
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.about),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey, // 传入 pageKey 保证动画期间的状态一致性
+              child: const AboutPage(),
+            ),
           ),
-          routes: [
-            // 1. 关于页面
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.about),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey, // 传入 pageKey 保证动画期间的状态一致性
-                child: const AboutPage(),
-              ),
-            ),
 
-            // 2. 权限设置
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.settingsPermission),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey,
-                child: const PermissionSettingsPage(),
-              ),
+          // 2. 权限设置
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsPermission),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const PermissionSettingsPage(),
             ),
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.settingsLog),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey,
-                child: const LogViewerPage(),
-              ),
+          ),
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsLog),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const LogViewerPage(),
             ),
+          ),
 
-            // 3. 主题设置
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.settingsTheme),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey,
-                child: const ThemeSettingPage(),
-              ),
+          // 3. 主题设置
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsTheme),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const ThemeSettingPage(),
             ),
+          ),
 
-            // 4. 缓存设置
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.settingsCache),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey,
-                child: const CacheManagementPage(),
-              ),
+          // 4. 缓存设置
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsCache),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const CacheManagementPage(),
             ),
-            GoRoute(
-              path: AppRoutes.toRelative(AppRoutes.settingsGlobalFilter),
-              pageBuilder: (context, state) => SlideRightTransitionPage(
-                key: state.pageKey,
-                child: const GlobalFilterTagsPage(),
-              ),
+          ),
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsGlobalFilter),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const GlobalFilterTagsPage(),
             ),
-
-          ]
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.imageView,
@@ -191,9 +188,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               imageUrls: args['urls'] as List<String>,
               initialIndex: args['index'] as int,
             ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),
@@ -201,7 +199,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.search,
         pageBuilder: (context, state) => SlideRightTransitionPage(
           key: state.pageKey, // 传入 pageKey 保持状态
-          child: const SearchPage(),
+          child: const SiteFeatureGate(
+            feature: SiteFeature.search,
+            child: SearchPage(),
+          ),
         ),
       ),
     ],

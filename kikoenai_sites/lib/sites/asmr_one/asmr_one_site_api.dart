@@ -7,6 +7,7 @@ import '../../api/server_info.dart';
 import '../../api/site_api.dart';
 import '../../api/site_feature.dart';
 import '../../api/site_info.dart';
+import '../../api/site_plugin.dart';
 import '../../network/exception.dart';
 import '../../network/http_client.dart';
 
@@ -32,8 +33,8 @@ import '../../network/http_client.dart';
 /// ```
 class AsmrOneSiteApi extends SiteApi {
   AsmrOneSiteApi({SitesHttpClient? httpClient, ServerInfo? initialServer})
-      : _http = httpClient ?? SitesHttpClient.instance,
-        _currentServer = initialServer ?? _defaultServers.first;
+    : _http = httpClient ?? SitesHttpClient.instance,
+      _currentServer = initialServer ?? _defaultServers.first;
 
   final SitesHttpClient _http;
 
@@ -80,38 +81,46 @@ class AsmrOneSiteApi extends SiteApi {
     servers: _defaultServers,
   );
 
+  static final SitePlugin plugin = SitePlugin(
+    info: info,
+    createApi: (context) => AsmrOneSiteApi(
+      httpClient: context.httpClient,
+      initialServer: context.initialServer,
+    ),
+  );
+
   /// 当前站点支持的功能集合
   @override
   Set<SiteFeature> get supportedFeatures => const {
-        // 检索
-        SiteFeature.search,
-        SiteFeature.popular,
-        SiteFeature.recommend,
-        SiteFeature.circles,
-        SiteFeature.tags,
-        SiteFeature.vas,
-        // 详情与音轨
-        SiteFeature.detail,
-        SiteFeature.tracks,
-        // 收藏
-        SiteFeature.playlists,
-        SiteFeature.playlistWorks,
-        SiteFeature.playlistWorksByKeyword,
-        SiteFeature.defaultMarkTargetPlaylist,
-        SiteFeature.addWorksToPlaylist,
-        SiteFeature.removeWorksFromPlaylist,
-        // 评论
-        SiteFeature.reviews,
-        SiteFeature.submitReview,
-        // 认证
-        SiteFeature.login,
-        SiteFeature.register,
-        // 埋点
-        SiteFeature.feedback,
-        // 服务器管理
-        SiteFeature.serverSwitch,
-        SiteFeature.healthCheck,
-      };
+    // 检索
+    SiteFeature.search,
+    SiteFeature.popular,
+    SiteFeature.recommend,
+    SiteFeature.circles,
+    SiteFeature.tags,
+    SiteFeature.vas,
+    // 详情与音轨
+    SiteFeature.detail,
+    SiteFeature.tracks,
+    // 收藏
+    SiteFeature.playlists,
+    SiteFeature.playlistWorks,
+    SiteFeature.playlistWorksByKeyword,
+    SiteFeature.defaultMarkTargetPlaylist,
+    SiteFeature.addWorksToPlaylist,
+    SiteFeature.removeWorksFromPlaylist,
+    // 评论
+    SiteFeature.reviews,
+    SiteFeature.submitReview,
+    // 认证
+    SiteFeature.login,
+    SiteFeature.register,
+    // 埋点
+    SiteFeature.feedback,
+    // 服务器管理
+    SiteFeature.serverSwitch,
+    SiteFeature.healthCheck,
+  };
 
   // ─── 检索类 ──────────────────────────────────────────
 
@@ -188,28 +197,35 @@ class AsmrOneSiteApi extends SiteApi {
   @override
   Future<List<VA>> getVas() async {
     final response = await _http.get<List<dynamic>>('/vas/');
-    return response
-        .map((e) => VA.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return response.map((e) => VA.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   // ─── 详情与音轨 ──────────────────────────────────────
 
   @override
-  Future<Work> getWorkDetail(int workId) async {
+  Future<Work> getWorkDetail(String workId) async {
+    _requireNumericWorkId(workId);
     final response = await _http.get<Map<String, dynamic>>('/work/$workId');
-    return Work.fromJson(response);
+    return _tagWork(Work.fromJson(response));
   }
 
   @override
-  Future<List<FileNode>> getWorkTracks(int workId) async {
+  Future<List<FileNode>> getWorkTracks(String workId) async {
+    final numericWorkId = _requireNumericWorkId(workId);
     final response = await _http.get<List<dynamic>>(
       '/tracks/$workId',
       queryParameters: {'v': 2},
     );
     return response
         .map((json) => FileNode.fromJson(json as Map<String, dynamic>))
-        .map((node) => node.copyWith(source: NodeSource.asmrServer))
+        .map(
+          (node) => node.copyWith(
+            source: NodeSource.asmrServer,
+            workId: numericWorkId,
+            siteId: info.id,
+            remoteId: workId,
+          ),
+        )
         .toList();
   }
 
@@ -244,11 +260,7 @@ class AsmrOneSiteApi extends SiteApi {
   }) async {
     final response = await _http.get<Map<String, dynamic>>(
       '/playlist/get-playlist-works',
-      queryParameters: {
-        'id': playlistId,
-        'page': page,
-        'pageSize': pageSize,
-      },
+      queryParameters: {'id': playlistId, 'page': page, 'pageSize': pageSize},
     );
     return _parsePagedWorks(response);
   }
@@ -275,13 +287,13 @@ class AsmrOneSiteApi extends SiteApi {
   @override
   Future<void> addWorksToPlaylist({
     required String playlistId,
-    required List<int> workIds,
+    required List<String> workIds,
   }) async {
     await _http.post<Map<String, dynamic>>(
       '/playlist/add-works-to-playlist',
       data: {
         'playlistId': playlistId,
-        'works': workIds,
+        'works': workIds.map(_requireNumericWorkId).toList(growable: false),
       },
     );
   }
@@ -289,13 +301,13 @@ class AsmrOneSiteApi extends SiteApi {
   @override
   Future<void> removeWorksFromPlaylist({
     required String playlistId,
-    required List<int> workIds,
+    required List<String> workIds,
   }) async {
     await _http.post<Map<String, dynamic>>(
       '/playlist/remove-works-from-playlist',
       data: {
         'playlistId': playlistId,
-        'works': workIds,
+        'works': workIds.map(_requireNumericWorkId).toList(growable: false),
       },
     );
   }
@@ -320,9 +332,12 @@ class AsmrOneSiteApi extends SiteApi {
   }
 
   @override
-  Future<Map<String, dynamic>> submitReview(UserWorkStatus workStatus) async {
+  Future<Map<String, dynamic>> submitReview({
+    required String workId,
+    required UserWorkStatus workStatus,
+  }) async {
     final Map<String, dynamic> requestData = {
-      'work_id': workStatus.workId,
+      'work_id': _requireNumericWorkId(workId),
     };
 
     if (workStatus.rating > 0) {
@@ -335,10 +350,7 @@ class AsmrOneSiteApi extends SiteApi {
       requestData['progress'] = workStatus.progress.toJson();
     }
 
-    return _http.put<Map<String, dynamic>>(
-      '/review',
-      data: requestData,
-    );
+    return _http.put<Map<String, dynamic>>('/review', data: requestData);
   }
 
   // ─── 认证 ──────────────────────────────────────────
@@ -347,10 +359,7 @@ class AsmrOneSiteApi extends SiteApi {
   Future<AuthResponse> login(LoginParams loginParams) async {
     final response = await _http.post<Map<String, dynamic>>(
       '/auth/me',
-      data: {
-        'name': loginParams.username,
-        'password': loginParams.password,
-      },
+      data: {'name': loginParams.username, 'password': loginParams.password},
     );
     return _parseAuthResponse(response, fallbackMessage: '登录失败');
   }
@@ -433,12 +442,11 @@ class AsmrOneSiteApi extends SiteApi {
     return Future.wait(servers.map(checkHealth));
   }
 
-
   /// 统一解析 `{ works: [...], pagination: {...} }` 响应为 [PagedResult<Work>]
   PagedResult<Work> _parsePagedWorks(Map<String, dynamic> response) {
     final listData = response['works'] as List<dynamic>? ?? [];
     final works = listData
-        .map((e) => Work.fromJson(e as Map<String, dynamic>))
+        .map((e) => _tagWork(Work.fromJson(e as Map<String, dynamic>)))
         .toList();
 
     final paginationJson = response['pagination'] as Map<String, dynamic>?;
@@ -451,6 +459,17 @@ class AsmrOneSiteApi extends SiteApi {
         : Pagination.fromJson(paginationJson);
 
     return PagedResult<Work>(items: works, pagination: pagination);
+  }
+
+  Work _tagWork(Work work) =>
+      work.copyWith(siteId: info.id, remoteId: work.id.toString());
+
+  int _requireNumericWorkId(String workId) {
+    final parsed = int.tryParse(workId);
+    if (parsed == null) {
+      throw FormatException('ASMR.ONE 作品 ID 必须是整数: $workId');
+    }
+    return parsed;
   }
 
   /// 解析 [AuthResponse]，失败时抛出 [SitesNetworkException]

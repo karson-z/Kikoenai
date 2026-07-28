@@ -31,8 +31,7 @@ class _LocalAlbumFileSectionState extends ConsumerState<LocalAlbumFileSection> {
   @override
   void initState() {
     super.initState();
-    _index =
-        FileScannerStorage().getWorkFileIndexLocally(widget.work.id);
+    _index = FileScannerStorage().getWorkFileIndexLocally(widget.work.id);
   }
 
   @override
@@ -57,13 +56,18 @@ class _LocalAlbumFileSectionState extends ConsumerState<LocalAlbumFileSection> {
 /// 网络作品文件区段：直接监听 [trackFileNodeIndexProvider] 获取已构建好的
 /// [FileNodeLibraryIndex]，无需再次 fromTree 转换。
 class RemoteAlbumFileSection extends ConsumerWidget {
-  const RemoteAlbumFileSection({super.key, required this.work});
+  const RemoteAlbumFileSection({
+    super.key,
+    required this.work,
+    required this.contentId,
+  });
 
   final Work work;
+  final SiteContentId contentId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncData = ref.watch(trackFileNodeIndexProvider(work.id));
+    final asyncData = ref.watch(trackFileNodeIndexProvider(contentId));
 
     return asyncData.when(
       loading: () => const SliverFillRemaining(
@@ -78,11 +82,8 @@ class RemoteAlbumFileSection extends ConsumerWidget {
               : Text('Error: $err'),
         ),
       ),
-      data: (index) => _AlbumFileSectionBody(
-        index: index,
-        work: work,
-        isLocal: false,
-      ),
+      data: (index) =>
+          _AlbumFileSectionBody(index: index, work: work, isLocal: false),
     );
   }
 }
@@ -177,8 +178,9 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
           FileNodeBrowser(
             currentNodes: currentNodes,
             work: widget.work,
-            source:
-                widget.isLocal ? NodeSource.localWork : NodeSource.asmrServer,
+            source: widget.isLocal
+                ? NodeSource.localWork
+                : NodeSource.asmrServer,
             config: FileBrowserConfig(
               showDownloadBadge: !widget.isLocal,
               enableImagePreview: true,

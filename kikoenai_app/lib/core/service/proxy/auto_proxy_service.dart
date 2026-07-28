@@ -43,9 +43,9 @@ class ProxyService {
   static void _applyProxy(String? proxyStr) {
     HttpOverrides.global = _GlobalHttpOverrides(proxyStr);
     if (proxyStr != null && proxyStr.isNotEmpty) {
-      KikoenaiLogger().i('[Proxy] 全局代理已开启: $proxyStr, SSL证书校验已禁用');
+      KikoenaiLogger().i('[Proxy] 全局代理已开启: $proxyStr');
     } else {
-      KikoenaiLogger().i('[Proxy] 未检测到代理，使用直连, SSL证书校验已禁用');
+      KikoenaiLogger().i('[Proxy] 未检测到代理，使用直连');
     }
   }
 
@@ -142,8 +142,6 @@ class _GlobalHttpOverrides extends HttpOverrides {
       }
       return "DIRECT";
     };
-
-    client.badCertificateCallback = (cert, host, port) => true;
 
     return client;
   }

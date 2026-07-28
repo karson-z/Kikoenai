@@ -4,6 +4,7 @@ import 'package:kikoenai/core/enums/age_rating.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../../core/service/cache/cache_service.dart';
 import '../../../../../core/service/site/site_api_provider.dart';
 import '../../../../../core/storage/hive_key.dart';
@@ -14,6 +15,7 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
 
   @override
   Future<WorkState> build() async {
+    ref.watch(activeSiteIdProvider);
     return _loadPage(1);
   }
 
@@ -25,9 +27,14 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
     tagsToApply.addAll(AppStorage.filterTagsBox.values);
 
     // 2. 注入 NSFW 限制标签
-    final isNSFW = AppStorage.settingsBox.get(StorageKeys.nsfwKey, defaultValue: false);
+    final isNSFW = AppStorage.settingsBox.get(
+      StorageKeys.nsfwKey,
+      defaultValue: false,
+    );
     if (isNSFW) {
-      tagsToApply.add(SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false));
+      tagsToApply.add(
+        SearchTag(TagType.age.stringValue, AgeRatingEnum.all.value, false),
+      );
     }
 
     // 3. 构建并返回查询字符串
@@ -60,9 +67,7 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
   /// 通用加载更多
   Future<void> loadMore() async {
     final current = state.value;
-    if (current == null ||
-        current.isLoading ||
-        !current.hasMore) {
+    if (current == null || current.isLoading || !current.hasMore) {
       return;
     }
 
@@ -71,13 +76,9 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
     try {
       final result = await _loadPage(current.currentPage + 1);
 
-      state = AsyncData(
-        result.copyWith(isLoading: false),
-      );
+      state = AsyncData(result.copyWith(isLoading: false));
     } catch (e, st) {
-      state = AsyncData(
-        current.copyWith(isLoading: false),
-      );
+      state = AsyncData(current.copyWith(isLoading: false));
       rethrow;
     }
   }
@@ -94,58 +95,73 @@ class HotWorksNotifier extends BaseWorksNotifier {
   @override
   Future<PagedResult<Work>?> fetchWorksData(int page) async {
     final keyword = buildGlobalKeyword(isGet: false); // 调用基类方法获取组装好的 keyword
-    final api = ref.read(siteApiProvider);
-    return api.getPopularWorks(SearchWorksRequest(page: page, keyword: keyword));
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.popular)) return null;
+    return api.getPopularWorks(
+      SearchWorksRequest(page: page, keyword: keyword),
+    );
   }
 }
 
 final hotWorksProvider =
-AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
-  HotWorksNotifier.new,
-);
+    AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
+      HotWorksNotifier.new,
+    );
 
 // 2. 最新作品
 class NewWorksNotifier extends BaseWorksNotifier {
   @override
   Future<PagedResult<Work>?> fetchWorksData(int page) async {
     final keyword = buildGlobalKeyword(); // 调用基类方法获取组装好的 keyword
-    final api = ref.read(siteApiProvider);
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.search)) return null;
     const order = 'release';
     final sort = SortDirection.desc.value;
 
-    return api.searchWorks(SearchWorksRequest(
-        page: page, keyword: keyword, order: order, sort: sort));
+    return api.searchWorks(
+      SearchWorksRequest(
+        page: page,
+        keyword: keyword,
+        order: order,
+        sort: sort,
+      ),
+    );
   }
 }
 
 final newWorksProvider =
-AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
-  NewWorksNotifier.new,
-);
+    AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
+      NewWorksNotifier.new,
+    );
 
 // 3. 推荐作品
 class RecommendedWorksNotifier extends BaseWorksNotifier {
   @override
   Future<PagedResult<Work>?> fetchWorksData(int page) async {
     final keyword = buildGlobalKeyword(isGet: false); // 调用基类方法获取组装好的 keyword
-    final api = ref.read(siteApiProvider);
+    final siteId = ref.read(activeSiteIdProvider);
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.recommend)) return null;
 
-    final recommendUuid =
-    await CacheService.instance.getOrGenerateRecommendUuid();
-    final currentUser = CacheService.instance.getAuthSession();
+    final recommendUuid = await CacheService.instance
+        .getOrGenerateRecommendUuid(siteId: siteId);
+    final currentUser = CacheService.instance.getAuthSession(siteId: siteId);
     final targetUuid = currentUser?.user?.recommenderUuid ?? recommendUuid;
 
-    return api.getRecommendedWorks(SearchWorksRequest(
-        recommenderUuid: targetUuid, page: page, keyword: keyword));
+    return api.getRecommendedWorks(
+      SearchWorksRequest(
+        recommenderUuid: targetUuid,
+        page: page,
+        keyword: keyword,
+      ),
+    );
   }
 }
 
 final recommendedWorksProvider =
-AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
-  RecommendedWorksNotifier.new,
-);
-
-
+    AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
+      RecommendedWorksNotifier.new,
+    );
 
 final albumAllEmptyProvider = Provider<bool>((ref) {
   final hot = ref.watch(hotWorksProvider);
@@ -161,14 +177,25 @@ final albumAllEmptyProvider = Provider<bool>((ref) {
   return isEmpty(hot) && isEmpty(recommended) && isEmpty(newest);
 });
 
-final similarWorkProvider = FutureProvider.family<List<Work>?,String?>((ref,String? circle) async {
-  if(circle == null) return null;
-  final api = ref.read(siteApiProvider);
-  const order = 'release';
-  final sort = SortDirection.desc.value;
-  final keyWork = SearchTag(TagType.circle.stringValue, circle, true);
-  final query = SearchTag.buildTagQueryPath([keyWork], encode: true);
-  final result = await api.searchWorks(SearchWorksRequest(
-      page: 1, keyword: query, order: order, sort: sort));
-  return result.items;
-});
+typedef SimilarWorkQuery = ({String siteId, String circle});
+
+final similarWorkProvider =
+    FutureProvider.family<List<Work>?, SimilarWorkQuery>((
+      ref,
+      queryParams,
+    ) async {
+      final api = ref.watch(siteApiByIdProvider(queryParams.siteId));
+      if (!api.supports(SiteFeature.search)) return null;
+      const order = 'release';
+      final sort = SortDirection.desc.value;
+      final keyWork = SearchTag(
+        TagType.circle.stringValue,
+        queryParams.circle,
+        true,
+      );
+      final query = SearchTag.buildTagQueryPath([keyWork], encode: true);
+      final result = await api.searchWorks(
+        SearchWorksRequest(page: 1, keyword: query, order: order, sort: sort),
+      );
+      return result.items;
+    });

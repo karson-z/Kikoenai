@@ -2,14 +2,16 @@ import 'package:flutter/foundation.dart'; // 用于 @immutable 注解
 
 @immutable
 class PlaybackTrackerState {
-  final String? currentWorkId;      // 当前追踪的作品ID
-  final int accumulatedSeconds;     // 累计播放秒数
-  final bool hasReportedStart;      // 是否已上报开始
-  final bool hasReported5Mins;      // 是否已上报5分钟
-  final bool isPlaying;             // 是否正在播放
+  final String? currentWorkId; // 当前追踪的作品ID
+  final String? siteId;
+  final int accumulatedSeconds; // 累计播放秒数
+  final bool hasReportedStart; // 是否已上报开始
+  final bool hasReported5Mins; // 是否已上报5分钟
+  final bool isPlaying; // 是否正在播放
 
   const PlaybackTrackerState({
     this.currentWorkId,
+    this.siteId,
     this.accumulatedSeconds = 0,
     this.hasReportedStart = false,
     this.hasReported5Mins = false,
@@ -18,6 +20,7 @@ class PlaybackTrackerState {
 
   PlaybackTrackerState copyWith({
     String? currentWorkId,
+    String? siteId,
     int? accumulatedSeconds,
     bool? hasReportedStart,
     bool? hasReported5Mins,
@@ -25,6 +28,7 @@ class PlaybackTrackerState {
   }) {
     return PlaybackTrackerState(
       currentWorkId: currentWorkId ?? this.currentWorkId,
+      siteId: siteId ?? this.siteId,
       accumulatedSeconds: accumulatedSeconds ?? this.accumulatedSeconds,
       hasReportedStart: hasReportedStart ?? this.hasReportedStart,
       hasReported5Mins: hasReported5Mins ?? this.hasReported5Mins,
@@ -38,6 +42,7 @@ class PlaybackTrackerState {
 
     return other is PlaybackTrackerState &&
         other.currentWorkId == currentWorkId &&
+        other.siteId == siteId &&
         other.accumulatedSeconds == accumulatedSeconds &&
         other.hasReportedStart == hasReportedStart &&
         other.hasReported5Mins == hasReported5Mins &&
@@ -48,14 +53,16 @@ class PlaybackTrackerState {
   int get hashCode {
     return Object.hash(
       currentWorkId,
+      siteId,
       accumulatedSeconds,
       hasReportedStart,
       hasReported5Mins,
       isPlaying,
     );
   }
+
   @override
   String toString() {
-    return 'PlaybackTrackerState(currentWorkId: $currentWorkId, accumulatedSeconds: $accumulatedSeconds, hasReportedStart: $hasReportedStart, hasReported5Mins: $hasReported5Mins, isPlaying: $isPlaying)';
+    return 'PlaybackTrackerState(siteId: $siteId, currentWorkId: $currentWorkId, accumulatedSeconds: $accumulatedSeconds, hasReportedStart: $hasReportedStart, hasReported5Mins: $hasReported5Mins, isPlaying: $isPlaying)';
   }
 }

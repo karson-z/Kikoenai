@@ -17,22 +17,70 @@ class CacheService {
   static final CacheService instance = CacheService._();
 
   static const int _maxHistory = 200;
+  static const String legacySiteId = 'asmr.one';
+
+  String _siteKey(String key, String siteId) =>
+      StorageKeys.forSite(key, siteId);
+
+  String? getActiveSiteId() {
+    return AppStorage.settingsBox.get(StorageKeys.activeSiteId) as String?;
+  }
+
+  Future<void> saveActiveSiteId(String siteId) async {
+    await AppStorage.settingsBox.put(StorageKeys.activeSiteId, siteId);
+  }
+
+  /// Copies pre-multi-site values into ASMR.ONE's namespace without deleting
+  /// the old keys. This makes rollback and older app versions non-destructive.
+  Future<void> migrateLegacySiteData({String siteId = legacySiteId}) async {
+    final settingsKeys = <String>[
+      StorageKeys.quickMarkTargetPlaylist,
+      StorageKeys.currentHost,
+      StorageKeys.recommendUuid,
+      StorageKeys.searchHistory,
+      StorageKeys.tagOption,
+      StorageKeys.vasOption,
+      StorageKeys.circleOption,
+    ];
+    for (final legacyKey in settingsKeys) {
+      final scopedKey = _siteKey(legacyKey, siteId);
+      if (!AppStorage.settingsBox.containsKey(scopedKey) &&
+          AppStorage.settingsBox.containsKey(legacyKey)) {
+        await AppStorage.settingsBox.put(
+          scopedKey,
+          AppStorage.settingsBox.get(legacyKey),
+        );
+      }
+    }
+
+    final scopedAuthKey = _siteKey(StorageKeys.currentUser, siteId);
+    if (!AppStorage.authBox.containsKey(scopedAuthKey) &&
+        AppStorage.authBox.containsKey(StorageKeys.currentUser)) {
+      await AppStorage.authBox.put(
+        scopedAuthKey,
+        AppStorage.authBox.get(StorageKeys.currentUser)!,
+      );
+    }
+  }
 
   // ------------------------- 快速添加到播放列表 -------------------------
 
   /// 保存目标列表
-  Future<void> saveQuickMarkTargetPlaylist(Playlist playlist) async {
+  Future<void> saveQuickMarkTargetPlaylist(
+    Playlist playlist, {
+    String siteId = legacySiteId,
+  }) async {
     // 假设 Playlist 使用 Freezed/JsonSerializable 生成�?toJson 方法
     await AppStorage.settingsBox.put(
-      StorageKeys.quickMarkTargetPlaylist,
+      _siteKey(StorageKeys.quickMarkTargetPlaylist, siteId),
       playlist.toJson(),
     );
   }
 
   /// 获取目标列表
-  Playlist? getQuickMarkTargetPlaylist() {
+  Playlist? getQuickMarkTargetPlaylist({String siteId = legacySiteId}) {
     final data = AppStorage.settingsBox.get(
-      StorageKeys.quickMarkTargetPlaylist,
+      _siteKey(StorageKeys.quickMarkTargetPlaylist, siteId),
     );
 
     if (data != null && data is Map) {
@@ -41,77 +89,112 @@ class CacheService {
         return Playlist.fromJson(jsonMap);
       } catch (e) {
         debugPrint('Error parsing QuickMarkTargetPlaylist: $e');
-        clearQuickMarkTargetPlaylist();
+        clearQuickMarkTargetPlaylist(siteId: siteId);
       }
     }
     return null;
   }
 
   /// 清除目标歌单
-  Future<void> clearQuickMarkTargetPlaylist() async {
-    await AppStorage.settingsBox.delete(StorageKeys.quickMarkTargetPlaylist);
+  Future<void> clearQuickMarkTargetPlaylist({
+    String siteId = legacySiteId,
+  }) async {
+    await AppStorage.settingsBox.delete(
+      _siteKey(StorageKeys.quickMarkTargetPlaylist, siteId),
+    );
   }
   // ==================== 1. 基础配置�?UUID ====================
 
-  Future<void> saveCurrentHost(String host) async {
-    await AppStorage.settingsBox.put(StorageKeys.currentHost, host);
+  Future<void> saveCurrentHost(
+    String host, {
+    String siteId = legacySiteId,
+  }) async {
+    await AppStorage.settingsBox.put(
+      _siteKey(StorageKeys.currentHost, siteId),
+      host,
+    );
   }
 
-  String? getCurrentHost() {
-    return AppStorage.settingsBox.get(StorageKeys.currentHost);
+  String? getCurrentHost({String siteId = legacySiteId}) {
+    return AppStorage.settingsBox.get(_siteKey(StorageKeys.currentHost, siteId))
+        as String?;
   }
 
-  Future<String> getOrGenerateRecommendUuid() async {
-    String? uuid = AppStorage.settingsBox.get(StorageKeys.recommendUuid);
+  Future<String> getOrGenerateRecommendUuid({
+    String siteId = legacySiteId,
+  }) async {
+    final key = _siteKey(StorageKeys.recommendUuid, siteId);
+    String? uuid = AppStorage.settingsBox.get(key) as String?;
     if (uuid != null && uuid.isNotEmpty) return uuid;
 
     final newUuid = const Uuid().v4();
-    await AppStorage.settingsBox.put(StorageKeys.recommendUuid, newUuid);
+    await AppStorage.settingsBox.put(key, newUuid);
     return newUuid;
   }
 
   // ==================== 2. Auth (登录�? ====================
 
-  Future<void> saveAuthSession(AuthResponse auth) async {
+  Future<void> saveAuthSession(
+    AuthResponse auth, {
+    String siteId = legacySiteId,
+  }) async {
     // [Refactored] 使用常量 key
-    await AppStorage.authBox.put(StorageKeys.currentUser, auth);
+    await AppStorage.authBox.put(
+      _siteKey(StorageKeys.currentUser, siteId),
+      auth,
+    );
   }
 
-  AuthResponse? getAuthSession() {
+  AuthResponse? getAuthSession({String siteId = legacySiteId}) {
     // [Refactored] 使用常量 key
-    return AppStorage.authBox.get(StorageKeys.currentUser);
+    return AppStorage.authBox.get(_siteKey(StorageKeys.currentUser, siteId));
   }
 
-  Future<void> clearAuthSession() async {
+  Future<void> clearAuthSession({String siteId = legacySiteId}) async {
     // [Refactored] 使用常量 key
-    await AppStorage.authBox.delete(StorageKeys.currentUser);
+    await AppStorage.authBox.delete(_siteKey(StorageKeys.currentUser, siteId));
   }
 
   // ==================== 3. 搜索历史 ====================
 
-  List<String> getSearchHistory() {
-    final list = AppStorage.settingsBox.get(StorageKeys.searchHistory);
+  List<String> getSearchHistory({String siteId = legacySiteId}) {
+    final list = AppStorage.settingsBox.get(
+      _siteKey(StorageKeys.searchHistory, siteId),
+    );
     return (list as List?)?.cast<String>() ?? [];
   }
 
-  Future<void> addSearchHistory(String keyword) async {
+  Future<void> addSearchHistory(
+    String keyword, {
+    String siteId = legacySiteId,
+  }) async {
     if (keyword.trim().isEmpty) return;
-    List<String> history = getSearchHistory();
+    List<String> history = getSearchHistory(siteId: siteId);
     history.remove(keyword);
     history.insert(0, keyword);
     if (history.length > 20) history = history.sublist(0, 20);
 
-    await AppStorage.settingsBox.put(StorageKeys.searchHistory, history);
+    await AppStorage.settingsBox.put(
+      _siteKey(StorageKeys.searchHistory, siteId),
+      history,
+    );
   }
 
-  Future<void> removeSearchHistory(String keyword) async {
-    List<String> history = getSearchHistory();
+  Future<void> removeSearchHistory(
+    String keyword, {
+    String siteId = legacySiteId,
+  }) async {
+    List<String> history = getSearchHistory(siteId: siteId);
     history.remove(keyword);
-    await AppStorage.settingsBox.put(StorageKeys.searchHistory, history);
+    await AppStorage.settingsBox.put(
+      _siteKey(StorageKeys.searchHistory, siteId),
+      history,
+    );
   }
 
-  Future<void> clearSearchHistory() =>
-      AppStorage.settingsBox.delete(StorageKeys.searchHistory);
+  Future<void> clearSearchHistory({String siteId = legacySiteId}) => AppStorage
+      .settingsBox
+      .delete(_siteKey(StorageKeys.searchHistory, siteId));
 
   // ==================== 4. 播放器状�?====================
 
@@ -193,20 +276,29 @@ class CacheService {
     return null;
   }
 
-  Future<void> saveTagsOption(List<Map<String, dynamic>> val) =>
-      _saveOption(StorageKeys.tagOption, val);
-  Future<List<Map<String, dynamic>>?> getTagsOption() async =>
-      _getOption(StorageKeys.tagOption);
+  Future<void> saveTagsOption(
+    List<Map<String, dynamic>> val, {
+    String siteId = legacySiteId,
+  }) => _saveOption(_siteKey(StorageKeys.tagOption, siteId), val);
+  Future<List<Map<String, dynamic>>?> getTagsOption({
+    String siteId = legacySiteId,
+  }) async => _getOption(_siteKey(StorageKeys.tagOption, siteId));
 
-  Future<void> saveVasOption(List<Map<String, dynamic>> val) =>
-      _saveOption(StorageKeys.vasOption, val);
-  Future<List<Map<String, dynamic>>?> getVasOption() async =>
-      _getOption(StorageKeys.vasOption);
+  Future<void> saveVasOption(
+    List<Map<String, dynamic>> val, {
+    String siteId = legacySiteId,
+  }) => _saveOption(_siteKey(StorageKeys.vasOption, siteId), val);
+  Future<List<Map<String, dynamic>>?> getVasOption({
+    String siteId = legacySiteId,
+  }) async => _getOption(_siteKey(StorageKeys.vasOption, siteId));
 
-  Future<void> saveCirclesOption(List<Map<String, dynamic>> val) =>
-      _saveOption(StorageKeys.circleOption, val);
-  Future<List<Map<String, dynamic>>?> getCirclesOption() async =>
-      _getOption(StorageKeys.circleOption);
+  Future<void> saveCirclesOption(
+    List<Map<String, dynamic>> val, {
+    String siteId = legacySiteId,
+  }) => _saveOption(_siteKey(StorageKeys.circleOption, siteId), val);
+  Future<List<Map<String, dynamic>>?> getCirclesOption({
+    String siteId = legacySiteId,
+  }) async => _getOption(_siteKey(StorageKeys.circleOption, siteId));
 
   // ==================== 8. 工具方法 ====================
 

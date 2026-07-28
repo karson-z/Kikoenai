@@ -19,7 +19,6 @@ class HistoryPage extends ConsumerWidget {
     String title,
     List<HistoryEntry> previewItems,
   ) {
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: HistoryHorizontalSection(
@@ -27,8 +26,8 @@ class HistoryPage extends ConsumerWidget {
         items: previewItems,
         onMoreTap: previewItems.length > 20
             ? () {
-          //TODO 跳转到显示全部历史记录的页面。
-        }
+                //TODO 跳转到显示全部历史记录的页面。
+              }
             : null,
         itemBuilder: _buildHistoryCard,
       ),
@@ -39,9 +38,7 @@ class HistoryPage extends ConsumerWidget {
     final workId = entry.lastItem?.workId;
     final work = workId == null ? null : ScraperStorage().getWork(workId);
     final cover =
-        entry.coverUrl ??
-        work?.mainCoverUrl ??
-        work?.samCoverUrl ?? '';
+        entry.coverUrl ?? work?.mainCoverUrl ?? work?.samCoverUrl ?? '';
     final title = entry.title ?? work?.title ?? entry.currentTrackTitle;
     final subtitle = entry.currentTrackTitle;
     final progressLabel = _buildProgressLabel(entry);
@@ -66,7 +63,12 @@ class HistoryPage extends ConsumerWidget {
                 : () {
                     context.push(
                       AppRoutes.detail,
-                      extra: {'work': work, 'isLocal': entry.isLocalWork},
+                      extra: {
+                        'work': work,
+                        'isLocal': entry.isLocalWork,
+                        'siteId': entry.siteId,
+                        'remoteId': entry.remoteId,
+                      },
                     );
                   },
           );
@@ -149,16 +151,8 @@ class HistoryPage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
                 _buildSection(context, '作品历史', workPreview),
-                _buildSection(
-                  context,
-                  '本地作品历史',
-                  localWorkPreview,
-                ),
-                _buildSection(
-                  context,
-                  '单曲历史',
-                  singleWorkPreview,
-                ),
+                _buildSection(context, '本地作品历史', localWorkPreview),
+                _buildSection(context, '单曲历史', singleWorkPreview),
                 const SizedBox(height: 80),
               ],
             ),

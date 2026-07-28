@@ -222,7 +222,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
               }
             }
-            ref.read(playerControllerProvider.notifier).addSingleInQueue(
+            ref
+                .read(playerControllerProvider.notifier)
+                .addSingleInQueue(
                   nodeToAdd,
                   _resolveWork(node),
                   source: _resolveSource(node),
@@ -262,7 +264,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         final itemCount = node.subItemsCount;
         final itemCountText = '$itemCount 项';
         return Text(
-          node.workId != null ? 'RJ0${node.workId}  •  $itemCountText' : itemCountText,
+          node.workId != null
+              ? 'RJ0${node.workId}  •  $itemCountText'
+              : itemCountText,
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 12,
@@ -335,7 +339,9 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
 
     // 字幕模式：复制路径
     if (widget.config.subtitlesCopyMode) {
-      Clipboard.setData(ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ''));
+      Clipboard.setData(
+        ClipboardData(text: node.mediaStreamUrl ?? node.hash ?? ''),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('已复制路径: ${node.title}'),
@@ -363,7 +369,10 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     List<FileNode> processedList = contextNodes;
     FileNode targetNode = node;
     if (widget.config.showDownloadBadge) {
-      processedList = await _resolveLocalPathNodes(contextNodes, downloadedTaskMap);
+      processedList = await _resolveLocalPathNodes(
+        contextNodes,
+        downloadedTaskMap,
+      );
       targetNode = processedList.firstWhere(
         (n) => n.hash == node.hash,
         orElse: () => node,
@@ -409,8 +418,11 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   void _handleTextPreview(BuildContext context, FileNode node) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            TextPreviewPage(url: node.mediaStreamUrl ?? '', title: node.title),
+        builder: (context) => TextPreviewPage(
+          url: node.mediaStreamUrl ?? '',
+          title: node.title,
+          siteId: node.siteId,
+        ),
       ),
     );
   }

@@ -28,14 +28,14 @@ class FileNodeLibraryIndex {
 
   factory FileNodeLibraryIndex.fromRemoteTree({
     required List<FileNode> roots,
-    required int workId,
+    required SiteContentId contentId,
     NodeSource source = NodeSource.asmrServer,
   }) {
-    final rootPath = remoteRootPath(workId);
+    final rootPath = remoteRootPath(contentId);
     return FileNodeLibraryIndex(
       flatNodes: flattenRemoteTree(
         roots: roots,
-        workId: workId,
+        contentId: contentId,
         source: source,
       ),
       rootPath: rootPath,
@@ -77,14 +77,16 @@ class FileNodeLibraryIndex {
     );
   }
 
-  static String remoteRootPath(int workId) => 'asmr://$workId';
+  static String remoteRootPath(SiteContentId contentId) =>
+      contentId.uri.toString();
 
   static List<FileNode> flattenRemoteTree({
     required List<FileNode> roots,
-    required int workId,
+    required SiteContentId contentId,
     NodeSource source = NodeSource.asmrServer,
   }) {
-    final rootPath = remoteRootPath(workId);
+    final rootPath = remoteRootPath(contentId);
+    final legacyWorkId = int.tryParse(contentId.remoteId);
     final flatNodes = <FileNode>[];
 
     for (final node in roots) {
@@ -92,7 +94,8 @@ class FileNodeLibraryIndex {
         node: node,
         parentPath: rootPath,
         rootPath: rootPath,
-        workId: workId,
+        contentId: contentId,
+        workId: legacyWorkId,
         source: source,
         flatNodes: flatNodes,
       );
@@ -677,7 +680,8 @@ class FileNodeLibraryIndex {
     required FileNode node,
     required String parentPath,
     required String rootPath,
-    required int workId,
+    required SiteContentId contentId,
+    required int? workId,
     required NodeSource source,
     required List<FileNode> flatNodes,
   }) {
@@ -690,6 +694,7 @@ class FileNodeLibraryIndex {
           node: child,
           parentPath: nodePath,
           rootPath: rootPath,
+          contentId: contentId,
           workId: workId,
           source: source,
           flatNodes: flatNodes,
@@ -710,6 +715,8 @@ class FileNodeLibraryIndex {
         depth: _depthFromRoot(rootPath, normalizedPath),
         source: source,
         workId: workId,
+        siteId: contentId.siteId,
+        remoteId: contentId.remoteId,
       ),
     );
   }

@@ -41,7 +41,8 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   Box<dynamic> get _settingsBox => AppStorage.settingsBox;
 
-  HistoryController get historyController => ref.read(historyControllerProvider.notifier);
+  HistoryController get historyController =>
+      ref.read(historyControllerProvider.notifier);
 
   @override
   AppPlayerState build() {
@@ -100,21 +101,25 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
-    final volume = _settingsBox.get(StorageKeys.playerVolume, defaultValue: 1.0) as double;
+    final volume =
+        _settingsBox.get(StorageKeys.playerVolume, defaultValue: 1.0) as double;
 
-    final repeatModeIndex = _settingsBox.get(StorageKeys.playerRepeatMode, defaultValue: 0) as int;
+    final repeatModeIndex =
+        _settingsBox.get(StorageKeys.playerRepeatMode, defaultValue: 0) as int;
 
     final repeatMode = AudioServiceRepeatMode.values[repeatModeIndex];
 
-    final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false) as bool;
+    final shuffleEnabled =
+        _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false)
+            as bool;
 
-    final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false) as bool;
+    final isAudioOnly =
+        _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false)
+            as bool;
 
     // 2. 将配置应用到底层播放引擎
     if (isAudioOnly) {
-      _handler.customAction('toggleVideoDecoding', {
-        'enable': !isAudioOnly,
-      });
+      _handler.customAction('toggleVideoDecoding', {'enable': !isAudioOnly});
     }
 
     // 3. 从历史记录恢复播放队列与进度
@@ -160,15 +165,19 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (item == null) {
       return;
     }
-    final workId = item.source == NodeSource.asmrServer
-        ? item.workId?.toString()
+    final contentId = item.source == NodeSource.asmrServer
+        ? item.contentId
         : null;
 
     // 4. 通知 Provider
-    if (workId != null && workId.isNotEmpty) {
+    if (contentId != null) {
       ref
           .read(playbackTrackerProvider.notifier)
-          .updatePlaybackStatus(workId: workId, isPlaying: finalIsPlaying);
+          .updatePlaybackStatus(
+            siteId: contentId.siteId,
+            workId: contentId.remoteId,
+            isPlaying: finalIsPlaying,
+          );
     }
   }
 

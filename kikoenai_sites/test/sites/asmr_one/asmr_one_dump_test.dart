@@ -80,8 +80,9 @@ void main() {
     if (healthy.isEmpty) {
       throw StateError('所有 asmr.one 镜像均不可访问，无法跑测试');
     }
-    healthyServer = AsmrOneSiteApi.info.servers
-        .firstWhere((s) => s.id == healthy.first.serverId);
+    healthyServer = AsmrOneSiteApi.info.servers.firstWhere(
+      (s) => s.id == healthy.first.serverId,
+    );
     _printObj('选中健康服务器', healthyServer);
   });
 
@@ -118,10 +119,9 @@ void main() {
 
   test('dump: searchWorks 无关键字', () async {
     try {
-      final result = await api.searchWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 5,
-      ));
+      final result = await api.searchWorks(
+        const SearchWorksRequest(page: 1, pageSize: 5),
+      );
       _printObj('searchWorks.items.length', result.items.length);
       _printObj('searchWorks.pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -134,11 +134,9 @@ void main() {
 
   test('dump: searchWorks 带关键字', () async {
     try {
-      final result = await api.searchWorks(const SearchWorksRequest(
-        keyword: 'ASMR',
-        page: 1,
-        pageSize: 5,
-      ));
+      final result = await api.searchWorks(
+        const SearchWorksRequest(keyword: 'ASMR', page: 1, pageSize: 5),
+      );
       _printObj('searchWorks(keyword=ASMR).items.length', result.items.length);
       _printObj('searchWorks(keyword=ASMR).pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -151,18 +149,27 @@ void main() {
 
   test('dump: searchWorks 带排序参数', () async {
     try {
-      final result = await api.searchWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 3,
-        order: 'release',
-        sort: 'desc',
-      ));
-      _printObj('searchWorks(order=release,sort=desc).items.length',
-          result.items.length);
-      _printObj('searchWorks(order=release,sort=desc).pagination',
-          result.pagination);
+      final result = await api.searchWorks(
+        const SearchWorksRequest(
+          page: 1,
+          pageSize: 3,
+          order: 'release',
+          sort: 'desc',
+        ),
+      );
+      _printObj(
+        'searchWorks(order=release,sort=desc).items.length',
+        result.items.length,
+      );
+      _printObj(
+        'searchWorks(order=release,sort=desc).pagination',
+        result.pagination,
+      );
       for (final w in result.items) {
-        _printObj('  Work(id=${w.id})', 'title=${w.title} release=${w.release}');
+        _printObj(
+          '  Work(id=${w.id})',
+          'title=${w.title} release=${w.release}',
+        );
       }
     } catch (e, st) {
       _printObj('searchWorks(order,sort) 异常', '$e\n$st');
@@ -171,10 +178,9 @@ void main() {
 
   test('dump: getPopularWorks', () async {
     try {
-      final result = await api.getPopularWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 5,
-      ));
+      final result = await api.getPopularWorks(
+        const SearchWorksRequest(page: 1, pageSize: 5),
+      );
       _printObj('getPopularWorks.items.length', result.items.length);
       _printObj('getPopularWorks.pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -187,10 +193,9 @@ void main() {
 
   test('dump: getRecommendedWorks 无 uuid', () async {
     try {
-      final result = await api.getRecommendedWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 5,
-      ));
+      final result = await api.getRecommendedWorks(
+        const SearchWorksRequest(page: 1, pageSize: 5),
+      );
       _printObj('getRecommendedWorks(无uuid).items.length', result.items.length);
       _printObj('getRecommendedWorks(无uuid).pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -203,11 +208,13 @@ void main() {
 
   test('dump: getRecommendedWorks 带 uuid', () async {
     try {
-      final result = await api.getRecommendedWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 5,
-        recommenderUuid: '00000000-0000-0000-0000-000000000000',
-      ));
+      final result = await api.getRecommendedWorks(
+        const SearchWorksRequest(
+          page: 1,
+          pageSize: 5,
+          recommenderUuid: '00000000-0000-0000-0000-000000000000',
+        ),
+      );
       _printObj('getRecommendedWorks(带uuid).items.length', result.items.length);
       _printObj('getRecommendedWorks(带uuid).pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -264,10 +271,9 @@ void main() {
 
   test('dump: 抓取真实 workId', () async {
     try {
-      final result = await api.getPopularWorks(const SearchWorksRequest(
-        page: 1,
-        pageSize: 1,
-      ));
+      final result = await api.getPopularWorks(
+        const SearchWorksRequest(page: 1, pageSize: 1),
+      );
       if (result.items.isNotEmpty) {
         sampleWorkId = result.items.first.id;
         _printObj('抓取到的 workId', sampleWorkId);
@@ -286,7 +292,7 @@ void main() {
       return;
     }
     try {
-      final work = await api.getWorkDetail(sampleWorkId!);
+      final work = await api.getWorkDetail(sampleWorkId!.toString());
       _printObj('getWorkDetail($sampleWorkId)', work);
     } catch (e, st) {
       _printObj('getWorkDetail 异常', '$e\n$st');
@@ -299,18 +305,21 @@ void main() {
       return;
     }
     try {
-      final tracks = await api.getWorkTracks(sampleWorkId!);
+      final tracks = await api.getWorkTracks(sampleWorkId!.toString());
       _printObj('getWorkTracks($sampleWorkId).length', tracks.length);
 
       // 递归打印音轨树结构（限制深度避免输出过长）
       void dumpNode(FileNode node, int depth) {
         final indent = '  ' * depth;
-        _printObj('${indent}FileNode', 'title=${node.title} '
-            'type=${node.type} source=${node.source} '
-            'workId=${node.workId} '
-            'mediaStreamUrl=${node.mediaStreamUrl != null ? "<非空>" : "null"} '
-            'duration=${node.duration} size=${node.size} '
-            'children=${node.children?.length ?? 0}');
+        _printObj(
+          '${indent}FileNode',
+          'title=${node.title} '
+              'type=${node.type} source=${node.source} '
+              'workId=${node.workId} '
+              'mediaStreamUrl=${node.mediaStreamUrl != null ? "<非空>" : "null"} '
+              'duration=${node.duration} size=${node.size} '
+              'children=${node.children?.length ?? 0}',
+        );
         for (final child in node.children ?? const <FileNode>[]) {
           dumpNode(child, depth + 1);
         }
@@ -328,11 +337,9 @@ void main() {
 
   test('dump: fetchReviews', () async {
     try {
-      final result = await api.fetchReviews(const ReviewQueryParams(
-        page: 1,
-        order: 'updated_at',
-        sort: 'desc',
-      ));
+      final result = await api.fetchReviews(
+        const ReviewQueryParams(page: 1, order: 'updated_at', sort: 'desc'),
+      );
       _printObj('fetchReviews.items.length', result.items.length);
       _printObj('fetchReviews.pagination', result.pagination);
       if (result.items.isNotEmpty) {
@@ -373,8 +380,10 @@ void main() {
         playlistId: 'invalid-id-for-test',
         page: 1,
       );
-      _printObj('fetchPlaylistWorks(invalid).items.length',
-          result.items.length);
+      _printObj(
+        'fetchPlaylistWorks(invalid).items.length',
+        result.items.length,
+      );
       _printObj('fetchPlaylistWorks(invalid).pagination', result.pagination);
     } catch (e, st) {
       _printObj('fetchPlaylistWorks(invalid) 异常', '$e\n$st');

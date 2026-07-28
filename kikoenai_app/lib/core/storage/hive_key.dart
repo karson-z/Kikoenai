@@ -1,6 +1,12 @@
 class StorageKeys {
   StorageKeys._();
 
+  static const String activeSiteId = 'active_site_id';
+  static const String siteScopePrefix = 'site';
+
+  static String forSite(String key, String siteId) =>
+      '$siteScopePrefix.${Uri.encodeComponent(siteId)}.$key';
+
   // ==================== Settings Box Keys (通用设置) ====================
 
   /// 当前选中的服务器配置/地址

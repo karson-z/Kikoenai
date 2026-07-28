@@ -3,9 +3,10 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../core/service/site/site_api_provider.dart';
 
 // 定义 Provider
-final reviewListProvider = AsyncNotifierProvider<ReviewListNotifier, PagedReviewData>(() {
-  return ReviewListNotifier();
-});
+final reviewListProvider =
+    AsyncNotifierProvider<ReviewListNotifier, PagedReviewData>(() {
+      return ReviewListNotifier();
+    });
 
 class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
   // 1. 内部持有请求参数，默认为初始值
@@ -14,10 +15,21 @@ class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
   // 2. 向外暴露 getter，供 UI 读取当前参数（例如高亮 Tab 或显示页码）
   ReviewQueryParams get params => _params;
 
-  AsmrOneSiteApi get _api => ref.read(siteApiProvider);
+  SiteApi get _api => ref.read(activeSiteApiProvider);
 
   @override
   Future<PagedReviewData> build() async {
+    ref.watch(activeSiteIdProvider);
+    if (!_api.supports(SiteFeature.reviews)) {
+      return PagedReviewData(
+        works: const [],
+        pagination: const Pagination(
+          currentPage: 1,
+          pageSize: 0,
+          totalCount: 0,
+        ),
+      );
+    }
     // build 方法只负责加载数据
     return _fetchData();
   }
@@ -27,10 +39,7 @@ class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
     // 使用当前的 _params 发起请求，直接返回强类型 PagedResult<Work>
     final result = await _api.fetchReviews(_params);
 
-    return PagedReviewData(
-      works: result.items,
-      pagination: result.pagination,
-    );
+    return PagedReviewData(works: result.items, pagination: result.pagination);
   }
 
   // ================= 状态修改方法 =================

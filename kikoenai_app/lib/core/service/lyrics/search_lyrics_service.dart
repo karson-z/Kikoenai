@@ -210,11 +210,11 @@ class SearchLyricsService {
   /// [workId] 作品Id
   /// [ref] ProviderRef
   static Future<List<FileNode>> findSubtitleInNetWorkById(
-    int workId,
+    SiteContentId contentId,
     Ref ref,
   ) async {
     // A.拿到作品对应的文件列表
-    final workFiles = await ref.read(trackFileNodeProvider(workId).future);
+    final workFiles = await ref.read(trackFileNodeProvider(contentId).future);
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }
@@ -222,12 +222,17 @@ class SearchLyricsService {
   /// 查找当前作品下的所有字幕
   /// [workId] 作品Id
   /// [ref] ProviderRef
-  static Future<List<FileNode>> findLyrics(int workId, Ref ref) async {
+  static Future<List<FileNode>> findLyrics(
+    int workId,
+    Ref ref, {
+    SiteContentId? contentId,
+  }) async {
     final localLyrics = findSubtitleInLocalById(workId);
     if (localLyrics.isNotEmpty) {
       return localLyrics;
     }
-    final netWorkLyrics = await findSubtitleInNetWorkById(workId, ref);
+    if (contentId == null) return const [];
+    final netWorkLyrics = await findSubtitleInNetWorkById(contentId, ref);
     return netWorkLyrics;
   }
 }

@@ -30,6 +30,8 @@ abstract class PlaybackItem with _$PlaybackItem {
     @HiveField(9) String? coverUrl,
     @HiveField(10) String? smallCoverUrl,
     @HiveField(11) int? durationMs,
+    @HiveField(12) String? siteId,
+    @HiveField(13) String? remoteId,
   }) = _PlaybackItem;
 
   factory PlaybackItem.fromFileNode(
@@ -37,6 +39,8 @@ abstract class PlaybackItem with _$PlaybackItem {
     Work? work,
     String? scopeId,
     NodeSource? source,
+    String? siteId,
+    String? remoteId,
   }) {
     final resolvedSource = source ?? node.source;
     final url = node.playablePath;
@@ -48,6 +52,18 @@ abstract class PlaybackItem with _$PlaybackItem {
         _blankToNull(node.workTitle) ??
         _blankToNull(work?.title) ??
         _blankToNull(work?.name);
+    final resolvedSiteId =
+        siteId ??
+        node.siteId ??
+        work?.siteId ??
+        (resolvedSource == NodeSource.asmrServer
+            ? SiteContentId.legacySiteId
+            : null);
+    final resolvedRemoteId =
+        remoteId ??
+        node.remoteId ??
+        work?.remoteId ??
+        (resolvedSource == NodeSource.asmrServer ? workId?.toString() : null);
 
     return PlaybackItem(
       id: node.keyId,
@@ -66,6 +82,8 @@ abstract class PlaybackItem with _$PlaybackItem {
       durationMs: node.duration == null
           ? null
           : (node.duration! * 1000).round(),
+      siteId: resolvedSiteId,
+      remoteId: resolvedRemoteId,
     );
   }
 
@@ -86,6 +104,18 @@ abstract class PlaybackItem with _$PlaybackItem {
             ? rawWorkId
             : int.tryParse(rawWorkId?.toString() ?? ''));
     final url = extras['url'] as String? ?? item.id;
+    final rawSiteId = extras['siteId'] as String?;
+    final rawRemoteId = extras['remoteId'];
+    final resolvedSiteId =
+        work?.siteId ??
+        rawSiteId ??
+        (resolvedSource == NodeSource.asmrServer
+            ? SiteContentId.legacySiteId
+            : null);
+    final resolvedRemoteId =
+        work?.remoteId ??
+        rawRemoteId?.toString() ??
+        (resolvedSource == NodeSource.asmrServer ? workId?.toString() : null);
     final scopeId =
         extras['scopeId'] as String? ??
         switch (resolvedSource) {
@@ -119,6 +149,8 @@ abstract class PlaybackItem with _$PlaybackItem {
           work?.samCoverUrl ??
           work?.thumbnailCoverUrl,
       durationMs: item.duration?.inMilliseconds,
+      siteId: resolvedSiteId,
+      remoteId: resolvedRemoteId,
     );
   }
 
@@ -129,6 +161,15 @@ abstract class PlaybackItem with _$PlaybackItem {
 
   bool get isLocal =>
       source == NodeSource.localWork || source == NodeSource.localSingle;
+
+  SiteContentId? get contentId {
+    final resolvedSiteId =
+        siteId ??
+        (source == NodeSource.asmrServer ? SiteContentId.legacySiteId : null);
+    final resolvedRemoteId = remoteId ?? workId?.toString();
+    if (resolvedSiteId == null || resolvedRemoteId == null) return null;
+    return SiteContentId(siteId: resolvedSiteId, remoteId: resolvedRemoteId);
+  }
 
   MediaItem toMediaItem() {
     final artworkUrl = displayCoverUrl;
@@ -144,6 +185,8 @@ abstract class PlaybackItem with _$PlaybackItem {
         'source': source.name,
         'scopeId': scopeId,
         'workId': workId,
+        'siteId': siteId,
+        'remoteId': remoteId,
         'mainCoverUrl': coverUrl,
         'samCoverUrl': smallCoverUrl,
         'isVideo': isVideo,

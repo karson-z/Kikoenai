@@ -28,6 +28,7 @@ export 'core/utils/other.dart';
 export 'core/model/shared/search_tag.dart';
 export 'core/model/shared/filter_option_item.dart';
 export 'core/model/shared/archive_entry.dart';
+export 'core/model/site/site_content_id.dart';
 
 // ---- Models: album ----
 export 'core/model/album/work.dart';

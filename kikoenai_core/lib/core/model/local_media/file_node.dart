@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai_core/core/constants/type_ids.dart';
+import 'package:kikoenai_core/core/model/site/site_content_id.dart';
 import 'package:path/path.dart' as p;
 
 part 'file_node.freezed.dart';
@@ -77,6 +78,8 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(15) String? rootPath,
     @HiveField(16) String? parentPath,
     @HiveField(17) @Default(0) int depth,
+    @HiveField(18) String? siteId,
+    @HiveField(19) String? remoteId,
     @Default(0) int subItemsCount,
   }) = _FileNode;
 
@@ -116,6 +119,13 @@ abstract class FileNode extends HiveObject with _$FileNode {
   bool get isLocalWork => source == NodeSource.localWork;
   bool get isLocalSingle => source == NodeSource.localSingle;
   bool get isCloudDrive => source == NodeSource.cloudDrive;
+
+  SiteContentId? get contentId {
+    final resolvedSiteId = siteId;
+    final resolvedRemoteId = remoteId ?? workId?.toString();
+    if (resolvedSiteId == null || resolvedRemoteId == null) return null;
+    return SiteContentId(siteId: resolvedSiteId, remoteId: resolvedRemoteId);
+  }
 
   factory FileNode.fromJson(Map<String, dynamic> json) =>
       _$FileNodeFromJson(json);

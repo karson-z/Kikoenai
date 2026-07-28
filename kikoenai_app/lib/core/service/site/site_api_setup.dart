@@ -7,114 +7,115 @@ import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 
-/// 全局站点 API 初始化。
-///
-/// 在 `main()` 中调用 [setupSiteApi]，完成：
-/// 1. 创建 [SitesHttpClient]，注入 tokenProvider / onUnauthorized
-/// 2. 创建 [AsmrOneSiteApi]
-/// 3. 注册到 [SiteManager]
-/// 4. 启动健康检查，自动选择健康服务器
-///
-/// 初始化后业务层通过 [siteApi] 获取 [AsmrOneSiteApi] 实例。
-///
+final SiteRegistry siteRegistry = SiteRegistry();
 
-/// 全局 AsmrOneSiteApi 实例（setupSiteApi 后非 null）
-AsmrOneSiteApi? _siteApi;
+String _initialActiveSiteId = CacheService.legacySiteId;
 
-/// 获取全局 AsmrOneSiteApi 实例。
-///
-/// 必须在 [setupSiteApi] 完成后调用。
-AsmrOneSiteApi get siteApi {
-  final api = _siteApi;
-  if (api == null) {
-    throw StateError('siteApi 尚未初始化，请先调用 setupSiteApi()');
-  }
-  return api;
+String get initialActiveSiteId => _initialActiveSiteId;
+
+/// Compatibility access for startup logging and callers not yet under Riverpod.
+SiteApi get siteApi {
+  final persistedId = CacheService.instance.getActiveSiteId();
+  final siteId = persistedId != null && siteRegistry.contains(persistedId)
+      ? persistedId
+      : _initialActiveSiteId;
+  return siteRegistry.requireApi(siteId);
 }
 
-/// 初始化站点 API。
-///
-/// 在 `main()` 中 `runApp` 之前调用：
-///
-/// ```dart
-/// await setupSiteApi();
-/// runApp(const ProviderScope(child: MyApp()));
-/// ```
 Future<void> setupSiteApi() async {
-  // 1. 从缓存恢复上次选中的服务器
-  final cachedHost = CacheService.instance.getCurrentHost();
+  final cache = CacheService.instance;
+  await cache.migrateLegacySiteData();
+
+  siteRegistry.clear();
+  SiteManager.instance.clear();
+
+  await _registerAsmrOne(cache);
+
+  final cachedActiveId = cache.getActiveSiteId();
+  _initialActiveSiteId =
+      cachedActiveId != null && siteRegistry.contains(cachedActiveId)
+      ? cachedActiveId
+      : siteRegistry.allInfo.first.id;
+  await cache.saveActiveSiteId(_initialActiveSiteId);
+  SiteManager.instance.activeId = _initialActiveSiteId;
+
+  try {
+    final results = await SiteManager.instance.bootstrapHealthyServers();
+    for (final entry in results.entries) {
+      final selected = entry.value;
+      if (selected != null) {
+        await cache.saveCurrentHost(selected.baseUrl, siteId: entry.key);
+      }
+    }
+  } catch (error) {
+    debugPrint('健康检查失败，使用各站点默认服务器: $error');
+  }
+}
+
+Future<void> _registerAsmrOne(CacheService cache) async {
+  const siteId = CacheService.legacySiteId;
+  final cachedHost = cache.getCurrentHost(siteId: siteId);
   ServerInfo? initialServer;
   if (cachedHost != null && cachedHost.isNotEmpty) {
-    final matched = AsmrOneSiteApi.info.servers
-        .where((s) => cachedHost.contains(s.id) || s.baseUrl.contains(cachedHost))
-        .toList();
+    final matched = AsmrOneSiteApi.info.servers.where(
+      (server) =>
+          cachedHost.contains(server.id) || server.baseUrl.contains(cachedHost),
+    );
     if (matched.isNotEmpty) initialServer = matched.first;
   }
 
-  // 2. 创建 HTTP client，注入 tokenProvider 和 401 处理
   final httpClient = SitesHttpClient(
     config: RequestConfig(
-      baseUrl: initialServer?.baseUrl ??
-          AsmrOneSiteApi.info.defaultServer!.baseUrl,
+      baseUrl:
+          initialServer?.baseUrl ?? AsmrOneSiteApi.info.defaultServer!.baseUrl,
       enableLogger: true,
       enableCookie: true,
-      onUnauthorized: _handleUnauthorized,
+      onUnauthorized: (request) => _handleUnauthorized(siteId, request),
     ),
     tokenProvider: () async {
-      final session = CacheService.instance.getAuthSession();
-      return session?.token;
+      return cache.getAuthSession(siteId: siteId)?.token;
     },
   );
 
-  // 3. 创建站点 API
-  final api = AsmrOneSiteApi(
-    httpClient: httpClient,
-    initialServer: initialServer ?? AsmrOneSiteApi.info.defaultServer!,
+  final runtime = siteRegistry.register(
+    AsmrOneSiteApi.plugin,
+    context: SiteRuntimeContext(
+      httpClient: httpClient,
+      initialServer: initialServer ?? AsmrOneSiteApi.info.defaultServer,
+    ),
   );
-  _siteApi = api;
 
-  // 4. 注册到 SiteManager
-  SiteManager.instance.clear();
-  SiteManager.instance.register(info: AsmrOneSiteApi.info, api: api);
-
-  // 5. 启动健康检查，自动选择健康服务器
-  try {
-    final results = await SiteManager.instance.bootstrapHealthyServers();
-    final selected = results['asmr.one'];
-    if (selected != null) {
-      // 持久化选中的服务器
-      await CacheService.instance.saveCurrentHost(selected.baseUrl);
-    }
-  } catch (e) {
-    // 健康检查失败不阻塞启动，使用默认服务器
-    debugPrint('健康检查失败，使用默认服务器: $e');
-  }
+  // Keep the public package manager operational for existing integrations.
+  SiteManager.instance.register(info: runtime.info, api: runtime.api);
 }
 
-/// 401 未授权处理：弹出 toast 并跳转登录页
-void _handleUnauthorized(RequestOptions requestOptions) {
+void _handleUnauthorized(String siteId, RequestOptions requestOptions) {
+  if (CacheService.instance.getActiveSiteId() != siteId) return;
   final context = AppConstants.rootNavigatorKey.currentContext;
-  if (context != null) {
-    KikoenaiToast.error(
-      '登录已过期，请重新登录',
-      context: context,
-      action: SnackBarAction(
-        label: '去登录',
-        textColor: Colors.white,
-        onPressed: () {
-          context.push(AppRoutes.login);
-        },
-      ),
-    );
-  }
+  if (context == null) return;
+
+  KikoenaiToast.error(
+    '登录已过期，请重新登录',
+    context: context,
+    action: SnackBarAction(
+      label: '去登录',
+      textColor: Colors.white,
+      onPressed: () => context.push(AppRoutes.login),
+    ),
+  );
 }
 
-/// 手动切换服务器（供设置页调用）。
-///
-/// 切换后持久化到缓存，并更新全局状态。
-Future<void> switchServer(String serverId) async {
-  final server = AsmrOneSiteApi.info.servers
-      .firstWhere((s) => s.id == serverId);
-  await siteApi.switchServer(server);
-  await CacheService.instance.saveCurrentHost(server.baseUrl);
+Future<void> switchServer(String serverId, {String? siteId}) async {
+  final targetSiteId =
+      siteId ?? CacheService.instance.getActiveSiteId() ?? _initialActiveSiteId;
+  final runtime = siteRegistry.requireRuntime(targetSiteId);
+  final server = runtime.info.servers.firstWhere(
+    (candidate) => candidate.id == serverId,
+    orElse: () => throw ArgumentError('站点 $targetSiteId 不存在服务器 $serverId'),
+  );
+  await runtime.api.switchServer(server);
+  await CacheService.instance.saveCurrentHost(
+    server.baseUrl,
+    siteId: targetSiteId,
+  );
 }

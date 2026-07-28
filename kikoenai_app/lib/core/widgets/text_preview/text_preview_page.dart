@@ -6,17 +6,20 @@ import '../../../features/user/provider/file_preview_provider.dart';
 class TextPreviewPage extends ConsumerWidget {
   final String url;
   final String title;
+  final String? siteId;
 
   const TextPreviewPage({
     super.key,
     required this.url,
     required this.title,
+    this.siteId,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 监听文本内容 Provider
-    final asyncContent = ref.watch(textContentProvider(url));
+    final query = (inputPath: url, siteId: siteId);
+    final asyncContent = ref.watch(textContentProvider(query));
 
     return Scaffold(
       appBar: AppBar(
@@ -30,9 +33,9 @@ class TextPreviewPage extends ConsumerWidget {
               onPressed: () {
                 final text = asyncContent.value!;
                 Clipboard.setData(ClipboardData(text: text));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('已复制到剪贴板')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('已复制到剪贴板')));
               },
             ),
         ],
@@ -54,7 +57,7 @@ class TextPreviewPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => ref.refresh(textContentProvider(url)),
+                  onPressed: () => ref.refresh(textContentProvider(query)),
                   icon: const Icon(Icons.refresh),
                   label: const Text("重试"),
                 ),

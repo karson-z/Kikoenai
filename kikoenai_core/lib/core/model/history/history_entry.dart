@@ -24,6 +24,10 @@ abstract class HistoryEntry with _$HistoryEntry {
 
   String? get workId => lastItem?.workId?.toString();
 
+  String? get siteId => lastItem?.contentId?.siteId;
+
+  String? get remoteId => lastItem?.contentId?.remoteId;
+
   String get lastTrackId => lastItemId;
 
   String get currentTrackTitle => lastItem?.title ?? '';
@@ -66,7 +70,10 @@ abstract class HistoryEntry with _$HistoryEntry {
     if (item == null) return 'unknown_$lastItemId';
 
     return switch (item.source) {
-      NodeSource.asmrServer => 'work_${item.scopeId}',
+      NodeSource.asmrServer =>
+        item.siteId == null
+            ? 'work_${item.scopeId}'
+            : 'work_${item.contentId!.storageKey}',
       NodeSource.localWork => 'local_work_${item.scopeId}',
       NodeSource.localSingle => 'single_${item.id}',
       NodeSource.cloudDrive => 'cloud_${item.scopeId}',
@@ -75,6 +82,7 @@ abstract class HistoryEntry with _$HistoryEntry {
 
   bool _isSameHistoryScope(PlaybackItem anchor, PlaybackItem item) {
     if (anchor.source != item.source) return false;
+    if (anchor.contentId?.siteId != item.contentId?.siteId) return false;
     return switch (anchor.source) {
       NodeSource.localSingle => item.id == anchor.id,
       NodeSource.asmrServer ||

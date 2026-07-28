@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/service/site/site_api_provider.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../provider/auth_provider.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
@@ -37,7 +39,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit(bool isLoginMode) {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
@@ -45,7 +47,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final password = _passwordController.text.trim();
     final notifier = ref.read(authNotifierProvider.notifier);
 
-    if (_isLogin) {
+    if (isLoginMode) {
       notifier.login(username, password);
     } else {
       notifier.register(username, password);
@@ -62,6 +64,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final api = ref.watch(activeSiteApiProvider);
+    final canLogin = api.supports(SiteFeature.login);
+    final canRegister = api.supports(SiteFeature.register);
+    final isLoginMode = _isLogin ? canLogin || !canRegister : !canRegister;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -76,7 +82,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             ),
             backgroundColor: colorScheme.errorContainer,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       } else if (next.value?.token != null) {
@@ -86,11 +94,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       }
     });
 
+    if (!canLogin && !canRegister) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('当前站点不支持账户功能')),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -121,13 +133,12 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       shape: BoxShape.circle,
                     ),
                     const SizedBox(height: 16), // 缩小间距
-
                     // --- 标题动画 ---
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: Text(
-                        _isLogin ? "欢迎回来" : "创建账户",
-                        key: ValueKey(_isLogin),
+                        isLoginMode ? "欢迎回来" : "创建账户",
+                        key: ValueKey(isLoginMode),
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: colorScheme.onSurface,
@@ -136,11 +147,12 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       ),
                     ),
                     const SizedBox(height: 24), // 直接过渡到输入框，去掉冗余副标题
-
                     // --- 合并后的输入框组 ---
                     Container(
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withOpacity(
+                          0.5,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: colorScheme.outlineVariant.withOpacity(0.3),
@@ -154,7 +166,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             controller: _usernameController,
                             hintText: '用户名',
                             icon: Icons.person_outline_rounded,
-                            validator: (value) => (value == null || value.isEmpty)
+                            validator: (value) =>
+                                (value == null || value.isEmpty)
                                 ? '请输入用户名'
                                 : (value.length < 2 ? '用户名太短' : null),
                           ),
@@ -177,7 +190,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                 _obscurePassword = !_obscurePassword;
                               });
                             },
-                            validator: (value) => (value == null || value.isEmpty)
+                            validator: (value) =>
+                                (value == null || value.isEmpty)
                                 ? '请输入密码'
                                 : (value.length < 6 ? '密码不能少于6位' : null),
                           ),
@@ -190,7 +204,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     SizedBox(
                       height: 48, // 稍微调小一点高度，配合紧凑的布局
                       child: FilledButton(
-                        onPressed: authState.isLoading ? null : _submit,
+                        onPressed: authState.isLoading
+                            ? null
+                            : () => _submit(isLoginMode),
                         style: FilledButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -198,50 +214,53 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         child: authState.isLoading
                             ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: colorScheme.onPrimary,
-                          ),
-                        )
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: colorScheme.onPrimary,
+                                ),
+                              )
                             : AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _isLogin ? '登录' : '注册',
-                            key: ValueKey(_isLogin),
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                                duration: const Duration(milliseconds: 200),
+                                child: Text(
+                                  isLoginMode ? '登录' : '注册',
+                                  key: ValueKey(isLoginMode),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 24),
 
                     // --- 切换模式 ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _isLogin ? "还没有账号? " : "已有账号? ",
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 14,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: authState.isLoading ? null : _toggleMode,
-                          child: Text(
-                            _isLogin ? "去注册" : "去登录",
+                    if (canLogin && canRegister)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            isLoginMode ? "还没有账号? " : "已有账号? ",
                             style: TextStyle(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurfaceVariant,
                               fontSize: 14,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                          GestureDetector(
+                            onTap: authState.isLoading ? null : _toggleMode,
+                            child: Text(
+                              isLoginMode ? "去注册" : "去登录",
+                              style: TextStyle(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -270,20 +289,27 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       style: TextStyle(fontSize: 15, color: colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hintText, // 改用 hintText，避免 label 浮动占用垂直空间
-        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
+        hintStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+        ),
         prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant, size: 22),
         suffixIcon: isPassword
             ? IconButton(
-          icon: Icon(
-            obscureText ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
-          onPressed: onToggleVisibility,
-        )
+                icon: Icon(
+                  obscureText
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+                onPressed: onToggleVisibility,
+              )
             : null,
         filled: false, // 取消独立背景填充
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
         // 彻底移除所有自带边框
         border: InputBorder.none,
         enabledBorder: InputBorder.none,

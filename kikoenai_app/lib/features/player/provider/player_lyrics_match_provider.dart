@@ -19,7 +19,7 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
     final initialWorkId = initialTrack?.workId;
 
     if (initialWorkId != null) {
-      Future.microtask(() => _handleWorkChanged(initialWorkId));
+      Future.microtask(() => _handleWorkChanged(initialTrack!));
 
       // 返回预设了 currentWorkId 的初始状态
       return LyricsMatchState(currentWorkId: initialWorkId, isSearching: true);
@@ -41,28 +41,36 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       final newWorkId = currentItem.workId;
       final oldWorkId = state.currentWorkId;
       if (newWorkId != null && newWorkId != oldWorkId) {
-        _handleWorkChanged(newWorkId);
+        _handleWorkChanged(currentItem);
       }
     });
   }
 
-  Future<void> _handleWorkChanged(int workId) async {
+  Future<void> _handleWorkChanged(PlaybackItem track) async {
+    final workId = track.workId;
+    if (workId == null) return;
     state = state.copyWith(currentWorkId: workId, isSearching: true);
 
     try {
       final targetSubtitleList = await SearchLyricsService.findLyrics(
         workId,
         ref,
+        contentId: track.isLocal ? null : track.contentId,
       );
 
       // 检查在异步请求期间，播放器是否已经切走了，防止旧请求覆盖新状态 (竞态条件处理)
       final activeTrack = ref.read(playerControllerProvider).currentItem;
-      if (activeTrack?.workId != workId) return;
+      if (activeTrack?.workId != workId ||
+          activeTrack?.contentId != track.contentId)
+        return;
 
       final currentWorkPlaylist = ref
           .read(playerControllerProvider)
           .playbackQueue
-          .where((item) => item.workId == workId)
+          .where(
+            (item) =>
+                item.workId == workId && item.contentId == track.contentId,
+          )
           .toList();
 
       /// 尝试不做数据归一化

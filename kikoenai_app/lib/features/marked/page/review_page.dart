@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
 import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/cache/cache_service.dart';
+import '../../auth/provider/auth_provider.dart';
 import '../../../../core/widgets/pagination/pagination_bar.dart';
 import '../provider/review_provider.dart';
 import '../widget/review_header.dart';
@@ -18,14 +18,17 @@ class ReviewPage extends ConsumerStatefulWidget {
 }
 
 class _ReviewPageState extends ConsumerState<ReviewPage> {
-
   @override
   Widget build(BuildContext context) {
-    final isLogin = CacheService.instance.getAuthSession() != null;
+    final isLogin = ref.watch(authNotifierProvider).value?.isLoggedIn ?? false;
     if (!isLogin) {
-      return Center(child: GuestPlaceholderView(onLoginTap: (){
-        context.push(AppRoutes.login);
-      }));
+      return Center(
+        child: GuestPlaceholderView(
+          onLoginTap: () {
+            context.push(AppRoutes.login);
+          },
+        ),
+      );
     }
     // 1. 监听数据状态 (Loading / Data / Error)
     final reviewAsync = ref.watch(reviewListProvider);
@@ -59,7 +62,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
               // 调用 notifier 的 refresh 方法
               onRefresh: () => notifier.refresh(),
               child: switch (reviewAsync) {
-                AsyncValue(:final value?) when value.works.isEmpty => _buildEmptyView(),
+                AsyncValue(:final value?) when value.works.isEmpty =>
+                  _buildEmptyView(),
                 AsyncValue(:final value?) => ListView.builder(
                   padding: const EdgeInsets.only(top: 8, bottom: 16),
                   itemCount: value.works.length,
@@ -76,10 +80,10 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       ),
       bottomNavigationBar: shouldShowPagination
           ? PaginationBar(
-        currentPage: params.page,
-        totalPages: totalPage,
-        onPageChanged: (newPage) => notifier.setPage(newPage),
-      )
+              currentPage: params.page,
+              totalPages: totalPage,
+              onPageChanged: (newPage) => notifier.setPage(newPage),
+            )
           : null,
     );
   }

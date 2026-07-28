@@ -36,7 +36,7 @@ import 'site_feature.dart';
 ///   }
 ///
 ///   @override
-///   Future<Work> getWorkDetail(int workId) async {
+///   Future<Work> getWorkDetail(String workId) async {
 ///     // ...
 ///   }
 /// }
@@ -82,11 +82,11 @@ abstract class SiteApi {
   // ─── 详情与音轨 ──────────────────────────────────────
 
   /// 获取作品详细信息
-  Future<Work> getWorkDetail(int workId) =>
+  Future<Work> getWorkDetail(String workId) =>
       throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.detail}');
 
   /// 获取作品音轨列表（树形结构，文件夹节点通过 [FileNode.children] 携带子节点）
-  Future<List<FileNode>> getWorkTracks(int workId) =>
+  Future<List<FileNode>> getWorkTracks(String workId) =>
       throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.tracks}');
 
   // ─── 收藏 / 播放列表 ────────────────────────────────
@@ -96,45 +96,42 @@ abstract class SiteApi {
     required int page,
     int pageSize = 20,
     String filterBy = 'all',
-  }) =>
-      throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.playlists}');
+  }) => throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.playlists}');
 
   /// 获取播放列表内的作品分页
   Future<PagedResult<Work>> fetchPlaylistWorks({
     required String playlistId,
     required int page,
     int pageSize = 12,
-  }) =>
-      throw UnsupportedError(
-          '$runtimeType 不支持 ${SiteFeature.playlistWorks}');
+  }) => throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.playlistWorks}');
 
   /// 按关键字搜索播放列表内的作品
   Future<PagedResult<Work>> fetchPlaylistWorksByKeyword(
     PlaylistWorksRequest request,
-  ) =>
-      throw UnsupportedError(
-          '$runtimeType 不支持 ${SiteFeature.playlistWorksByKeyword}');
+  ) => throw UnsupportedError(
+    '$runtimeType 不支持 ${SiteFeature.playlistWorksByKeyword}',
+  );
 
   /// 获取默认收藏目标播放列表
-  Future<Playlist> fetchDefaultMarkTargetPlaylist() =>
-      throw UnsupportedError(
-          '$runtimeType 不支持 ${SiteFeature.defaultMarkTargetPlaylist}');
+  Future<Playlist> fetchDefaultMarkTargetPlaylist() => throw UnsupportedError(
+    '$runtimeType 不支持 ${SiteFeature.defaultMarkTargetPlaylist}',
+  );
 
   /// 添加作品到播放列表
   Future<void> addWorksToPlaylist({
     required String playlistId,
-    required List<int> workIds,
-  }) =>
-      throw UnsupportedError(
-          '$runtimeType 不支持 ${SiteFeature.addWorksToPlaylist}');
+    required List<String> workIds,
+  }) => throw UnsupportedError(
+    '$runtimeType 不支持 ${SiteFeature.addWorksToPlaylist}',
+  );
 
   /// 从播放列表移除作品
   Future<void> removeWorksFromPlaylist({
     required String playlistId,
-    required List<int> workIds,
-  }) =>
-      throw UnsupportedError(
-          '$runtimeType 不支持 ${SiteFeature.removeWorksFromPlaylist}');
+    required List<String> workIds,
+  }) => throw UnsupportedError(
+    '$runtimeType 不支持 ${SiteFeature.removeWorksFromPlaylist}',
+  );
 
   // ─── 评论 ──────────────────────────────────────────
 
@@ -143,8 +140,10 @@ abstract class SiteApi {
       throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.reviews}');
 
   /// 提交评价（评分 / 评论 / 进度），返回服务端响应
-  Future<Map<String, dynamic>> submitReview(UserWorkStatus workStatus) =>
-      throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.submitReview}');
+  Future<Map<String, dynamic>> submitReview({
+    required String workId,
+    required UserWorkStatus workStatus,
+  }) => throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.submitReview}');
 
   // ─── 认证 ──────────────────────────────────────────
 
@@ -167,8 +166,7 @@ abstract class SiteApi {
     required String workId,
     required String recommendUuid,
     required ListenEventType type,
-  }) =>
-      throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.feedback}');
+  }) => throw UnsupportedError('$runtimeType 不支持 ${SiteFeature.feedback}');
 
   // ─── 服务器管理 ──────────────────────────────────────
 

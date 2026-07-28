@@ -7,6 +7,7 @@ import 'package:kikoenai_core/core/model/album/rate_count_detail.dart';
 import 'package:kikoenai_core/core/model/album/tag.dart';
 import 'package:kikoenai_core/core/model/album/va.dart';
 import 'package:kikoenai_core/core/constants/type_ids.dart';
+import 'package:kikoenai_core/core/model/site/site_content_id.dart';
 
 part 'work.freezed.dart';
 part 'work.g.dart';
@@ -59,9 +60,12 @@ abstract class Work with _$Work {
     @HiveField(32) String? mainCoverUrl,
     @HiveField(33) String? progress,
 
+    /// Origin site and its native string identifier.
+    @HiveField(34) String? siteId,
+    @HiveField(35) String? remoteId,
+
     /// Hero animation unique identifier (excluded from JSON and Hive persistence)
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    String? heroTag,
+    @JsonKey(includeFromJson: false, includeToJson: false) String? heroTag,
   }) = _Work;
 
   factory Work.fromJson(Map<String, dynamic> json) => _$WorkFromJson(json);
@@ -70,6 +74,11 @@ abstract class Work with _$Work {
   ///
   /// Prefers the explicit [heroTag]; if empty, builds a stable and instance-unique
   /// tag based on [id] and the current instance's `identityHashCode`.
+  SiteContentId get contentId => SiteContentId(
+    siteId: siteId ?? SiteContentId.legacySiteId,
+    remoteId: remoteId ?? id.toString(),
+  );
+
   String get effectiveHeroTag =>
-      heroTag ?? 'work-$id-${identityHashCode(this)}';
+      heroTag ?? 'work-${contentId.storageKey}-${identityHashCode(this)}';
 }

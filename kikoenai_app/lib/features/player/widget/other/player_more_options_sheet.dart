@@ -211,7 +211,14 @@ class _MoreOptionsContent extends ConsumerWidget {
               }
               index = localIndex;
             } else {
-              index = await ref.read(trackFileNodeIndexProvider(workId).future);
+              final contentId = track.contentId;
+              if (contentId == null) {
+                KikoenaiToast.warning('当前音频缺少来源站点信息');
+                return;
+              }
+              index = await ref.read(
+                trackFileNodeIndexProvider(contentId).future,
+              );
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
@@ -250,6 +257,8 @@ class _MoreOptionsContent extends ConsumerWidget {
       AppRoutes.detail,
       extra: {
         'workId': workId,
+        'siteId': track.contentId?.siteId,
+        'remoteId': track.contentId?.remoteId,
         if (work != null) 'work': work,
         'isLocal': track.isLocal,
       },

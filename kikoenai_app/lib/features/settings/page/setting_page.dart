@@ -6,9 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../config/app_version_config.dart';
 import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/site/site_api_setup.dart';
+import '../../../../core/service/site/site_api_provider.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
@@ -49,6 +50,7 @@ class SettingsPage extends ConsumerWidget {
                   // TODO: 弹出语言选择逻辑
                 },
               ),
+              const _SiteSelectionTile(),
               const _ServerSelectionTile(),
               _ChevronTile(
                 title: '主题',
@@ -129,7 +131,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
-          _SettingsSection(
+           _SettingsSection(
             title: '背景处理与性能',
             children: [
               HiveSliderTile(
@@ -343,12 +345,38 @@ class _ChevronTile extends StatelessWidget {
   }
 }
 
-class _ServerSelectionTile extends StatelessWidget {
+class _SiteSelectionTile extends ConsumerWidget {
+  const _SiteSelectionTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final siteInfo = ref.watch(activeSiteInfoProvider);
+    return _ChevronTile(
+      title: '内容站点',
+      trailingText: siteInfo.name,
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          builder: (context) => const SiteSelectionModal(),
+        );
+      },
+    );
+  }
+}
+
+class _ServerSelectionTile extends ConsumerWidget {
   const _ServerSelectionTile();
 
   @override
-  Widget build(BuildContext context) {
-    final displayLabel = siteApi.currentServer.label;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final runtime = ref.watch(activeSiteProvider);
+    if (!runtime.api.supports(SiteFeature.serverSwitch) ||
+        runtime.info.servers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final displayLabel = runtime.api.currentServer.label;
 
     return _ChevronTile(
       title: '选择服务器',

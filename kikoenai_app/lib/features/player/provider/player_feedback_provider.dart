@@ -19,9 +19,13 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
     return const PlaybackTrackerState();
   }
 
-  void updatePlaybackStatus({required String workId, required bool isPlaying}) {
-    if (state.currentWorkId != workId) {
-      _resetTracker(workId);
+  void updatePlaybackStatus({
+    required String siteId,
+    required String workId,
+    required bool isPlaying,
+  }) {
+    if (state.currentWorkId != workId || state.siteId != siteId) {
+      _resetTracker(siteId, workId);
     }
     state = state.copyWith(isPlaying: isPlaying);
 
@@ -34,9 +38,9 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
     }
   }
 
-  void _resetTracker(String newWorkId) {
+  void _resetTracker(String siteId, String newWorkId) {
     _timer?.cancel();
-    state = PlaybackTrackerState(currentWorkId: newWorkId);
+    state = PlaybackTrackerState(siteId: siteId, currentWorkId: newWorkId);
   }
 
   void _startTimer() {
@@ -60,13 +64,17 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
     final isLocal = ref.read(playerControllerProvider).currentItem?.isLocal;
     if (!state.hasReportedStart &&
         state.currentWorkId != null &&
+        state.siteId != null &&
         isLocal == false) {
-      final recommendUuid = await CacheService.instance.getOrGenerateRecommendUuid();
-      final authSession = CacheService.instance.getAuthSession();
+      final siteId = state.siteId!;
+      final recommendUuid = await CacheService.instance
+          .getOrGenerateRecommendUuid(siteId: siteId);
+      final authSession = CacheService.instance.getAuthSession(siteId: siteId);
       final currentUser = authSession?.user;
       if (currentUser == null) return;
-      final api = ref.read(siteApiProvider);
-      api.submitPlaybackFeedback(
+      final api = ref.read(siteApiByIdProvider(siteId));
+      if (!api.supports(SiteFeature.feedback)) return;
+      await api.submitPlaybackFeedback(
         workId: state.currentWorkId!,
         recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
         type: ListenEventType.start,
@@ -80,13 +88,17 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
     final isLocal = ref.read(playerControllerProvider).currentItem?.isLocal;
     if (!state.hasReported5Mins &&
         state.currentWorkId != null &&
+        state.siteId != null &&
         isLocal == false) {
-      final authSession = CacheService.instance.getAuthSession();
+      final siteId = state.siteId!;
+      final authSession = CacheService.instance.getAuthSession(siteId: siteId);
       final currentUser = authSession?.user;
       if (currentUser == null) return;
-      final recommendUuid = await CacheService.instance.getOrGenerateRecommendUuid();
-      final api = ref.read(siteApiProvider);
-      api.submitPlaybackFeedback(
+      final recommendUuid = await CacheService.instance
+          .getOrGenerateRecommendUuid(siteId: siteId);
+      final api = ref.read(siteApiByIdProvider(siteId));
+      if (!api.supports(SiteFeature.feedback)) return;
+      await api.submitPlaybackFeedback(
         workId: state.currentWorkId!,
         recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
         type: ListenEventType.fiveMinutes,

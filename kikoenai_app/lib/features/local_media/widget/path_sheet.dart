@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
+import 'package:kikoenai/core/service/permission/permission_service.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../provider/scanner_path_repository.dart';
@@ -27,11 +28,14 @@ class PathManagerSheet extends ConsumerStatefulWidget {
 
 class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
   late ScanMode _currentMode;
+  bool _isAddingDirectory = false;
 
   @override
   void initState() {
     super.initState();
-    final activeTarget = ref.read(scanTargetsProvider.notifier).getActiveTarget();
+    final activeTarget = ref
+        .read(scanTargetsProvider.notifier)
+        .getActiveTarget();
     _currentMode = activeTarget?.scanMode ?? ScanMode.audio;
   }
 
@@ -92,7 +96,11 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, dynamic notifier, List<dynamic> currentTargets) {
+  Widget _buildHeader(
+    BuildContext context,
+    dynamic notifier,
+    List<dynamic> currentTargets,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
       child: Row(
@@ -111,7 +119,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
                     : Theme.of(context).colorScheme.error,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -156,9 +164,36 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
               });
             },
             tabs: const [
-              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.music_note, size: 16), SizedBox(width: 4), Text("音频")])),
-              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.videocam, size: 16), SizedBox(width: 4), Text("视频")])),
-              Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.subtitles, size: 16), SizedBox(width: 4), Text("字幕")])),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.music_note, size: 16),
+                    SizedBox(width: 4),
+                    Text("音频"),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.videocam, size: 16),
+                    SizedBox(width: 4),
+                    Text("视频"),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.subtitles, size: 16),
+                    SizedBox(width: 4),
+                    Text("字幕"),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -167,11 +202,11 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
   }
 
   Widget _buildPathList(
-      BuildContext context,
-      WidgetRef ref,
-      List<ScanTarget> targets,
-      ScanTarget? scanTarget,
-      ) {
+    BuildContext context,
+    WidgetRef ref,
+    List<ScanTarget> targets,
+    ScanTarget? scanTarget,
+  ) {
     return ListView.separated(
       itemCount: targets.length,
       padding: const EdgeInsets.only(bottom: 80, top: 0),
@@ -182,14 +217,20 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
         final normalizedPath = path.replaceAll('\\', '/');
         final folderName = normalizedPath.split('/').last;
 
-        final isSelected = scanTarget != null &&
+        final isSelected =
+            scanTarget != null &&
             path == scanTarget.path &&
             target.scanMode == scanTarget.scanMode;
 
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 4,
+          ),
           selected: isSelected,
-          selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+          selectedTileColor: Theme.of(
+            context,
+          ).colorScheme.primaryContainer.withOpacity(0.1),
           leading: CircleAvatar(
             backgroundColor: isSelected
                 ? Theme.of(context).colorScheme.primary
@@ -218,7 +259,9 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
             ),
           ),
           onTap: () async {
-            await ref.read(scanTargetsProvider.notifier).selectTarget(path: path, mode: target.scanMode);
+            await ref
+                .read(scanTargetsProvider.notifier)
+                .selectTarget(path: path, mode: target.scanMode);
             ref.read(fileScannerProvider.notifier).changeActiveTarget(target);
             if (!context.mounted) return;
             Navigator.pop(context);
@@ -228,7 +271,9 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
             color: Theme.of(context).colorScheme.error,
             tooltip: "移除此路径",
             onPressed: () async {
-              await ref.read(scanTargetsProvider.notifier).removeTarget(path: path, mode: _currentMode);
+              await ref
+                  .read(scanTargetsProvider.notifier)
+                  .removeTarget(path: path, mode: _currentMode);
             },
           ),
         );
@@ -242,24 +287,82 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 48),
         child: FilledButton.icon(
-          onPressed: () async {
-            final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-            if (selectedDirectory == null) return;
-            final scanTarget = await ref.read(scanTargetsProvider.notifier).addTarget(path: selectedDirectory, mode: _currentMode);
-            if (scanTarget == null) return;
-            await ref.read(scanTargetsProvider.notifier).selectTarget(path: scanTarget.path, mode: scanTarget.scanMode);
-            if (!mounted) return;
-            ref.read(fileScannerProvider.notifier).changeActiveTarget(scanTarget);
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.add_rounded),
-          label: const Text("添加新目录"),
+          onPressed: _isAddingDirectory ? null : _addDirectory,
+          icon: _isAddingDirectory
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.add_rounded),
+          label: Text(_isAddingDirectory ? "正在检查权限" : "添加新目录"),
           style: FilledButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _addDirectory() async {
+    setState(() => _isAddingDirectory = true);
+
+    try {
+      if (!await _ensureStoragePermission()) return;
+      if (!mounted) return;
+
+      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      if (selectedDirectory == null) return;
+
+      final scanTarget = await ref
+          .read(scanTargetsProvider.notifier)
+          .addTarget(path: selectedDirectory, mode: _currentMode);
+      if (scanTarget == null) return;
+
+      await ref
+          .read(scanTargetsProvider.notifier)
+          .selectTarget(path: scanTarget.path, mode: scanTarget.scanMode);
+      if (!mounted) return;
+
+      ref.read(fileScannerProvider.notifier).changeActiveTarget(scanTarget);
+      Navigator.pop(context);
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingDirectory = false);
+      }
+    }
+  }
+
+  Future<bool> _ensureStoragePermission() async {
+    if (await PermissionService.checkStoragePermission()) return true;
+
+    final granted = await PermissionService.requestStoragePermission();
+    if (granted) return true;
+    if (!mounted) return false;
+
+    final shouldOpenSettings = await KikoenaiDialog.show<bool>(
+      context: context,
+      clickMaskDismiss: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("需要文件管理权限"),
+        content: const Text("添加扫描路径需要读取设备中的媒体和字幕文件。请在系统设置中允许文件管理权限后重试。"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("取消"),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.settings_outlined),
+            label: const Text("去设置"),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldOpenSettings == true) {
+      await PermissionService.openSystemSettings();
+    }
+    return false;
   }
 
   Widget _buildEmptyManager(BuildContext context) {
@@ -295,10 +398,13 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
           ),
           TextButton(
             onPressed: () async {
-              final fileScannerNotifier = ref.read(fileScannerProvider.notifier);
+              final fileScannerNotifier = ref.read(
+                fileScannerProvider.notifier,
+              );
               final activeState = ref.watch(fileScannerProvider);
 
-              if (activeState.scanMode == _currentMode && activeState.rootPath.isNotEmpty) {
+              if (activeState.scanMode == _currentMode &&
+                  activeState.rootPath.isNotEmpty) {
                 fileScannerNotifier.handleCurrentPathRemoved();
               }
 
@@ -306,7 +412,10 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
               final currentTargets = notifier.getTargetsByMode(_currentMode);
 
               for (final target in currentTargets) {
-                await ScannerPathRepository.instance.deleteTarget(target.path, _currentMode);
+                await ScannerPathRepository.instance.deleteTarget(
+                  target.path,
+                  _currentMode,
+                );
               }
 
               await notifier.refreshTargets();
@@ -323,6 +432,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
       ),
     );
   }
+
   String _formatRelativeTime(int? timestamp) {
     if (timestamp == null || timestamp == 0) {
       return "状态：从未扫描";

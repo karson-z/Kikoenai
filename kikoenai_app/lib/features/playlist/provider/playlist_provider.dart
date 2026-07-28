@@ -8,33 +8,35 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../../../core/service/site/site_api_provider.dart';
 
-
 typedef PlaylistQueryParams = ({int page, String filterBy});
 
-final fetchPlaylistsProvider = FutureProvider.family<PagedResult<Playlist>, PlaylistQueryParams>(
-      (ref, params) async {
-    final api = ref.read(siteApiProvider);
+final fetchPlaylistsProvider =
+    FutureProvider.family<PagedResult<Playlist>, PlaylistQueryParams>((
+      ref,
+      params,
+    ) async {
+      final api = ref.watch(activeSiteApiProvider);
+      if (!api.supports(SiteFeature.playlists)) {
+        return const PagedResult<Playlist>(
+          items: [],
+          pagination: Pagination(currentPage: 1, pageSize: 0, totalCount: 0),
+        );
+      }
 
+      // 3. 将 String 类型的 filterBy 转为枚举
+      final filterEnum = PlaylistFilter.values.firstWhere(
+        (e) => e.name == params.filterBy,
+        orElse: () => PlaylistFilter.all,
+      );
 
-    // 3. 将 String 类型的 filterBy 转为枚举
-    final filterEnum = PlaylistFilter.values.firstWhere(
-          (e) => e.name == params.filterBy,
-      orElse: () => PlaylistFilter.all,
+      // 4. 发起请求
+      return api.fetchPlaylists(page: params.page, filterBy: filterEnum.name);
+    });
+
+final playlistWorksProvider = AsyncNotifierProvider.autoDispose
+    .family<PlaylistWorksNotifier, PagedResult<Work>, String>(
+      PlaylistWorksNotifier.new,
     );
-
-    // 4. 发起请求
-    return api.fetchPlaylists(
-      page: params.page,
-      filterBy: filterEnum.name,
-    );
-  },
-);
-
-
-
-final playlistWorksProvider = AsyncNotifierProvider.autoDispose.family<PlaylistWorksNotifier, PagedResult<Work>, String>(
-  PlaylistWorksNotifier.new,
-);
 
 class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
   PlaylistWorksNotifier(this.playlistId);
@@ -44,6 +46,7 @@ class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
 
   @override
   Future<PagedResult<Work>> build() async {
+    ref.watch(activeSiteIdProvider);
     _page = 1;
     return _fetchData(page: 1, playlistId: playlistId);
   }
@@ -52,12 +55,19 @@ class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
     required int page,
     required String playlistId,
   }) async {
-    final api = ref.read(siteApiProvider);
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.playlistWorks)) {
+      return const PagedResult<Work>(
+        items: [],
+        pagination: Pagination(currentPage: 1, pageSize: 0, totalCount: 0),
+      );
+    }
     final state = ref.read(searchFilterProvider(FilterModule.playlist));
 
     // 1. 检查是否处于筛选/搜索状态
     // 逻辑：标签不为空、关键字不为空、开启了字幕筛选、或排序不是默认的“创建日期”
-    final isFiltered = state.selectedTags.isNotEmpty ||
+    final isFiltered =
+        state.selectedTags.isNotEmpty ||
         state.localSearchKeyword.isNotEmpty ||
         state.subtitleFilter != 0 || // 假设 0 是“全部”，1 是“仅字幕”
         state.sortOption != SortOrder.createDate;
@@ -94,7 +104,10 @@ class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
 
     final nextPage = _page + 1;
     try {
-      final newResponse = await _fetchData(page: nextPage, playlistId: playlistId);
+      final newResponse = await _fetchData(
+        page: nextPage,
+        playlistId: playlistId,
+      );
 
       state = AsyncValue.data(
         PagedResult<Work>(
@@ -110,31 +123,42 @@ class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
   }
 }
 
-final playlistWorksMutationProvider = AsyncNotifierProvider.autoDispose<PlaylistWorksMutationController, void>(
-  PlaylistWorksMutationController.new,
-);
+final playlistWorksMutationProvider =
+    AsyncNotifierProvider.autoDispose<PlaylistWorksMutationController, void>(
+      PlaylistWorksMutationController.new,
+    );
 
 class PlaylistWorksMutationController extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  Future<bool> addWorks({required String playlistId, required List<int> workIds}) async {
+  Future<bool> addWorks({
+    required String playlistId,
+    required List<int> workIds,
+  }) async {
     return _mutate(
       playlistId: playlistId,
-      requestAction: () => ref.read(siteApiProvider).addWorksToPlaylist(
-        playlistId: playlistId,
-        workIds: workIds,
-      ),
+      requestAction: () => ref
+          .read(activeSiteApiProvider)
+          .addWorksToPlaylist(
+            playlistId: playlistId,
+            workIds: workIds.map((id) => id.toString()).toList(growable: false),
+          ),
     );
   }
 
-  Future<bool> removeWorks({required String playlistId, required List<int> workIds}) async {
+  Future<bool> removeWorks({
+    required String playlistId,
+    required List<int> workIds,
+  }) async {
     return _mutate(
       playlistId: playlistId,
-      requestAction: () => ref.read(siteApiProvider).removeWorksFromPlaylist(
-        playlistId: playlistId,
-        workIds: workIds,
-      ),
+      requestAction: () => ref
+          .read(activeSiteApiProvider)
+          .removeWorksFromPlaylist(
+            playlistId: playlistId,
+            workIds: workIds.map((id) => id.toString()).toList(growable: false),
+          ),
     );
   }
 

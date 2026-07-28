@@ -12,38 +12,37 @@ class PermissionService {
     return _cachedAndroidSdk = info.version.sdkInt;
   }
 
-  /// 1. 获取【存储权限】状态 (完美封装 Android 10/11/13+ 的差异)
+  /// 获取扫描本地文件所需的存储权限状态。
   static Future<bool> checkStoragePermission() async {
-    if (!Platform.isAndroid) return await Permission.storage.isGranted;
+    // iOS/macOS/Windows 等平台由系统文件选择器授予所选目录的访问能力，
+    // 不存在 Android 的“所有文件访问权限”。
+    if (!Platform.isAndroid) return true;
 
     final sdk = await androidSdk;
-    if (sdk >= 33) {
-      // Android 13+ 废弃了普通存储权限，细分为音视频和图片
-      return await Permission.audio.isGranted &&
-          await Permission.photos.isGranted;
-    } else if (sdk >= 30) {
+    if (sdk >= 30) {
       return await Permission.manageExternalStorage.isGranted;
-    } else {
-      return await Permission.storage.isGranted;
     }
+    return await Permission.storage.isGranted;
   }
 
-  /// 2. 请求【存储权限】
+  /// 请求扫描本地文件所需的存储权限。
   static Future<bool> requestStoragePermission() async {
-    if (!Platform.isAndroid) return (await Permission.storage.request()).isGranted;
+    if (!Platform.isAndroid) return true;
 
     final sdk = await androidSdk;
-    // API 30 及以上 (包含 Android 11, 12, 13, 14+) 统一申请所有文件管理权限
+    // Android 11 及以上统一申请所有文件管理权限，和状态检查保持一致。
     if (sdk >= 30) {
       final status = await Permission.manageExternalStorage.request();
       return status.isGranted;
-    } else {
-      // API 29 及以下申请传统读写权限
-      return (await Permission.storage.request()).isGranted;
     }
+    // Android 10 及以下申请传统读写权限。
+    return (await Permission.storage.request()).isGranted;
   }
-  static Future<bool> checkNotificationPermission() async => await Permission.notification.isGranted;
-  static Future<bool> requestNotificationPermission() async => (await Permission.notification.request()).isGranted;
+
+  static Future<bool> checkNotificationPermission() async =>
+      await Permission.notification.isGranted;
+  static Future<bool> requestNotificationPermission() async =>
+      (await Permission.notification.request()).isGranted;
 
   /// 跳转到系统设置页
   static Future<void> openSystemSettings() async {

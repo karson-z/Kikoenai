@@ -17,17 +17,20 @@ import '../../../../core/storage/hive_storage.dart';
 
 /// 字幕提供者
 final lyricsProvider = FutureProvider<String?>((ref) async {
-  final currentItemId = ref.watch(
-    playerControllerProvider.select((s) => s.currentItem?.id),
+  final currentItem = ref.watch(
+    playerControllerProvider.select((s) => s.currentItem),
   );
-  if (currentItemId == null) return null;
+  if (currentItem == null) return null;
   final subtitleMapping = ref.watch(
     lyricsMatchControllerProvider.select((s) => s.subtitleMapping),
   );
-  final currentSub = subtitleMapping[currentItemId];
+  final currentSub = subtitleMapping[currentItem.id];
   final newUrl = currentSub?.mediaStreamUrl;
   if (newUrl == null || newUrl.isEmpty) return null;
-  final httpClient = ref.read(sitesHttpClientProvider);
+  final originSiteId = currentItem.contentId?.siteId;
+  final httpClient = originSiteId == null
+      ? ref.read(sitesHttpClientProvider)
+      : ref.read(siteHttpClientByIdProvider(originSiteId));
   return fetchLyricContent(newUrl, httpClient);
 });
 Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {

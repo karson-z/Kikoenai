@@ -19,7 +19,6 @@ import 'package:kikoenai/features/album/widget/work_tag.dart';
 import 'package:kikoenai/core/widgets/card/work_single_col_card.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-
 class AlbumDetailPage extends StatefulWidget {
   const AlbumDetailPage({super.key, required this.extra});
   final Map<String, dynamic> extra;
@@ -57,6 +56,16 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     }
     final int workId = widget.extra['workId'] as int? ?? work?.id ?? 0;
     final bool isLocal = widget.extra['isLocal'] as bool? ?? false;
+    final contentId = SiteContentId(
+      siteId:
+          widget.extra['siteId'] as String? ??
+          work?.siteId ??
+          SiteContentId.legacySiteId,
+      remoteId:
+          widget.extra['remoteId']?.toString() ??
+          work?.remoteId ??
+          workId.toString(),
+    );
 
     return KikoenaiInnerDrawerScope(
       controller: _drawerController,
@@ -67,11 +76,13 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
         drawer: AlbumDetailSimilarWorkDrawer(
           circleName: work?.circle?.name,
           workId: workId,
+          contentId: contentId,
           hasInitialWork: work != null,
           isLocal: isLocal,
         ),
         child: AlbumDetailContainer(
           workId: workId,
+          contentId: contentId,
           initialWork: work,
           isLocal: isLocal,
         ),
@@ -85,12 +96,14 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
     super.key,
     required this.circleName,
     required this.workId,
+    required this.contentId,
     this.hasInitialWork = false,
     this.isLocal = false,
   });
 
   final String? circleName;
   final int workId;
+  final SiteContentId contentId;
 
   /// 进入时是否已携带完整 Work（列表跳转场景）。为 true 则无需等待详情接口。
   final bool hasInitialWork;
@@ -112,7 +125,9 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final workListAsync = ref.watch(similarWorkProvider(circleName));
+    final workListAsync = ref.watch(
+      similarWorkProvider((siteId: contentId.siteId, circle: circleName!)),
+    );
 
     return workListAsync.when(
       data: (workList) {
@@ -148,25 +163,30 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
   /// 注意：仅监听是否有值，不监听是否正在刷新，避免下拉刷新时抽屉闪烁。
   bool _isDetailLoaded(WidgetRef ref) {
     if (isLocal || hasInitialWork) return true;
-    final asyncValue = ref.watch(workDetailProvider(workId));
+    final asyncValue = ref.watch(workDetailProvider(contentId));
     return asyncValue.hasValue;
   }
 }
+
 class AlbumDetailContainer extends ConsumerWidget {
   const AlbumDetailContainer({
     super.key,
     required this.workId,
+    required this.contentId,
     this.initialWork,
     required this.isLocal,
   });
 
   final int workId;
+  final SiteContentId contentId;
   final Work? initialWork;
   final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workStatus = isLocal ? null : ref.watch(workDetailProvider(workId));
+    final workStatus = isLocal
+        ? null
+        : ref.watch(workDetailProvider(contentId));
     final Work? work = initialWork ?? workStatus?.value;
 
     if (work == null) {
@@ -185,7 +205,7 @@ class AlbumDetailContainer extends ConsumerWidget {
     // 选择文件区段子类，不在视图层用 if 切换
     final Widget fileSection = switch (isLocal) {
       true => LocalAlbumFileSection(work: work),
-      false => RemoteAlbumFileSection(work: work),
+      false => RemoteAlbumFileSection(work: work, contentId: contentId),
     };
 
     return AlbumDetailView(
@@ -205,20 +225,23 @@ class AlbumDetailContainer extends ConsumerWidget {
       tags: work.tags,
       isLocal: isLocal,
       reviewLabel: reviewLabel,
-      onReviewTap: isLocal ? null : () => _showReviewSheet(context, ref, work, workStatus),
+      onReviewTap: isLocal
+          ? null
+          : () => _showReviewSheet(context, ref, work, workStatus),
       onDrawerOpen: () => KikoenaiInnerDrawerScope.of(context).open(),
       onCircleTap: () => _navigateToCategory(context, ref, work.name),
       onRatingUpdate: isLocal
-          ? (int _) => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('本地模式下无法提交评价')),
-            )
-          : (int newRating) => _submitRating(context, ref, work.id, newRating),
+          ? (int _) => ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('本地模式下无法提交评价')))
+          : (int newRating) =>
+                _submitRating(context, ref, work.id, contentId, newRating),
       // 文件区段（sliver）
       fileSection: fileSection,
       // 下拉刷新（仅网络）
       onRefresh: isLocal
           ? null
-          : () => ref.refresh(trackFileNodeIndexProvider(work.id).future),
+          : () => ref.refresh(trackFileNodeIndexProvider(contentId).future),
     );
   }
 
@@ -246,15 +269,25 @@ class AlbumDetailContainer extends ConsumerWidget {
         return ReviewBottomSheet(
           initialStatus: initialStatus,
           onSubmit: (newStatus) async {
-            await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-            ref.invalidate(workDetailProvider(work.id));
+            await HandleSubmit.handleRatingSubmit(
+              context,
+              ref,
+              newStatus,
+              siteId: contentId.siteId,
+              remoteId: contentId.remoteId,
+            );
+            ref.invalidate(workDetailProvider(contentId));
           },
         );
       },
     );
   }
 
-  void _navigateToCategory(BuildContext context, WidgetRef ref, String? circleName) {
+  void _navigateToCategory(
+    BuildContext context,
+    WidgetRef ref,
+    String? circleName,
+  ) {
     if (circleName == null) return;
     ref
         .read(searchFilterProvider(FilterModule.category).notifier)
@@ -262,11 +295,23 @@ class AlbumDetailContainer extends ConsumerWidget {
     context.go(AppRoutes.category);
   }
 
-  void _submitRating(BuildContext context, WidgetRef ref, int workId, int newRating) {
+  void _submitRating(
+    BuildContext context,
+    WidgetRef ref,
+    int workId,
+    SiteContentId contentId,
+    int newRating,
+  ) {
     final currentStatus = UserWorkStatus(workId: workId);
     final newStatus = currentStatus.copyWith(rating: newRating, workId: workId);
-    HandleSubmit.handleRatingSubmit(context, ref, newStatus);
-    ref.invalidate(workDetailProvider(workId));
+    HandleSubmit.handleRatingSubmit(
+      context,
+      ref,
+      newStatus,
+      siteId: contentId.siteId,
+      remoteId: contentId.remoteId,
+    );
+    ref.invalidate(workDetailProvider(contentId));
   }
 }
 
@@ -336,6 +381,7 @@ class AlbumDetailView extends StatelessWidget {
 
   // --- 顶部操作 ---
   final bool isLocal;
+
   /// 评价按钮文本；null 表示加载中（显示 spinner）。仅 !isLocal 时使用。
   final String? reviewLabel;
   final VoidCallback? onReviewTap;
@@ -394,7 +440,10 @@ class AlbumDetailView extends StatelessWidget {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: metadata,
                 ),
               ),
@@ -433,7 +482,11 @@ class AlbumDetailView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.bookmark_add_outlined, color: Colors.grey, size: 20),
+                const Icon(
+                  Icons.bookmark_add_outlined,
+                  color: Colors.grey,
+                  size: 20,
+                ),
                 const SizedBox(width: 4),
                 reviewLabel == null
                     ? const SizedBox(
@@ -446,10 +499,7 @@ class AlbumDetailView extends StatelessWidget {
             ),
           ),
         ),
-      IconButton(
-        icon: const Icon(Icons.menu_open),
-        onPressed: onDrawerOpen,
-      ),
+      IconButton(icon: const Icon(Icons.menu_open), onPressed: onDrawerOpen),
     ];
   }
 
