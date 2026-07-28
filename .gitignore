@@ -6,6 +6,7 @@ build/*
 .flutter-plugins-dependencies
 .packages
 pubspec.lock
+!/pubspec.lock
 ios/Pods/
 ios/.symlinks/
 macos/Pods/
