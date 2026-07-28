@@ -15,7 +15,7 @@ class ScraperCancelledException implements Exception {
       : 'Scraper request cancelled: $reason';
 }
 
-/// Cancellation shared by every HTTP request in one scrape operation.
+/// 一次爬取操作内所有 HTTP 请求共享的取消令牌。
 class ScraperCancellationToken {
   final Completer<Object?> _cancelled = Completer<Object?>();
   Object? _reason;

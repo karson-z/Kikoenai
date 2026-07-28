@@ -5,7 +5,7 @@ import 'hvdb_scraper.dart';
 import 'scraper_http_client.dart';
 import 'scraper_utils.dart';
 
-/// DLSite 元数据爬虫。
+/// App 使用的 DLSite 元数据爬虫。
 ///
 /// 提供静态 HTML 元数据与动态 JSON 元数据的抓取，并支持合并为完整结果。
 class DlSiteScraper {

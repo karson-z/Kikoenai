@@ -3,7 +3,7 @@ import 'package:html/parser.dart' show parse;
 import 'scraper_http_client.dart';
 import 'scraper_utils.dart';
 
-/// HVDB 元数据爬虫。
+/// App 使用的 HVDB 元数据爬虫。
 class HvdbScraper {
   HvdbScraper._();
 

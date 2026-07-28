@@ -1,6 +1,6 @@
 import 'package:uuid/uuid.dart';
 
-/// 爬虫工具方法。
+/// App 爬虫工具方法。
 class ScraperUtils {
   /// 基于固定 namespace 生成稳定 UUID v5
   static String nameToUUID(String name) {

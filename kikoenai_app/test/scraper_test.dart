@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import 'package:kikoenai/core/utils/scraper/dlsite_scraper.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_utils.dart';
 
 void main() {
   group('DLsite Scraper 逻辑测试', () {
@@ -11,7 +12,7 @@ void main() {
       print('开始测试抓取 RJ${testId.toString().padLeft(7, '0')}...');
 
       try {
-        // 通过 kikoenai_sites 的公开入口抓取元数据
+        // 通过 App 工具包抓取元数据
         final result = await DlSiteScraper.scrapeAll(testId, language: lang);
 
         // 验证基本元数据是否存在

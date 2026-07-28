@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_http_client.dart';
+import 'package:kikoenai_core/kikoenai_core.dart';
 
 FileNode _node(int id) {
   return FileNode(

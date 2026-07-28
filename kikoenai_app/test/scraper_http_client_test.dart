@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_http_client.dart';
 
 void main() {
   late HttpServer server;

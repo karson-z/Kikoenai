@@ -28,11 +28,5 @@ export 'network/interceptor.dart';
 export 'network/request_config.dart';
 export 'network/unauthorized_interceptor.dart';
 
-// ---- Scraper（外部站点元数据爬取） ----
-export 'scraper/dlsite_scraper.dart';
-export 'scraper/hvdb_scraper.dart';
-export 'scraper/scraper_http_client.dart';
-export 'scraper/scraper_utils.dart';
-
 // ---- 站点实现 ----
 export 'sites/asmr_one/asmr_one_site_api.dart';

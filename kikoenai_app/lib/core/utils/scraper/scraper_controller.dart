@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
+import 'package:kikoenai/core/utils/scraper/dlsite_scraper.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_http_client.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import 'package:kikoenai_core/kikoenai_core.dart';
 
 typedef ScraperWorkLoader =
     Future<Work> Function(

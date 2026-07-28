@@ -20,9 +20,6 @@ import '../../network/http_client.dart';
 /// `SiteManager.bootstrapHealthyServers()` 自动选择健康服务器；
 /// 运行时可通过 `SiteManager.switchServer(...)` 无缝切换。
 ///
-/// 外部站点元数据爬取（DLSite / HVDB）不属于本站点能力，
-/// 业务层如需补全元数据请直接使用 `DlSiteScraper.scrapeAll` 等共用工具。
-///
 /// 通过 [SiteManager.instance.register] 注册：
 ///
 /// ```dart
