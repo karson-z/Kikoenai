@@ -5,13 +5,11 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
 
-import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/download/provider/download_provider.dart';
 import '../../../features/player/provider/player_controller_provider.dart';
 import '../../service/download/download_service.dart';
 import '../../service/file/file_node_library_index.dart';
 import '../bread_crumb_bar/file_bread_crumb_bar.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/album/provider/file_manage_provider.dart';
 
 import '../../../../../core/widgets/common/custom_bottom_type.dart';
@@ -39,17 +37,24 @@ class FileTreeWoltSheet {
             : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
-        return [buildPage(modalContext, index: index, work: work,isFirstPage: isFirstPage)];
+        return [
+          buildPage(
+            modalContext,
+            index: index,
+            work: work,
+            isFirstPage: isFirstPage,
+          ),
+        ];
       },
     );
   }
 
   static SliverWoltModalSheetPage buildPage(
-      BuildContext context, {
-        required FileNodeLibraryIndex index,
-        required Work? work,
-        required bool isFirstPage
-      }) {
+    BuildContext context, {
+    required FileNodeLibraryIndex index,
+    required Work? work,
+    required bool isFirstPage,
+  }) {
     final theme = Theme.of(context);
     return SliverWoltModalSheetPage(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -57,8 +62,11 @@ class FileTreeWoltSheet {
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
-      leadingNavBarWidget: FileTreeStickyHeader(index: index, work: work),
-      stickyActionBar: _buildInternalActionBar(index, work,isFirstPage),
+      leadingNavBarWidget: FileTreeStickyHeader(
+        index: index,
+        work: work,
+      ),
+      stickyActionBar: _buildInternalActionBar(work, isFirstPage),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
 
@@ -78,22 +86,14 @@ class FileTreeWoltSheet {
     );
   }
 
-  /// 内部业务逻辑：下载操作
-  static Widget _buildInternalActionBar(FileNodeLibraryIndex index, Work? work, bool isFirstPage) {
+  /// 底部主操作栏：取消或将选中的音频加入播放队列。
+  static Widget _buildInternalActionBar(Work? work, bool isFirstPage) {
     return Consumer(
       builder: (context, ref, _) {
         final theme = Theme.of(context);
-        // 监听选中列表
-        final selectedList = ref.watch(fileSelectionProvider.select((s) => s));
-        // 监听已下载 ID 集合
-        final downloadedIds = ref
-            .watch(completedTasksProvider)
-            .map((t) => t.task.taskId)
-            .toSet();
-
-        final bool canDownload = selectedList.any(
-          (node) => !node.isFolder && !downloadedIds.contains(node.hash),
-        );
+        final selectedList = ref.watch(fileSelectionProvider);
+        final audioFiles = selectedList.where((node) => node.isAudio).toList();
+        final canAddToQueue = work != null && audioFiles.isNotEmpty;
 
         return Container(
           color: theme.scaffoldBackgroundColor,
@@ -105,39 +105,27 @@ class FileTreeWoltSheet {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
-                      if(isFirstPage) {
+                      if (isFirstPage) {
                         Navigator.pop(context);
-                      }else {
+                      } else {
                         WoltModalSheet.of(context).popPage();
-                      }},
-                    child: const Text('取消')
+                      }
+                    },
+                    child: const Text('取消'),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: !canDownload
+                  child: ElevatedButton.icon(
+                    onPressed: !canAddToQueue
                         ? null
-                        : () {
-                            final filesToDownload = selectedList
-                                .where(
-                                  (node) =>
-                                      !node.isFolder &&
-                                      !downloadedIds.contains(node.hash),
-                                )
-                                .toList();
-
-                            // 直接传 index 进去，下载服务内部通过 index 树
-                            // 递归计算路径，不再依赖 List<FileNode> 树。
-                            DownloadService.instance.enqueueBatch(
-                              selectedFiles: filesToDownload,
-                              index: index,
-                              title: work?.title ?? '未知作品',
-                              metaData: work?.toJson(),
-                            );
-
-                            KikoenaiToast.success("已加入下载队列");
-                            Navigator.of(context).pop();
+                        : () async {
+                            await ref
+                                .read(playerControllerProvider.notifier)
+                                .addMultiInQueue(audioFiles, work);
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                            }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.primaryColor,
@@ -147,7 +135,8 @@ class FileTreeWoltSheet {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('下载'),
+                    icon: const Icon(Icons.queue_music, size: 20),
+                    label: const Text('加入队列'),
                   ),
                 ),
               ],
@@ -351,7 +340,8 @@ class FileTreeStickyHeader extends ConsumerWidget {
                 ),
                 _buildSelectionInfo(theme, selectionNotifier),
                 const Spacer(),
-                _buildQueueButton(ref, selectionNotifier),
+                if (index.hasRemoteContent)
+                  _buildDownloadButton(context, ref, selectionNotifier),
                 IconButton(
                   icon: const Icon(Icons.sort, size: 20),
                   tooltip: '排序',
@@ -397,23 +387,48 @@ class FileTreeStickyHeader extends ConsumerWidget {
       ],
     );
   }
-  Widget _buildQueueButton(WidgetRef ref, FileSelectionNotifier notifier) {
-    return TextButton.icon(
-      onPressed: notifier.musicCount == 0
-          ? null
-          : () {
-        // 指定了类型后，这里的推断就会完全正确
-        final audioFiles = notifier.selectedList
-            .where((f) => f.isAudio)
-            .toList();
 
-        ref
-            .read(playerControllerProvider.notifier)
-            .addMultiInQueue(audioFiles, work!);
-        Navigator.of(ref.context).pop();
-      },
-      icon: const Icon(Icons.queue_music, size: 20),
-      label: const Text('加入队列'),
+  Widget _buildDownloadButton(
+    BuildContext context,
+    WidgetRef ref,
+    FileSelectionNotifier notifier,
+  ) {
+    final downloadedIds = ref
+        .watch(completedTasksProvider)
+        .map((item) => item.task.taskId)
+        .toSet();
+    final filesToDownload = notifier.selectedList
+        .where(
+          (node) =>
+              !node.isFolder &&
+              node.isRemote &&
+              !downloadedIds.contains(node.hash),
+        )
+        .toList();
+    final canDownload = work != null && filesToDownload.isNotEmpty;
+
+    return TextButton.icon(
+      onPressed: !canDownload
+          ? null
+          : () async {
+              try {
+                await DownloadService.instance.enqueueBatch(
+                  selectedFiles: filesToDownload,
+                  index: index,
+                  title: work!.title ?? work!.name ?? '未知作品',
+                  metaData: work!.toJson(),
+                );
+                if (!context.mounted) return;
+                KikoenaiToast.success('已加入下载队列');
+                Navigator.of(context).pop();
+              } catch (_) {
+                if (context.mounted) {
+                  KikoenaiToast.error('加入下载队列失败');
+                }
+              }
+            },
+      icon: const Icon(Icons.download_outlined, size: 20),
+      label: const Text('下载'),
     );
   }
 }

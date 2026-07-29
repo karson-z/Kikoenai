@@ -200,6 +200,7 @@ class _MoreOptionsContent extends ConsumerWidget {
           try {
             // 直接获取 FileNodeLibraryIndex，无需再 fromTree 转换
             FileNodeLibraryIndex index;
+            Work? resolvedWork = work;
             if (track.isLocal) {
               // 处理本地逻辑
               final localIndex = FileScannerStorage().getWorkFileIndexLocally(
@@ -216,15 +217,18 @@ class _MoreOptionsContent extends ConsumerWidget {
                 KikoenaiToast.warning('当前音频缺少来源站点信息');
                 return;
               }
-              index = await ref.read(
-                trackFileNodeIndexProvider(contentId).future,
-              );
+              final remoteData = await Future.wait<Object?>([
+                ref.read(trackFileNodeIndexProvider(contentId).future),
+                ref.read(workDetailProvider(contentId).future),
+              ]);
+              index = remoteData[0]! as FileNodeLibraryIndex;
+              resolvedWork = remoteData[1] as Work?;
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
               context,
               index: index,
-              work: work,
+              work: resolvedWork,
               isFirstPage: false,
             );
             WoltModalSheet.of(context).addPage(fileTreePage);

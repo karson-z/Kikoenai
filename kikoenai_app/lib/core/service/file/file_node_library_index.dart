@@ -1,5 +1,4 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/file_sort/provider/file_sort_option.dart';
 
 class FileNodeLibraryIndex {
@@ -109,6 +108,26 @@ class FileNodeLibraryIndex {
   NodeFolder get rootFolder => NodeFolder(normalizePath(rootPath));
 
   bool get isHome => _currentFolder == null;
+
+  /// Whether every indexed file is local.
+  ///
+  /// Empty indexes fall back to the source supplied when the index was built.
+  bool get isLocalContent {
+    if (nodeByKey.isNotEmpty) {
+      return nodeByKey.values.every((node) => node.isLocal);
+    }
+    return fallbackFolderSource == NodeSource.localWork ||
+        fallbackFolderSource == NodeSource.localSingle;
+  }
+
+  /// Whether the index contains at least one remotely downloadable file.
+  bool get hasRemoteContent {
+    if (nodeByKey.isNotEmpty) {
+      return nodeByKey.values.any((node) => node.isRemote);
+    }
+    return fallbackFolderSource == NodeSource.asmrServer ||
+        fallbackFolderSource == NodeSource.cloudDrive;
+  }
 
   List<NodeFolder> get currentFolders {
     return _currentNode.foldersList;
