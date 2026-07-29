@@ -20,11 +20,16 @@ class ActiveSiteIdNotifier extends Notifier<String> {
   String build() {
     final registry = ref.watch(siteRegistryProvider);
     final initialId = ref.watch(initialActiveSiteIdProvider);
-    if (registry.contains(initialId)) return initialId;
+    if (registry.contains(initialId)) {
+      registry.activeId = initialId;
+      return initialId;
+    }
     if (registry.allInfo.isEmpty) {
       throw StateError('没有已注册的站点');
     }
-    return registry.allInfo.first.id;
+    final fallbackId = registry.allInfo.first.id;
+    registry.activeId = fallbackId;
+    return fallbackId;
   }
 
   Future<void> activate(String siteId) async {
@@ -33,10 +38,7 @@ class ActiveSiteIdNotifier extends Notifier<String> {
     if (state == siteId) return;
 
     await ref.read(siteSelectionPersistenceProvider)(siteId);
-    final legacyManager = SiteManager.instance;
-    if (legacyManager.contains(siteId)) {
-      legacyManager.activeId = siteId;
-    }
+    registry.activeId = siteId;
     state = siteId;
   }
 }

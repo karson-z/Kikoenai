@@ -27,7 +27,6 @@ Future<void> setupSiteApi() async {
   await cache.migrateLegacySiteData();
 
   siteRegistry.clear();
-  SiteManager.instance.clear();
 
   await _registerAsmrOne(cache);
 
@@ -37,10 +36,10 @@ Future<void> setupSiteApi() async {
       ? cachedActiveId
       : siteRegistry.allInfo.first.id;
   await cache.saveActiveSiteId(_initialActiveSiteId);
-  SiteManager.instance.activeId = _initialActiveSiteId;
+  siteRegistry.activeId = _initialActiveSiteId;
 
   try {
-    final results = await SiteManager.instance.bootstrapHealthyServers();
+    final results = await siteRegistry.bootstrapHealthyServers();
     for (final entry in results.entries) {
       final selected = entry.value;
       if (selected != null) {
@@ -77,16 +76,13 @@ Future<void> _registerAsmrOne(CacheService cache) async {
     },
   );
 
-  final runtime = siteRegistry.register(
+  siteRegistry.register(
     AsmrOneSiteApi.plugin,
     context: SiteRuntimeContext(
       httpClient: httpClient,
       initialServer: initialServer ?? AsmrOneSiteApi.info.defaultServer,
     ),
   );
-
-  // Keep the public package manager operational for existing integrations.
-  SiteManager.instance.register(info: runtime.info, api: runtime.api);
 }
 
 void _handleUnauthorized(String siteId, RequestOptions requestOptions) {
@@ -108,12 +104,8 @@ void _handleUnauthorized(String siteId, RequestOptions requestOptions) {
 Future<void> switchServer(String serverId, {String? siteId}) async {
   final targetSiteId =
       siteId ?? CacheService.instance.getActiveSiteId() ?? _initialActiveSiteId;
-  final runtime = siteRegistry.requireRuntime(targetSiteId);
-  final server = runtime.info.servers.firstWhere(
-    (candidate) => candidate.id == serverId,
-    orElse: () => throw ArgumentError('站点 $targetSiteId 不存在服务器 $serverId'),
-  );
-  await runtime.api.switchServer(server);
+  await siteRegistry.switchServer(targetSiteId, serverId);
+  final server = siteRegistry.currentServerOf(targetSiteId)!;
   await CacheService.instance.saveCurrentHost(
     server.baseUrl,
     siteId: targetSiteId,

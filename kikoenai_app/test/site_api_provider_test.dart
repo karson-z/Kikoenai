@@ -44,17 +44,14 @@ void main() {
     expect(container.read(activeSiteInfoProvider).id, 'site.two');
     expect(container.read(siteSupportsProvider(SiteFeature.search)), isFalse);
     expect(container.read(siteSupportsProvider(SiteFeature.detail)), isTrue);
+    expect(registry.activeId, 'site.two');
     expect(persisted, ['site.two']);
   });
 
-  test('switch ignores sites absent from the compatibility manager', () async {
+  test('active site switch keeps the registry in sync', () async {
     final registry = SiteRegistry()
       ..registerRuntime(_runtime('site.one', const {}))
       ..registerRuntime(_runtime('site.two', const {}));
-    final legacyManager = SiteManager.instance;
-    final previousActiveId = legacyManager.activeId;
-    legacyManager.activeId = 'legacy.site';
-    addTearDown(() => legacyManager.activeId = previousActiveId);
 
     final container = ProviderContainer(
       overrides: [
@@ -68,6 +65,6 @@ void main() {
     await container.read(activeSiteIdProvider.notifier).activate('site.two');
 
     expect(container.read(activeSiteIdProvider), 'site.two');
-    expect(legacyManager.activeId, 'legacy.site');
+    expect(registry.activeId, 'site.two');
   });
 }

@@ -17,16 +17,14 @@ import '../../network/http_client.dart';
 /// [SiteApi.supports] 判断子功能是否可用，无需引入大量 capability 接口。
 ///
 /// 站点内置 4 个服务器镜像，应用启动时由
-/// `SiteManager.bootstrapHealthyServers()` 自动选择健康服务器；
-/// 运行时可通过 `SiteManager.switchServer(...)` 无缝切换。
+/// `SiteRegistry.bootstrapHealthyServers()` 自动选择健康服务器；
+/// 运行时可通过 `SiteRegistry.switchServer(...)` 无缝切换。
 ///
-/// 通过 [SiteManager.instance.register] 注册：
+/// 通过 [SiteRegistry.register] 注册：
 ///
 /// ```dart
-/// SiteManager.instance.register(
-///   info: AsmrOneSiteApi.info,
-///   api: AsmrOneSiteApi(),
-/// );
+/// final registry = SiteRegistry();
+/// registry.register(AsmrOneSiteApi.plugin);
 /// ```
 class AsmrOneSiteApi extends SiteApi {
   AsmrOneSiteApi({SitesHttpClient? httpClient, ServerInfo? initialServer})

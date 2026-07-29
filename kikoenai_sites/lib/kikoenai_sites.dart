@@ -15,7 +15,6 @@ export 'api/server_info.dart';
 export 'api/site_api.dart';
 export 'api/site_feature.dart';
 export 'api/site_info.dart';
-export 'api/site_manager.dart';
 export 'api/site_plugin.dart';
 export 'api/site_registry.dart';
 export 'api/site_runtime.dart';
