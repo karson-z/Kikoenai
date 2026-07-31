@@ -10,6 +10,7 @@ import 'package:kikoenai/features/log/page/logger_view.dart';
 import 'package:kikoenai/features/settings/page/setting_cache_page.dart';
 import 'package:kikoenai/features/settings/page/global_filter_page.dart';
 import 'package:kikoenai/features/user/page/user_page.dart';
+import 'package:kikoenai/config/navigation_item.dart';
 import '../../features/album/page/album_detail.dart';
 import '../../features/album/page/category_works_page.dart';
 import '../../features/album/widget/smart_works_sliver_grid.dart';
@@ -21,18 +22,39 @@ import '../../features/search/page/search_page.dart';
 import '../../features/settings/page/theme_setting_page.dart';
 import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
-import '../widgets/common/site_feature_gate.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import '../service/site/site_api_provider.dart';
+import '../service/site/site_availability.dart';
 import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
+import 'app_route_surface_policy.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  ref.read(activeSiteIdProvider);
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.listen(activeSiteIdProvider, (_, __) => refreshNotifier.refresh());
+
+  final router = GoRouter(
     navigatorKey: AppConstants.rootNavigatorKey,
     initialLocation: AppRoutes.home,
     observers: [KikoenaiDialog.observer],
     debugLogDiagnostics: true,
+    refreshListenable: refreshNotifier,
+    redirect: (context, state) {
+      final isAvailable = appRouteSurfacePolicy.isAvailable(
+        path: state.uri.path,
+        extra: state.extra,
+        activeRuntime: ref.read(activeSiteProvider),
+        siteRegistry: ref.read(siteRegistryProvider),
+        surfacePolicies: ref.read(surfacePolicyRegistryProvider),
+      );
+      if (isAvailable) return null;
+
+      final destinations = ref.read(visibleDestinationsProvider);
+      return destinations.isEmpty
+          ? AppRoutes.localMedia
+          : destinations.first.routePath;
+    },
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -74,12 +96,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.category,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: SiteFeatureGate(
-                    feature: SiteFeature.search,
-                    child: CategoryPage(),
-                  ),
-                ),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CategoryPage()),
               ),
             ],
           ),
@@ -209,12 +227,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.search,
         pageBuilder: (context, state) => SlideRightTransitionPage(
           key: state.pageKey, // 传入 pageKey 保持状态
-          child: const SiteFeatureGate(
-            feature: SiteFeature.search,
-            child: SearchPage(),
-          ),
+          child: const SearchPage(),
         ),
       ),
     ],
   );
+  ref.onDispose(() {
+    router.dispose();
+    refreshNotifier.dispose();
+  });
+  return router;
 });
+
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}

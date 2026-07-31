@@ -6,10 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../config/app_version_config.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/service/site/site_api_provider.dart';
+import '../../../../core/service/site/site_availability.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
@@ -29,6 +29,9 @@ class SettingsPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
     final isLoggedIn = authState.value?.currentUser?.loggedIn ?? false;
+    final availableSurfaces = ref.watch(availableSurfacesProvider);
+    final canOpenAuth = availableSurfaces.contains(AppSurface.authPage);
+    final canLogin = availableSurfaces.contains(AppSurface.loginAction);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +82,8 @@ class SettingsPage extends ConsumerWidget {
           _SettingsSection(
             title: '播放与内容',
             children: [
-              const DefaultPlaylistSettingTile(),
+              if (availableSurfaces.contains(AppSurface.defaultPlaylistSetting))
+                const DefaultPlaylistSettingTile(),
               const _LocalMediaSyncSettingsTile(),
               const HiveSwitchTile(
                 title: '忽略音频焦点',
@@ -131,7 +135,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
-           _SettingsSection(
+          _SettingsSection(
             title: '背景处理与性能',
             children: [
               HiveSliderTile(
@@ -161,19 +165,21 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
-          _SettingsSection(
-            title: '搜索',
-            children: [
-              _ChevronTile(
-                title: '全局筛选',
-                trailingText: '筛选/屏蔽关键词',
-                onTap: () {
-                  context.push(AppRoutes.settingsGlobalFilter);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+          if (availableSurfaces.contains(AppSurface.globalFilterPage)) ...[
+            _SettingsSection(
+              title: '搜索',
+              children: [
+                _ChevronTile(
+                  title: '全局筛选',
+                  trailingText: '筛选/屏蔽关键词',
+                  onTap: () {
+                    context.push(AppRoutes.settingsGlobalFilter);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
 
           _SettingsSection(
             title: '关于',
@@ -193,12 +199,18 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 48),
-          Center(
-            child: isLoggedIn
-                ? _buildLogoutButton(context, ref, theme)
-                : _buildLoginButton(context, theme),
-          ),
-          const SizedBox(height: 16),
+          if (isLoggedIn || canOpenAuth) ...[
+            Center(
+              child: isLoggedIn
+                  ? _buildLogoutButton(context, ref, theme)
+                  : _buildLoginButton(
+                      context,
+                      theme,
+                      label: canLogin ? '立即登录' : '立即注册',
+                    ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Center(
             child: Text(
               '${VersionConfig.appName} version ${VersionConfig.version}',
@@ -244,14 +256,18 @@ class SettingsPage extends ConsumerWidget {
   }
 
   /// 构建立即登录按钮
-  Widget _buildLoginButton(BuildContext context, ThemeData theme) {
+  Widget _buildLoginButton(
+    BuildContext context,
+    ThemeData theme, {
+    required String label,
+  }) {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () => context.push(AppRoutes.login),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
         child: Text(
-          '立即登录',
+          label,
           style: TextStyle(fontSize: 16, color: theme.colorScheme.primary),
         ),
       ),
@@ -371,11 +387,12 @@ class _ServerSelectionTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAvailable = ref.watch(
+      surfaceAvailableProvider(AppSurface.serverSelector),
+    );
+    if (!isAvailable) return const SizedBox.shrink();
+
     final runtime = ref.watch(activeSiteProvider);
-    if (!runtime.api.supports(SiteFeature.serverSwitch) ||
-        runtime.info.servers.isEmpty) {
-      return const SizedBox.shrink();
-    }
     final displayLabel = runtime.api.currentServer.label;
 
     return _ChevronTile(

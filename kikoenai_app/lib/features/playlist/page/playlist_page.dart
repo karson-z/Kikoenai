@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
 import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
@@ -55,13 +55,22 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     // 1. 获取当前目标歌单
     final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
     final isLogin = ref.watch(authNotifierProvider).value?.isLoggedIn ?? false;
+    final canOpenAuth = ref.watch(
+      surfaceAvailableProvider(AppSurface.authPage),
+    );
+    final canLogin = ref.watch(
+      surfaceAvailableProvider(AppSurface.loginAction),
+    );
 
     if (!isLogin) {
       return Scaffold(
         body: GuestPlaceholderView(
-          onLoginTap: () {
-            context.go(AppRoutes.login);
-          },
+          onLoginTap: canOpenAuth
+              ? () {
+                  context.go(AppRoutes.login);
+                }
+              : null,
+          buttonText: canLogin ? '立即登录' : '立即注册',
         ),
       );
     }

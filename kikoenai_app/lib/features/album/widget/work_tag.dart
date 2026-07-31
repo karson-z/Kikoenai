@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/category/provider/category_data_provider.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:kikoenai/core/service/site/site_availability.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
@@ -12,11 +12,7 @@ class TagRow extends ConsumerWidget {
   final List<dynamic> tags;
   final TagType type;
 
-  const TagRow({
-    super.key,
-    required this.tags,
-    this.type = TagType.tag,
-  });
+  const TagRow({super.key, required this.tags, this.type = TagType.tag});
 
   // 常量定义
   static const double kTagFontSize = 10.0;
@@ -31,6 +27,9 @@ class TagRow extends ConsumerWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
 
     final isDark = ref.watch(explicitDarkModeProvider);
+    final canOpenCategory = ref.watch(
+      surfaceAvailableProvider(AppSurface.categoryPage),
+    );
 
     return SizedBox(
       height: kRowHeight,
@@ -46,7 +45,9 @@ class TagRow extends ConsumerWidget {
               tag: tag,
               type: type,
               isDark: isDark,
-              ref: ref, // 将 ref 传递给子组件或者在 onTap 中使用 context.read (如果不用 riverpod generator)
+              ref:
+                  ref, // 将 ref 传递给子组件或者在 onTap 中使用 context.read (如果不用 riverpod generator)
+              canOpenCategory: canOpenCategory,
             );
           }).toList(),
         ),
@@ -63,12 +64,14 @@ class _TagItem extends StatelessWidget {
   final TagType type;
   final bool isDark;
   final WidgetRef ref;
+  final bool canOpenCategory;
 
   const _TagItem({
     required this.tag,
     required this.type,
     required this.isDark,
     required this.ref,
+    required this.canOpenCategory,
   });
 
   @override
@@ -90,15 +93,16 @@ class _TagItem extends StatelessWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () {
-        // 在回调时读取 notifier，这是最安全的做法
-        ref.read(searchFilterProvider(FilterModule.category).notifier).toggleTag(
-            type.stringValue,
-            tag.name,
-        );
-        ref.invalidate(categoryProvider);
-        context.go(AppRoutes.category);
-      },
+      onTap: canOpenCategory
+          ? () {
+              // 在回调时读取 notifier，这是最安全的做法
+              ref
+                  .read(searchFilterProvider(FilterModule.category).notifier)
+                  .toggleTag(type.stringValue, tag.name);
+              ref.invalidate(categoryProvider);
+              context.go(AppRoutes.category);
+            }
+          : null,
       child: Container(
         margin: const EdgeInsets.only(right: TagRow.kItemSpacing),
         padding: TagRow.kTagPadding,

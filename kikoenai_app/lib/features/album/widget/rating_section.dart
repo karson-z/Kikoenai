@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class RatingSection extends StatelessWidget {
   final double average; // 平均分
   final int userRating; // 当前用户的评分 (0 表示未评分)
-  final ValueChanged<int> onRatingUpdate; // 评分回调
+  final ValueChanged<int>? onRatingUpdate; // 评分回调
   final List<Widget>? extraWidgets;
 
   const RatingSection({
@@ -19,10 +19,7 @@ class RatingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAverageRow(),
-        const SizedBox(height: 8),
-      ],
+      children: [_buildAverageRow(), const SizedBox(height: 8)],
     );
   }
 
@@ -62,7 +59,7 @@ class _InteractiveStarRow extends StatefulWidget {
   final double average;
   final int userRating;
   final double size;
-  final ValueChanged<int> onRate;
+  final ValueChanged<int>? onRate;
 
   const _InteractiveStarRow({
     required this.average,
@@ -85,7 +82,9 @@ class _InteractiveStarRowState extends State<_InteractiveStarRow> {
     final bool isUserRated = widget.userRating > 0;
 
     // 决定显示的基准分数：用户分 或 平均分
-    final double displayRating = isUserRated ? widget.userRating.toDouble() : widget.average;
+    final double displayRating = isUserRated
+        ? widget.userRating.toDouble()
+        : widget.average;
 
     // 决定颜色：用户分(蓝) 或 平均分(黄)
     final Color activeColor = isUserRated ? Colors.blue : Colors.amber;
@@ -119,9 +118,7 @@ class _InteractiveStarRowState extends State<_InteractiveStarRow> {
           onEnter: (_) => setState(() => _hoveredIndex = i),
           onExit: (_) => setState(() => _hoveredIndex = 0),
           child: GestureDetector(
-            onTap: () {
-              widget.onRate(i);
-            },
+            onTap: widget.onRate == null ? null : () => widget.onRate!(i),
             child: Padding(
               // 稍微调整一下 Padding，避免放大时过于拥挤
               padding: const EdgeInsets.symmetric(horizontal: 1.0),
@@ -134,10 +131,7 @@ class _InteractiveStarRowState extends State<_InteractiveStarRow> {
                 duration: const Duration(milliseconds: 300), // 动画时长
                 curve: Curves.easeOutBack, // 使用带有回弹效果的曲线，更有活力
                 builder: (context, scale, child) {
-                  return Transform.scale(
-                    scale: scale,
-                    child: child,
-                  );
+                  return Transform.scale(scale: scale, child: child);
                 },
                 // 实际的星星图标作为 child 传入，避免重复构建
                 child: Icon(

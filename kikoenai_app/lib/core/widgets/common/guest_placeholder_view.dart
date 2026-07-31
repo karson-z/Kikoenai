@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class GuestPlaceholderView extends StatelessWidget {
   /// 点击登录按钮的回调
-  final VoidCallback onLoginTap;
+  final VoidCallback? onLoginTap;
 
   /// 自定义标题（可选）
   final String title;
@@ -15,7 +15,7 @@ class GuestPlaceholderView extends StatelessWidget {
 
   const GuestPlaceholderView({
     super.key,
-    required this.onLoginTap,
+    this.onLoginTap,
     this.title = "需要登录",
     this.message = "请登录账号以查看此内容并同步您的数据",
     this.buttonText = "立即登录",
@@ -71,33 +71,34 @@ class GuestPlaceholderView extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-
-            // 3. 按钮区域 (使用 Material 3 规范的主按钮 FilledButton)
-            SizedBox(
-              height: 48,
-              width: 200,
-              child: FilledButton(
-                onPressed: onLoginTap,
-                style: FilledButton.styleFrom(
-                  elevation: 0, // 扁平化，去阴影
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      buttonText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+            if (onLoginTap != null) ...[
+              const SizedBox(height: 32),
+              // 3. 按钮区域 (使用 Material 3 规范的主按钮 FilledButton)
+              SizedBox(
+                height: 48,
+                width: 200,
+                child: FilledButton(
+                  onPressed: onLoginTap,
+                  style: FilledButton.styleFrom(
+                    elevation: 0, // 扁平化，去阴影
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        buttonText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

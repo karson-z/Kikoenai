@@ -6,11 +6,13 @@ import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
 class AdaptiveNavigationRail extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final List<NavigationItem> destinations;
 
   const AdaptiveNavigationRail({
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    required this.destinations,
   });
 
   @override
@@ -20,18 +22,17 @@ class AdaptiveNavigationRail extends StatelessWidget {
       onDestinationSelected: onDestinationSelected,
       labelType: NavigationRailLabelType.selected,
       leading: const Padding(padding: EdgeInsets.only(top: 30.0)),
-      destinations: appNavigationItems
-          .map((item) => NavigationRailDestination(
-                icon: item.icon,
-                label: Text(item.label),
-              ))
+      destinations: destinations
+          .map(
+            (item) => NavigationRailDestination(
+              icon: item.icon,
+              label: Text(item.label),
+            ),
+          )
           .toList(),
-      trailing:  const Column(
+      trailing: const Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Divider(),
-          ThemeToggleButton(),
-        ],
+        children: [Divider(), ThemeToggleButton()],
       ),
     );
   }

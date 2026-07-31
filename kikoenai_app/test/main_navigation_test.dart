@@ -4,10 +4,29 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/site/site_api_provider.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
+
+class _FakeSiteApi extends SiteApi {
+  @override
+  Set<SiteFeature> get supportedFeatures => SiteFeature.values.toSet();
+}
 
 void main() {
   test('main navigation items stay aligned with shell branches', () {
-    final container = ProviderContainer();
+    final registry = SiteRegistry()
+      ..registerRuntime(
+        SiteRuntime.fromApi(
+          info: const SiteInfo(id: 'site.test', name: 'Test', version: '1.0.0'),
+          api: _FakeSiteApi(),
+        ),
+      );
+    final container = ProviderContainer(
+      overrides: [
+        siteRegistryProvider.overrideWithValue(registry),
+        initialActiveSiteIdProvider.overrideWithValue('site.test'),
+      ],
+    );
     addTearDown(container.dispose);
 
     final router = container.read(goRouterProvider);
@@ -30,6 +49,7 @@ void main() {
       AppRoutes.user,
     ]);
     expect(shellRoute.branches, hasLength(appNavigationItems.length));
+    expect(appNavigationItems.map((item) => item.branchIndex), [0, 1, 2, 3, 4]);
     expect(
       shellRoute.branches.map(
         (branch) => (branch.routes.first as GoRoute).path,

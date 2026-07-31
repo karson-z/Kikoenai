@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playlist_filter.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/service/site/site_api_provider.dart';
@@ -45,10 +44,15 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
         return;
       }
       final api = ref.read(activeSiteApiProvider);
-      if (!api.supports(SiteFeature.defaultMarkTargetPlaylist)) return;
-
-      // 调用我们在 API 中新加的方法
-      final playlist = await api.fetchDefaultMarkTargetPlaylist();
+      final Playlist playlist;
+      if (api.supports(SiteFeature.defaultMarkTargetPlaylist)) {
+        playlist = await api.fetchDefaultMarkTargetPlaylist();
+      } else {
+        if (!api.supports(SiteFeature.playlists)) return;
+        final response = await api.fetchPlaylists(page: 1, pageSize: 1);
+        if (response.items.isEmpty) return;
+        playlist = response.items.first;
+      }
 
       // 更新状态并缓存
       state = playlist;

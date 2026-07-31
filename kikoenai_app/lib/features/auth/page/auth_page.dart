@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/site/site_api_provider.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
+import '../../../../core/service/site/site_availability.dart';
 import '../provider/auth_provider.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
@@ -64,9 +63,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final api = ref.watch(activeSiteApiProvider);
-    final canLogin = api.supports(SiteFeature.login);
-    final canRegister = api.supports(SiteFeature.register);
+    final availableSurfaces = ref.watch(availableSurfacesProvider);
+    final canLogin = availableSurfaces.contains(AppSurface.loginAction);
+    final canRegister = availableSurfaces.contains(AppSurface.registerAction);
     final isLoginMode = _isLogin ? canLogin || !canRegister : !canRegister;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;

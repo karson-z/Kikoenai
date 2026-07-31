@@ -8,12 +8,14 @@ class SlidingNavigationBar extends StatelessWidget {
   final ValueListenable<double> expandProgress;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final List<NavigationItem> destinations;
 
   const SlidingNavigationBar({
     super.key,
     required this.expandProgress,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    required this.destinations,
   });
 
   @override
@@ -22,11 +24,10 @@ class SlidingNavigationBar extends StatelessWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: onDestinationSelected,
       height: AppConstants.kAppBottomNavHeight,
-      destinations: appNavigationItems
-          .map((item) => NavigationDestination(
-        icon: item.icon,
-        label: item.label,
-      ))
+      destinations: destinations
+          .map(
+            (item) => NavigationDestination(icon: item.icon, label: item.label),
+          )
           .toList(),
     );
 
@@ -41,7 +42,10 @@ class SlidingNavigationBar extends StatelessWidget {
 
         return Transform.translate(
           // withMinimum(0) 的逻辑可以通过 clamp 或 max 来保证安全
-          offset: Offset(0, offsetY.clamp(0.0, AppConstants.kAppBottomNavHeight)),
+          offset: Offset(
+            0,
+            offsetY.clamp(0.0, AppConstants.kAppBottomNavHeight),
+          ),
           child: child,
         );
       },

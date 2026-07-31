@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/service/site/site_availability.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../../../core/widgets/pagination/pagination_bar.dart';
 import '../provider/review_provider.dart';
@@ -21,12 +22,21 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   @override
   Widget build(BuildContext context) {
     final isLogin = ref.watch(authNotifierProvider).value?.isLoggedIn ?? false;
+    final canOpenAuth = ref.watch(
+      surfaceAvailableProvider(AppSurface.authPage),
+    );
+    final canLogin = ref.watch(
+      surfaceAvailableProvider(AppSurface.loginAction),
+    );
     if (!isLogin) {
       return Center(
         child: GuestPlaceholderView(
-          onLoginTap: () {
-            context.push(AppRoutes.login);
-          },
+          onLoginTap: canOpenAuth
+              ? () {
+                  context.push(AppRoutes.login);
+                }
+              : null,
+          buttonText: canLogin ? '立即登录' : '立即注册',
         ),
       );
     }

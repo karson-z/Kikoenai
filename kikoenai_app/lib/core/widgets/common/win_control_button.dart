@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/utils/window/window_close_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -20,10 +21,12 @@ class WindowControlButtons extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<WindowControlButtons> createState() => _WindowControlButtonsState();
+  ConsumerState<WindowControlButtons> createState() =>
+      _WindowControlButtonsState();
 }
 
-class _WindowControlButtonsState extends ConsumerState<WindowControlButtons> with WindowListener {
+class _WindowControlButtonsState extends ConsumerState<WindowControlButtons>
+    with WindowListener {
   bool _isMaximized = false;
 
   @override
@@ -77,33 +80,39 @@ class _WindowControlButtonsState extends ConsumerState<WindowControlButtons> wit
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+    final color =
+        widget.iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
     final isFullScreen = ref.watch(mainScaffoldProvider).isFullScreen;
+    final canSearch = ref.watch(
+      surfaceAvailableProvider(AppSurface.searchPage),
+    );
 
     return Row(
       children: [
-        IconButton(
-          tooltip: '搜索',
-          icon: Icon(
-            Icons.search_rounded,
-            size: widget.iconSize,
-            color: color,
+        if (canSearch) ...[
+          IconButton(
+            tooltip: '搜索',
+            icon: Icon(
+              Icons.search_rounded,
+              size: widget.iconSize,
+              color: color,
+            ),
+            padding: widget.padding,
+            onPressed: () {
+              context.push(AppRoutes.search);
+            },
           ),
-          padding: widget.padding,
-          onPressed: () {
-            context.push(AppRoutes.search);
-          },
-        ),
-        const SizedBox(width: 8),
-        const SizedBox(
-          height: 20, // 限制垂直线的绝对高度
-          child: VerticalDivider(
-            width: 1, // 占用的水平空间
-            thickness: 1, // 线的物理粗细
-            color: Colors.grey, // 线的颜色，可替换为 Theme.of(context).dividerColor
+          const SizedBox(width: 8),
+          const SizedBox(
+            height: 20, // 限制垂直线的绝对高度
+            child: VerticalDivider(
+              width: 1, // 占用的水平空间
+              thickness: 1, // 线的物理粗细
+              color: Colors.grey, // 线的颜色，可替换为 Theme.of(context).dividerColor
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
+        ],
         IconButton(
           tooltip: isFullScreen ? '退出全屏' : '全屏',
           icon: Icon(

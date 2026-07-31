@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playlist_filter.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../../../core/service/site/site_api_provider.dart';
@@ -136,14 +135,14 @@ class PlaylistWorksMutationController extends AsyncNotifier<void> {
     required String playlistId,
     required List<int> workIds,
   }) async {
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.addWorksToPlaylist)) return false;
     return _mutate(
       playlistId: playlistId,
-      requestAction: () => ref
-          .read(activeSiteApiProvider)
-          .addWorksToPlaylist(
-            playlistId: playlistId,
-            workIds: workIds.map((id) => id.toString()).toList(growable: false),
-          ),
+      requestAction: () => api.addWorksToPlaylist(
+        playlistId: playlistId,
+        workIds: workIds.map((id) => id.toString()).toList(growable: false),
+      ),
     );
   }
 
@@ -151,14 +150,14 @@ class PlaylistWorksMutationController extends AsyncNotifier<void> {
     required String playlistId,
     required List<int> workIds,
   }) async {
+    final api = ref.read(activeSiteApiProvider);
+    if (!api.supports(SiteFeature.removeWorksFromPlaylist)) return false;
     return _mutate(
       playlistId: playlistId,
-      requestAction: () => ref
-          .read(activeSiteApiProvider)
-          .removeWorksFromPlaylist(
-            playlistId: playlistId,
-            workIds: workIds.map((id) => id.toString()).toList(growable: false),
-          ),
+      requestAction: () => api.removeWorksFromPlaylist(
+        playlistId: playlistId,
+        workIds: workIds.map((id) => id.toString()).toList(growable: false),
+      ),
     );
   }
 
