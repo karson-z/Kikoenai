@@ -5,6 +5,7 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/page/auth_page.dart';
 import 'package:kikoenai/features/local_media/page/local_media_page.dart';
+import 'package:kikoenai/features/local_media/page/parsed_works_page.dart';
 import 'package:kikoenai/features/log/page/logger_view.dart';
 import 'package:kikoenai/features/settings/page/setting_cache_page.dart';
 import 'package:kikoenai/features/settings/page/global_filter_page.dart';
@@ -88,6 +89,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.localMedia,
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: ScannerPage()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parsedWorks,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: ParsedWorksPage()),
               ),
             ],
           ),

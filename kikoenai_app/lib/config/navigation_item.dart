@@ -31,7 +31,12 @@ const List<NavigationItem> appNavigationItems = [
   NavigationItem(
     label: '本地媒体',
     icon: Icon(Icons.local_hospital_outlined),
-    routePath: AppRoutes.category, // e.g., "/album"
+    routePath: AppRoutes.localMedia,
+  ),
+  NavigationItem(
+    label: 'DL库',
+    icon: Icon(Icons.library_music_outlined),
+    routePath: AppRoutes.parsedWorks,
   ),
   NavigationItem(
     label: '我的',

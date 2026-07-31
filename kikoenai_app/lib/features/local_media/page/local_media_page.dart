@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
@@ -9,7 +8,6 @@ import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../provider/file_scanner_notifier.dart';
-import '../widget/parsed_works_view.dart';
 import '../widget/path_sheet.dart';
 import '../widget/scraper_drawer.dart';
 
@@ -28,12 +26,15 @@ class ScannerPage extends ConsumerWidget {
     final root = scannerState.rootPath;
 
     // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
-    final breadcrumbNodes = ref.watch(breadcrumbProvider(BreadCrumbBarType.local));
+    final breadcrumbNodes = ref.watch(
+      breadcrumbProvider(BreadCrumbBarType.local),
+    );
     final breadcrumbNotifier = ref.read(
       breadcrumbProvider(BreadCrumbBarType.local).notifier,
     );
-    final List<String> breadcrumbPaths =
-        breadcrumbNodes.map((node) => node.title).toList();
+    final List<String> breadcrumbPaths = breadcrumbNodes
+        .map((node) => node.title)
+        .toList();
 
     // 3. 监听扫描流异步完成的副作用（仅在扫描状态由 true 变为 false 且存在有效节点时触发弹窗）
     ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
@@ -51,149 +52,85 @@ class ScannerPage extends ConsumerWidget {
       }
     });
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: 66,
-          title: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '媒体库',
-                style: TextStyle(fontSize: 18),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-          actions: [
-            Builder(
-              builder: (context) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: '同步媒体库',
-                        icon: scannerState.isScanning
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.sync),
-                        onPressed:
-                            scannerState.rootPath.isEmpty ||
-                                scannerState.isScanning
-                            ? null
-                            : () => scannerNotifier.refreshCurrentTarget(),
-                      ),
-                      IconButton(
-                        tooltip: '解析队列',
-                        icon: Badge(
-                          isLabelVisible: queueCount > 0,
-                          label: Text(queueCount.toString()),
-                          child: const Icon(Icons.swap_vert_circle_outlined),
-                        ),
-                        onPressed: () {
-                          Scaffold.of(context).openEndDrawer();
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 66,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '媒体库',
+              style: TextStyle(fontSize: 18),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-        endDrawer: const ScraperQueueDrawer(),
-        body: Column(
-          children: [
-            // 固定在顶部的控制栏（面包屑导航 + 药丸式切换 TabBar）
+        actions: [
+          Builder(
+            builder: (context) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: '同步媒体库',
+                      icon: scannerState.isScanning
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.sync),
+                      onPressed:
+                          scannerState.rootPath.isEmpty ||
+                              scannerState.isScanning
+                          ? null
+                          : () => scannerNotifier.refreshCurrentTarget(),
+                    ),
+                    IconButton(
+                      tooltip: '解析队列',
+                      icon: Badge(
+                        isLabelVisible: queueCount > 0,
+                        label: Text(queueCount.toString()),
+                        child: const Icon(Icons.swap_vert_circle_outlined),
+                      ),
+                      onPressed: () {
+                        Scaffold.of(context).openEndDrawer();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      endDrawer: const ScraperQueueDrawer(),
+      body: Column(
+        children: [
+          if (root.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: root.isEmpty
-                        ? const SizedBox.shrink()
-                        : BreadcrumbBar(
-                            paths: breadcrumbPaths,
-                            // 点击 Home 图标：直接移回根目录
-                            onHomeTap: () => breadcrumbNotifier.goHome(),
-                            // 点击任意中间面包屑节点：按层级索引瞬移跳转
-                            onPathTap: (index) =>
-                                breadcrumbNotifier.jumpTo(index),
-                          ),
-                  ),
-                  const SizedBox(width: 12),
-                  // 右侧：“待解析 / 已解析”切换小药丸
-                  Container(
-                    width: 150,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(3.0),
-                      child: TabBar(
-                        dividerColor: Colors.transparent,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelColor: Colors.black87,
-                        unselectedLabelColor: Colors.grey.shade600,
-                        labelStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        unselectedLabelStyle: const TextStyle(fontSize: 13),
-                        overlayColor: WidgetStateProperty.all(
-                          Colors.transparent,
-                        ),
-                        indicator: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        tabs: const [
-                          Tab(text: "待解析"),
-                          Tab(text: "已解析"),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              child: BreadcrumbBar(
+                paths: breadcrumbPaths,
+                onHomeTap: () => breadcrumbNotifier.goHome(),
+                onPathTap: (index) => breadcrumbNotifier.jumpTo(index),
               ),
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildPendingView(context, ref, scannerState, currentMode),
-                  ParseWorksView(work: ScraperStorage().getAllWorks()),
-                ],
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          icon: const Icon(Icons.folder_copy_outlined),
-          label: const Text("管理路径"),
-          onPressed: () {
-            PathManagerSheet.show(context);
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          Expanded(
+            child: _buildPendingView(context, ref, scannerState, currentMode),
+          ),
+        ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.folder_copy_outlined),
+        label: const Text("管理路径"),
+        onPressed: () {
+          PathManagerSheet.show(context);
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -246,8 +183,9 @@ class ScannerPage extends ConsumerWidget {
                 scannerNotifier.stepIn(NodeFolder(node.path!));
               }
             },
-            workResolver: (node) =>
-                node.workId == null ? null : ScraperStorage().getWork(node.workId!),
+            workResolver: (node) => node.workId == null
+                ? null
+                : ScraperStorage().getWork(node.workId!),
             sourceResolver: (node) => node.workId == null
                 ? NodeSource.localSingle
                 : NodeSource.localWork,

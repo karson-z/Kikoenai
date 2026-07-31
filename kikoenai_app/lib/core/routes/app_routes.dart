@@ -7,13 +7,14 @@ class AppRoutes {
   static const String search = '/search';
   static const String login = '/login';
   static const String localMedia = '/media';
+  static const String parsedWorks = '/parsed';
   static const String test = '/test';
 
   // 基础路径
   static const String settings = '/settings';
   static const String detail = '/detail';
   static const String imageView = '/image_preview';
-  static const String  hotAndRecommend = '/hot_and_recommend';
+  static const String hotAndRecommend = '/hot_and_recommend';
   // ==============================
   // 二级目录：通过拼接实现
   // ==============================
@@ -33,6 +34,7 @@ class AppRoutes {
     AppRoutes.home,
     AppRoutes.category,
     AppRoutes.localMedia,
+    AppRoutes.parsedWorks,
     AppRoutes.user,
     AppRoutes.test,
   ];
