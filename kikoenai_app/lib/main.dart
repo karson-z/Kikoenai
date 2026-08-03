@@ -75,17 +75,8 @@ void main() async {
   await ProxyService.init();
   await DownloadService.init();
   debugPrint('开始初始化站点 API...');
-  await setupSiteApi();
-  // 每次冷启动检查上次是否有临终遗言
-  final detachLog = AppStorage.settingsBox.get('debug_detach_time');
-  if (detachLog != null) {
-    print('【☠调试成功】检测到上次退出时：$detachLog');
-    // 读取后清除，防止下次误报
-    AppStorage.settingsBox.delete('debug_detach_time');
-  } else {
-    print('【○调试提示】未检测到上次的 detach 记录');
-  }
-  debugPrint('最终使用的 API 地址: ${siteApi.currentServer.baseUrl}');
+  // api 服务器选择以及初始化不再阻塞
+  unawaited(setupSiteApi());
   setupDesktopWindow();
   unawaited(LocalMediaSyncScheduler.instance.runStartupCheck());
   runApp(const ProviderScope(child: MyApp()));

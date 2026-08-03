@@ -9,6 +9,10 @@ class GlobalSearchInput extends ConsumerWidget {
   final String hintText;
   final double borderRadius;
   final EdgeInsetsGeometry padding;
+
+  /// 内部 [TextField] 的 contentPadding，控制输入框高度。
+  final EdgeInsetsGeometry contentPadding;
+
   final bool autoFocus;
   final TextEditingController? controller;
   final FocusNode? focusNode;
@@ -23,6 +27,7 @@ class GlobalSearchInput extends ConsumerWidget {
     this.hintText = '搜索内容...',
     this.borderRadius = 25,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.contentPadding = const EdgeInsets.symmetric(vertical: 10),
     this.autoFocus = false,
   });
 
@@ -70,7 +75,7 @@ class GlobalSearchInput extends ConsumerWidget {
                     : null,
                 border: InputBorder.none,
                 filled: false,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                contentPadding: contentPadding,
               ),
             ),
           ),

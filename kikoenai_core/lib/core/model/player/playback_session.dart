@@ -52,18 +52,17 @@ abstract class PlaybackItem with _$PlaybackItem {
         _blankToNull(node.workTitle) ??
         _blankToNull(work?.title) ??
         _blankToNull(work?.name);
+    final isLegacyNetworkSite = resolvedSource == NodeSource.asmrServer;
     final resolvedSiteId =
         siteId ??
         node.siteId ??
         work?.siteId ??
-        (resolvedSource == NodeSource.asmrServer
-            ? SiteContentId.legacySiteId
-            : null);
+        (isLegacyNetworkSite ? SiteContentId.legacySiteId : null);
     final resolvedRemoteId =
         remoteId ??
         node.remoteId ??
         work?.remoteId ??
-        (resolvedSource == NodeSource.asmrServer ? workId?.toString() : null);
+        (isLegacyNetworkSite ? workId?.toString() : null);
 
     return PlaybackItem(
       id: node.keyId,
@@ -106,20 +105,20 @@ abstract class PlaybackItem with _$PlaybackItem {
     final url = extras['url'] as String? ?? item.id;
     final rawSiteId = extras['siteId'] as String?;
     final rawRemoteId = extras['remoteId'];
+    final isLegacyNetworkSite = resolvedSource == NodeSource.asmrServer;
     final resolvedSiteId =
         work?.siteId ??
         rawSiteId ??
-        (resolvedSource == NodeSource.asmrServer
-            ? SiteContentId.legacySiteId
-            : null);
+        (isLegacyNetworkSite ? SiteContentId.legacySiteId : null);
     final resolvedRemoteId =
         work?.remoteId ??
         rawRemoteId?.toString() ??
-        (resolvedSource == NodeSource.asmrServer ? workId?.toString() : null);
+        (isLegacyNetworkSite ? workId?.toString() : null);
     final scopeId =
         extras['scopeId'] as String? ??
         switch (resolvedSource) {
           NodeSource.asmrServer => workId?.toString() ?? item.id,
+          NodeSource.asmrGay => workId?.toString() ?? item.id,
           NodeSource.localWork => workId?.toString() ?? item.id,
           NodeSource.localSingle => item.id,
           NodeSource.cloudDrive => workId?.toString() ?? item.id,
@@ -171,6 +170,10 @@ abstract class PlaybackItem with _$PlaybackItem {
     return SiteContentId(siteId: resolvedSiteId, remoteId: resolvedRemoteId);
   }
 
+  /// 是否为远程站点资源（asmr.one / asmr.gay 等通过站点 API 接入）。
+  bool get isRemoteSite =>
+      source == NodeSource.asmrServer || source == NodeSource.asmrGay;
+
   MediaItem toMediaItem() {
     final artworkUrl = displayCoverUrl;
     return MediaItem(
@@ -198,6 +201,8 @@ abstract class PlaybackItem with _$PlaybackItem {
     return switch (source) {
       NodeSource.asmrServer =>
         workId?.toString() ?? node.workTitle ?? node.keyId,
+      NodeSource.asmrGay =>
+        node.remoteId ?? node.folderPath ?? node.keyId,
       NodeSource.localWork =>
         node.rootPath ?? node.folderPath ?? workId?.toString() ?? node.keyId,
       NodeSource.localSingle => node.keyId,

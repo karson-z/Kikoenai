@@ -118,6 +118,7 @@ const defaultSurfacePolicyRegistry = SurfacePolicyRegistry({
     Supports(SiteFeature.popular),
     Supports(SiteFeature.recommend),
     Supports(SiteFeature.search),
+    Supports(SiteFeature.fileSystemBrowse),
   ]),
   AppSurface.categoryPage: Supports(SiteFeature.search),
   AppSurface.localMediaPage: Always(),

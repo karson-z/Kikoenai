@@ -193,4 +193,41 @@ abstract class SiteApi {
     }
     return Future.wait(servers.map(checkHealth));
   }
+
+  // ─── 文件系统（Alist 风格站点）──────────────────────
+
+  /// 按路径分页列出文件系统目录内容（Alist 风格 `/api/fs/list`）。
+  ///
+  /// 返回 [FsBrowseResult]，包含目录条目列表（[FsBrowseResult.content]）、
+  /// 总数（[FsBrowseResult.total]）与站点 / 目录说明（[FsBrowseResult.readme]）
+  /// 等元信息。
+  ///
+  /// 仅当站点声明 [SiteFeature.fileSystemBrowse] 时可用。
+  Future<FsBrowseResult> browseFileSystem(FsListRequest request) =>
+      throw UnsupportedError(
+        '$runtimeType 不支持 ${SiteFeature.fileSystemBrowse}',
+      );
+
+  /// 获取站点 / 目录的说明（Markdown 文本）。
+  ///
+  /// [path] 为目录路径，默认根目录 `/`。无说明时返回 null。
+  ///
+  /// 仅当站点声明 [SiteFeature.siteReadme] 时可用。
+  /// 实现可复用 [browseFileSystem] 的响应中的 `readme` 字段。
+  Future<String?> getSiteReadme({String path = '/'}) => throw UnsupportedError(
+    '$runtimeType 不支持 ${SiteFeature.siteReadme}',
+  );
+
+  /// 按关键字搜索文件系统（Alist 风格 `/api/fs/search`）。
+  ///
+  /// 返回 [FsBrowseResult]，与 [browseFileSystem] 同构 ——
+  /// 搜索结果条目就是 [FsEntry]（搜索接口不返回 `sign`/`modified` 等
+  /// 字段，但 [FsEntry] 均有默认值，可正常解析；搜索结果会额外携带
+  /// [FsEntry.parent] 用于定位完整路径）。
+  ///
+  /// 仅当站点声明 [SiteFeature.fileSystemSearch] 时可用。
+  Future<FsBrowseResult> searchFileSystem(FsSearchRequest request) =>
+      throw UnsupportedError(
+        '$runtimeType 不支持 ${SiteFeature.fileSystemSearch}',
+      );
 }

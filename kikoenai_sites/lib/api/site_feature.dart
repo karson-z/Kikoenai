@@ -5,7 +5,7 @@
 /// 避免触发方法默认抛出的 [UnsupportedError]。
 enum SiteFeature {
   // ─── 检索类 ──────────────────────────────────────────
-  /// 关键字搜索作品（必选基础能力）
+  /// 关键字搜索作品
   search,
 
   /// 热门作品
@@ -73,4 +73,23 @@ enum SiteFeature {
 
   /// 健康检查
   healthCheck,
+
+  // ─── 文件系统（Alist 风格站点）──────────────────────
+  /// 按路径浏览文件系统目录（Alist 风格 `/api/fs/list`）
+  ///
+  /// 适用于以文件系统目录树组织内容的站点（如 asmr.pw），
+  /// 与按 workId 检索作品的数据库型站点（如 asmr.one）相对。
+  fileSystemBrowse,
+
+  /// 获取站点 / 目录说明（readme，Markdown）
+  ///
+  /// Alist 站点的 `/api/fs/list` 响应会携带 `readme` 字段，
+  /// 包含站点公告、分类说明、解压密码等 markdown 文本。
+  siteReadme,
+
+  /// 按关键字搜索文件系统（Alist 风格 `/api/fs/search`）
+  ///
+  /// 与 [fileSystemBrowse] 的按路径浏览不同，搜索会跨目录递归匹配
+  /// 文件 / 目录名。常用于按 RJ 号定位作品目录。
+  fileSystemSearch,
 }

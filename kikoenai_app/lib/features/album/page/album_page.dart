@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/enums/device_type.dart';
-import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/site/site_availability.dart';
-import '../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
-import '../../../../core/widgets/loading/lottie_loading.dart';
+import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/site/site_api_provider.dart';
+import 'package:kikoenai/core/service/site/site_availability.dart';
+import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_mobile.dart';
+import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
+import 'package:kikoenai/features/asmr_gay/page/asmr_gay_browser_page.dart';
+import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
@@ -17,6 +20,14 @@ class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 站点切换：asmr.gay（文件系统型站点）走文件浏览器替代作品列表
+    final isFileSystemSite = ref.watch(
+      siteSupportsProvider(SiteFeature.fileSystemBrowse),
+    );
+    if (isFileSystemSite) {
+      return const AsmrGayBrowserPage(isRoot: true);
+    }
+
     final deviceType = context.deviceType;
     final availableSurfaces = ref.watch(availableSurfacesProvider);
     final isEmpty = ref.watch(albumAllEmptyProvider);

@@ -30,6 +30,12 @@ export 'core/model/shared/filter_option_item.dart';
 export 'core/model/shared/archive_entry.dart';
 export 'core/model/site/site_content_id.dart';
 
+// ---- Models: site (Alist 风格文件系统) ----
+export 'core/model/site/fs_list_request.dart';
+export 'core/model/site/fs_entry.dart';
+export 'core/model/site/fs_browse_result.dart';
+export 'core/model/site/fs_search_request.dart';
+
 // ---- Models: album ----
 export 'core/model/album/work.dart';
 export 'core/model/album/work_info.dart';

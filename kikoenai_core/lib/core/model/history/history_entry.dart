@@ -38,7 +38,8 @@ abstract class HistoryEntry with _$HistoryEntry {
 
   Duration? get duration => lastItem?.duration;
 
-  bool get isNetworkWork => source == NodeSource.asmrServer;
+  bool get isNetworkWork =>
+      source == NodeSource.asmrServer || source == NodeSource.asmrGay;
 
   bool get isLocalWork => source == NodeSource.localWork;
 
@@ -74,6 +75,10 @@ abstract class HistoryEntry with _$HistoryEntry {
         item.siteId == null
             ? 'work_${item.scopeId}'
             : 'work_${item.contentId!.storageKey}',
+      NodeSource.asmrGay =>
+        item.siteId == null
+            ? 'work_${item.scopeId}'
+            : 'work_${item.contentId!.storageKey}',
       NodeSource.localWork => 'local_work_${item.scopeId}',
       NodeSource.localSingle => 'single_${item.id}',
       NodeSource.cloudDrive => 'cloud_${item.scopeId}',
@@ -86,6 +91,7 @@ abstract class HistoryEntry with _$HistoryEntry {
     return switch (anchor.source) {
       NodeSource.localSingle => item.id == anchor.id,
       NodeSource.asmrServer ||
+      NodeSource.asmrGay ||
       NodeSource.localWork ||
       NodeSource.cloudDrive => item.scopeId == anchor.scopeId,
     };

@@ -17,6 +17,8 @@ enum NodeSource {
   localSingle,
   @HiveField(3)
   cloudDrive,
+  @HiveField(4)
+  asmrGay,
 }
 
 @HiveType(typeId: TypeIds.nodeType)
@@ -113,12 +115,15 @@ abstract class FileNode extends HiveObject with _$FileNode {
   bool get isLocal =>
       source == NodeSource.localWork || source == NodeSource.localSingle;
   bool get isRemote =>
-      source == NodeSource.asmrServer || source == NodeSource.cloudDrive;
+      source == NodeSource.asmrServer ||
+      source == NodeSource.cloudDrive ||
+      source == NodeSource.asmrGay;
 
   bool get isAsmrServer => source == NodeSource.asmrServer;
   bool get isLocalWork => source == NodeSource.localWork;
   bool get isLocalSingle => source == NodeSource.localSingle;
   bool get isCloudDrive => source == NodeSource.cloudDrive;
+  bool get isAsmrGay => source == NodeSource.asmrGay;
 
   SiteContentId? get contentId {
     final resolvedSiteId = siteId;

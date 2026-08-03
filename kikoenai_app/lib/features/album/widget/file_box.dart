@@ -6,13 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/features/local_media/widget/file_operation_sheet.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
@@ -43,6 +41,17 @@ class FileBrowserConfig {
   /// 启用音频右键菜单“加入播放列表”（专辑详情用）。
   final bool enableAudioContextMenu;
 
+  /// 文件夹右侧是否显示进入箭头（如 `>`）。
+  ///
+  /// 默认关闭，避免文件夹条目同时出现左侧图标和右侧箭头两套视觉提示。
+  /// 需要明确提示“可进入下一级”的界面（如本地媒体库）可手动开启。
+  final bool showFolderEnterIcon;
+
+  /// 文件条目副标题显示大小与修改时间（Alist 文件系统用）。
+  ///
+  /// 开启后，非文件夹节点副标题展示 `大小 • 修改时间`。
+  final bool showFileMetaInfo;
+
   const FileBrowserConfig({
     this.showDownloadBadge = false,
     this.showFolderStatus = false,
@@ -51,6 +60,8 @@ class FileBrowserConfig {
     this.enableImagePreview = false,
     this.enableTextPreview = false,
     this.enableAudioContextMenu = false,
+    this.showFolderEnterIcon = false,
+    this.showFileMetaInfo = false,
   });
 }
 
@@ -239,23 +250,19 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   Widget _buildLeading(FileNode node) {
-    if (widget.config.showFolderStatus) {
-      // 本地媒体样式：按文件扩展名映射图标 + 颜色
-      if (node.isFolder) {
-        final isArchiveFolder = FileExtensions.isArchive(node.title);
-        return Icon(
-          isArchiveFolder ? Icons.folder_zip : Icons.folder,
-          color: isArchiveFolder ? Colors.purpleAccent : Colors.amber,
-        );
-      }
-      final fileType = FileExtensions.getFileType(node.title);
+    // 统一使用带颜色的图标，避免同一组件内出现“彩色 / 灰色”两套视觉风格。
+    if (node.isFolder) {
+      final isArchiveFolder = FileExtensions.isArchive(node.title);
       return Icon(
-        _localStyleIcon(fileType),
-        color: _localStyleIconColor(fileType),
+        isArchiveFolder ? Icons.folder_zip : Icons.folder,
+        color: isArchiveFolder ? Colors.purpleAccent : Colors.amber,
       );
     }
-    // 专辑详情样式：简单按类型图标
-    return Icon(_albumStyleIcon(node));
+    final fileType = FileExtensions.getFileType(node.title);
+    return Icon(
+      _localStyleIcon(fileType),
+      color: _localStyleIconColor(fileType),
+    );
   }
 
   Widget? _buildSubtitle(FileNode node) {
@@ -280,11 +287,47 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         overflow: TextOverflow.ellipsis,
       );
     }
+    if (widget.config.showFileMetaInfo && !node.isFolder) {
+      final sizeText = _formatFileSize(node.size ?? 0);
+      final modifiedText = node.lastModified > 0
+          ? _formatDateTime(node.lastModified)
+          : '-';
+      return Text(
+        '$sizeText  •  $modifiedText',
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 12,
+        ),
+      );
+    }
+
     // 专辑详情样式
     return Text(
       '${node.isAudio ? '时长:' : '类型：'}'
       '${node.isAudio ? TimeFormatter.formatSeconds(node.duration?.toInt() ?? 0) : node.type.name}',
     );
+  }
+
+  static String _formatFileSize(int bytes) {
+    if (bytes <= 0) return '-';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var size = bytes.toDouble();
+    var index = 0;
+    while (size >= 1024 && index < units.length - 1) {
+      size /= 1024;
+      index++;
+    }
+    return '${size.toStringAsFixed(index == 0 ? 0 : 1)} ${units[index]}';
+  }
+
+  static String _formatDateTime(int millisecondsSinceEpoch) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $h:$min';
   }
 
   Widget? _buildTrailing(FileNode node, bool isDownloaded) {
@@ -293,8 +336,10 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         mainAxisSize: MainAxisSize.min,
         children: [
           NodeStatusPill(status: node.nodeStatus),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          if (widget.config.showFolderEnterIcon) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
         ],
       );
     }
@@ -428,13 +473,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   // --- 图标映射助手 ---
-
-  IconData _albumStyleIcon(FileNode node) {
-    if (node.isAudio) return Icons.audiotrack;
-    if (node.isImage) return Icons.image;
-    if (node.isText) return Icons.text_snippet;
-    return Icons.folder;
-  }
 
   IconData _localStyleIcon(FileType fileType) {
     switch (fileType) {

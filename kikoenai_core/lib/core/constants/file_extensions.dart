@@ -6,7 +6,7 @@ class FileExtensions {
   static const Set<String> archives = {'.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.tgz'};
   static const Set<String> subtitles = {'.srt', '.ass', '.ssa', '.vtt', '.sub', '.sup', '.smi', '.idx', '.lrc'};
   static const Set<String> images = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff'};
-  static const Set<String> video = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp'};
+  static const Set<String> video = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.m3u8', '.m3u'};
   static const Set<String> audio = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.opus'};
   static const Set<String> documents = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv'};
 
