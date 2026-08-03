@@ -74,7 +74,7 @@ void main() async {
   await AudioServiceSingleton.init();
   await ProxyService.init();
   await DownloadService.init();
-  debugPrint('开始初始化站点 API 并检测最优服务器...');
+  debugPrint('开始初始化站点 API...');
   await setupSiteApi();
   // 每次冷启动检查上次是否有临终遗言
   final detachLog = AppStorage.settingsBox.get('debug_detach_time');

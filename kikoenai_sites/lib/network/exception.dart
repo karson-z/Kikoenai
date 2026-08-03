@@ -25,6 +25,17 @@ class SitesNetworkException implements Exception {
     this.context,
   });
 
+  /// Whether an idempotent read request may be retried after switching server.
+  bool get isRetryableReadFailure {
+    if (code == SitesExceptionCode.networkError ||
+        code == SitesExceptionCode.certificateError) {
+      return true;
+    }
+    if (code != SitesExceptionCode.serverError) return false;
+    final status = context?['status'];
+    return status == 502 || status == 503 || status == 504;
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer('SitesNetworkException');

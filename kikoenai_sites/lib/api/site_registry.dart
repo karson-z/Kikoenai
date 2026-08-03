@@ -115,7 +115,11 @@ class SiteRegistry {
   }
 
   /// 选择默认健康服务器；默认服务器不可用时选择列表中第一个健康服务器。
-  Future<ServerInfo?> selectHealthyServer(String siteId) async {
+  /// [excludedServerIds] 用于故障恢复时跳过刚刚失败的服务器。
+  Future<ServerInfo?> selectHealthyServer(
+    String siteId, {
+    Set<String> excludedServerIds = const {},
+  }) async {
     final api = apiOf(siteId);
     if (api == null ||
         !api.supports(SiteFeature.healthCheck) ||
@@ -123,7 +127,9 @@ class SiteRegistry {
       return null;
     }
 
-    final servers = serversOf(siteId);
+    final servers = serversOf(
+      siteId,
+    ).where((server) => !excludedServerIds.contains(server.id)).toList();
     if (servers.isEmpty) return null;
 
     final healths = await api.checkAllHealth(servers);

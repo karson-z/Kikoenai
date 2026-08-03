@@ -26,6 +26,32 @@ void main() {
       expect(str, contains('原始异常'));
       expect(str, contains('status'));
     });
+
+    test('只允许网络、证书和网关类错误恢复读取请求', () {
+      const networkError = SitesNetworkException(
+        '网络错误',
+        code: SitesExceptionCode.networkError,
+      );
+      const badGateway = SitesNetworkException(
+        '网关错误',
+        code: SitesExceptionCode.serverError,
+        context: {'status': 502},
+      );
+      const internalError = SitesNetworkException(
+        '服务错误',
+        code: SitesExceptionCode.serverError,
+        context: {'status': 500},
+      );
+      const unauthorized = SitesNetworkException(
+        '认证错误',
+        code: SitesExceptionCode.unauthorized,
+      );
+
+      expect(networkError.isRetryableReadFailure, isTrue);
+      expect(badGateway.isRetryableReadFailure, isTrue);
+      expect(internalError.isRetryableReadFailure, isFalse);
+      expect(unauthorized.isRetryableReadFailure, isFalse);
+    });
   });
 
   group('mapToSitesException', () {

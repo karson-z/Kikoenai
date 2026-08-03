@@ -18,9 +18,9 @@ class _FakeServerApi extends SiteApi {
 
   @override
   Set<SiteFeature> get supportedFeatures => const {
-    SiteFeature.serverSwitch,
-    SiteFeature.healthCheck,
-  };
+        SiteFeature.serverSwitch,
+        SiteFeature.healthCheck,
+      };
 
   @override
   ServerInfo get currentServer => _currentServer;
@@ -123,6 +123,14 @@ void main() {
 
       await registry.switchServer('site.servers', 'default');
       expect(registry.currentServerOf('site.servers'), _defaultServer);
+
+      final fallback = await registry.selectHealthyServer(
+        'site.servers',
+        excludedServerIds: {'default'},
+      );
+      expect(fallback, _backupServer);
+      expect(registry.currentServerOf('site.servers'), _backupServer);
+
       expect(
         () => registry.switchServer('site.servers', 'missing'),
         throwsArgumentError,

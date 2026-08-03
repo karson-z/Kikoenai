@@ -17,11 +17,13 @@ class MockAdapter implements HttpClientAdapter {
     _handlers[path] = handler;
   }
 
-  void registerGet(String path, Map<String, dynamic> response, {int status = 200}) {
+  void registerGet(String path, Map<String, dynamic> response,
+      {int status = 200}) {
     register(path, (options) => _jsonResponse(response, status));
   }
 
-  void registerPost(String path, Map<String, dynamic> response, {int status = 200}) {
+  void registerPost(String path, Map<String, dynamic> response,
+      {int status = 200}) {
     register(path, (options) => _jsonResponse(response, status));
   }
 
@@ -189,6 +191,90 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('相对路径 GET 在服务器恢复后只重试一次', () async {
+      var requestCount = 0;
+      var recoveryCount = 0;
+      final recoveringClient = SitesHttpClient(
+        config: const RequestConfig(
+          baseUrl: 'https://test.example.com',
+          enableLogger: false,
+        ),
+        readRequestRecovery: (exception) async {
+          recoveryCount++;
+          return true;
+        },
+      );
+      addTearDown(recoveringClient.close);
+      recoveringClient.dio.httpClientAdapter = mockAdapter;
+      mockAdapter.register('/api/retry', (options) {
+        requestCount++;
+        return requestCount == 1
+            ? mockAdapter._jsonResponse({}, 503)
+            : mockAdapter._jsonResponse({'ok': true}, 200);
+      });
+
+      final result = await recoveringClient.get<Map<String, dynamic>>(
+        '/api/retry',
+      );
+
+      expect(result['ok'], isTrue);
+      expect(requestCount, 2);
+      expect(recoveryCount, 1);
+    });
+
+    test('写请求失败时不执行恢复或重试', () async {
+      var requestCount = 0;
+      var recoveryCount = 0;
+      final recoveringClient = SitesHttpClient(
+        config: const RequestConfig(
+          baseUrl: 'https://test.example.com',
+          enableLogger: false,
+        ),
+        readRequestRecovery: (exception) async {
+          recoveryCount++;
+          return true;
+        },
+      );
+      addTearDown(recoveringClient.close);
+      recoveringClient.dio.httpClientAdapter = mockAdapter;
+      mockAdapter.register('/api/write', (options) {
+        requestCount++;
+        return mockAdapter._jsonResponse({}, 503);
+      });
+
+      await expectLater(
+        recoveringClient.post<Map<String, dynamic>>('/api/write'),
+        throwsA(isA<SitesNetworkException>()),
+      );
+      expect(requestCount, 1);
+      expect(recoveryCount, 0);
+    });
+
+    test('绝对 URL 读取失败时不切换站点服务器', () async {
+      var recoveryCount = 0;
+      final recoveringClient = SitesHttpClient(
+        config: const RequestConfig(
+          baseUrl: 'https://test.example.com',
+          enableLogger: false,
+        ),
+        readRequestRecovery: (exception) async {
+          recoveryCount++;
+          return true;
+        },
+      );
+      addTearDown(recoveringClient.close);
+      recoveringClient.dio.httpClientAdapter = mockAdapter;
+      mockAdapter.registerError('/media/file', 503);
+
+      await expectLater(
+        recoveringClient.get<Map<String, dynamic>>(
+          'https://cdn.example.com/media/file',
+        ),
+        throwsA(isA<SitesNetworkException>()),
+      );
+      expect(recoveryCount, 0);
     });
 
     test('getBytes 返回字节流', () async {

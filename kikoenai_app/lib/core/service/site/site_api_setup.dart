@@ -9,6 +9,10 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 
 final SiteRegistry siteRegistry = SiteRegistry();
 
+const _readFailoverCooldown = Duration(seconds: 30);
+final Map<String, Future<bool>> _readFailoversInFlight = {};
+final Map<String, DateTime> _lastReadFailoverAttempt = {};
+
 String _initialActiveSiteId = CacheService.legacySiteId;
 
 String get initialActiveSiteId => _initialActiveSiteId;
@@ -27,8 +31,10 @@ Future<void> setupSiteApi() async {
   await cache.migrateLegacySiteData();
 
   siteRegistry.clear();
+  _readFailoversInFlight.clear();
+  _lastReadFailoverAttempt.clear();
 
-  await _registerAsmrOne(cache);
+  _registerAsmrOne(cache);
 
   final cachedActiveId = cache.getActiveSiteId();
   _initialActiveSiteId =
@@ -37,21 +43,9 @@ Future<void> setupSiteApi() async {
       : siteRegistry.allInfo.first.id;
   await cache.saveActiveSiteId(_initialActiveSiteId);
   siteRegistry.activeId = _initialActiveSiteId;
-
-  try {
-    final results = await siteRegistry.bootstrapHealthyServers();
-    for (final entry in results.entries) {
-      final selected = entry.value;
-      if (selected != null) {
-        await cache.saveCurrentHost(selected.baseUrl, siteId: entry.key);
-      }
-    }
-  } catch (error) {
-    debugPrint('健康检查失败，使用各站点默认服务器: $error');
-  }
 }
 
-Future<void> _registerAsmrOne(CacheService cache) async {
+void _registerAsmrOne(CacheService cache) {
   const siteId = CacheService.legacySiteId;
   final cachedHost = cache.getCurrentHost(siteId: siteId);
   ServerInfo? initialServer;
@@ -74,6 +68,8 @@ Future<void> _registerAsmrOne(CacheService cache) async {
     tokenProvider: () async {
       return cache.getAuthSession(siteId: siteId)?.token;
     },
+    readRequestRecovery: (exception) =>
+        _recoverReadRequest(siteId: siteId, exception: exception),
   );
 
   siteRegistry.register(
@@ -83,6 +79,68 @@ Future<void> _registerAsmrOne(CacheService cache) async {
       initialServer: initialServer ?? AsmrOneSiteApi.info.defaultServer,
     ),
   );
+}
+
+Future<bool> _recoverReadRequest({
+  required String siteId,
+  required SitesNetworkException exception,
+}) async {
+  final currentServer = siteRegistry.currentServerOf(siteId);
+  if (currentServer == null) return false;
+
+  final originalError = exception.originalError;
+  final failedBaseUrl = originalError is DioException
+      ? originalError.requestOptions.baseUrl
+      : currentServer.baseUrl;
+
+  // Another request may already have completed recovery for this site.
+  if (currentServer.baseUrl != failedBaseUrl) return true;
+
+  final recoveryKey = '$siteId::$failedBaseUrl';
+  final inFlight = _readFailoversInFlight[recoveryKey];
+  if (inFlight != null) return inFlight;
+
+  final now = DateTime.now();
+  final lastAttempt = _lastReadFailoverAttempt[recoveryKey];
+  if (lastAttempt != null &&
+      now.difference(lastAttempt) < _readFailoverCooldown) {
+    return false;
+  }
+  _lastReadFailoverAttempt[recoveryKey] = now;
+
+  final recovery = _switchToHealthyAlternative(
+    siteId: siteId,
+    failedServerId: currentServer.id,
+  );
+  _readFailoversInFlight[recoveryKey] = recovery;
+  try {
+    return await recovery;
+  } finally {
+    if (identical(_readFailoversInFlight[recoveryKey], recovery)) {
+      _readFailoversInFlight.remove(recoveryKey);
+    }
+  }
+}
+
+Future<bool> _switchToHealthyAlternative({
+  required String siteId,
+  required String failedServerId,
+}) async {
+  final selected = await siteRegistry.selectHealthyServer(
+    siteId,
+    excludedServerIds: {failedServerId},
+  );
+  if (selected == null) return false;
+
+  try {
+    await CacheService.instance.saveCurrentHost(
+      selected.baseUrl,
+      siteId: siteId,
+    );
+  } catch (error) {
+    debugPrint('保存站点 $siteId 的故障切换服务器失败: $error');
+  }
+  return true;
 }
 
 void _handleUnauthorized(String siteId, RequestOptions requestOptions) {

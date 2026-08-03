@@ -6,6 +6,10 @@ import 'interceptor.dart';
 import 'request_config.dart';
 import 'unauthorized_interceptor.dart';
 
+typedef ReadRequestRecovery = Future<bool> Function(
+  SitesNetworkException exception,
+);
+
 /// 站点 HTTP 客户端
 ///
 /// 基于 [Dio] 封装，按固定顺序串联拦截器链：
@@ -21,8 +25,14 @@ class SitesHttpClient {
   final Dio _dio;
   final RequestConfig config;
   final SitesCookieManager cookieManager;
+  final ReadRequestRecovery? _readRequestRecovery;
 
-  SitesHttpClient._internal(this._dio, this.config, this.cookieManager) {
+  SitesHttpClient._internal(
+    this._dio,
+    this.config,
+    this.cookieManager,
+    this._readRequestRecovery,
+  ) {
     _setupInterceptors();
   }
 
@@ -36,6 +46,7 @@ class SitesHttpClient {
     RequestConfig? config,
     SitesCookieManager? cookieManager,
     TokenProvider? tokenProvider,
+    ReadRequestRecovery? readRequestRecovery,
     void Function(String message)? logger,
   }) {
     final cfg = config ?? RequestConfig.defaultConfig();
@@ -49,7 +60,12 @@ class SitesHttpClient {
         headers: {'Content-Type': 'application/json; charset=utf-8'},
       ),
     );
-    final client = SitesHttpClient._internal(dio, cfg, cm);
+    final client = SitesHttpClient._internal(
+      dio,
+      cfg,
+      cm,
+      readRequestRecovery,
+    );
     // 注入外部 tokenProvider / logger（覆盖默认拦截器中的）
     if (tokenProvider != null || logger != null) {
       client._dio.interceptors.clear();
@@ -125,21 +141,62 @@ class SitesHttpClient {
 
   // ─── 请求核心 ──────────────────────────────────────────────
 
-  /// 泛型请求核心：统一异常映射
-  Future<T> _request<T>(Future<Response> Function() request) async {
+  SitesNetworkException _networkException(Object error, StackTrace stackTrace) {
+    final exception = mapToSitesException(error);
+    return SitesNetworkException(
+      exception.message,
+      originalError: exception.originalError,
+      stackTrace: stackTrace,
+      code: exception.code,
+      context: exception.context,
+    );
+  }
+
+  /// Executes a request and retries it once after an optional server recovery.
+  Future<T> _execute<T>(
+    Future<T> Function() request, {
+    bool allowReadRecovery = false,
+  }) async {
     try {
-      final response = await request();
-      return response.data as T;
+      return await request();
     } catch (e, st) {
-      final exception = mapToSitesException(e);
-      throw SitesNetworkException(
-        exception.message,
-        originalError: exception.originalError,
-        stackTrace: st,
-        code: exception.code,
-        context: exception.context,
-      );
+      final exception = _networkException(e, st);
+      final recovery = _readRequestRecovery;
+      if (allowReadRecovery &&
+          recovery != null &&
+          exception.isRetryableReadFailure) {
+        var recovered = false;
+        try {
+          recovered = await recovery(exception);
+        } catch (_) {
+          // Recovery is best-effort; preserve the original request failure.
+        }
+        if (recovered) {
+          try {
+            return await request();
+          } catch (retryError, retryStackTrace) {
+            throw _networkException(retryError, retryStackTrace);
+          }
+        }
+      }
+      throw exception;
     }
+  }
+
+  /// 泛型请求核心：统一异常映射
+  Future<T> _request<T>(
+    Future<Response> Function() request, {
+    bool allowReadRecovery = false,
+  }) async {
+    final response = await _execute(
+      request,
+      allowReadRecovery: allowReadRecovery,
+    );
+    return response.data as T;
+  }
+
+  bool _usesConfiguredBaseUrl(String path) {
+    return Uri.tryParse(path)?.hasScheme != true;
   }
 
   // ─── HTTP 方法 ─────────────────────────────────────────────
@@ -157,6 +214,7 @@ class SitesHttpClient {
           options: options,
           cancelToken: cancelToken,
         ),
+        allowReadRecovery: _usesConfiguredBaseUrl(path),
       );
 
   Future<T> post<T>(
@@ -218,8 +276,8 @@ class SitesHttpClient {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
   }) async {
-    try {
-      final response = await _dio.get<List<int>>(
+    return _execute(
+      () => _dio.get<List<int>>(
         path,
         queryParameters: queryParameters,
         onReceiveProgress: onReceiveProgress,
@@ -227,18 +285,9 @@ class SitesHttpClient {
           responseType: ResponseType.bytes,
         ),
         cancelToken: cancelToken,
-      );
-      return response;
-    } catch (e, st) {
-      final exception = mapToSitesException(e);
-      throw SitesNetworkException(
-        exception.message,
-        originalError: exception.originalError,
-        stackTrace: st,
-        code: exception.code,
-        context: exception.context,
-      );
-    }
+      ),
+      allowReadRecovery: _usesConfiguredBaseUrl(path),
+    );
   }
 
   /// 释放资源
