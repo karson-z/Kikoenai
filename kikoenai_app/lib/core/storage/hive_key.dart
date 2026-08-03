@@ -67,6 +67,9 @@ class StorageKeys {
   /// 播放器偏好：是否开启仅音频模式 (bool)
   static const String playerIsAudioOnly = 'player_is_audio_only';
 
+  /// 播放器偏好：是否允许进入后台后继续播放 (bool)
+  static const String playerPlayInBackground = 'player_play_in_background';
+
   /// 标签(Tag)筛选或显示选项
   static const String tagOption = 'tag_option';
 

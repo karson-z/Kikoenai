@@ -39,7 +39,7 @@ class AudioServiceSingleton {
   }
 }
 
-class MyAudioHandler extends BaseAudioHandler  {
+class MyAudioHandler extends BaseAudioHandler {
   final Player _player = PlayerService.instance.player;
   late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
@@ -49,11 +49,17 @@ class MyAudioHandler extends BaseAudioHandler  {
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
   double _normalVolume = 100.0;
   bool _isInterrupted = false;
+  bool _pausedByBackground = false;
+  late final AppLifecycleListener _lifecycleListener;
 
   bool get isIgnoreAudioFocus =>
-      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
+      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false)
+          as bool;
 
   MyAudioHandler() {
+    _lifecycleListener = AppLifecycleListener(
+      onStateChange: _handleLifecycleState,
+    );
     _listenMpvLogs();
     _initPlayerConfig();
     _setupAudioSession();
@@ -62,6 +68,28 @@ class MyAudioHandler extends BaseAudioHandler  {
     _listenForPositionChanges();
     _listenErrorStream();
   }
+
+  bool get playInBackground =>
+      _settingBox.get(StorageKeys.playerPlayInBackground, defaultValue: true)
+          as bool;
+
+  void _handleLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (!playInBackground && _player.state.playing) {
+        _pausedByBackground = true;
+        _player.pause();
+      }
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed && _pausedByBackground) {
+      _pausedByBackground = false;
+      if (!playInBackground) return;
+      play();
+    }
+  }
+
   Future<void> _initPlayerConfig() async {
     await _player.setPlaylistMode(PlaylistMode.none);
 
@@ -78,11 +106,14 @@ class MyAudioHandler extends BaseAudioHandler  {
 
         if (Platform.isAndroid) {
           await nativePlayer.setProperty("volume-max", "100");
-          final String audioOutputMode = _settingBox.get(
-            StorageKeys.audioOutputMode,
-            defaultValue: AppConstants.defaultAoMode,
-          ) as String;
-          final String safeAoMode = AppConstants.validAoModes.contains(audioOutputMode)
+          final String audioOutputMode =
+              _settingBox.get(
+                    StorageKeys.audioOutputMode,
+                    defaultValue: AppConstants.defaultAoMode,
+                  )
+                  as String;
+          final String safeAoMode =
+              AppConstants.validAoModes.contains(audioOutputMode)
               ? audioOutputMode
               : AppConstants.defaultAoMode;
           await nativePlayer.setProperty("ao", safeAoMode);
@@ -137,14 +168,15 @@ class MyAudioHandler extends BaseAudioHandler  {
   }
 
   void _listenErrorStream() {
-    _player.stream.error.listen((error){
+    _player.stream.error.listen((error) {
       KikoenaiToast.error('播放错误: $error');
     });
   }
 
   void _listenMpvLogs() {
     _player.stream.log.listen((event) {
-      final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
+      final logMessage =
+          "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
       if (event.level.contains('error')) {
         KikoenaiLogger().e(logMessage);
       } else if (event.level.contains('warn')) {
@@ -171,7 +203,11 @@ class MyAudioHandler extends BaseAudioHandler  {
     await _player.pause();
   }
 
-  Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
+  Future<void> _playIndex(
+    int index, {
+    Duration? position,
+    bool autoPlay = true,
+  }) async {
     if (index < 0 || index >= _playlist.length) return;
 
     _currentIndex = index;
@@ -203,7 +239,10 @@ class MyAudioHandler extends BaseAudioHandler  {
     await setVolume(volume);
     await setRepeatMode(repeatMode);
     await setShuffleMode(
-        shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+      shuffleEnabled
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
+    );
 
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
@@ -215,11 +254,11 @@ class MyAudioHandler extends BaseAudioHandler  {
   }
 
   Future<void> loadPlaylist(
-      List<MediaItem> items, {
-        int initialIndex = 0,
-        Duration? initialPosition,
-        bool autoPlay = true,
-      }) async {
+    List<MediaItem> items, {
+    int initialIndex = 0,
+    Duration? initialPosition,
+    bool autoPlay = true,
+  }) async {
     _playlist.clear();
     _playlist.addAll(items);
     queue.add(List.from(_playlist));
@@ -227,7 +266,11 @@ class MyAudioHandler extends BaseAudioHandler  {
     if (_playlist.isEmpty) return;
 
     try {
-      await _playIndex(initialIndex, position: initialPosition, autoPlay: autoPlay);
+      await _playIndex(
+        initialIndex,
+        position: initialPosition,
+        autoPlay: autoPlay,
+      );
     } catch (e) {
       debugPrint("Error loading playlist: $e");
     }
@@ -235,11 +278,7 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   Media _buildMedia(MediaItem item, {Duration? startPosition}) {
     final url = item.extras!['url'] as String;
-    return Media(
-      url,
-      extras: {'id': item.id},
-      start: startPosition,
-    );
+    return Media(url, extras: {'id': item.id}, start: startPosition);
   }
 
   @override
@@ -268,7 +307,9 @@ class MyAudioHandler extends BaseAudioHandler  {
       await _playIndex(nextPlayIndex);
     } else if (index < _currentIndex) {
       _currentIndex--;
-      playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
+      playbackState.add(
+        playbackState.value.copyWith(queueIndex: _currentIndex),
+      );
     }
   }
 
@@ -292,7 +333,8 @@ class MyAudioHandler extends BaseAudioHandler  {
       nextIndex = Random().nextInt(_playlist.length);
     } else {
       if (nextIndex >= _playlist.length) {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+        if (_repeatMode == AudioServiceRepeatMode.all ||
+            _repeatMode == AudioServiceRepeatMode.group) {
           nextIndex = 0;
         } else {
           return;
@@ -312,7 +354,8 @@ class MyAudioHandler extends BaseAudioHandler  {
       prevIndex = Random().nextInt(_playlist.length);
     } else {
       if (prevIndex < 0) {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+        if (_repeatMode == AudioServiceRepeatMode.all ||
+            _repeatMode == AudioServiceRepeatMode.group) {
           prevIndex = _playlist.length - 1;
         } else {
           prevIndex = 0;
@@ -353,32 +396,38 @@ class MyAudioHandler extends BaseAudioHandler  {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
-      playbackState.add(playbackState.value.copyWith(
-        playing: playing,
-        controls: [
-          MediaControl.skipToPrevious,
-          if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.stop,
-          MediaControl.skipToNext,
-        ],
-        systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [0, 1, 3],
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(
+          playing: playing,
+          controls: [
+            MediaControl.skipToPrevious,
+            if (playing) MediaControl.pause else MediaControl.play,
+            MediaControl.stop,
+            MediaControl.skipToNext,
+          ],
+          systemActions: const {MediaAction.seek},
+          androidCompactActionIndices: const [0, 1, 3],
+        ),
+      );
     });
 
     _player.stream.buffering.listen((buffering) {
-      playbackState.add(playbackState.value.copyWith(
-        processingState: buffering
-            ? AudioProcessingState.buffering
-            : AudioProcessingState.ready,
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(
+          processingState: buffering
+              ? AudioProcessingState.buffering
+              : AudioProcessingState.ready,
+        ),
+      );
     });
 
     _player.stream.completed.listen((completed) {
       if (completed) {
-        playbackState.add(playbackState.value.copyWith(
-          processingState: AudioProcessingState.completed,
-        ));
+        playbackState.add(
+          playbackState.value.copyWith(
+            processingState: AudioProcessingState.completed,
+          ),
+        );
 
         if (_repeatMode == AudioServiceRepeatMode.one) {
           _playIndex(_currentIndex);
@@ -399,11 +448,13 @@ class MyAudioHandler extends BaseAudioHandler  {
     });
     _player.stream.buffer.listen((bufferedPosition) {
       playbackState.add(
-          playbackState.value.copyWith(bufferedPosition: bufferedPosition));
+        playbackState.value.copyWith(bufferedPosition: bufferedPosition),
+      );
     });
   }
 
-  Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
+  Stream<double> get volumeStream =>
+      _player.stream.volume.map((v) => v / 100.0);
 
   double get volume => _normalVolume / 100.0;
 
@@ -414,7 +465,10 @@ class MyAudioHandler extends BaseAudioHandler  {
   }
 
   @override
-  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(
+    String name, [
+    Map<String, dynamic>? extras,
+  ]) async {
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);
@@ -440,9 +494,9 @@ class MyAudioHandler extends BaseAudioHandler  {
         _currentIndex++;
       }
 
-      playbackState.add(playbackState.value.copyWith(
-        queueIndex: _currentIndex,
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(queueIndex: _currentIndex),
+      );
     }
     return super.customAction(name, extras);
   }

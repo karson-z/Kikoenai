@@ -101,6 +101,21 @@ class _MoreOptionsContent extends ConsumerWidget {
         },
       ),
       ListActionItem(
+        icon: Icons.play_circle_outline,
+        title: '允许后台播放',
+        hasSwitch: true,
+        initialSwitchValue: AppStorage.settingsBox.get(
+          StorageKeys.playerPlayInBackground,
+          defaultValue: true,
+        ),
+        onSwitchChanged: (bool value) async {
+          await AppStorage.settingsBox.put(
+            StorageKeys.playerPlayInBackground,
+            value,
+          );
+        },
+      ),
+      ListActionItem(
         icon: Icons.subtitles,
         title: '字幕匹配',
         onTap: () async {

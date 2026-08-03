@@ -90,6 +90,11 @@ class SettingsPage extends ConsumerWidget {
                 storageKey: StorageKeys.ignoreAudioFocus,
                 defaultValue: false,
               ),
+              const HiveSwitchTile(
+                title: '允许后台播放',
+                storageKey: StorageKeys.playerPlayInBackground,
+                defaultValue: true,
+              ),
               if (Platform.isAndroid)
                 HiveSegmentedButtonTile<String>(
                   title: '音频输出引擎 (Android)',
