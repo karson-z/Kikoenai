@@ -1,0 +1,149 @@
+import 'dart:io';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
+import 'package:kikoenai_core/core/model/album/va.dart';
+import 'package:kikoenai_core/core/model/album/work.dart';
+import 'package:path_provider/path_provider.dart';
+
+/// 工具类，提供与 VA（声优）、页面路由和 MediaItem 相关的常用方法
+class OtherUtil {
+
+  static const String sysMarked = '__SYS_PLAYLIST_MARKED';
+  static const String sysLiked = '__SYS_PLAYLIST_LIKED';
+  /// 将 [VA] 列表中的 name 字段拼接为一个字符串，用 '/' 分隔
+  /// - 会过滤掉 name 为 null 或空字符串的项
+  /// - 如果 [vas] 为 null 或空列表，则返回空字符串
+  /// 示例：
+  /// ```dart
+  /// final vas = [VA(name: 'A'), VA(name: null), VA(name: 'B')];
+  /// final result = OtherUtil.joinVAs(vas); // "A/B"
+  /// ```
+  static String joinVAs(List<VA>? vas) {
+    if (vas == null || vas.isEmpty) return '';
+    final names = vas
+        .where((va) => va.name != null && va.name!.isNotEmpty)
+        .map((va) => va.name!.trim());
+    return names.join('/');
+  }
+  /// 安全解析Work
+  // 通用的安全解析
+  static List<Work> parseWorks(dynamic value) {
+    if (value is List) {
+      return value.map((e) {
+        try {
+          return Work.fromJson(e);
+        } catch (ex) {
+          print('解析Work失败: $ex');
+          print('数据: $e');
+          return null;
+        }
+      }).whereType<Work>().toList();
+    }
+    return [];
+  }
+ static Map<String, dynamic> deepConvert(Map input) {
+    return input.map((key, value) {
+      final newKey = key.toString();
+
+      if (value is Map) {
+        return MapEntry(newKey, deepConvert(value));
+      } else if (value is List) {
+        return MapEntry(newKey, value.map((e) {
+          if (e is Map) {
+            return deepConvert(e);
+          }
+          return e;
+        }).toList());
+      } else {
+        return MapEntry(newKey, value);
+      }
+    });
+  }
+  /// 格式化字节数为人类可读的字符串
+  static String formatBytes(int bytes, {int decimals = 2}) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB", "TB"];
+    var i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+  }
+
+
+  static bool needUpdate(localVersion, remoteVersion) {
+    List<String> localVersionList = localVersion.split('.');
+    List<String> remoteVersionList = remoteVersion.split('.');
+    for (int i = 0; i < localVersionList.length; i++) {
+      int localVersion = int.parse(localVersionList[i]);
+      int remoteVersion = int.parse(remoteVersionList[i]);
+      if (remoteVersion > localVersion) {
+        return true;
+      } else if (remoteVersion < localVersion) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  static Future<String> calculateFileHash(File file) async {
+    final bytes = await file.readAsBytes();
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  static String formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  static bool isDesktop() {
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
+
+
+  /// 核心转换逻辑
+  static String getDisplayName(String? rawName) {
+    if (rawName == null) return '';
+
+    switch (rawName) {
+      case sysMarked:
+        return '我的标记'; // 对应稍后观看/标记
+      case sysLiked:
+        return '我喜欢的';
+      default:
+        return rawName;
+    }
+  }
+  // 拿到不同类型文件的图标
+  static IconData getFileIcon(String ext) {
+    if (['MP3', 'WAV', 'FLAC', 'M4A'].contains(ext)) return Icons.audiotrack;
+    if (['JPG', 'PNG', 'GIF'].contains(ext)) return Icons.image;
+    if (['TXT', 'LRC'].contains(ext)) return Icons.description;
+    return Icons.insert_drive_file;
+  }
+
+  static String formatSleepTimeDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+
+    // 直接使用 inMinutes 获取总分钟数 (包含小时换算的分钟)
+    final minutes = twoDigits(duration.inMinutes);
+    // 获取剩余秒数
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+
+    return "$minutes:$seconds";
+  }
+
+  static Future getPlayerTempPath() async {
+    final tempDir = await getTemporaryDirectory();
+    final baseDir = Directory('${tempDir.path}/kikoenai');
+
+    if (!await baseDir.exists()) {
+      await baseDir.create(recursive: true);
+    }
+    return baseDir.path;
+  }
+}
