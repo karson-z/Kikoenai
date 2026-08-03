@@ -9,6 +9,7 @@ class AppRoutes {
   static const String localMedia = '/media';
   static const String parsedWorks = '/parsed';
   static const String test = '/test';
+  static const String siteUnavailable = '/site-unavailable';
 
   // 基础路径
   static const String settings = '/settings';

@@ -9,6 +9,7 @@ import 'package:kikoenai/features/local_media/page/parsed_works_page.dart';
 import 'package:kikoenai/features/log/page/logger_view.dart';
 import 'package:kikoenai/features/settings/page/setting_cache_page.dart';
 import 'package:kikoenai/features/settings/page/global_filter_page.dart';
+import 'package:kikoenai/features/site/page/site_unavailable_page.dart';
 import 'package:kikoenai/features/user/page/user_page.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import '../../features/album/page/album_detail.dart';
@@ -24,6 +25,7 @@ import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
 import '../service/site/site_api_provider.dart';
 import '../service/site/site_availability.dart';
+import '../service/site/site_unavailable_controller.dart';
 import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
@@ -32,6 +34,8 @@ import 'app_route_surface_policy.dart';
 final goRouterProvider = Provider<GoRouter>((ref) {
   ref.read(activeSiteIdProvider);
   final refreshNotifier = _RouterRefreshNotifier();
+  final unavailableController = ref.read(siteUnavailableControllerProvider);
+  unavailableController.addListener(refreshNotifier.refresh);
   ref.listen(activeSiteIdProvider, (_, __) => refreshNotifier.refresh());
 
   final router = GoRouter(
@@ -41,6 +45,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final incident = unavailableController.incident;
+      if (state.uri.path == AppRoutes.siteUnavailable) {
+        return incident == null ? AppRoutes.home : null;
+      }
+      if (incident != null) {
+        unavailableController.captureReturnLocation(
+          state.uri.toString(),
+          extra: state.extra,
+        );
+        return AppRoutes.siteUnavailable;
+      }
+
       final isAvailable = appRouteSurfacePolicy.isAvailable(
         path: state.uri.path,
         extra: state.extra,
@@ -56,6 +72,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           : destinations.first.routePath;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.siteUnavailable,
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: SiteUnavailablePage()),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainScaffold(navigationShell: navigationShell);
@@ -233,6 +254,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
   ref.onDispose(() {
+    unavailableController.removeListener(refreshNotifier.refresh);
     router.dispose();
     refreshNotifier.dispose();
   });

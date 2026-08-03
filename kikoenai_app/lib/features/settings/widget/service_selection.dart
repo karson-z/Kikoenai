@@ -47,7 +47,7 @@ class SiteSelectionModal extends ConsumerWidget {
                       await ref
                           .read(activeSiteIdProvider.notifier)
                           .activate(info.id);
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) Navigator.pop(context, info.id);
                     },
             ),
         ],
@@ -57,7 +57,9 @@ class SiteSelectionModal extends ConsumerWidget {
 }
 
 class ServerSelectionModal extends ConsumerStatefulWidget {
-  const ServerSelectionModal({super.key});
+  const ServerSelectionModal({super.key, this.siteId});
+
+  final String? siteId;
 
   @override
   ConsumerState<ServerSelectionModal> createState() =>
@@ -74,10 +76,17 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
   }
 
   void _pingAll() {
-    final runtime = ref.read(activeSiteProvider);
+    final runtime = _readRuntime();
     for (final server in runtime.info.servers) {
       _checkLatency(runtime.api, server);
     }
+  }
+
+  SiteRuntime _readRuntime() {
+    final siteId = widget.siteId;
+    return siteId == null
+        ? ref.read(activeSiteProvider)
+        : ref.read(siteRuntimeByIdProvider(siteId));
   }
 
   Future<void> _checkLatency(SiteApi api, ServerInfo server) async {
@@ -103,7 +112,10 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
 
   @override
   Widget build(BuildContext context) {
-    final runtime = ref.watch(activeSiteProvider);
+    final siteId = widget.siteId;
+    final runtime = siteId == null
+        ? ref.watch(activeSiteProvider)
+        : ref.watch(siteRuntimeByIdProvider(siteId));
     final servers = runtime.info.servers;
     final currentServerId = runtime.api.currentServer.id;
     final theme = Theme.of(context);
@@ -151,7 +163,7 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
                   : () async {
                       await switchServer(server.id, siteId: runtime.siteId);
                       ref.invalidate(siteRuntimeByIdProvider(runtime.siteId));
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) Navigator.pop(context, server.id);
                     },
             ),
         ],

@@ -7,10 +7,12 @@ import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 
+import 'site_unavailable_controller.dart';
+
 final SiteRegistry siteRegistry = SiteRegistry();
 
 const _readFailoverCooldown = Duration(seconds: 30);
-final Map<String, Future<bool>> _readFailoversInFlight = {};
+final Map<String, Future<ReadRecoveryResult>> _readFailoversInFlight = {};
 final Map<String, DateTime> _lastReadFailoverAttempt = {};
 
 String _initialActiveSiteId = CacheService.legacySiteId;
@@ -33,6 +35,7 @@ Future<void> setupSiteApi() async {
   siteRegistry.clear();
   _readFailoversInFlight.clear();
   _lastReadFailoverAttempt.clear();
+  siteUnavailableController.clear();
 
   _registerAsmrOne(cache);
 
@@ -81,12 +84,12 @@ void _registerAsmrOne(CacheService cache) {
   );
 }
 
-Future<bool> _recoverReadRequest({
+Future<ReadRecoveryResult> _recoverReadRequest({
   required String siteId,
   required SitesNetworkException exception,
 }) async {
   final currentServer = siteRegistry.currentServerOf(siteId);
-  if (currentServer == null) return false;
+  if (currentServer == null) return const ReadRecoveryResult.skipped();
 
   final originalError = exception.originalError;
   final failedBaseUrl = originalError is DioException
@@ -94,7 +97,9 @@ Future<bool> _recoverReadRequest({
       : currentServer.baseUrl;
 
   // Another request may already have completed recovery for this site.
-  if (currentServer.baseUrl != failedBaseUrl) return true;
+  if (currentServer.baseUrl != failedBaseUrl) {
+    return const ReadRecoveryResult.recovered();
+  }
 
   final recoveryKey = '$siteId::$failedBaseUrl';
   final inFlight = _readFailoversInFlight[recoveryKey];
@@ -104,7 +109,7 @@ Future<bool> _recoverReadRequest({
   final lastAttempt = _lastReadFailoverAttempt[recoveryKey];
   if (lastAttempt != null &&
       now.difference(lastAttempt) < _readFailoverCooldown) {
-    return false;
+    return _allServersUnavailable(siteId);
   }
   _lastReadFailoverAttempt[recoveryKey] = now;
 
@@ -122,25 +127,62 @@ Future<bool> _recoverReadRequest({
   }
 }
 
-Future<bool> _switchToHealthyAlternative({
+Future<ReadRecoveryResult> _switchToHealthyAlternative({
   required String siteId,
   required String failedServerId,
 }) async {
-  final selected = await siteRegistry.selectHealthyServer(
-    siteId,
-    excludedServerIds: {failedServerId},
-  );
-  if (selected == null) return false;
-
+  ServerInfo? selected;
   try {
-    await CacheService.instance.saveCurrentHost(
-      selected.baseUrl,
-      siteId: siteId,
+    selected = await siteRegistry.selectHealthyServer(
+      siteId,
+      excludedServerIds: {failedServerId},
     );
   } catch (error) {
-    debugPrint('保存站点 $siteId 的故障切换服务器失败: $error');
+    debugPrint('检查站点 $siteId 的备用服务器失败: $error');
   }
-  return true;
+  if (selected == null) return _allServersUnavailable(siteId);
+
+  await _persistSelectedServer(siteId, selected);
+  return const ReadRecoveryResult.recovered();
+}
+
+ReadRecoveryResult _allServersUnavailable(String siteId) {
+  final serverIds = siteRegistry
+      .serversOf(siteId)
+      .map((server) => server.id)
+      .toList(growable: false);
+  siteUnavailableController.report(siteId: siteId, serverIds: serverIds);
+  return ReadRecoveryResult.allServersUnavailable(
+    context: {'siteId': siteId, 'serverIds': serverIds},
+  );
+}
+
+Future<ServerInfo?> recheckSiteServers(String siteId) async {
+  ServerInfo? selected;
+  try {
+    selected = await siteRegistry.selectHealthyServer(siteId);
+  } catch (error) {
+    debugPrint('重新检查站点 $siteId 的服务器失败: $error');
+  }
+  if (selected == null) return null;
+
+  await _persistSelectedServer(siteId, selected);
+  _clearReadFailoverState(siteId);
+  return selected;
+}
+
+Future<void> _persistSelectedServer(String siteId, ServerInfo server) async {
+  try {
+    await CacheService.instance.saveCurrentHost(server.baseUrl, siteId: siteId);
+  } catch (error) {
+    debugPrint('保存站点 $siteId 的服务器失败: $error');
+  }
+}
+
+void _clearReadFailoverState(String siteId) {
+  final prefix = '$siteId::';
+  _readFailoversInFlight.removeWhere((key, _) => key.startsWith(prefix));
+  _lastReadFailoverAttempt.removeWhere((key, _) => key.startsWith(prefix));
 }
 
 void _handleUnauthorized(String siteId, RequestOptions requestOptions) {
@@ -168,4 +210,5 @@ Future<void> switchServer(String serverId, {String? siteId}) async {
     server.baseUrl,
     siteId: targetSiteId,
   );
+  _clearReadFailoverState(targetSiteId);
 }

@@ -17,13 +17,19 @@ class MockAdapter implements HttpClientAdapter {
     _handlers[path] = handler;
   }
 
-  void registerGet(String path, Map<String, dynamic> response,
-      {int status = 200}) {
+  void registerGet(
+    String path,
+    Map<String, dynamic> response, {
+    int status = 200,
+  }) {
     register(path, (options) => _jsonResponse(response, status));
   }
 
-  void registerPost(String path, Map<String, dynamic> response,
-      {int status = 200}) {
+  void registerPost(
+    String path,
+    Map<String, dynamic> response, {
+    int status = 200,
+  }) {
     register(path, (options) => _jsonResponse(response, status));
   }
 
@@ -59,9 +65,13 @@ class MockAdapter implements HttpClientAdapter {
       }
     }
     // 未匹配，返回 404
-    return ResponseBody.fromString('Not Found', 404, headers: {
-      Headers.contentTypeHeader: ['text/plain'],
-    });
+    return ResponseBody.fromString(
+      'Not Found',
+      404,
+      headers: {
+        Headers.contentTypeHeader: ['text/plain'],
+      },
+    );
   }
 
   @override
@@ -203,7 +213,7 @@ void main() {
         ),
         readRequestRecovery: (exception) async {
           recoveryCount++;
-          return true;
+          return const ReadRecoveryResult.recovered();
         },
       );
       addTearDown(recoveringClient.close);
@@ -224,6 +234,52 @@ void main() {
       expect(recoveryCount, 1);
     });
 
+    test('全部服务器不可用时抛出专用异常并保留站点上下文', () async {
+      var requestCount = 0;
+      final recoveringClient = SitesHttpClient(
+        config: const RequestConfig(
+          baseUrl: 'https://test.example.com',
+          enableLogger: false,
+        ),
+        readRequestRecovery: (exception) async {
+          return const ReadRecoveryResult.allServersUnavailable(
+            context: {
+              'siteId': 'site.test',
+              'serverIds': ['primary', 'backup'],
+            },
+          );
+        },
+      );
+      addTearDown(recoveringClient.close);
+      recoveringClient.dio.httpClientAdapter = mockAdapter;
+      mockAdapter.register('/api/unavailable', (options) {
+        requestCount++;
+        return mockAdapter._jsonResponse({}, 503);
+      });
+
+      await expectLater(
+        recoveringClient.get<Map<String, dynamic>>('/api/unavailable'),
+        throwsA(
+          isA<SitesNetworkException>()
+              .having(
+                (error) => error.code,
+                'code',
+                SitesExceptionCode.allServersUnavailable,
+              )
+              .having(
+                (error) => error.context?['siteId'],
+                'siteId',
+                'site.test',
+              )
+              .having((error) => error.context?['serverIds'], 'serverIds', [
+                'primary',
+                'backup',
+              ]),
+        ),
+      );
+      expect(requestCount, 1);
+    });
+
     test('写请求失败时不执行恢复或重试', () async {
       var requestCount = 0;
       var recoveryCount = 0;
@@ -234,7 +290,7 @@ void main() {
         ),
         readRequestRecovery: (exception) async {
           recoveryCount++;
-          return true;
+          return const ReadRecoveryResult.recovered();
         },
       );
       addTearDown(recoveringClient.close);
@@ -261,7 +317,7 @@ void main() {
         ),
         readRequestRecovery: (exception) async {
           recoveryCount++;
-          return true;
+          return const ReadRecoveryResult.recovered();
         },
       );
       addTearDown(recoveringClient.close);
@@ -280,9 +336,13 @@ void main() {
     test('getBytes 返回字节流', () async {
       mockAdapter.register('/api/file', (options) {
         final bytes = utf8.encode('hello world');
-        return ResponseBody.fromBytes(bytes, 200, headers: {
-          Headers.contentTypeHeader: ['application/octet-stream'],
-        });
+        return ResponseBody.fromBytes(
+          bytes,
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['application/octet-stream'],
+          },
+        );
       });
 
       final response = await client.getBytes('/api/file');

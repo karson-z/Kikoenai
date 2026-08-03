@@ -6,9 +6,25 @@ import 'interceptor.dart';
 import 'request_config.dart';
 import 'unauthorized_interceptor.dart';
 
-typedef ReadRequestRecovery = Future<bool> Function(
-  SitesNetworkException exception,
-);
+enum ReadRecoveryStatus { recovered, allServersUnavailable, skipped }
+
+class ReadRecoveryResult {
+  const ReadRecoveryResult._(this.status, {this.context = const {}});
+
+  const ReadRecoveryResult.recovered() : this._(ReadRecoveryStatus.recovered);
+
+  const ReadRecoveryResult.skipped() : this._(ReadRecoveryStatus.skipped);
+
+  const ReadRecoveryResult.allServersUnavailable({
+    required Map<String, dynamic> context,
+  }) : this._(ReadRecoveryStatus.allServersUnavailable, context: context);
+
+  final ReadRecoveryStatus status;
+  final Map<String, dynamic> context;
+}
+
+typedef ReadRequestRecovery =
+    Future<ReadRecoveryResult> Function(SitesNetworkException exception);
 
 /// 站点 HTTP 客户端
 ///
@@ -60,12 +76,7 @@ class SitesHttpClient {
         headers: {'Content-Type': 'application/json; charset=utf-8'},
       ),
     );
-    final client = SitesHttpClient._internal(
-      dio,
-      cfg,
-      cm,
-      readRequestRecovery,
-    );
+    final client = SitesHttpClient._internal(dio, cfg, cm, readRequestRecovery);
     // 注入外部 tokenProvider / logger（覆盖默认拦截器中的）
     if (tokenProvider != null || logger != null) {
       client._dio.interceptors.clear();
@@ -165,18 +176,29 @@ class SitesHttpClient {
       if (allowReadRecovery &&
           recovery != null &&
           exception.isRetryableReadFailure) {
-        var recovered = false;
+        var recoveryResult = const ReadRecoveryResult.skipped();
         try {
-          recovered = await recovery(exception);
+          recoveryResult = await recovery(exception);
         } catch (_) {
           // Recovery is best-effort; preserve the original request failure.
         }
-        if (recovered) {
-          try {
-            return await request();
-          } catch (retryError, retryStackTrace) {
-            throw _networkException(retryError, retryStackTrace);
-          }
+        switch (recoveryResult.status) {
+          case ReadRecoveryStatus.recovered:
+            try {
+              return await request();
+            } catch (retryError, retryStackTrace) {
+              throw _networkException(retryError, retryStackTrace);
+            }
+          case ReadRecoveryStatus.allServersUnavailable:
+            throw SitesNetworkException(
+              '当前站点所有服务器均不可用',
+              originalError: exception.originalError,
+              stackTrace: st,
+              code: SitesExceptionCode.allServersUnavailable,
+              context: {...?exception.context, ...recoveryResult.context},
+            );
+          case ReadRecoveryStatus.skipped:
+            break;
         }
       }
       throw exception;
@@ -206,16 +228,15 @@ class SitesHttpClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) =>
-      _request<T>(
-        () => _dio.get(
-          path,
-          queryParameters: queryParameters,
-          options: options,
-          cancelToken: cancelToken,
-        ),
-        allowReadRecovery: _usesConfiguredBaseUrl(path),
-      );
+  }) => _request<T>(
+    () => _dio.get(
+      path,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+    ),
+    allowReadRecovery: _usesConfiguredBaseUrl(path),
+  );
 
   Future<T> post<T>(
     String path, {
@@ -223,16 +244,15 @@ class SitesHttpClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) =>
-      _request<T>(
-        () => _dio.post(
-          path,
-          data: data,
-          queryParameters: queryParameters,
-          options: options,
-          cancelToken: cancelToken,
-        ),
-      );
+  }) => _request<T>(
+    () => _dio.post(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+    ),
+  );
 
   Future<T> put<T>(
     String path, {
@@ -240,16 +260,15 @@ class SitesHttpClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) =>
-      _request<T>(
-        () => _dio.put(
-          path,
-          data: data,
-          queryParameters: queryParameters,
-          options: options,
-          cancelToken: cancelToken,
-        ),
-      );
+  }) => _request<T>(
+    () => _dio.put(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+    ),
+  );
 
   Future<T> delete<T>(
     String path, {
@@ -257,16 +276,15 @@ class SitesHttpClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) =>
-      _request<T>(
-        () => _dio.delete(
-          path,
-          data: data,
-          queryParameters: queryParameters,
-          options: options,
-          cancelToken: cancelToken,
-        ),
-      );
+  }) => _request<T>(
+    () => _dio.delete(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+      cancelToken: cancelToken,
+    ),
+  );
 
   /// 下载字节流（如文件下载）
   Future<Response<List<int>>> getBytes(

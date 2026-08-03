@@ -82,6 +82,9 @@ enum SitesExceptionCode {
 
   /// 未知异常
   unknown,
+
+  /// The selected site has no reachable configured server.
+  allServersUnavailable,
 }
 
 /// 将 Dio 异常映射为 [SitesNetworkException]
