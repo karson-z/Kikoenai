@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/features/player/widget/video/player_video_controls_overlay.dart';
 import 'package:kikoenai/features/player/widget/video/player_video_gesture_layer.dart';
 import 'package:media_kit_video/media_kit_video.dart';
