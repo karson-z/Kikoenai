@@ -31,3 +31,4 @@ export 'network/unauthorized_interceptor.dart';
 export 'sites/built_in_site_plugins.dart';
 export 'sites/asmr_one/asmr_one_site_api.dart';
 export 'sites/asmr_gay/asmr_gay_site_api.dart';
+export 'sites/kikoeru/kikoeru_site_api.dart';

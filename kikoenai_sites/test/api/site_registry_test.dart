@@ -18,9 +18,9 @@ class _FakeServerApi extends SiteApi {
 
   @override
   Set<SiteFeature> get supportedFeatures => const {
-        SiteFeature.serverSwitch,
-        SiteFeature.healthCheck,
-      };
+    SiteFeature.serverSwitch,
+    SiteFeature.healthCheck,
+  };
 
   @override
   ServerInfo get currentServer => _currentServer;
@@ -75,14 +75,9 @@ void main() {
           return info.defaultServer;
         },
       );
-      for (final plugin in builtInSitePlugins) {
-        registry.register(plugin, context: context);
-      }
+      registry.registerAvailable(builtInSitePlugins, context: context);
 
-      expect(
-        registry.allInfo.map((info) => info.id),
-        ['asmr.one', 'asmr.gay'],
-      );
+      expect(registry.allInfo.map((info) => info.id), ['asmr.one', 'asmr.gay']);
       expect(resolvedSiteIds, ['asmr.one', 'asmr.gay']);
 
       final asmrOne = registry.requireRuntime('asmr.one');
@@ -98,6 +93,7 @@ void main() {
         asmrGay.httpClient!.dio.options.baseUrl,
         AsmrGaySiteApi.info.defaultServer!.baseUrl,
       );
+      expect(registry.contains('kikoeru'), isFalse);
     });
 
     test('keeps independent runtimes for multiple sites', () {
@@ -171,6 +167,32 @@ void main() {
         () => registry.switchServer('site.servers', 'missing'),
         throwsArgumentError,
       );
+    });
+
+    test('injects persisted servers into a self-hosted runtime', () {
+      const customServer = ServerInfo(
+        id: 'home-nas',
+        baseUrl: 'https://nas.example.com/kikoeru',
+        port: 8443,
+        label: 'Home NAS',
+        useProxy: false,
+        isDefault: true,
+      );
+      final registry = SiteRegistry();
+      addTearDown(registry.clear);
+
+      final runtime = registry.register(
+        KikoeruSiteApi.plugin,
+        context: SiteRuntimeContext(serversFor: (info) => const [customServer]),
+      );
+
+      expect(runtime.info.servers, const [customServer]);
+      expect(runtime.api.currentServer, customServer);
+      expect(
+        runtime.httpClient!.dio.options.baseUrl,
+        'https://nas.example.com:8443/kikoeru/api',
+      );
+      expect(AsmrOneSiteApi.info.servers, isNotEmpty);
     });
   });
 }

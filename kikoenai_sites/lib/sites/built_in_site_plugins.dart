@@ -1,6 +1,7 @@
 import '../api/site_plugin.dart';
 import 'asmr_gay/asmr_gay_site_api.dart';
 import 'asmr_one/asmr_one_site_api.dart';
+import 'kikoeru/kikoeru_site_api.dart';
 
 /// Built-in site composition root.
 ///
@@ -9,4 +10,5 @@ import 'asmr_one/asmr_one_site_api.dart';
 final List<SitePlugin> builtInSitePlugins = List.unmodifiable([
   AsmrOneSiteApi.plugin,
   AsmrGaySiteApi.plugin,
+  KikoeruSiteApi.plugin,
 ]);

@@ -10,6 +10,7 @@ class SiteSelectionModal extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(siteRegistryChangesProvider);
     final registry = ref.watch(siteRegistryProvider);
     final activeSiteId = ref.watch(activeSiteIdProvider);
     final theme = Theme.of(context);

@@ -37,15 +37,11 @@ Future<void> setupSiteApi() async {
   _lastReadFailoverAttempt.clear();
   siteUnavailableController.clear();
 
-  final runtimeContext = SiteRuntimeContext(
-    initialServerFor: (info) => _resolveInitialServer(info, cache),
-    tokenFor: (siteId) async => cache.getAuthSession(siteId: siteId)?.token,
-    recoverReadRequest: (siteId, exception) =>
-        _recoverReadRequest(siteId: siteId, exception: exception),
-    onUnauthorized: _handleUnauthorized,
-  );
-  for (final plugin in builtInSitePlugins) {
-    siteRegistry.register(plugin, context: runtimeContext);
+  final runtimeContext = _createRuntimeContext(cache);
+  siteRegistry.registerAvailable(builtInSitePlugins, context: runtimeContext);
+
+  if (siteRegistry.allInfo.isEmpty) {
+    throw StateError('没有能够解析到服务器的站点');
   }
 
   final cachedActiveId = cache.getActiveSiteId();
@@ -55,6 +51,114 @@ Future<void> setupSiteApi() async {
       : siteRegistry.allInfo.first.id;
   await cache.saveActiveSiteId(_initialActiveSiteId);
   siteRegistry.activeId = _initialActiveSiteId;
+}
+
+SiteRuntimeContext _createRuntimeContext(
+  CacheService cache, {
+  Map<String, List<ServerInfo>> serverOverrides = const {},
+}) {
+  return SiteRuntimeContext(
+    serversFor: (info) {
+      final overridden = serverOverrides[info.id];
+      final persisted = cache.getSiteServers(siteId: info.id);
+      final resolved =
+          overridden ?? (persisted.isEmpty ? info.servers : persisted);
+      if (info.id != KikoeruSiteApi.info.id) return resolved;
+      return resolved
+          .where((server) {
+            try {
+              KikoeruSiteApi.apiBaseUrlFor(server);
+              return true;
+            } catch (error) {
+              debugPrint('忽略无效的 Kikoeru 服务器 ${server.id}: $error');
+              return false;
+            }
+          })
+          .toList(growable: false);
+    },
+    initialServerFor: (info) => _resolveInitialServer(info, cache),
+    tokenFor: (siteId) async => cache.getAuthSession(siteId: siteId)?.token,
+    recoverReadRequest: (siteId, exception) =>
+        _recoverReadRequest(siteId: siteId, exception: exception),
+    onUnauthorized: _handleUnauthorized,
+  );
+}
+
+/// Persists a site's user-supplied servers and updates its runtime immediately.
+///
+/// Passing an empty list removes the user override. The site then falls back to
+/// statically declared servers; if neither source provides a server, its
+/// runtime is unregistered and disappears from the usable site list.
+Future<SiteRuntime?> updateSiteServers(
+  String siteId,
+  List<ServerInfo> servers,
+) async {
+  final plugin = _findBuiltInPlugin(siteId);
+  if (plugin == null) throw ArgumentError('未知站点: $siteId');
+
+  _validateServerList(siteId, servers);
+  final effectiveServers = servers.isEmpty ? plugin.info.servers : servers;
+  final cache = CacheService.instance;
+  final context = _createRuntimeContext(
+    cache,
+    serverOverrides: {siteId: effectiveServers},
+  );
+  final candidate = effectiveServers.isEmpty
+      ? null
+      : SiteRuntime.create(plugin, context: context);
+
+  try {
+    if (servers.isEmpty) {
+      await cache.clearSiteServers(siteId: siteId);
+    } else {
+      await cache.saveSiteServers(servers, siteId: siteId);
+    }
+  } catch (_) {
+    candidate?.dispose();
+    rethrow;
+  }
+
+  final wasActive = siteRegistry.activeId == siteId;
+  if (candidate == null) {
+    siteRegistry.unregister(siteId);
+  } else {
+    siteRegistry.replaceRuntime(candidate);
+    if (wasActive) siteRegistry.activeId = siteId;
+    final currentServer = candidate.currentServer;
+    if (currentServer != null) {
+      await _persistSelectedServer(siteId, currentServer);
+    }
+  }
+
+  final activeId = siteRegistry.activeId;
+  if (wasActive && activeId != null) {
+    _initialActiveSiteId = activeId;
+    await cache.saveActiveSiteId(activeId);
+  }
+  _clearReadFailoverState(siteId);
+  return candidate;
+}
+
+SitePlugin? _findBuiltInPlugin(String siteId) {
+  for (final plugin in builtInSitePlugins) {
+    if (plugin.info.id == siteId) return plugin;
+  }
+  return null;
+}
+
+void _validateServerList(String siteId, List<ServerInfo> servers) {
+  final ids = <String>{};
+  for (final server in servers) {
+    if (server.id.trim().isEmpty) {
+      throw ArgumentError('站点 $siteId 的服务器 ID 不能为空');
+    }
+    if (!ids.add(server.id)) {
+      throw ArgumentError('站点 $siteId 存在重复服务器 ID: ${server.id}');
+    }
+    if (siteId == KikoeruSiteApi.info.id) {
+      KikoeruSiteApi.apiBaseUrlFor(server);
+    }
+  }
 }
 
 ServerInfo? _resolveInitialServer(SiteInfo info, CacheService cache) {
@@ -78,12 +182,18 @@ Future<ReadRecoveryResult> _recoverReadRequest({
   if (currentServer == null) return const ReadRecoveryResult.skipped();
 
   final originalError = exception.originalError;
+  final activeBaseUrl = siteRegistry
+      .apiOf(siteId)
+      ?.httpClient
+      ?.dio
+      .options
+      .baseUrl;
   final failedBaseUrl = originalError is DioException
       ? originalError.requestOptions.baseUrl
-      : currentServer.resolvedBaseUrl;
+      : activeBaseUrl ?? currentServer.resolvedBaseUrl;
 
   // Another request may already have completed recovery for this site.
-  if (currentServer.resolvedBaseUrl != failedBaseUrl) {
+  if (activeBaseUrl != null && activeBaseUrl != failedBaseUrl) {
     return const ReadRecoveryResult.recovered();
   }
 

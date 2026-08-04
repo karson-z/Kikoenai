@@ -29,14 +29,28 @@ class SiteInfo {
   /// 默认服务器（[servers] 中第一个 `isDefault=true` 的，否则取首个，再否则 null）
   ServerInfo? get defaultServer {
     if (servers.isEmpty) return null;
-    return servers.firstWhere(
-      (s) => s.isDefault,
-      orElse: () => servers.first,
-    );
+    return servers.firstWhere((s) => s.isDefault, orElse: () => servers.first);
   }
 
+  /// Creates runtime metadata while preserving the plugin's static identity.
+  ///
+  /// This is primarily used by self-hosted sites whose server list is supplied
+  /// by the host application instead of being compiled into the plugin.
+  SiteInfo copyWith({
+    String? id,
+    String? name,
+    String? version,
+    List<ServerInfo>? servers,
+  }) => SiteInfo(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    version: version ?? this.version,
+    servers: servers ?? this.servers,
+  );
+
   @override
-  String toString() => 'SiteInfo($id, $name, v$version, servers: ${servers.length})';
+  String toString() =>
+      'SiteInfo($id, $name, v$version, servers: ${servers.length})';
 
   @override
   bool operator ==(Object other) =>

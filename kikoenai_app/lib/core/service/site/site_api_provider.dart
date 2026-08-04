@@ -4,6 +4,10 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../cache/cache_service.dart';
 import 'site_api_setup.dart';
 
+final siteRegistryChangesProvider = StreamProvider<int>((ref) {
+  return siteRegistry.changes;
+});
+
 final siteRegistryProvider = Provider<SiteRegistry>((ref) => siteRegistry);
 
 final initialActiveSiteIdProvider = Provider<String>((ref) {
@@ -18,7 +22,12 @@ final siteSelectionPersistenceProvider =
 class ActiveSiteIdNotifier extends Notifier<String> {
   @override
   String build() {
+    ref.watch(siteRegistryChangesProvider);
     final registry = ref.watch(siteRegistryProvider);
+    final currentId = registry.activeId;
+    if (currentId != null && registry.contains(currentId)) {
+      return currentId;
+    }
     final initialId = ref.watch(initialActiveSiteIdProvider);
     if (registry.contains(initialId)) {
       registry.activeId = initialId;
@@ -51,6 +60,7 @@ final siteRuntimeByIdProvider = Provider.family<SiteRuntime, String>((
   ref,
   siteId,
 ) {
+  ref.watch(siteRegistryChangesProvider);
   return ref.watch(siteRegistryProvider).requireRuntime(siteId);
 });
 

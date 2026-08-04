@@ -82,6 +82,7 @@ class _SiteUnavailablePageState extends ConsumerState<SiteUnavailablePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(siteRegistryChangesProvider);
     final controller = ref.watch(siteUnavailableControllerProvider);
     return ListenableBuilder(
       listenable: controller,

@@ -15,11 +15,13 @@ class SitePlugin {
 }
 
 typedef SiteInitialServerResolver = ServerInfo? Function(SiteInfo info);
+typedef SiteServersResolver = List<ServerInfo> Function(SiteInfo info);
 typedef SiteTokenResolver = Future<String?> Function(String siteId);
-typedef SiteReadRecovery = Future<ReadRecoveryResult> Function(
-  String siteId,
-  SitesNetworkException exception,
-);
+typedef SiteReadRecovery =
+    Future<ReadRecoveryResult> Function(
+      String siteId,
+      SitesNetworkException exception,
+    );
 typedef SiteUnauthorizedHandler = void Function(String siteId);
 
 /// Host capabilities supplied by the app when a site runtime is created.
@@ -28,17 +30,32 @@ typedef SiteUnauthorizedHandler = void Function(String siteId);
 /// the host only supplies persistence, authentication, and recovery hooks.
 class SiteRuntimeContext {
   const SiteRuntimeContext({
+    this.serversFor,
     this.initialServerFor,
     this.tokenFor,
     this.recoverReadRequest,
     this.onUnauthorized,
   });
 
+  /// Resolves the effective server list for a site at runtime.
+  ///
+  /// Built-in sites fall back to [SiteInfo.servers]. A host can inject a
+  /// persisted list for a self-hosted site without registering one plugin per
+  /// user-entered domain.
+  final SiteServersResolver? serversFor;
   final SiteInitialServerResolver? initialServerFor;
   final SiteTokenResolver? tokenFor;
   final SiteReadRecovery? recoverReadRequest;
   final SiteUnauthorizedHandler? onUnauthorized;
 
-  ServerInfo? resolveInitialServer(SiteInfo info) =>
-      initialServerFor?.call(info) ?? info.defaultServer;
+  List<ServerInfo> resolveServers(SiteInfo info) =>
+      List<ServerInfo>.unmodifiable(serversFor?.call(info) ?? info.servers);
+
+  SiteInfo resolveInfo(SiteInfo info) =>
+      info.copyWith(servers: resolveServers(info));
+
+  ServerInfo? resolveInitialServer(SiteInfo info) {
+    final runtimeInfo = resolveInfo(info);
+    return initialServerFor?.call(runtimeInfo) ?? runtimeInfo.defaultServer;
+  }
 }

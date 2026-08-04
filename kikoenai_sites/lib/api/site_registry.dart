@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'server_health.dart';
 import 'server_info.dart';
 import 'site_api.dart';
@@ -9,7 +11,14 @@ import 'site_runtime.dart';
 /// Registry of site plugins, their isolated runtimes, and server state.
 class SiteRegistry {
   final Map<String, SiteRuntime> _runtimes = {};
+  final StreamController<int> _changes = StreamController<int>.broadcast();
+  int _revision = 0;
   String? _activeId;
+
+  /// Emits whenever the set of registered runtimes changes.
+  Stream<int> get changes => _changes.stream;
+
+  int get revision => _revision;
 
   /// 当前激活站点 ID。
   String? get activeId => _activeId;
@@ -30,6 +39,23 @@ class SiteRegistry {
     return runtime;
   }
 
+  /// Registers only plugins that currently resolve at least one server.
+  ///
+  /// A plugin may obtain servers from its static [SiteInfo] or from the host's
+  /// [SiteRuntimeContext.serversFor] callback. Plugins with no effective
+  /// servers stay in the catalog but do not become usable site runtimes.
+  List<SiteRuntime> registerAvailable(
+    Iterable<SitePlugin> plugins, {
+    SiteRuntimeContext context = const SiteRuntimeContext(),
+  }) {
+    final registered = <SiteRuntime>[];
+    for (final plugin in plugins) {
+      if (context.resolveServers(plugin.info).isEmpty) continue;
+      registered.add(register(plugin, context: context));
+    }
+    return List<SiteRuntime>.unmodifiable(registered);
+  }
+
   void registerRuntime(SiteRuntime runtime) {
     final siteId = runtime.siteId;
     if (_runtimes.containsKey(siteId)) {
@@ -37,6 +63,19 @@ class SiteRegistry {
     }
     _runtimes[siteId] = runtime;
     _activeId ??= siteId;
+    _notifyChanged();
+  }
+
+  /// Atomically installs a rebuilt runtime for an already known site.
+  void replaceRuntime(SiteRuntime runtime, {bool disposePrevious = true}) {
+    final siteId = runtime.siteId;
+    final previous = _runtimes[siteId];
+    _runtimes[siteId] = runtime;
+    _activeId ??= siteId;
+    if (disposePrevious && !identical(previous, runtime)) {
+      previous?.dispose();
+    }
+    _notifyChanged();
   }
 
   SiteRuntime? runtimeOf(String siteId) => _runtimes[siteId];
@@ -175,13 +214,19 @@ class SiteRegistry {
 
   void unregister(String siteId, {bool dispose = true}) {
     final runtime = _runtimes.remove(siteId);
-    if (dispose) runtime?.dispose();
+    if (runtime == null) return;
+    if (dispose) runtime.dispose();
     if (_activeId == siteId) {
       _activeId = _runtimes.isEmpty ? null : _runtimes.keys.first;
     }
+    _notifyChanged();
   }
 
   void clear({bool dispose = true}) {
+    if (_runtimes.isEmpty) {
+      _activeId = null;
+      return;
+    }
     if (dispose) {
       for (final runtime in _runtimes.values) {
         runtime.dispose();
@@ -189,5 +234,11 @@ class SiteRegistry {
     }
     _runtimes.clear();
     _activeId = null;
+    _notifyChanged();
+  }
+
+  void _notifyChanged() {
+    _revision++;
+    _changes.add(_revision);
   }
 }
