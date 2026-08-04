@@ -70,19 +70,30 @@ class OtherUtil {
   }
 
 
-  static bool needUpdate(localVersion, remoteVersion) {
-    List<String> localVersionList = localVersion.split('.');
-    List<String> remoteVersionList = remoteVersion.split('.');
-    for (int i = 0; i < localVersionList.length; i++) {
-      int localVersion = int.parse(localVersionList[i]);
-      int remoteVersion = int.parse(remoteVersionList[i]);
-      if (remoteVersion > localVersion) {
+  static bool needUpdate(String localVersion, String remoteVersion) {
+    final localParts = _parseReleaseVersion(localVersion);
+    final remoteParts = _parseReleaseVersion(remoteVersion);
+    final partCount = max(localParts.length, remoteParts.length);
+
+    for (int i = 0; i < partCount; i++) {
+      final localPart = i < localParts.length ? localParts[i] : 0;
+      final remotePart = i < remoteParts.length ? remoteParts[i] : 0;
+      if (remotePart > localPart) {
         return true;
-      } else if (remoteVersion < localVersion) {
+      } else if (remotePart < localPart) {
         return false;
       }
     }
     return false;
+  }
+
+  static List<int> _parseReleaseVersion(String version) {
+    final normalized = version
+        .trim()
+        .replaceFirst(RegExp(r'^[vV]'), '')
+        .split(RegExp(r'[+-]'))
+        .first;
+    return normalized.split('.').map(int.parse).toList();
   }
 
   static Future<String> calculateFileHash(File file) async {

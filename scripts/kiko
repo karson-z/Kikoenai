@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PACKAGES=(kikoenai_core kikoenai_sites kikoenai_app)
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/kiko <command> [arguments]
+
+Development
+  get                         Get dependencies for the workspace.
+  generate [package|all]      Run build_runner (default: all packages).
+  watch [package]             Watch a package with build_runner (default: kikoenai_core).
+  format                      Format Dart source and test files.
+  format-check                Check Dart formatting without changing files.
+  analyze [package|all]       Analyze packages (default: all packages).
+  test [package|all]          Run package tests (default: all packages).
+  verify                      Run format-check, analyze, and test for all packages.
+  run [flutter arguments...]  Run the Flutter application.
+  ios-build [arguments...]    Build the iOS application.
+
+Git and GitHub Actions
+  status                      Show the current Git status and recent commits.
+  push [remote]               Push the current branch (default remote: origin).
+  version                     Show and validate the current application version.
+  workflow [ref]              Manually start the Android APK workflow with gh.
+  workflow-status [limit]     List recent Android APK workflow runs with gh.
+  release [patch|minor|major]  Bump, commit, tag, and publish a release (default: patch).
+
+Package values: kikoenai_core, kikoenai_sites, kikoenai_app, or all.
+The release command triggers the Android APK workflow because it pushes a v* tag.
+EOF
+}
+
+fail() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
+}
+
+run_fvm() {
+  require_command fvm
+  (cd "$ROOT_DIR" && fvm "$@")
+}
+
+run_fvm_in_package() {
+  local package="$1"
+  shift
+  require_command fvm
+  (cd "$ROOT_DIR/$package" && fvm "$@")
+}
+
+is_package() {
+  local candidate="$1"
+  local package
+  for package in "${PACKAGES[@]}"; do
+    [[ "$candidate" == "$package" ]] && return 0
+  done
+  return 1
+}
+
+packages_for() {
+  local target="${1:-all}"
+  if [[ "$target" == "all" ]]; then
+    printf '%s\n' "${PACKAGES[@]}"
+  elif is_package "$target"; then
+    printf '%s\n' "$target"
+  else
+    fail "Unknown package '$target'. Use: ${PACKAGES[*]}, or all."
+  fi
+}
+
+for_each_package() {
+  local target="$1"
+  local action="$2"
+  local package
+  while IFS= read -r package; do
+    printf '\n==> %s\n' "$package"
+    case "$action" in
+      generate)
+        run_fvm_in_package "$package" dart run build_runner build
+        ;;
+      analyze)
+        run_fvm_in_package "$package" flutter analyze
+        ;;
+      test)
+        run_fvm_in_package "$package" flutter test
+        ;;
+      format)
+        run_fvm dart format "$package/lib" "$package/test"
+        ;;
+      format-check)
+        run_fvm dart format --output=none --set-exit-if-changed "$package/lib" "$package/test"
+        ;;
+      *)
+        fail "Unsupported package action '$action'."
+        ;;
+    esac
+  done < <(packages_for "$target")
+}
+
+current_branch() {
+  local branch
+  branch="$(git -C "$ROOT_DIR" branch --show-current)"
+  [[ -n "$branch" ]] || fail "Cannot push or release from a detached HEAD."
+  printf '%s\n' "$branch"
+}
+
+ensure_clean_worktree() {
+  git -C "$ROOT_DIR" diff --quiet || fail "Working tree has unstaged changes. Commit or stash them first."
+  git -C "$ROOT_DIR" diff --cached --quiet || fail "Index has staged changes. Commit or unstage them first."
+  [[ -z "$(git -C "$ROOT_DIR" ls-files --others --exclude-standard)" ]] || \
+    fail "Working tree has untracked files. Commit, stash, or remove them first."
+}
+
+command_name="${1:-help}"
+case "$command_name" in
+  help|-h|--help)
+    usage
+    ;;
+  get)
+    run_fvm flutter pub get
+    ;;
+  generate|analyze|test|format|format-check)
+    target="${2:-all}"
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko $command_name [package|all]"
+    for_each_package "$target" "$command_name"
+    ;;
+  watch)
+    target="${2:-kikoenai_core}"
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko watch [package]"
+    is_package "$target" || fail "watch requires one package: ${PACKAGES[*]}"
+    run_fvm_in_package "$target" dart run build_runner watch
+    ;;
+  verify)
+    [[ $# -eq 1 ]] || fail "Usage: ./scripts/kiko verify"
+    for_each_package all format-check
+    for_each_package all analyze
+    for_each_package all test
+    ;;
+  run)
+    shift
+    run_fvm_in_package kikoenai_app flutter run "$@"
+    ;;
+  ios-build)
+    shift
+    run_fvm_in_package kikoenai_app flutter build ios "$@"
+    ;;
+  status)
+    git -C "$ROOT_DIR" status --short --branch
+    git -C "$ROOT_DIR" log --oneline -5
+    ;;
+  push)
+    remote="${2:-origin}"
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko push [remote]"
+    branch="$(current_branch)"
+    git -C "$ROOT_DIR" push "$remote" "$branch"
+    ;;
+  version)
+    [[ $# -eq 1 ]] || fail "Usage: ./scripts/kiko version"
+    run_fvm dart run tool/version_manager.dart current
+    ;;
+  workflow)
+    ref="${2:-$(current_branch)}"
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko workflow [ref]"
+    require_command gh
+    (cd "$ROOT_DIR" && gh workflow run android-apk.yml --ref "$ref")
+    ;;
+  workflow-status)
+    limit="${2:-10}"
+    [[ "$limit" =~ ^[1-9][0-9]*$ ]] || fail "Limit must be a positive integer."
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko workflow-status [limit]"
+    require_command gh
+    (cd "$ROOT_DIR" && gh run list --workflow android-apk.yml --limit "$limit")
+    ;;
+  release)
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko release [patch|minor|major]"
+    release_type="${2:-patch}"
+    case "$release_type" in
+      patch|minor|major) ;;
+      *) fail "Release type must be patch, minor, or major." ;;
+    esac
+
+    ensure_clean_worktree
+    branch="$(current_branch)"
+    next_full_version="$(run_fvm dart run tool/version_manager.dart next "$release_type")"
+    next_version="${next_full_version%%+*}"
+    tag="v$next_version"
+
+    git -C "$ROOT_DIR" fetch origin --tags
+    git -C "$ROOT_DIR" show-ref --verify --quiet "refs/tags/$tag" && fail "Tag '$tag' already exists locally."
+    git -C "$ROOT_DIR" ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1 && \
+      fail "Tag '$tag' already exists on origin."
+
+    updated_full_version="$(run_fvm dart run tool/version_manager.dart bump "$release_type")"
+    [[ "$updated_full_version" == "$next_full_version" ]] || fail "Version changed while preparing the release."
+    git -C "$ROOT_DIR" add -- \
+      kikoenai_app/pubspec.yaml \
+      kikoenai_app/lib/config/app_version_config.dart
+    git -C "$ROOT_DIR" commit -m "chore(release): $tag"
+    git -C "$ROOT_DIR" tag -a "$tag" -m "Release $tag"
+    if ! git -C "$ROOT_DIR" push --atomic origin "$branch" "$tag"; then
+      git -C "$ROOT_DIR" tag -d "$tag" >/dev/null
+      fail "Release push failed. The release commit remains locally; the local tag was removed."
+    fi
+    printf "Released %s (%s). The Android APK GitHub Actions workflow is now running.\n" \
+      "$tag" "$updated_full_version"
+    ;;
+  *)
+    usage >&2
+    fail "Unknown command '$command_name'."
+    ;;
+esac
