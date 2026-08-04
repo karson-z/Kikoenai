@@ -10,27 +10,27 @@ usage() {
 Usage: ./scripts/kiko <command> [arguments]
 
 Development
-  get                         Get dependencies for the workspace.
-  generate [package|all]      Run build_runner (default: all packages).
-  watch [package]             Watch a package with build_runner (default: kikoenai_core).
-  format                      Format Dart source and test files.
-  format-check                Check Dart formatting without changing files.
-  analyze [package|all]       Analyze packages (default: all packages).
-  test [package|all]          Run package tests (default: all packages).
-  verify                      Run format-check, analyze, and test for all packages.
-  run [flutter arguments...]  Run the Flutter application.
-  ios-build [arguments...]    Build the iOS application.
+  get                         获取 workspace 依赖。
+  generate [package|all]      执行代码生成（默认：所有包）。
+  watch [package]             监听并持续执行代码生成（默认：kikoenai_core）。
+  format                      格式化 Dart 源码和测试文件。
+  format-check                检查 Dart 格式，不修改文件。
+  analyze [package|all]       分析代码（默认：所有包）。
+  test [package|all]          运行包测试（默认：所有包）。
+  verify                      执行格式检查、代码分析和测试。
+  run [flutter arguments...]  运行 Flutter 应用。
+  ios-build [arguments...]    构建 iOS 应用。
 
 Git and GitHub Actions
-  status                      Show the current Git status and recent commits.
-  push [remote]               Push the current branch (default remote: origin).
-  version                     Show and validate the current application version.
-  workflow [ref]              Manually start the Android APK workflow with gh.
-  workflow-status [limit]     List recent Android APK workflow runs with gh.
-  release [patch|minor|major]  Bump, commit, tag, and publish a release (default: patch).
+  status                      查看当前 Git 状态和最近提交。
+  push [remote]               推送当前分支（默认远程仓库：origin）。
+  version                     查看并校验当前应用版本。
+  workflow [ref]              使用 gh 手动触发 Android APK 工作流。
+  workflow-status [limit]     查看最近的 Android APK 工作流运行记录。
+  release [patch|minor|major] 自动递增版本、提交、打 tag 并发布（默认：patch）。
 
-Package values: kikoenai_core, kikoenai_sites, kikoenai_app, or all.
-The release command triggers the Android APK workflow because it pushes a v* tag.
+包参数可选：kikoenai_core、kikoenai_sites、kikoenai_app 或 all。
+release 会推送 v* tag，并因此触发 Android APK 工作流。
 EOF
 }
 
