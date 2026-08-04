@@ -17,10 +17,11 @@ class SiteRuntime {
     SitePlugin plugin, {
     SiteRuntimeContext context = const SiteRuntimeContext(),
   }) {
+    final api = plugin.createApi(context);
     return SiteRuntime._(
       plugin: plugin,
-      api: plugin.createApi(context),
-      httpClient: context.httpClient,
+      api: api,
+      httpClient: api.httpClient,
     );
   }
 

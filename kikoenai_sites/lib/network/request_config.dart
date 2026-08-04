@@ -34,6 +34,9 @@ class RequestConfig {
   /// 是否启用 Cookie 管理
   final bool enableCookie;
 
+  /// 是否允许请求使用系统代理。false 时强制直连。
+  final bool useProxy;
+
   /// 401 未授权回调（业务侧注入，用于跳登录 / 清 token 等）
   ///
   /// 非 null 时自动启用 [UnauthorizedInterceptor]。
@@ -50,6 +53,7 @@ class RequestConfig {
     this.extraHeaders = const {},
     this.enableLogger = true,
     this.enableCookie = true,
+    this.useProxy = true,
     this.onUnauthorized,
   });
 
@@ -72,6 +76,7 @@ class RequestConfig {
     Map<String, String>? extraHeaders,
     bool? enableLogger,
     bool? enableCookie,
+    bool? useProxy,
     OnUnauthorized? onUnauthorized,
   }) {
     return RequestConfig(
@@ -85,6 +90,7 @@ class RequestConfig {
       extraHeaders: extraHeaders ?? this.extraHeaders,
       enableLogger: enableLogger ?? this.enableLogger,
       enableCookie: enableCookie ?? this.enableCookie,
+      useProxy: useProxy ?? this.useProxy,
       onUnauthorized: onUnauthorized ?? this.onUnauthorized,
     );
   }

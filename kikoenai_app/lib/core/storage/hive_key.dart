@@ -13,6 +13,9 @@ class StorageKeys {
   /// 用于多服务器切换场景
   static const String currentHost = 'current_host';
 
+  /// 用户配置的站点服务器列表（List<ServerInfo>）
+  static const String siteServers = 'site_servers';
+
   /// 推荐系统的会话 UUID
   /// 用于标记推荐流的上下文或用户指纹
   static const String recommendUuid = 'recommend_uuid';

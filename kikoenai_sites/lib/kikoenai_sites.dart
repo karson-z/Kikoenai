@@ -28,5 +28,6 @@ export 'network/request_config.dart';
 export 'network/unauthorized_interceptor.dart';
 
 // ---- 站点实现 ----
+export 'sites/built_in_site_plugins.dart';
 export 'sites/asmr_one/asmr_one_site_api.dart';
 export 'sites/asmr_gay/asmr_gay_site_api.dart';

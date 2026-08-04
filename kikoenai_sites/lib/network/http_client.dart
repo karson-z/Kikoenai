@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 import 'cookie_manager.dart';
 import 'exception.dart';
@@ -42,13 +45,15 @@ class SitesHttpClient {
   final RequestConfig config;
   final SitesCookieManager cookieManager;
   final ReadRequestRecovery? _readRequestRecovery;
+  bool _useProxy;
 
   SitesHttpClient._internal(
     this._dio,
     this.config,
     this.cookieManager,
     this._readRequestRecovery,
-  ) {
+  ) : _useProxy = config.useProxy {
+    _applyProxyPolicy(_useProxy);
     _setupInterceptors();
   }
 
@@ -88,9 +93,37 @@ class SitesHttpClient {
   /// 内部暴露的 Dio 实例（慎用，主要用于特殊适配器设置）
   Dio get dio => _dio;
 
+  bool get useProxy => _useProxy;
+
   /// 动态更新 baseUrl
   void updateBaseUrl(String newUrl) {
     _dio.options.baseUrl = newUrl;
+  }
+
+  /// 更新服务器地址及其代理策略。
+  void updateConnection({required String baseUrl, required bool useProxy}) {
+    _dio.options.baseUrl = baseUrl;
+    if (_useProxy == useProxy) return;
+
+    _useProxy = useProxy;
+    final adapter = _dio.httpClientAdapter;
+    if (adapter is IOHttpClientAdapter) {
+      adapter.close(force: true);
+      _dio.httpClientAdapter = IOHttpClientAdapter();
+      _applyProxyPolicy(useProxy);
+    }
+  }
+
+  void _applyProxyPolicy(bool useProxy) {
+    final adapter = _dio.httpClientAdapter;
+    if (adapter is! IOHttpClientAdapter) return;
+    adapter.createHttpClient = () {
+      final client = HttpClient();
+      if (!useProxy) {
+        client.findProxy = (_) => 'DIRECT';
+      }
+      return client;
+    };
   }
 
   /// 健康检查（快速超时 3 秒）

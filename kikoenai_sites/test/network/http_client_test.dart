@@ -434,5 +434,15 @@ void main() {
 
       expect(client.dio.options.baseUrl, 'https://new.example.com');
     });
+
+    test('updateConnection 同步修改 baseUrl 和代理策略', () {
+      client.updateConnection(
+        baseUrl: 'http://192.168.1.8:8080/api',
+        useProxy: false,
+      );
+
+      expect(client.dio.options.baseUrl, 'http://192.168.1.8:8080/api');
+      expect(client.useProxy, isFalse);
+    });
   });
 }

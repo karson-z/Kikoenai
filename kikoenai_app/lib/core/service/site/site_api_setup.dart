@@ -37,7 +37,16 @@ Future<void> setupSiteApi() async {
   _lastReadFailoverAttempt.clear();
   siteUnavailableController.clear();
 
-  _registerAsmrOne(cache);
+  final runtimeContext = SiteRuntimeContext(
+    initialServerFor: (info) => _resolveInitialServer(info, cache),
+    tokenFor: (siteId) async => cache.getAuthSession(siteId: siteId)?.token,
+    recoverReadRequest: (siteId, exception) =>
+        _recoverReadRequest(siteId: siteId, exception: exception),
+    onUnauthorized: _handleUnauthorized,
+  );
+  for (final plugin in builtInSitePlugins) {
+    siteRegistry.register(plugin, context: runtimeContext);
+  }
 
   final cachedActiveId = cache.getActiveSiteId();
   _initialActiveSiteId =
@@ -48,40 +57,17 @@ Future<void> setupSiteApi() async {
   siteRegistry.activeId = _initialActiveSiteId;
 }
 
-void _registerAsmrOne(CacheService cache) {
-  const siteId = CacheService.legacySiteId;
-  final cachedHost = cache.getCurrentHost(siteId: siteId);
-  ServerInfo? initialServer;
+ServerInfo? _resolveInitialServer(SiteInfo info, CacheService cache) {
+  final cachedHost = cache.getCurrentHost(siteId: info.id);
   if (cachedHost != null && cachedHost.isNotEmpty) {
-    final matched = AsmrOneSiteApi.info.servers.where(
+    final matched = info.servers.where(
       (server) =>
-          cachedHost.contains(server.id) || server.baseUrl.contains(cachedHost),
+          cachedHost.contains(server.id) ||
+          server.resolvedBaseUrl.contains(cachedHost),
     );
-    if (matched.isNotEmpty) initialServer = matched.first;
+    if (matched.isNotEmpty) return matched.first;
   }
-
-  final httpClient = SitesHttpClient(
-    config: RequestConfig(
-      baseUrl:
-          initialServer?.baseUrl ?? AsmrOneSiteApi.info.defaultServer!.baseUrl,
-      enableLogger: true,
-      enableCookie: true,
-      onUnauthorized: (request) => _handleUnauthorized(siteId, request),
-    ),
-    tokenProvider: () async {
-      return cache.getAuthSession(siteId: siteId)?.token;
-    },
-    readRequestRecovery: (exception) =>
-        _recoverReadRequest(siteId: siteId, exception: exception),
-  );
-
-  siteRegistry.register(
-    AsmrOneSiteApi.plugin,
-    context: SiteRuntimeContext(
-      httpClient: httpClient,
-      initialServer: initialServer ?? AsmrOneSiteApi.info.defaultServer,
-    ),
-  );
+  return info.defaultServer;
 }
 
 Future<ReadRecoveryResult> _recoverReadRequest({
@@ -94,10 +80,10 @@ Future<ReadRecoveryResult> _recoverReadRequest({
   final originalError = exception.originalError;
   final failedBaseUrl = originalError is DioException
       ? originalError.requestOptions.baseUrl
-      : currentServer.baseUrl;
+      : currentServer.resolvedBaseUrl;
 
   // Another request may already have completed recovery for this site.
-  if (currentServer.baseUrl != failedBaseUrl) {
+  if (currentServer.resolvedBaseUrl != failedBaseUrl) {
     return const ReadRecoveryResult.recovered();
   }
 
@@ -173,7 +159,10 @@ Future<ServerInfo?> recheckSiteServers(String siteId) async {
 
 Future<void> _persistSelectedServer(String siteId, ServerInfo server) async {
   try {
-    await CacheService.instance.saveCurrentHost(server.baseUrl, siteId: siteId);
+    await CacheService.instance.saveCurrentHost(
+      server.resolvedBaseUrl,
+      siteId: siteId,
+    );
   } catch (error) {
     debugPrint('保存站点 $siteId 的服务器失败: $error');
   }
@@ -185,7 +174,7 @@ void _clearReadFailoverState(String siteId) {
   _lastReadFailoverAttempt.removeWhere((key, _) => key.startsWith(prefix));
 }
 
-void _handleUnauthorized(String siteId, RequestOptions requestOptions) {
+void _handleUnauthorized(String siteId) {
   if (CacheService.instance.getActiveSiteId() != siteId) return;
   final context = AppConstants.rootNavigatorKey.currentContext;
   if (context == null) return;
@@ -207,7 +196,7 @@ Future<void> switchServer(String serverId, {String? siteId}) async {
   await siteRegistry.switchServer(targetSiteId, serverId);
   final server = siteRegistry.currentServerOf(targetSiteId)!;
   await CacheService.instance.saveCurrentHost(
-    server.baseUrl,
+    server.resolvedBaseUrl,
     siteId: targetSiteId,
   );
   _clearReadFailoverState(targetSiteId);

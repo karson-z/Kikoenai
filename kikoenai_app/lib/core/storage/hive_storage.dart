@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:kikoenai_sites/api/server_info.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -50,6 +51,7 @@ class AppStorage {
     Hive.registerAdapter(SearchTagAdapter());
     Hive.registerAdapter(ScanModeAdapter());
     Hive.registerAdapter(ScanTargetAdapter());
+    Hive.registerAdapter(ServerInfoAdapter());
     // 3. 并行打开 Box
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),

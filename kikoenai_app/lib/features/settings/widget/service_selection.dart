@@ -156,7 +156,7 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(server.label),
-              subtitle: Text(server.region ?? server.baseUrl),
+              subtitle: Text(server.region ?? server.resolvedBaseUrl),
               trailing: _latencyLabel(server.id),
               onTap: currentServerId == server.id
                   ? null
