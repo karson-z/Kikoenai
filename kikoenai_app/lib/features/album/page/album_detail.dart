@@ -232,8 +232,8 @@ class AlbumDetailContainer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final availableSurfaces = ref.watch(availableSurfacesProvider);
-    final canShowTracks =
-        isLocal || availableSurfaces.contains(AppSurface.albumTracksSection);
+    final primarySiteHasTracks =
+        !isLocal && availableSurfaces.contains(AppSurface.albumTracksSection);
     final canShowSimilarWorks = availableSurfaces.contains(
       AppSurface.albumSimilarWorks,
     );
@@ -257,12 +257,10 @@ class AlbumDetailContainer extends ConsumerWidget {
             loading: () => null,
           );
 
-    // 选择文件区段子类，不在视图层用 if 切换
-    final Widget fileSection = switch ((isLocal, canShowTracks)) {
-      (true, _) => LocalAlbumFileSection(work: work),
-      (false, true) => RemoteAlbumFileSection(work: work, contentId: contentId),
-      (false, false) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-    };
+    final Widget fileSection = AlbumMediaSourcesSection(
+      work: work,
+      preferredSourceId: isLocal ? albumLocalMediaSourceId : contentId.siteId,
+    );
 
     return AlbumDetailView(
       heroTag: work.effectiveHeroTag,
@@ -301,7 +299,7 @@ class AlbumDetailContainer extends ConsumerWidget {
       // 文件区段（sliver）
       fileSection: fileSection,
       // 下拉刷新（仅网络）
-      onRefresh: !isLocal && canShowTracks
+      onRefresh: primarySiteHasTracks
           ? () => ref.refresh(trackFileNodeIndexProvider(contentId).future)
           : null,
     );
