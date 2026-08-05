@@ -191,11 +191,20 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                   builder: (context, child) {
                     // _ac.value 范围是 0.0 (关闭) 到 1.0 (完全展开)
                     // 播放器展开都百分之70 的时候会出现渐变过渡效果所以要在百分之70之前收起导航栏
-                    // 当展开时，向下偏移底部导航栏的高度，实现平滑隐藏
-                    double progress = (_ac.value / 0.7).clamp(0.0, 1.0);
+                    // 下沉时同步增加顶部圆角并降低透明度，实现平滑隐藏。
+                    final progress = (_ac.value / 0.7).clamp(0.0, 1.0);
                     return Transform.translate(
                       offset: Offset(0, widget.bottomNavBarHeight * progress),
-                      child: child,
+                      child: Opacity(
+                        opacity: 1.0 - progress,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(24.0 * progress),
+                            topRight: Radius.circular(24.0 * progress),
+                          ),
+                          child: child,
+                        ),
+                      ),
                     );
                   },
                   child: widget.bottomNavBar,
