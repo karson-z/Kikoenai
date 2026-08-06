@@ -56,6 +56,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool isMobile = context.isMobile;
     final String currentPath = GoRouterState.of(context).uri.path;
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
+    // NavigationBar owns a SafeArea. Reserve both its content height and the
+    // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
+    final bottomNavBarHeight =
+        AppConstants.kAppBottomNavHeight +
+        MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
@@ -65,9 +70,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         (state) => state.playbackQueue.isNotEmpty,
       ),
     );
-    final miniPlayerHeight = hasPlaybackItems
-        ? AppConstants.kMiniPlayerHeight
-        : 0.0;
 
     Widget bodyContent;
     if (isMobile) {
@@ -111,8 +113,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         },
         child: PlayerSheetPanel(
           controller: panelController,
-          minHeight: miniPlayerHeight,
+          minHeight: AppConstants.kMiniPlayerHeight,
           maxHeight: MediaQuery.sizeOf(context).height,
+          showPanel: hasPlaybackItems,
           fadeCollapsed: false,
           panelBuilder: (ScrollController sc, AnimationController controller) {
             return PlayerView(
@@ -122,10 +125,12 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           },
           body: bodyContent,
           showBottomNavBar: isMobile ? showBottomNav : false,
-          bottomNavBarHeight: AppConstants.kAppBottomNavHeight,
+          bottomNavBarHeight: bottomNavBarHeight,
           bottomNavBar: isMobile
               ? RepaintBoundary(
                   child: NavigationBar(
+                    height: AppConstants.kAppBottomNavHeight,
+                    maintainBottomViewPadding: true,
                     selectedIndex: selectedIndex,
                     onDestinationSelected: (index) =>
                         _navigateTo(destinations[index].branchIndex),

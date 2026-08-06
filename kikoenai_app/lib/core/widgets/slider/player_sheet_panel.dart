@@ -51,6 +51,7 @@ class PlayerSheetPanel extends StatefulWidget {
   final Widget? bottomNavBar;
   final double bottomNavBarHeight;
   final bool showBottomNavBar;
+  final bool showPanel;
   final bool fadeCollapsed;
 
   const PlayerSheetPanel({
@@ -96,6 +97,7 @@ class PlayerSheetPanel extends StatefulWidget {
     this.bottomNavBar,
     this.bottomNavBarHeight = 50.0,
     this.showBottomNavBar = true,
+    this.showPanel = true,
   }) : assert(panel != null || panelBuilder != null),
        assert(0 <= backdropOpacity && backdropOpacity <= 1.0),
        assert(snapPoint == null || 0 < snapPoint && snapPoint < 1.0),
@@ -145,7 +147,27 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
   }
 
   @override
+  void didUpdateWidget(covariant PlayerSheetPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.showPanel && !widget.showPanel && _ac.value != 0.0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !widget.showPanel) {
+          _ac.value = 0.0;
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final effectiveMinHeight = widget.showPanel ? widget.minHeight : 0.0;
+    final bottomContentHeight =
+        effectiveMinHeight +
+        ((widget.bottomNavBar != null && widget.showBottomNavBar)
+            ? widget.bottomNavBarHeight
+            : 0.0);
+
     return Stack(
       alignment: widget.slideDirection == SlideDirection.UP
           ? Alignment.bottomCenter
@@ -158,13 +180,10 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                     animation: _ac,
                     builder: (context, child) {
                       return Positioned(
-                        top: _getParallax(),
+                        top: widget.showPanel ? _getParallax() : 0.0,
                         left: 0.0,
                         right: 0.0,
-                        bottom: widget.minHeight +
-                            ((widget.bottomNavBar != null && widget.showBottomNavBar)
-                                ? widget.bottomNavBarHeight
-                                : 0.0),
+                        bottom: bottomContentHeight,
                         child: child ?? const SizedBox.shrink(),
                       );
                     },
@@ -174,10 +193,7 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                     top: 0.0,
                     left: 0.0,
                     right: 0.0,
-                    bottom: widget.minHeight +
-                        ((widget.bottomNavBar != null && widget.showBottomNavBar)
-                            ? widget.bottomNavBarHeight
-                            : 0.0),
+                    bottom: bottomContentHeight,
                     child: widget.body!,
                   )
             : const SizedBox.shrink(),
@@ -189,10 +205,11 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                 child: AnimatedBuilder(
                   animation: _ac,
                   builder: (context, child) {
+                    final panelPosition = widget.showPanel ? _ac.value : 0.0;
                     // _ac.value 范围是 0.0 (关闭) 到 1.0 (完全展开)
                     // 播放器展开都百分之70 的时候会出现渐变过渡效果所以要在百分之70之前收起导航栏
                     // 下沉时同步增加顶部圆角并降低透明度，实现平滑隐藏。
-                    final progress = (_ac.value / 0.7).clamp(0.0, 1.0);
+                    final progress = (panelPosition / 0.7).clamp(0.0, 1.0);
                     return Transform.translate(
                       offset: Offset(0, widget.bottomNavBarHeight * progress),
                       child: Opacity(
@@ -212,7 +229,7 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
               )
             : Container(),
         // Backdrop 部分
-        !widget.backdropEnabled
+        !widget.showPanel || !widget.backdropEnabled
             ? Container()
             : GestureDetector(
                 onVerticalDragEnd: widget.backdropTapClosesPanel
@@ -244,7 +261,7 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
               ),
 
         // 面板部分 (Actual Sliding Part)
-        !_isPanelVisible
+        !widget.showPanel || !_isPanelVisible
             ? Container()
             : AnimatedBuilder(
                 animation: _ac,

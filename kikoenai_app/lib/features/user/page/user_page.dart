@@ -72,7 +72,7 @@ class UserPage extends ConsumerWidget {
                                   const SimpleExtendedImage.avatar(
                                     width: 32,
                                     height: 32,
-                                    'assets/images/app_icon.jpg',
+                                    'assets/images/logo.jpg',
                                   ),
                                   const SizedBox(width: 12),
                                   Flexible(
@@ -121,7 +121,7 @@ class UserPage extends ConsumerWidget {
                                 const SimpleExtendedImage.avatar(
                                   width: 80,
                                   height: 80,
-                                  'assets/images/app_icon.jpg',
+                                  'assets/images/logo.jpg',
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
