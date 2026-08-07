@@ -274,13 +274,7 @@ class _MoreOptionsContent extends ConsumerWidget {
 
     context.push(
       AppRoutes.detail,
-      extra: {
-        'workId': workId,
-        'siteId': track.contentId?.siteId,
-        'remoteId': track.contentId?.remoteId,
-        if (work != null) 'work': work,
-        'isLocal': track.isLocal,
-      },
+      extra: {'workId': workId, if (work != null) 'work': work},
     );
   }
 

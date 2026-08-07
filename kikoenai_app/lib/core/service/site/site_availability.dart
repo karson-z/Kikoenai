@@ -129,7 +129,10 @@ const defaultSurfacePolicyRegistry = SurfacePolicyRegistry({
   AppSurface.homeRecommendedSection: Supports(SiteFeature.recommend),
   AppSurface.homeNewestSection: Supports(SiteFeature.search),
   AppSurface.searchPage: Supports(SiteFeature.search),
-  AppSurface.remoteAlbumDetailPage: Supports(SiteFeature.detail),
+  AppSurface.remoteAlbumDetailPage: AllOf([
+    Supports(SiteFeature.detail),
+    Supports(SiteFeature.tracks),
+  ]),
   AppSurface.albumTracksSection: Supports(SiteFeature.tracks),
   AppSurface.albumSimilarWorks: Supports(SiteFeature.search),
   AppSurface.authPage: AnyOf([

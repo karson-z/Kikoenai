@@ -61,15 +61,7 @@ class HistoryPage extends ConsumerWidget {
             onTap: work == null
                 ? null
                 : () {
-                    context.push(
-                      AppRoutes.detail,
-                      extra: {
-                        'work': work,
-                        'isLocal': entry.isLocalWork,
-                        'siteId': entry.siteId,
-                        'remoteId': entry.remoteId,
-                      },
-                    );
+                    context.push(AppRoutes.detail, extra: {'work': work});
                   },
           );
         },

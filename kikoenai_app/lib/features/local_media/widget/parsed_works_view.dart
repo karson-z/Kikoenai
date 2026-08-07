@@ -140,10 +140,7 @@ class _ParseWorksViewState extends State<ParseWorksView> {
             vas: currentWork.vas,
             tags: currentWork.tags,
             onTap: () {
-              context.push(
-                AppRoutes.detail,
-                extra: {'work': currentWork, 'isLocal': true},
-              );
+              context.push(AppRoutes.detail, extra: {'work': currentWork});
             },
           ),
         ),

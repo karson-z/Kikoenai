@@ -1,31 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../../core/service/site/site_api_provider.dart';
 
-final localWorkFileIndexProvider = Provider.family<FileNodeLibraryIndex?, int>((
+/// Detail-page media resolved from the currently active site.
+final albumTrackFileNodeIndexProvider =
+    FutureProvider.family<FileNodeLibraryIndex, int>((ref, workId) async {
+      final api = ref.watch(activeSiteApiProvider);
+      if (!api.supports(SiteFeature.tracks)) {
+        throw UnsupportedError('当前站点不支持作品音轨');
+      }
+      final nodes = await api.getWorkTracks(workId.toString());
+      final siteId = ref.watch(activeSiteIdProvider);
+
+      return FileNodeLibraryIndex.fromTree(
+        roots: nodes,
+        rootPath: 'kikoenai-work://$siteId/$workId',
+        fallbackFolderSource: NodeSource.asmrServer,
+      );
+    });
+
+/// Detail-page metadata resolved from the currently active site.
+final albumWorkDetailProvider = FutureProvider.family.autoDispose<Work?, int>((
   ref,
   workId,
-) {
-  return FileScannerStorage().getWorkFileIndexLocally(workId);
-});
-
-/// Registered runtimes that can contribute media to a work detail page.
-///
-/// A site either exposes a work track tree, or the pair of file-system
-/// capabilities needed to locate an RJ code and browse the matched directory.
-final albumMediaSiteRuntimesProvider = Provider<List<SiteRuntime>>((ref) {
-  ref.watch(siteRegistryChangesProvider);
-  final registry = ref.watch(siteRegistryProvider);
-  return List.unmodifiable(
-    registry.allRuntimes.where((runtime) {
-      final api = runtime.api;
-      return api.supports(SiteFeature.tracks) ||
-          (api.supports(SiteFeature.fileSystemSearch) &&
-              api.supports(SiteFeature.fileSystemBrowse));
-    }),
-  );
+) async {
+  final api = ref.watch(activeSiteApiProvider);
+  if (!api.supports(SiteFeature.detail)) return null;
+  return api.getWorkDetail(workId.toString());
 });
 
 final trackFileNodeIndexProvider =

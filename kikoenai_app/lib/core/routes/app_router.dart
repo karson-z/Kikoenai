@@ -61,7 +61,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: state.uri.path,
         extra: state.extra,
         activeRuntime: ref.read(activeSiteProvider),
-        siteRegistry: ref.read(siteRegistryProvider),
         surfacePolicies: ref.read(surfacePolicyRegistryProvider),
       );
       if (isAvailable) return null;
