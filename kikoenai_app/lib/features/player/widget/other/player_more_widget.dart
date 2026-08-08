@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
+import '../../../../core/constants/app_images.dart';
+
 class MoreOptionsBottomSheet extends StatelessWidget {
   final PlaybackItem track;
   final List<QuickActionItem> quickActions;
@@ -32,7 +34,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
               // 专辑封面
               SimpleExtendedImage(
                 borderRadius: BorderRadius.circular(8),
-                track.coverUrl ?? track.smallCoverUrl ?? "",
+                track.coverUrl ?? track.smallCoverUrl ?? placeholderImage,
                 width: 60,
                 height: 60,
               ),

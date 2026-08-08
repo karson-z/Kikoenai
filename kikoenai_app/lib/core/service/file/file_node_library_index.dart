@@ -282,6 +282,22 @@ class FileNodeLibraryIndex {
     return getFilesInFolder(folder, recursive: true);
   }
 
+  /// 递归收集索引中所有字幕文件，返回扁平的 [FileNode] 列表。
+  ///
+  /// 遍历 [nodeByPath] 中已建索引的全部非文件夹节点，按
+  /// [FileExtensions.isSubtitle] 过滤；返回的节点会清空 `children`，
+  /// 确保是"平"的（不携带子项）。顺序不保证，调用方如需排序请自行处理。
+  List<FileNode> collectAllSubtitles() {
+    final result = <FileNode>[];
+    for (final node in nodeByPath.values) {
+      final path = node.path;
+      if (path != null && FileExtensions.isSubtitle(path)) {
+        result.add(node.copyWith(children: null));
+      }
+    }
+    return result;
+  }
+
   /// 递归遍历 folder 树，依次访问每个 folder 节点（含其本身）。
   ///
   /// [visit] 接收当前 folder 的 [NodeFolder] 与其在 [folderMap] 中的直接文件列表。

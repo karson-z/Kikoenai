@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -79,85 +80,8 @@ class LyricsDataProcess {
 
 class SearchLyricsService {
   /// 找出当前作品下的所有字幕文件。
-  static List<FileNode> findSubTitlesInFiles(List<FileNode> files) {
-    final List<FileNode> result = [];
-    const allowedExtensions = FileExtensions.subtitles;
-
-    for (var file in files) {
-      if (file.isFolder && file.children != null) {
-        result.addAll(findSubTitlesInFiles(file.children!));
-      } else {
-        final fileName = file.title.toLowerCase();
-
-        bool isSubtitle = allowedExtensions.any(
-          (ext) => fileName.endsWith(ext),
-        );
-
-        if (isSubtitle) {
-          result.add(file);
-        }
-      }
-    }
-    return result;
-  }
-
-  /// 查找文件树中是否有该作品的字幕
-  /// [nodes] 本地文件树节点
-  /// [workId] 作品ID
-  static FileNode? findNodeInTree(List<FileNode> nodes, String workId) {
-    if (workId.isEmpty) return null;
-    final inputRaw = workId.trim().toLowerCase();
-    final inputNumeric = inputRaw.replaceAll(RegExp(r'[^0-9]'), '');
-
-    for (final node in nodes) {
-      // 1. 检查当前节点是否匹配 (逻辑同之前的 matchTarget)
-      // 注意：只匹配文件夹或压缩包类型的节点 (通常都有 children)
-      if (node.isFolder || node.children != null && node.children!.isNotEmpty) {
-        final folderName = node.title.toLowerCase();
-        bool isMatch = false;
-
-        // 匹配逻辑: 包含原始ID 或 包含纯数字ID
-        if (folderName.contains(inputRaw)) {
-          isMatch = true;
-        } else if (inputNumeric.isNotEmpty &&
-            folderName.contains(inputNumeric)) {
-          // 短数字保护
-          if (inputNumeric.length < 3) {
-            if (folderName == inputNumeric) isMatch = true;
-          } else {
-            isMatch = true;
-          }
-        }
-
-        if (isMatch) return node; // 找到了！
-      }
-
-      // 2. 没匹配上，且有子节点，继续递归查找子节点
-      if (node.children != null && node.children!.isNotEmpty) {
-        final result = findNodeInTree(node.children!, workId);
-        if (result != null) return result;
-      }
-    }
-    return null;
-  }
-
-  static List<FileNode> flattenSubtitles(FileNode targetNode) {
-    List<FileNode> results = [];
-    // 辅助递归函数
-    void traverse(FileNode node) {
-      if (node.isFolder ||
-          (node.children != null && node.children!.isNotEmpty)) {
-        // 如果是文件夹/压缩包，继续深入
-        node.children?.forEach(traverse);
-      } else {
-        if (node.type == NodeType.text) {
-          results.add(node);
-        }
-      }
-    }
-
-    traverse(targetNode);
-    return results;
+  static List<FileNode> findSubTitlesInFiles(FileNodeLibraryIndex files) {
+    return files.collectAllSubtitles();
   }
 
   static List<FileNode> findSubtitleInLocalById(int workId) {
@@ -214,7 +138,7 @@ class SearchLyricsService {
     Ref ref,
   ) async {
     // A.拿到作品对应的文件列表
-    final workFiles = await ref.read(trackFileNodeProvider(contentId).future);
+    final workFiles = await ref.read(trackFileNodeIndexProvider(contentId).future);
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }

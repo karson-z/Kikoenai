@@ -5,6 +5,7 @@ import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
+import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/core/widgets/common/manage_playlist_dialog.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai/features/album/provider/audio_file_provider.dart';
@@ -12,7 +13,6 @@ import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
-
 /// Displays media from the same source that owns the detail-page content.
 class AlbumMediaSourceSection extends ConsumerWidget {
   const AlbumMediaSourceSection({super.key, required this.work});
@@ -75,8 +75,11 @@ class RemoteAlbumFileSection extends ConsumerWidget {
 
 /// 持有 [FileNodeLibraryIndex] 的区段主体。
 ///
-/// 进入文件夹 / 返回 / 面包屑跳转均直接操作索引并 `setState` 触发重建。
-/// 渲染 `PopScope > SliverMainAxisGroup[吸顶面包屑头, FileNodeBrowser]`。
+/// 导航（进入文件夹 / 返回 / 面包屑跳转 / 回根）全部委托给
+/// [BreadcrumbNotifier]（family=BreadCrumbBarType.detail），页面通过
+/// [ref.watch] 读取面包屑链；索引的当前层级节点列表由
+/// [FileNodeLibraryIndex.currentChildren] 提供。渲染
+/// `PopScope > SliverMainAxisGroup[吸顶面包屑头, FileNodeBrowser]`。
 class _AlbumFileSectionBody extends ConsumerStatefulWidget {
   const _AlbumFileSectionBody({
     required this.index,
@@ -100,6 +103,13 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
   void initState() {
     super.initState();
     _index = widget.index;
+    // 绑定索引到 detail 类型的面包屑 Notifier，后续导航全部走 Notifier
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(breadcrumbProvider(BreadCrumbBarType.detail).notifier)
+          .bindIndex(_index);
+    });
   }
 
   @override
@@ -107,30 +117,14 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
     super.didUpdateWidget(oldWidget);
     if (!identical(widget.index, oldWidget.index)) {
       _index = widget.index;
+      ref
+          .read(breadcrumbProvider(BreadCrumbBarType.detail).notifier)
+          .bindIndex(_index);
     }
   }
 
-  void _enterFolder(FileNode node) {
-    final path = node.path ?? node.mediaStreamUrl ?? '';
-    if (path.isEmpty) return;
-    _index.stepIn(NodeFolder(path));
-    if (mounted) setState(() {});
-  }
-
-  void _goBack() {
-    _index.stepOut();
-    if (mounted) setState(() {});
-  }
-
-  void _jumpToBreadcrumb(int index) {
-    _index.jumpToBreadcrumbIndex(index);
-    if (mounted) setState(() {});
-  }
-
-  void _goHome() {
-    _index.goHome();
-    if (mounted) setState(() {});
-  }
+  BreadcrumbNotifier get _breadcrumb =>
+      ref.read(breadcrumbProvider(BreadCrumbBarType.detail).notifier);
 
   @override
   Widget build(BuildContext context) {
@@ -138,15 +132,15 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
     // 排序配置变更时重新应用排序
     _index.applySort(sortOption);
 
-    final breadcrumb = _index.breadcrumbPath;
+    final breadcrumb = ref.watch(breadcrumbProvider(BreadCrumbBarType.detail));
+    final isRoot = _index.isHome;
     final currentNodes = _index.currentChildren;
-    final bool isRoot = _index.isHome;
 
     return PopScope(
       canPop: isRoot,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
-        _goBack();
+        _breadcrumb.navigateBack();
       },
       child: SliverMainAxisGroup(
         slivers: [
@@ -156,8 +150,8 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
               work: widget.work,
               rootNodes: _index,
               breadcrumb: breadcrumb,
-              onRootTap: _goHome,
-              onCrumbTap: _jumpToBreadcrumb,
+              onRootTap: _breadcrumb.goHome,
+              onCrumbTap: _breadcrumb.jumpTo,
               onRefresh: widget.onRefresh,
             ),
           ),
@@ -171,7 +165,7 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
               enableTextPreview: true,
               enableAudioContextMenu: true,
             ),
-            onEnterFolder: _enterFolder,
+            onEnterFolder: _breadcrumb.enterFolder,
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
