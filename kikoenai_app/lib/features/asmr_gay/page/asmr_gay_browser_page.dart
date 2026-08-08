@@ -22,7 +22,7 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 ///   （跨目录递归搜索），清空输入框自动切回浏览态。
 /// - **错误页**：不直接展示原始异常，统一用简短文案 + 重试 / 返回上一页按钮。
 /// 文件排序字段。
-enum _SortField { name, size, modified }
+enum _SortField { defaultSort, name, size, modified }
 
 class AsmrGayBrowserPage extends ConsumerStatefulWidget {
   const AsmrGayBrowserPage({
@@ -69,7 +69,7 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
   final ScrollController _scrollController = ScrollController();
 
   /// 排序字段
-  _SortField _sortField = _SortField.name;
+  _SortField _sortField = _SortField.defaultSort;
 
   /// 是否升序
   bool _sortAscending = true;
@@ -157,6 +157,10 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
   ///
   /// 目录始终排在文件前面，然后再按所选字段排序。
   List<FileNode> _sortNodes(List<FileNode> nodes) {
+    // 默认排序：不进行任何排序，保持接口返回顺序
+    if (_sortField == _SortField.defaultSort) {
+      return List<FileNode>.from(nodes);
+    }
     final comparator = _nodeComparator;
     final factor = _sortAscending ? 1 : -1;
     return List<FileNode>.from(nodes)
@@ -169,6 +173,8 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
 
   int Function(FileNode a, FileNode b) get _nodeComparator {
     switch (_sortField) {
+      case _SortField.defaultSort:
+        return (_, __) => 0;
       case _SortField.size:
         return (a, b) => (a.size ?? 0).compareTo(b.size ?? 0);
       case _SortField.modified:
@@ -668,6 +674,7 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
     final isDark = theme.brightness == Brightness.dark;
 
     final options = <(_SortField field, bool ascending, String label)>[
+      (_SortField.defaultSort, true, '默认'),
       (_SortField.name, true, '名称 ↑'),
       (_SortField.name, false, '名称 ↓'),
       (_SortField.size, true, '大小 ↑'),
@@ -680,6 +687,8 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
 
     String currentLabel;
     switch (_sortField) {
+      case _SortField.defaultSort:
+        currentLabel = '默认';
       case _SortField.name:
         currentLabel = '名称';
       case _SortField.size:
@@ -687,7 +696,9 @@ class _AsmrGayBrowserPageState extends ConsumerState<AsmrGayBrowserPage> {
       case _SortField.modified:
         currentLabel = '修改时间';
     }
-    currentLabel += _sortAscending ? ' ↑' : ' ↓';
+    if (_sortField != _SortField.defaultSort) {
+      currentLabel += _sortAscending ? ' ↑' : ' ↓';
+    }
 
     final items = options
         .map(

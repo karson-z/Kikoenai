@@ -23,3 +23,6 @@ symbols/
 # 生成文件：不提交到 git，本地通过 build_runner 生成
 *.g.dart
 *.freezed.dart
+
+# FVM Version Cache
+.fvm/

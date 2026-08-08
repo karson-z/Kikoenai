@@ -92,6 +92,9 @@ class SimpleExtendedImage extends StatelessWidget {
         height: targetHeight,
         fit: targetFit,
       );
+    } else if (url.isEmpty) {
+      // 空 URL 不走文件加载，避免 ExtendedFileImageProvider 抛 PathNotFoundException
+      imageContent = _buildPlaceholder();
     } else {
       // 本地文件路径（例如 FilePicker 选择后的本地路径）
       final localFile = File(url.split('?').first);
