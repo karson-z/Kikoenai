@@ -88,6 +88,8 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
 
   String _fieldLabel(FileSortField field) {
     switch (field) {
+      case FileSortField.defaultSort:
+        return '默认';
       case FileSortField.title:
         return '标题';
       case FileSortField.titleNumber:

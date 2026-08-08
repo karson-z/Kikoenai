@@ -409,6 +409,9 @@ class FileNodeLibraryIndex {
   }
 
   void _sort(FileSortOption option) {
+    // 默认排序：不进行任何处理，保持接口/扫描返回顺序
+    if (option.field == FileSortField.defaultSort) return;
+
     // 文件夹没有 duration/size，这两种模式下继续按标题升序。
     // 标题和标题序号模式则与文件使用相同规则，否则纯文件夹目录会看起来“排序失效”。
     rootNode.walkIncludingSelf((node) {
@@ -438,6 +441,8 @@ class FileNodeLibraryIndex {
 
   int _compareByField(FileNode a, FileNode b, FileSortField field) {
     switch (field) {
+      case FileSortField.defaultSort:
+        return 0;
       case FileSortField.title:
         return _compareTitles(a.title, b.title);
       case FileSortField.titleNumber:
