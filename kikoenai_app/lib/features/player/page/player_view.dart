@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widgets/layout/app_main_scaffold.dart';
+import '../../../core/widgets/image_box/simple_extended_image.dart';
 import '../provider/player_view_controller.dart';
 import '../provider/player_controller_provider.dart';
 import '../widget/audio/player_background.dart';
-import '../widget/audio/player_hero_cover.dart';
 import '../widget/player_layout.dart';
 import '../widget/lyrics/player_lyrics_content.dart';
 import '../widget/audio/player_mini_bar.dart';
@@ -212,11 +212,15 @@ class _MusicPlayerViewState extends ConsumerState<PlayerView>
                       },
                       child: shouldRenderVideo
                           ? PlayerVideoContent(isMini: expandVal < 0.1)
-                          : FloatingCoverImage(
-                              url: currentItem?.displayCoverUrl,
-                              radiusValue: isWide
-                                  ? 8.0
-                                  : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                          : SimpleExtendedImage(
+                              currentItem?.displayCoverUrl,
+                              borderRadius: BorderRadius.circular(
+                                isWide
+                                    ? 8.0
+                                    : ui.lerpDouble(8.0, 4.0, lyricsVal)!,
+                              ),
+                              fit: BoxFit.cover,
+                              loadingSize: 20,
                             ),
                     ),
             ),

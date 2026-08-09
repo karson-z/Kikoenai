@@ -9,7 +9,6 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../provider/file_scanner_notifier.dart';
 import '../widget/path_sheet.dart';
-import '../widget/scraper_drawer.dart';
 
 class ScannerPage extends ConsumerWidget {
   const ScannerPage({super.key});
@@ -20,9 +19,7 @@ class ScannerPage extends ConsumerWidget {
     final scannerState = ref.watch(fileScannerProvider);
     final scannerNotifier = ref.read(fileScannerProvider.notifier);
 
-    final queueState = ref.watch(scraperQueueProvider);
     final currentMode = scannerState.scanMode;
-    final queueCount = queueState.pending.length + queueState.processing.length;
     final root = scannerState.rootPath;
 
     // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
@@ -88,17 +85,6 @@ class ScannerPage extends ConsumerWidget {
                           ? null
                           : () => scannerNotifier.refreshCurrentTarget(),
                     ),
-                    IconButton(
-                      tooltip: '解析队列',
-                      icon: Badge(
-                        isLabelVisible: queueCount > 0,
-                        label: Text(queueCount.toString()),
-                        child: const Icon(Icons.swap_vert_circle_outlined),
-                      ),
-                      onPressed: () {
-                        Scaffold.of(context).openEndDrawer();
-                      },
-                    ),
                   ],
                 ),
               );
@@ -106,7 +92,6 @@ class ScannerPage extends ConsumerWidget {
           ),
         ],
       ),
-      endDrawer: const ScraperQueueDrawer(),
       body: Column(
         children: [
           if (root.isNotEmpty)
