@@ -20,6 +20,8 @@ android/app/release/
 .vscode/
 *.log
 symbols/
+# Windows 桌面打包产物
+dist/
 # 生成文件：不提交到 git，本地通过 build_runner 生成
 *.g.dart
 *.freezed.dart

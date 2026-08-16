@@ -1,5 +1,6 @@
 name: kikoenai
 description: A new Flutter project.
+publish_to: none
 
 version: 1.1.2+1
 environment:
@@ -73,7 +74,13 @@ dependencies:
   flutter_overlay_window: ^0.5.0
   window_manager: ^0.4.3
   tray_manager: ^0.2.2
-  media_kit: ^1.2.6 # Primary package.
+  # 官方仓库 media-kit/media-kit @ 7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f（2026-05-20 合并 PR #1352）：
+  # 包含 Flutter 3.38+ 热重启崩溃修复。pub 最新版仍为 1.2.6（2025-12-13），未含此修复，故从 git 引用。
+  media_kit:
+    git:
+      url: https://github.com/media-kit/media-kit.git
+      ref: 7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f
+      path: media_kit
   media_kit_video: ^2.0.1 # For video rendering.
   media_kit_libs_video: ^1.0.7 # Native video dependencies.
 

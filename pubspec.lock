@@ -826,12 +826,13 @@ packages:
     source: hosted
     version: "0.13.0"
   media_kit:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: media_kit
-      sha256: ae9e79597500c7ad6083a3c7b7b7544ddabfceacce7ae5c9709b0ec16a5d6643
-      url: "https://pub.flutter-io.cn"
-    source: hosted
+      path: media_kit
+      ref: "7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f"
+      resolved-ref: "7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f"
+      url: "https://github.com/media-kit/media-kit.git"
+    source: git
     version: "1.2.6"
   media_kit_libs_android_video:
     dependency: transitive
