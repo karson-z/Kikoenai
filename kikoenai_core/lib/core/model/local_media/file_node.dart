@@ -83,6 +83,10 @@ abstract class FileNode extends HiveObject with _$FileNode {
     @HiveField(18) String? siteId,
     @HiveField(19) String? remoteId,
     @Default(0) int subItemsCount,
+
+    /// 本地已下载文件路径（若有）。仅用于播放时优先本地、回退远端，
+    /// 不会覆盖 [mediaStreamUrl]（后者始终保留远端/原始地址）。
+    @HiveField(20) String? localMediaUrl,
   }) = _FileNode;
 
   FileNode._();
@@ -100,8 +104,10 @@ abstract class FileNode extends HiveObject with _$FileNode {
   /// Prefer path, then playable URL, then hash.
   String get keyId => hash ?? path ?? mediaStreamUrl ?? '';
 
-  /// Actual playback/read path. Local file path or remote URL.
-  String get playablePath => mediaStreamUrl ?? path ?? '';
+  /// 实际播放/读取路径。优先本地已下载文件（[localMediaUrl]），
+  /// 为空时回退到远端/原始地址（[mediaStreamUrl]），最后兜底 [path]。
+  String get playablePath =>
+      localMediaUrl ?? mediaStreamUrl ?? path ?? '';
 
   /// Internal path used by folder index.
   String get effectivePath => path ?? mediaStreamUrl ?? hash ?? title;

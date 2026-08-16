@@ -7,6 +7,7 @@ import 'package:flutter_lyric/core/lyric_parse.dart';
 
 import '../../../../core/service/lyrics/lyrics_parse_service.dart';
 import '../../player/provider/player_controller_provider.dart';
+import '../../player/provider/player_lyrics_match_provider.dart';
 import '../../player/provider/player_lyrics_provider.dart';
 import 'overly_lyrics_provider.dart';
 
@@ -21,23 +22,46 @@ class OverlayLyricSyncService {
 
   LyricModel? _currentLyricModel;
   String _lastSentLyric = '';
+  String? _lastBoundUrl;
 
   StreamSubscription? _positionSub;
-  ProviderSubscription? _urlSub;
+  ProviderSubscription? _trackSub; // 监听曲目 id 变化
+  ProviderSubscription? _mappingSub; // 监听字幕映射变化
+  ProviderSubscription? _contentSub; // 监听 family 字幕内容
 
   bool _isSyncing = false; // 记录当前是否正在同步
 
   // 构造函数：不再自动执行 _init()
   OverlayLyricSyncService(this.ref);
 
-  /// 开启字幕同步（显示悬浮窗时调用）
-  void startSync() {
-    if (_isSyncing) return;
-    _isSyncing = true;
-    _lastSentLyric = '';
+  /// 解析当前曲目应使用的字幕 URL（track id → 映射 → URL）
+  String? _currentLyricUrl() {
+    final currentItemId = ref.read(playerControllerProvider).currentItem?.id;
+    if (currentItemId == null) return null;
+    final mapping = ref.read(lyricsMatchControllerProvider).subtitleMapping;
+    final url = mapping[currentItemId]?.mediaStreamUrl;
+    return (url == null || url.isEmpty) ? null : url;
+  }
 
-    _urlSub = ref.listen<AsyncValue<String?>>(
-      lyricsProvider,
+  /// 曲目或映射变化时，重新绑定对 [lyricsContentProvider] family 的监听。
+  /// URL 未变化时跳过，避免重复解析。
+  void _bindContentListener() {
+    final url = _currentLyricUrl();
+
+    if (url == null) {
+      _lastBoundUrl = null;
+      _contentSub?.close();
+      _contentSub = null;
+      _handleNoLyrics();
+      return;
+    }
+
+    if (url == _lastBoundUrl && _contentSub != null) return;
+    _lastBoundUrl = url;
+
+    _contentSub?.close();
+    _contentSub = ref.listen<AsyncValue<String?>>(
+      lyricsContentProvider(url),
           (previous, next) {
         next.when(
           data: (rawLrc) {
@@ -72,8 +96,29 @@ class OverlayLyricSyncService {
           },
         );
       },
-      fireImmediately: true, // 这样开启时如果 Provider 已有数据，会立刻触发渲染
+      fireImmediately: true, // 绑定时如果 family 已有数据，会立刻触发渲染
     );
+  }
+
+  /// 开启字幕同步（显示悬浮窗时调用）
+  void startSync() {
+    if (_isSyncing) return;
+    _isSyncing = true;
+    _lastSentLyric = '';
+
+    // 曲目变化：重新解析当前字幕 URL
+    _trackSub = ref.listen(
+      playerControllerProvider.select((s) => s.currentItem?.id),
+      (previous, next) {
+        if (previous != next) _bindContentListener();
+      },
+    );
+    // 用户手动切换字幕（映射更新）：同样重新绑定
+    _mappingSub = ref.listen(
+      lyricsMatchControllerProvider.select((s) => s.subtitleMapping),
+      (previous, next) => _bindContentListener(),
+    );
+    _bindContentListener();
 
     _positionSub = AudioService.position.listen(_onPositionChanged);
   }
@@ -90,9 +135,14 @@ class OverlayLyricSyncService {
     _positionSub?.cancel();
     _positionSub = null;
 
-    // 2. 切断 URL 变化监听
-    _urlSub?.close();
-    _urlSub = null;
+    // 2. 切断曲目 / 映射 / 内容监听
+    _trackSub?.close();
+    _trackSub = null;
+    _mappingSub?.close();
+    _mappingSub = null;
+    _contentSub?.close();
+    _contentSub = null;
+    _lastBoundUrl = null;
 
     // 3. 释放内存
     _currentLyricModel = null;

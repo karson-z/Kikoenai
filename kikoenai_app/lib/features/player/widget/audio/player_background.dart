@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import '../../../../../core/storage/hive_storage.dart';
 import '../../provider/player_controller_provider.dart';
 import 'dart:io';
 import 'package:cached_network_image_ce/cached_network_image.dart' as cnimage;
@@ -47,7 +44,11 @@ class BlurredImageService {
   factory BlurredImageService() => _instance;
   BlurredImageService._internal();
 
-  Box<dynamic> get settingsBox => AppStorage.settingsBox;
+  /// 背景处理参数（已写死，原"背景处理与性能"设置项已从设置页移除）：
+  /// 模糊半径 10、缩放分辨率 300、编码质量 70。
+  static const int _kBlurRadius = 10;
+  static const int _kResizeWidth = 300;
+  static const int _kQuality = 70;
 
   /// 同一 URL 的并发请求去重表：所有并发调用复用同一个 Future。
   /// 避免同一封面被 artUri / 列表 / 背景同时触发时多次下载。
@@ -68,22 +69,9 @@ class BlurredImageService {
   }
 
   Future<File?> _getBlurredImageInternal(String url) async {
-    // 获取当前设置参数
-    final blurBg = settingsBox.get(
-      StorageKeys.blurBackground,
-      defaultValue: 10,
-    );
-    final resizeBg = settingsBox.get(
-      StorageKeys.backgroundScale,
-      defaultValue: 100,
-    );
-    final qualityBg = settingsBox.get(
-      StorageKeys.backgroundQuality,
-      defaultValue: 70,
-    );
-
-    // 2. 构建唯一的 Cache Key（将 URL 和参数绑定）
-    final String customCacheKey = '${url}_${blurBg}_${resizeBg}_$qualityBg';
+    // 构建唯一的 Cache Key（将 URL 和固定参数绑定）
+    final String customCacheKey =
+        '${url}_${_kBlurRadius}_${_kResizeWidth}_$_kQuality';
 
     // 3. 尝试从专属的 CacheManager 中获取模糊图缓存
     // 这里会自动触发 LRU 算法的 "Touch" 操作，更新最近访问时间
@@ -102,9 +90,9 @@ class BlurredImageService {
 
       final params = BlurProcessParams(
         imageBytes: imageBytes,
-        blurRadius: blurBg,
-        resizeWidth: resizeBg,
-        quality: qualityBg,
+        blurRadius: _kBlurRadius,
+        resizeWidth: _kResizeWidth,
+        quality: _kQuality,
       );
       final Uint8List? blurredBytes = await compute(
         _processBlurInIsolate,

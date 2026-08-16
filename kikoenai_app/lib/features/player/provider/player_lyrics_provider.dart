@@ -8,31 +8,29 @@ import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/data/charset_cover.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
-import 'package:kikoenai/features/player/provider/player_lyrics_match_provider.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/service/file/archive_service.dart';
 import '../../../../core/service/lyrics/lyrics_parse_service.dart';
 import '../../../../core/service/site/site_api_provider.dart';
 import '../../../../core/storage/hive_storage.dart';
 
-/// 字幕提供者
-final lyricsProvider = FutureProvider<String?>((ref) async {
-  final currentItem = ref.watch(
-    playerControllerProvider.select((s) => s.currentItem),
-  );
-  if (currentItem == null) return null;
-  final subtitleMapping = ref.watch(
-    lyricsMatchControllerProvider.select((s) => s.subtitleMapping),
-  );
-  final currentSub = subtitleMapping[currentItem.id];
-  final newUrl = currentSub?.mediaStreamUrl;
-  if (newUrl == null || newUrl.isEmpty) return null;
-  final originSiteId = currentItem.contentId?.siteId;
-  final httpClient = originSiteId == null
+/// 按字幕 URL 缓存字幕内容的 provider。
+///
+/// family 以 URL 为 key：同一 URL 只拉取一次，天然支持多 URL 复用——
+/// 多首曲目共用一个字幕文件时自动命中缓存；即使外层 provider 因
+/// 切歌 / 加载完成 / 映射更新等原因重跑，同一 URL 也不会重复发请求。
+/// （区别于整对象 watch：URL 是稳定标识，不随 freezed 实例重建而抖动。）
+final lyricsContentProvider = FutureProvider.family<String?, String>((
+  ref,
+  url,
+) async {
+  final siteId = ref.read(playerControllerProvider).currentItem?.contentId?.siteId;
+  final httpClient = siteId == null
       ? ref.read(sitesHttpClientProvider)
-      : ref.read(siteHttpClientByIdProvider(originSiteId));
-  return fetchLyricContent(newUrl, httpClient);
+      : ref.read(siteHttpClientByIdProvider(siteId));
+  return fetchLyricContent(url, httpClient);
 });
+
 Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
   if (url == null || url.isEmpty) return null;
 

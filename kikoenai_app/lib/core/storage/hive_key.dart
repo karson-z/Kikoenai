@@ -90,7 +90,7 @@ class StorageKeys {
   /// 当用户点击快速收藏按钮时，音频将被添加到的默认列表
   static const String quickMarkTargetPlaylist = 'quick_mark_target_playlist';
 
-  /// 是否启用成人模式 (NSFW)
+  /// 是否启用 SFW 模式（开启时注入全年龄过滤标签）
   /// 类型: bool
   static const String nsfwKey = 'nsfw_enabled';
 
@@ -128,14 +128,6 @@ class StorageKeys {
   /// 桌面字幕位置 Y轴
   static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
 
-  /// 播放器背景模糊程度
-  static const String blurBackground = 'blur_background';
-
-  /// 播放器背景图片缩放比例
-  static const String backgroundScale = 'background_scale';
-
-  /// 播放器背景图片编码质量
-  static const String backgroundQuality = 'background_quality';
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key

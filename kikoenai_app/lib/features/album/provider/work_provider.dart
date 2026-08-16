@@ -26,7 +26,7 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
     // 1. 注入全局筛选标签 (从 Hive 中读取)
     tagsToApply.addAll(AppStorage.filterTagsBox.values);
 
-    // 2. 注入 NSFW 限制标签
+    // 2. 注入 SFW 限制标签
     final isNSFW = AppStorage.settingsBox.get(
       StorageKeys.nsfwKey,
       defaultValue: false,

@@ -72,6 +72,14 @@ class AppStorage {
         BoxNames.scanTarget,
       ).then((val) => scanTargetBox = val),
     ]);
+
+    // 清理历史遗留：设置页已移除的"背景处理与性能"项
+    // （模糊半径/缩放分辨率/编码质量），删除旧版存过的残留值。
+    await Future.wait([
+      settingsBox.delete('blur_background'),
+      settingsBox.delete('background_scale'),
+      settingsBox.delete('background_quality'),
+    ]);
   }
 
   /// 辅助方法：安全打开 Box

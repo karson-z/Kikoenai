@@ -400,10 +400,16 @@ class AsmrOneSiteApi extends SiteApi {
     required String recommendUuid,
     required ListenEventType type,
   }) async {
-    await _http.post<Map<String, dynamic>>(
+    // itemId 接口期望整型：上游 workId 是 String，这里显式转 int 再发送。
+    // 非数字时直接跳过上报，绝不回退成字符串（服务端不接受）。
+    final int? itemId = int.tryParse(workId);
+    if (itemId == null) return;
+    // feedback 接口返回 200 + 纯数字体（成功标志，非 JSON 对象），
+    // 用 dynamic 接收并忽略，避免 `as Map<String, dynamic>` 强转崩溃。
+    await _http.post<dynamic>(
       '/recommender/feedback',
       data: {
-        'itemId': workId,
+        'itemId': itemId,
         'recommendUuid': recommendUuid,
         'type': type.type,
       },

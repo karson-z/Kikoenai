@@ -105,10 +105,15 @@ class MyAudioHandler extends BaseAudioHandler {
       try {
         // 避免音视频文件没有对应的索引文件导致无法进行range跳转
         await nativePlayer.setProperty('hr-seek', 'yes');
+        // media_kit 默认开启 cache-on-disk（把流缓存写入磁盘文件），在部分环境/版本下
+        // 会因无法创建缓存文件而报 "lavf: Failed to create file cache" → 首次加载失败 →
+        // keep-open 模式下 mpv 将其视为播放结束 → completed 事件 → 自动重开同一 URL
+        // （表现为切换歌曲时同一地址被请求两次）。这里关闭磁盘缓存，改用内存缓存。
+        await nativePlayer.setProperty('cache-on-disk', 'no');
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         KikoenaiLogger().i("当前缓存路径:$cacheDir");
-        // await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
+        await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {

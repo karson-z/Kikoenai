@@ -131,7 +131,8 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     return {for (var record in taskList) record.task.taskId: record};
   }
 
-  /// 批量替换本地路径：将已下载节点的 URL 替换为本地文件路径。
+  /// 为已下载节点附加本地文件路径：[localMediaUrl]（保留远程 [mediaStreamUrl]，
+  /// 不覆盖）。播放时由 [FileNode.playablePath] 优先本地、回退远端。
   Future<List<FileNode>> _resolveLocalPathNodes(
     List<FileNode> nodes,
     Map<String, TaskRecord> taskMap,
@@ -146,7 +147,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
           resolvedNodes.add(node);
           continue;
         }
-        resolvedNodes.add(node.copyWith(mediaStreamUrl: localPath));
+        resolvedNodes.add(node.copyWith(localMediaUrl: localPath));
         continue;
       }
       resolvedNodes.add(node);
@@ -230,7 +231,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
             if (record != null) {
               final localPath = await _resolveDownloadedLocalPath(record);
               if (localPath != null) {
-                nodeToAdd = node.copyWith(mediaStreamUrl: localPath);
+                nodeToAdd = node.copyWith(localMediaUrl: localPath);
               }
             }
             ref

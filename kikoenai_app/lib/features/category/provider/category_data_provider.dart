@@ -61,7 +61,7 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
       );
     }
 
-    // 4. 构建包含所有条件(分类特有 + 全局 + NSFW + 关键词)的查询字符串
+    // 4. 构建包含所有条件(分类特有 + 全局 + SFW + 关键词)的查询字符串
     var queryParams = SearchTag.buildTagQueryPath(
       mergedTags,
       keyword: ui.keyword,
