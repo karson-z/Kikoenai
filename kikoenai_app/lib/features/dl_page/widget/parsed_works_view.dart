@@ -1,34 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/config/work_layout_config.dart';
+import 'package:kikoenai/core/enums/age_rating.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
-class ParseWorksView extends StatefulWidget {
+import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
+import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
+import 'package:kikoenai/features/category/widget/filter_row_panel.dart';
+
+class ParseWorksView extends ConsumerStatefulWidget {
   final List<Work> work;
 
   const ParseWorksView({super.key, required this.work});
 
   @override
-  State<ParseWorksView> createState() => _ParseWorksViewState();
+  ConsumerState<ParseWorksView> createState() => _ParseWorksViewState();
 }
 
-class _ParseWorksViewState extends State<ParseWorksView> {
+class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
   // 控制是否处于编辑模式
   bool _isEditing = false;
 
   late List<Work> _localWorks;
+
+  /// 筛选行横向 chips 的滚动控制器（FilterRowPanel 使用）。
+  final AutoScrollController _chipsScrollController = AutoScrollController();
 
   @override
   void initState() {
     super.initState();
     // 初始化时，将外部传入的静态数据拷贝一份给本地状态
     _localWorks = List.from(widget.work);
+  }
+
+  @override
+  void dispose() {
+    _chipsScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -40,8 +54,66 @@ class _ParseWorksViewState extends State<ParseWorksView> {
     }
   }
 
+  /// 将 DL库筛选状态应用到本地作品列表（仅当前页面）。
+  List<Work> _applyFilter(List<Work> works, SearchFilterState filter) {
+    final keyword = filter.keyword?.trim().toLowerCase() ?? '';
+    return works.where((w) {
+      // 1. 关键词：标题 / RJ编号 / 社团
+      if (keyword.isNotEmpty) {
+        final title = w.title?.toLowerCase() ?? '';
+        final name = w.name?.toLowerCase() ?? '';
+        final circle = w.circle?.name?.toLowerCase() ?? '';
+        if (!title.contains(keyword) &&
+            !name.contains(keyword) &&
+            !circle.contains(keyword) &&
+            !'${w.id}'.contains(keyword)) {
+          return false;
+        }
+      }
+      // 2. 字幕
+      if (filter.subtitleFilter == 1 && !(w.hasSubtitle ?? false)) {
+        return false;
+      }
+      if (filter.subtitleFilter == 2 && (w.hasSubtitle ?? false)) {
+        return false;
+      }
+      // 3. 标签（含排除）
+      for (final tag in filter.selectedTags) {
+        final matched = _workMatchesTag(w, tag);
+        if (matched == null) continue; // 暂不支持的类型忽略，避免误过滤
+        if (tag.isExclude && matched) return false;
+        if (!tag.isExclude && !matched) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// 判断单个作品是否命中标签；返回 null 表示该类型本地无法匹配（忽略）。
+  bool? _workMatchesTag(Work w, SearchTag tag) {
+    switch (tag.type) {
+      case 'age':
+        return AgeRatingEnum.fromValue(w.ageCategoryString).value == tag.name;
+      case 'circle':
+        return w.circle?.name == tag.name;
+      case 'va':
+        return (w.vas ?? const []).any((v) => v.name == tag.name);
+      case 'tag':
+        return (w.tags ?? const []).any((t) => t.name == tag.name);
+      default:
+        // duration / rate / price / sell / lang：
+        // Work 本地字段无法精确匹配范围值，暂不参与过滤。
+        return null;
+    }
+  }
+
+  /// 打开与分类页一致的筛选底部弹窗（FilterModule.dl，仅本页状态）。
+  void _openFilterSheet() {
+    showFilterBottomSheet(context, ref, FilterModule.dl);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 空状态
     if (_localWorks.isEmpty) {
       return CustomScrollView(
         slivers: [
@@ -51,69 +123,89 @@ class _ParseWorksViewState extends State<ParseWorksView> {
     }
 
     final layout = WorkLayoutConfig.card(context);
+    final filter = ref.watch(searchFilterProvider(FilterModule.dl));
+    final filteredWorks = _applyFilter(_localWorks, filter);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildActionBar(context)),
-
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-          sliver: SliverGrid.builder(
-            itemCount: _localWorks.length,
-            gridDelegate: _getGridDelegate(
-              layout.horizontalSpacing,
-              layout.verticalSpacing,
-            ),
-            itemBuilder: (context, index) {
-              final currentWork = _localWorks[index];
-              return _buildEditableCard(currentWork);
-            },
+        // 筛选行（与分类页一致的 FilterRowPanel）
+        SliverToBoxAdapter(
+          child: FilterRowPanel(
+            isFilterOpen: false,
+            keyword: filter.keyword,
+            selectedTags: filter.selectedTags,
+            totalCount: filteredWorks.length,
+            onToggleFilter: _openFilterSheet,
+            onClearKeyword: () => ref
+                .read(searchFilterProvider(FilterModule.dl).notifier)
+                .updateKeyword(null),
+            onRemoveTag: (tag) => ref
+                .read(searchFilterProvider(FilterModule.dl).notifier)
+                .removeTag(tag.type, tag.name),
+            scrollController: _chipsScrollController,
+            bgColor: theme.scaffoldBackgroundColor,
+            textColor: isDark ? Colors.white70 : Colors.grey[700]!,
+            subTextColor: isDark ? Colors.white54 : Colors.grey,
+            fillColor: isDark
+                ? const Color(0xFF212529)
+                : const Color(0xFFF9FAFB),
+            primaryColor: theme.colorScheme.primary,
           ),
         ),
 
-        // 3. 底部 Footer
+        // 工具栏：关键词搜索 + 编辑/清空
+        SliverToBoxAdapter(child: _buildToolbarRow(context)),
+
+        // 无匹配结果
+        if (filteredWorks.isEmpty)
+          SliverFillRemaining(hasScrollBody: false, child: _buildNoMatchView())
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            sliver: SliverGrid.builder(
+              itemCount: filteredWorks.length,
+              gridDelegate: _getGridDelegate(
+                layout.horizontalSpacing,
+                layout.verticalSpacing,
+              ),
+              itemBuilder: (context, index) {
+                final currentWork = filteredWorks[index];
+                return _buildEditableCard(currentWork);
+              },
+            ),
+          ),
+
+        // 底部 Footer
         SliverToBoxAdapter(child: _buildFooter(context)),
       ],
     );
   }
 
-  /// 顶部操作栏
-  Widget _buildActionBar(BuildContext context) {
+  /// 工具栏：编辑/清空按钮（关键词搜索框已移到 AppBar）。
+  Widget _buildToolbarRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text(
-            "共 ${_localWorks.length} 个作品",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          // 处于编辑模式时，显示“全部清空”按钮
+          if (_isEditing)
+            TextButton.icon(
+              onPressed: _handleClearAll,
+              icon: const Icon(Icons.delete_sweep, color: Colors.red),
+              label: const Text('全部清空', style: TextStyle(color: Colors.red)),
             ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 处于编辑模式时，显示“全部清空”按钮
-              if (_isEditing)
-                TextButton.icon(
-                  onPressed: _handleClearAll,
-                  icon: const Icon(Icons.delete_sweep, color: Colors.red),
-                  label: const Text(
-                    "全部清空",
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              // 编辑/完成 切换按钮
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _isEditing = !_isEditing;
-                  });
-                },
-                icon: Icon(_isEditing ? Icons.check : Icons.edit),
-                label: Text(_isEditing ? "完成" : "编辑"),
-              ),
-            ],
+          // 编辑/完成 切换按钮
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _isEditing = !_isEditing;
+              });
+            },
+            icon: Icon(_isEditing ? Icons.check : Icons.edit),
+            label: Text(_isEditing ? '完成' : '编辑'),
           ),
         ],
       ),
@@ -250,6 +342,35 @@ class _ParseWorksViewState extends State<ParseWorksView> {
           const Icon(Icons.search_off, size: 54, color: Colors.grey),
           const SizedBox(height: 16),
           Text("这里什么都没有哦", style: TextStyle(color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+
+  /// 有数据但筛选无匹配时的提示。
+  Widget _buildNoMatchView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.filter_alt_off, size: 54, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            "没有符合筛选条件的作品",
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              final notifier = ref.read(
+                searchFilterProvider(FilterModule.dl).notifier,
+              );
+              notifier.resetSelected();
+              notifier.updateKeyword(null);
+              notifier.setSubtitleFilter(0);
+            },
+            child: const Text('重置筛选'),
+          ),
         ],
       ),
     );
