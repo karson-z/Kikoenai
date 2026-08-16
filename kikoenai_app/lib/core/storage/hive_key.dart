@@ -94,6 +94,10 @@ class StorageKeys {
   /// 类型: bool
   static const String nsfwKey = 'nsfw_enabled';
 
+  /// 作品浏览布局模式（首页"最新作品" / 分类页共用）
+  /// 取值: 'grid' | 'list'
+  static const String workLayoutMode = 'work_layout_mode';
+
   /// 文件下载保存的本地目录路径
   static const String fileDownloadKey = 'file_download_path';
 

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/provider/work_layout_provider.dart';
 import '../../../core/widgets/loading/lottie_loading.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../album/widget/work_grid_layout.dart';
+import '../../album/widget/work_list_layout.dart';
 import '../provider/category_data_provider.dart';
 import '../provider/category_keep_alive.dart';
 
@@ -189,6 +191,19 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
             return const SliverToBoxAdapter(child: Center(child: Text("暂无数据")));
           }
 
+          // 网格 / 列表模式（全局共享 + 持久化）
+          final isListMode =
+              ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
+          if (isListMode) {
+            return ResponsiveWorkList(
+              work: data.works,
+              hasMore: data.hasMore,
+              isLoading: categoryWorks.isLoading,
+              onLoadMore: () {
+                categoryController.loadMore();
+              },
+            );
+          }
           return ResponsiveCardGrid(
             work: data.works,
             hasMore: data.hasMore,

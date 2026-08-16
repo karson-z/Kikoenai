@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
@@ -14,6 +15,7 @@ import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
+import '../widget/work_list_layout.dart';
 import '../widget/smart_works_sliver_grid.dart';
 
 class AlbumPage extends ConsumerWidget {
@@ -194,6 +196,8 @@ class _NewestWorksSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final newestState = ref.watch(newWorksProvider);
+    final isListMode =
+        ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
     return newestState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏
@@ -202,15 +206,28 @@ class _NewestWorksSection extends ConsumerWidget {
         }
         return SliverMainAxisGroup(
           slivers: [
-            const SectionHeader(title: '最新作品'),
-            ResponsiveCardGrid(
-              work: state.works,
-              hasMore: state.hasMore,
-              isLoading: state.isLoading,
-              onLoadMore: () {
-                ref.read(newWorksProvider.notifier).loadMore();
-              },
+            const SectionHeader(
+              title: '最新作品',
+              trailing: WorkLayoutToggleButton(),
             ),
+            if (isListMode)
+              ResponsiveWorkList(
+                work: state.works,
+                hasMore: state.hasMore,
+                isLoading: state.isLoading,
+                onLoadMore: () {
+                  ref.read(newWorksProvider.notifier).loadMore();
+                },
+              )
+            else
+              ResponsiveCardGrid(
+                work: state.works,
+                hasMore: state.hasMore,
+                isLoading: state.isLoading,
+                onLoadMore: () {
+                  ref.read(newWorksProvider.notifier).loadMore();
+                },
+              ),
           ],
         );
       },
