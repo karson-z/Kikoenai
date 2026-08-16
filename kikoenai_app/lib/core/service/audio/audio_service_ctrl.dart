@@ -27,7 +27,7 @@ class AudioServiceSingleton {
   static Future<void> init() async {
     debugPrint("AudioServiceSingleton.init()");
     _instance = await AudioService.init(
-      builder: () => MyAudioHandler(),
+      builder: () => MyAudioHandler(PlayerService.instance.player),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.karson.kikoenai.audio',
         androidNotificationChannelName: 'Kikoenai',
@@ -40,7 +40,14 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-  final Player _player = PlayerService.instance.player;
+  /// 全局唯一的播放器实例，由调用方从 [PlayerService] 注入（主 isolate 创建）。
+  ///
+  /// 采用构造函数注入而非在类内直接访问 `PlayerService.instance`：
+  /// 静态单例是 per-isolate 的，若 handler 未来被移到后台 isolate，
+  /// 隐式访问会静默创建第二个 Player；显式注入会让跨 isolate 问题
+  /// 在编译/构造时就暴露出来。
+  final Player _player;
+
   late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
   final List<MediaItem> _playlist = [];
@@ -56,7 +63,7 @@ class MyAudioHandler extends BaseAudioHandler {
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false)
           as bool;
 
-  MyAudioHandler() {
+  MyAudioHandler(this._player) {
     _lifecycleListener = AppLifecycleListener(
       onStateChange: _handleLifecycleState,
     );

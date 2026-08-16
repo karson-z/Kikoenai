@@ -49,13 +49,15 @@ class _TagGridContentState extends State<TagGridContent> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.fromLTRB(12.0, 8.0, 12.0, 12.0),
               child: GlobalSearchInput(
                 controller: widget.searchController,
                 focusNode: _searchFocusNode,
                 hintText: widget.hintText,
                 onChanged: widget.onSearchChanged,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                borderRadius: 16,
               ),
             ),
             Expanded(
@@ -79,26 +81,41 @@ class _TagGridContentState extends State<TagGridContent> {
                   final bool isIncluded = currentTagState != null && !currentTagState.isExclude;
                   final bool isExcluded = currentTagState != null && currentTagState.isExclude;
 
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+
                   Color borderColor = Colors.transparent;
-                  Color textColor = const Color(0xFF4B5563);
+                  Color textColor = isDark ? const Color(0xFF9AA3B2) : const Color(0xFF4B5563);
+                  Color bgColor = isDark ? const Color(0xFF1F2937) : const Color(0xFFF9FAFB);
                   TextDecoration decoration = TextDecoration.none;
 
                   if (isIncluded) {
                     borderColor = Theme.of(context).colorScheme.primary;
                     textColor = Theme.of(context).colorScheme.primary;
+                    bgColor = Theme.of(context).colorScheme.primary.withOpacity(0.1);
                   } else if (isExcluded) {
                     borderColor = const Color(0xFFFECACA);
                     textColor = Colors.red;
+                    bgColor = Colors.red.withOpacity(0.1);
                     decoration = TextDecoration.lineThrough;
                   }
 
                   return InkWell(
                     onTap: () => widget.onItemToggled(item),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: borderColor, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? Colors.black.withOpacity(0.2)
+                                : Colors.black.withOpacity(0.04),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       alignment: Alignment.center,
                       child: Text(

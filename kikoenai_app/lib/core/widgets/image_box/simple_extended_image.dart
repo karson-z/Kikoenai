@@ -18,6 +18,10 @@ class SimpleExtendedImage extends StatelessWidget {
   final int? cacheWidth;
   final double? loadingSize;
 
+  /// 自定义加载占位 Widget；为 null 时使用默认 Lottie 动画。
+  /// 滚动列表中建议传轻量静态占位（灰底色块），避免多个 Lottie 同时动画导致掉帧。
+  final Widget? loadingPlaceholder;
+
   const SimpleExtendedImage(
     this.url, {
     super.key,
@@ -28,6 +32,7 @@ class SimpleExtendedImage extends StatelessWidget {
     this.borderRadius,
     this.loadingSize,
     this.cacheWidth,
+    this.loadingPlaceholder,
   });
 
   const SimpleExtendedImage.avatar(
@@ -39,6 +44,7 @@ class SimpleExtendedImage extends StatelessWidget {
     this.shape = BoxShape.circle,
     this.borderRadius,
     this.loadingSize,
+    this.loadingPlaceholder,
     this.cacheWidth = 300,
   });
 
@@ -46,10 +52,6 @@ class SimpleExtendedImage extends StatelessWidget {
   Widget build(BuildContext context) {
     // 规范化 URL，统一处理 null
     final String safeUrl = url ?? '';
-
-    // 解析目标尺寸：优先构造参数，其次 MediaQuery 屏幕尺寸
-    // 注意：不使用 LayoutBuilder，因为 WoltModalSheet 等无界父级会传递
-    // BoxConstraints(biggest)，导致 Icon(size: infinity) 崩溃。
     final double targetWidth = width ?? MediaQuery.sizeOf(context).width;
     final double targetHeight = height ?? MediaQuery.sizeOf(context).height;
     final BoxFit targetFit = fit ?? BoxFit.cover;
@@ -71,10 +73,12 @@ class SimpleExtendedImage extends StatelessWidget {
         fit: targetFit,
         memCacheWidth: cacheWidth,
         useOldImageOnUrlChange: true,
-        placeholder: (c, u) => LottieLoadingIndicator(
-          assetPath: Assets.animation.starLoader.path,
-          size: loadingSize ?? 60.0,
-        ),
+        placeholder: (c, u) =>
+            loadingPlaceholder ??
+            LottieLoadingIndicator(
+              assetPath: Assets.animation.starLoader.path,
+              size: loadingSize ?? 60.0,
+            ),
         errorBuilder: (c, u, e) => _buildAssetImage(
           placeholderImage,
           width: targetWidth,
