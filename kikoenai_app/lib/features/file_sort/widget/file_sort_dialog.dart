@@ -34,8 +34,8 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('排序方式'),
+    return KikoenaiAlertDialog(
+      titleText: '排序方式',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -66,11 +66,15 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
         ],
       ),
       actions: [
-        TextButton(
+        KikoenaiAlertDialog.textAction(
+          context,
+          label: '取消',
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
         ),
-        FilledButton(
+        KikoenaiAlertDialog.textAction(
+          context,
+          label: '确认',
+          isConfirm: true,
           onPressed: () {
             ref.read(fileSortProvider.notifier).update(
                   FileSortOption(
@@ -80,7 +84,6 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
                 );
             Navigator.of(context).pop();
           },
-          child: const Text('确认'),
         ),
       ],
     );

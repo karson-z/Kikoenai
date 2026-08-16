@@ -176,8 +176,8 @@ class AutoUpdater {
   void _showUpdateDialog(UpdateInfo updateInfo, {bool isAutoCheck = false}) {
     KikoenaiDialog.show(
       builder: (context) {
-        return AlertDialog(
-          title: Text('发现新版本 ${updateInfo.version}'),
+        return KikoenaiAlertDialog(
+          titleText: '发现新版本 ${updateInfo.version}',
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -272,34 +272,33 @@ class AutoUpdater {
           ),
           actions: [
             if (isAutoCheck)
-              TextButton(
+              KikoenaiAlertDialog.textAction(
+                context,
+                label: '关闭自动更新',
                 onPressed: () {
                   setting.put(StorageKeys.autoUpdate, false);
                   KikoenaiDialog.dismiss();
                   KikoenaiToast.success('已关闭自动更新');
                 },
-                child: Text(
-                  '关闭自动更新',
-                  style:
-                  TextStyle(color: Theme.of(context).colorScheme.outline),
-                ),
               ),
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '稍后提醒',
               onPressed: () => KikoenaiDialog.dismiss(),
-              child: Text(
-                '稍后提醒',
-                style: TextStyle(color: Theme.of(context).colorScheme.outline),
-              ),
             ),
             if (updateInfo.releaseNotes.isNotEmpty)
-              TextButton(
+              KikoenaiAlertDialog.textAction(
+                context,
+                label: '查看详情',
                 onPressed: () {
                   launchUrl(Uri.parse(updateInfo.releaseNotes),
                       mode: LaunchMode.externalApplication);
                 },
-                child: const Text('查看详情'),
               ),
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '立即更新',
+              isConfirm: true,
               onPressed: () {
                 KikoenaiDialog.dismiss();
                 // 直接使用第一个可用的安装类型
@@ -308,7 +307,6 @@ class AutoUpdater {
                       updateInfo, updateInfo.availableInstallationTypes.first);
                 }
               },
-              child: const Text('立即更新'),
             ),
           ],
         );
@@ -396,8 +394,8 @@ class AutoUpdater {
     KikoenaiDialog.show(
       clickMaskDismiss: false,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('正在下载更新'),
+        return KikoenaiAlertDialog(
+          titleText: '正在下载更新',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -416,12 +414,13 @@ class AutoUpdater {
             ],
           ),
           actions: [
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '取消',
               onPressed: () {
                 _cancelDownload();
                 KikoenaiDialog.dismiss();
               },
-              child: const Text('取消'),
             ),
           ],
         );
@@ -452,8 +451,8 @@ class AutoUpdater {
 
       KikoenaiDialog.show(
         builder: (context) {
-          return AlertDialog(
-            title: const Text('下载失败'),
+          return KikoenaiAlertDialog(
+            titleText: '下载失败',
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,17 +466,20 @@ class AutoUpdater {
               ],
             ),
             actions: [
-              TextButton(
+              KikoenaiAlertDialog.textAction(
+                context,
+                label: '确定',
                 onPressed: () => KikoenaiDialog.dismiss(),
-                child: const Text('确定'),
               ),
-              TextButton(
+              KikoenaiAlertDialog.textAction(
+                context,
+                label: '重试',
+                isConfirm: true,
                 onPressed: () {
                   KikoenaiDialog.dismiss();
                   // 重新尝试下载
                   _downloadUpdate(updateInfo, expectedHash);
                 },
-                child: const Text('重试'),
               ),
             ],
           );
@@ -502,8 +504,8 @@ class AutoUpdater {
 
     KikoenaiDialog.show(
       builder: (context) {
-        return AlertDialog(
-          title: const Text('下载完成'),
+        return KikoenaiAlertDialog(
+          titleText: '下载完成',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,28 +558,29 @@ class AutoUpdater {
             ],
           ),
           actions: [
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '稍后安装',
               onPressed: () => KikoenaiDialog.dismiss(),
-              child: Text(
-                '稍后安装',
-                style: TextStyle(color: Theme.of(context).colorScheme.outline),
-              ),
             ),
             if (OtherUtil.isDesktop())
-              TextButton(
+              KikoenaiAlertDialog.textAction(
+                context,
+                label: '打开文件夹',
                 onPressed: () {
                   // 在文件管理器中显示文件
                   _revealInFileManager(filePath);
                 },
-                child: const Text('打开文件夹'),
               ),
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '立即安装',
+              isConfirm: true,
               onPressed: () {
                 KikoenaiDialog.dismiss();
                 _installUpdate(
                     filePath, updateInfo.recommendedInstallationType);
               },
-              child: const Text('立即安装'),
             ),
           ],
         );

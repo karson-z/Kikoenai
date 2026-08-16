@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:palette_generator_master/palette_generator_master.dart';
 
 class ColorUtils {
@@ -12,7 +13,9 @@ class ColorUtils {
     ImageProvider imageProvider;
 
     if (url.replaceAll('?param=500y500', '').isEmpty) {
-      imageProvider = const ExtendedAssetImageProvider('assets/images/placeholder.png');
+      // 历史遗留：assets/images/placeholder.png 从未存在；回退到应用 logo 图
+      // （PaletteGenerator 需要位图，SVG 占位图无法解码）。
+      imageProvider = ExtendedAssetImageProvider(Assets.images.logo.path);
     } else if (url.startsWith('http')) {
       imageProvider = CachedNetworkImageProvider(
         url,

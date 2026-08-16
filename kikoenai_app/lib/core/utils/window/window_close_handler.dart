@@ -3,6 +3,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../storage/hive_key.dart';
 import '../../storage/hive_storage.dart';
+import '../../widgets/common/kikoenai_dialog.dart';
 import 'tray_service.dart';
 
 /// 窗口关闭动作。
@@ -90,8 +91,8 @@ class WindowCloseHandler {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
-            return AlertDialog(
-              title: const Text('关闭窗口'),
+            return KikoenaiAlertDialog(
+              titleText: '关闭窗口',
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,22 +129,24 @@ class WindowCloseHandler {
                 ],
               ),
               actions: [
-                TextButton(
+                KikoenaiAlertDialog.textAction(
+                  ctx,
+                  label: '取消',
                   onPressed: () => Navigator.of(ctx).pop(null),
-                  child: const Text('取消'),
                 ),
-                FilledButton(
-                  onPressed: selected == null
-                      ? null
-                      : () async {
-                          if (remember && selected != null) {
-                            await _writeStored(selected!);
-                          }
-                          if (ctx.mounted) {
-                            Navigator.of(ctx).pop(selected);
-                          }
-                        },
-                  child: const Text('确定'),
+                KikoenaiAlertDialog.textAction(
+                  ctx,
+                  label: '确定',
+                  isConfirm: true,
+                  enabled: selected != null,
+                  onPressed: () async {
+                    if (remember && selected != null) {
+                      await _writeStored(selected!);
+                    }
+                    if (ctx.mounted) {
+                      Navigator.of(ctx).pop(selected);
+                    }
+                  },
                 ),
               ],
             );

@@ -4,6 +4,7 @@ import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
@@ -190,20 +191,22 @@ class _ParseWorksViewState extends State<ParseWorksView> {
 
   /// 处理全部清空
   Future<void> _handleClearAll() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await KikoenaiDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("全部清空"),
-        content: const Text("确定要删除本地所有已解析的作品元数据缓存吗？此操作不可恢复。"),
+      builder: (context) => KikoenaiAlertDialog(
+        titleText: "全部清空",
+        contentText: "确定要删除本地所有已解析的作品元数据缓存吗？此操作不可恢复。",
         actions: [
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            context,
+            label: "取消",
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("取消"),
           ),
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            context,
+            label: "确认清空",
+            isDestructive: true,
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("确认清空"),
           ),
         ],
       ),

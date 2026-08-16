@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:kikoenai/core/theme/app_font_preset.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_provider.dart';
 // TODO: 确保你的路径正确
 import '../../../../core/theme/theme_view_model.dart';
@@ -186,8 +187,8 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
 
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('选择自定义颜色', style: TextStyle(fontSize: 18)),
+      builder: (ctx) => KikoenaiAlertDialog(
+        titleText: '选择自定义颜色',
         contentPadding: const EdgeInsets.only(top: 20, bottom: 8),
         content: StatefulBuilder(
           builder: (ctx, setState) => SingleChildScrollView(
@@ -205,24 +206,22 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
           ),
         ),
         actions: [
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            ctx,
+            label: '取消',
             onPressed: () {
               themeState.setSeedColor(originalColor, preview: true);
               Navigator.pop(ctx);
             },
-            child: Text(
-              '取消',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
           ),
-          FilledButton(
+          KikoenaiAlertDialog.textAction(
+            ctx,
+            label: '确定',
+            isConfirm: true,
             onPressed: () {
               themeState.setSeedColor(tempColor);
               Navigator.pop(ctx);
             },
-            child: const Text('确定'),
           ),
         ],
       ),

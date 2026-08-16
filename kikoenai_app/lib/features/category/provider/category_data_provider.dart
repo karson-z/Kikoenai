@@ -14,6 +14,28 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
 
   SiteApi get _api => ref.read(activeSiteApiProvider);
 
+  /// 计算当前筛选条件的指纹（参与搜索请求的全部条件）
+  ///
+  /// 用于惰性刷新：切换 tab 时对比数据快照的指纹与当前筛选指纹，
+  /// 不一致才重新请求，避免筛选变动时刷新所有存活 tab。
+  static String fingerprintOf(SearchFilterState ui) {
+    String tagKey(SearchTag t) => '${t.isExclude ? '-' : ''}${t.type}:${t.name}';
+    final selected = ui.selectedTags.map(tagKey).toList()..sort();
+    final saved =
+        AppStorage.filterTagsBox.values.map(tagKey).toList()..sort();
+    final nsfw = AppStorage.settingsBox.get(
+      StorageKeys.nsfwKey,
+      defaultValue: false,
+    );
+    return [
+      'tags=${[...selected, ...saved].join(',')}',
+      'kw=${ui.keyword ?? ''}',
+      'dir=${ui.sortDirection.name}',
+      'sub=${ui.subtitleFilter}',
+      'nsfw=$nsfw',
+    ].join('|');
+  }
+
   @override
   Future<FilterDataState> build() async {
     ref.watch(activeSiteIdProvider);
@@ -66,6 +88,7 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
       currentPage: currentPage,
       totalCount: totalCount,
       hasMore: list.length < totalCount,
+      filterFingerprint: fingerprintOf(ui),
     );
   }
 

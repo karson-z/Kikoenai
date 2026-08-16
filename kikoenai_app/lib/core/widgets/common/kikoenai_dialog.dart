@@ -1,5 +1,155 @@
 import 'package:flutter/material.dart';
 
+/// 统一风格的 AlertDialog，样式与“取消定时关闭”弹窗一致。
+///
+/// - 背景：深色 `0xFF1E1E1E` / 浅色纯白
+/// - 圆角 16、elevation 0（无投影，靠遮罩区分层级）
+/// - 标题 18 / w600，正文 15 / 次级色
+/// - 按钮区 padding：水平 16、垂直 12
+///
+/// 需要标准“取消 / 确定”按钮时可直接使用 [KikoenaiDialog.confirm]。
+class KikoenaiAlertDialog extends StatelessWidget {
+  const KikoenaiAlertDialog({
+    super.key,
+    this.title,
+    this.titleText,
+    this.content,
+    this.contentText,
+    this.actions,
+    this.contentPadding,
+    this.titlePadding,
+    this.insetPadding,
+    this.scrollable = false,
+  });
+
+  /// 标题 Widget（与 [titleText] 二选一）。
+  final Widget? title;
+
+  /// 标题文本，自动应用统一样式（18 / w600）。
+  final String? titleText;
+
+  /// 内容 Widget（与 [contentText] 二选一），自动应用正文次级色。
+  final Widget? content;
+
+  /// 内容文本，自动应用统一样式（15 / 次级色）。
+  final String? contentText;
+
+  final List<Widget>? actions;
+
+  final EdgeInsetsGeometry? titlePadding;
+  final EdgeInsetsGeometry? contentPadding;
+  final EdgeInsets? insetPadding;
+  final bool scrollable;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF333333);
+    final contentColor = isDark ? Colors.white70 : const Color(0xFF666666);
+
+    return AlertDialog(
+      backgroundColor: bgColor,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: title ??
+          (titleText == null
+              ? null
+              : Text(
+                  titleText!,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )),
+      content: content ??
+          (contentText == null
+              ? null
+              : DefaultTextStyle(
+                  style: TextStyle(color: contentColor, fontSize: 15),
+                  child: Text(contentText!),
+                )),
+      contentPadding: contentPadding,
+      titlePadding: titlePadding,
+      insetPadding: insetPadding,
+      scrollable: scrollable,
+      actionsPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      actions: actions,
+    );
+  }
+
+  /// 统一的弹窗文本按钮样式。
+  ///
+  /// [isConfirm] 为 true 时使用主题色加粗（确定按钮），
+  /// [isDestructive] 为 true 时使用红色加粗（危险操作按钮），
+  /// 否则使用正文次级色（取消按钮）。
+  static Widget textAction(
+    BuildContext context, {
+    required String label,
+    required VoidCallback onPressed,
+    bool isConfirm = false,
+    bool isDestructive = false,
+    bool enabled = true,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor =
+        isDark ? const Color(0xFF5A89BF) : Theme.of(context).primaryColor;
+    final contentColor = isDark ? Colors.white70 : const Color(0xFF666666);
+    final isEmphasis = isConfirm || isDestructive;
+
+    return TextButton(
+      onPressed: enabled ? onPressed : null,
+      style: TextButton.styleFrom(
+        foregroundColor: isDestructive
+            ? Theme.of(context).colorScheme.error
+            : isConfirm
+                ? primaryColor
+                : contentColor,
+        textStyle: isEmphasis
+            ? const TextStyle(fontWeight: FontWeight.bold)
+            : null,
+      ),
+      child: Text(label),
+    );
+  }
+
+  /// 标准“取消 / 确定”确认弹窗，返回是否点击了确定。
+  static Future<bool> confirm(
+    BuildContext context, {
+    required String title,
+    required String content,
+    String cancelLabel = '取消',
+    String confirmLabel = '确定',
+    bool clickMaskDismiss = true,
+  }) async {
+    final result = await KikoenaiDialog.show<bool>(
+      context: context,
+      clickMaskDismiss: clickMaskDismiss,
+      builder: (ctx) => KikoenaiAlertDialog(
+        titleText: title,
+        contentText: content,
+        actions: [
+          KikoenaiAlertDialog.textAction(
+            ctx,
+            label: cancelLabel,
+            onPressed: () => KikoenaiDialog.dismiss(popWith: false),
+          ),
+          KikoenaiAlertDialog.textAction(
+            ctx,
+            label: confirmLabel,
+            isConfirm: true,
+            onPressed: () => KikoenaiDialog.dismiss(popWith: true),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+}
+
 class KikoenaiDialog {
   static final KikoenaiDialogObserver observer = KikoenaiDialogObserver();
 

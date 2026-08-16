@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/card/work_gallery_card.dart';
@@ -93,25 +92,13 @@ class HistoryPage extends ConsumerWidget {
   }
 
   Future<void> _clearHistory(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('清空历史记录'),
-        content: const Text('确定要清空所有历史记录吗？此操作无法撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '清空历史记录',
+      content: '确定要清空所有历史记录吗？此操作无法撤销。',
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await ref.read(historyControllerProvider.notifier).clear();
   }
 

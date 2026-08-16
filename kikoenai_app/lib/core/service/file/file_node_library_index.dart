@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/file_sort/provider/file_sort_option.dart';
 
@@ -52,14 +54,16 @@ class FileNodeLibraryIndex {
     String? rootPath,
     NodeSource fallbackFolderSource = NodeSource.localWork,
   }) {
-    final effectiveRoot =
-        rootPath ??
-        roots
-            .map((n) => n.rootPath)
+
+    // 计算 effectiveRoot
+    final effectiveRoot = rootPath ??
+        roots.map((n) => n.rootPath)
             .firstWhere((p) => p != null && p.isNotEmpty, orElse: () => null) ??
         'tree://root';
 
+    // 遍历树并计时
     final flatNodes = <FileNode>[];
+
     for (final node in roots) {
       _flattenTreeNode(
         node: node,
@@ -68,7 +72,6 @@ class FileNodeLibraryIndex {
         flatNodes: flatNodes,
       );
     }
-
     return FileNodeLibraryIndex(
       flatNodes: flatNodes,
       rootPath: effectiveRoot,

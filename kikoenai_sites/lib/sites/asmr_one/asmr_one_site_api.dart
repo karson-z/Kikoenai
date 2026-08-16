@@ -89,6 +89,7 @@ class AsmrOneSiteApi extends SiteApi {
         config: RequestConfig(
           baseUrl: initialServer.resolvedBaseUrl,
           referer: 'https://www.asmr.one/',
+          extraHeaders: {'Origin': 'https://www.asmr.one'},
           enableLogger: true,
           enableCookie: true,
           useProxy: initialServer.useProxy,

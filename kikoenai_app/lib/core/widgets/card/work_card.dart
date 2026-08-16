@@ -131,7 +131,16 @@ class WorkCard extends ConsumerWidget {
                                   ).notifier,
                                 )
                                 .toggleTag(TagType.circle.stringValue, name!);
-                            ref.invalidate(categoryProvider);
+                            // 仅刷新当前排序对应的 tab，避免全 family 失效触发所有存活 tab 请求
+                            ref.invalidate(
+                              categoryProvider(
+                                ref
+                                    .read(
+                                      searchFilterProvider(FilterModule.category),
+                                    )
+                                    .sortOption,
+                              ),
+                            );
                             context.go(AppRoutes.category);
                           }
                         },

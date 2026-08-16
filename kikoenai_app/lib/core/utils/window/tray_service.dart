@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -28,20 +29,19 @@ class TrayService with TrayListener {
 
     try {
       trayManager.addListener(this);
-      // 优先使用 Windows runner 自带的 app_icon.ico；打包后该路径仍可用。
+      // 优先使用打包进 assets 的图标；失败时退回 runner 自带资源。
       String iconPath;
       if (defaultTargetPlatform == TargetPlatform.windows) {
-        iconPath = 'assets/icons/app_icon.ico';
-      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
-        iconPath = 'assets/icons/app_icon.png';
+        iconPath = Assets.icons.appIcon;
       } else {
-        iconPath = 'assets/icons/app_icon.png';
+        // 历史遗留：assets/icons/app_icon.png 并不存在，非 Windows 直接用应用展示图。
+        iconPath = Assets.images.appShow.path;
       }
-      // 若指定资源不存在，退回到 Flutter 默认图标占位，避免抛异常。
+      // 若指定资源不存在，退回到 Windows runner 自带的 app_icon.ico / 应用展示图，避免抛异常。
       if (!await File(iconPath).exists()) {
         iconPath = defaultTargetPlatform == TargetPlatform.windows
             ? 'windows/runner/resources/app_icon.ico'
-            : 'assets/images/app_show.png';
+            : Assets.images.appShow.path;
       }
 
       await trayManager.setIcon(iconPath);

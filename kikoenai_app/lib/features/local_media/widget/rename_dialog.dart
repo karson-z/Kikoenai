@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import '../provider/file_scanner_notifier.dart';
 
 class RenameFileDialog extends ConsumerStatefulWidget {
@@ -97,8 +98,8 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("重命名"),
+    return KikoenaiAlertDialog(
+      titleText: "重命名",
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,13 +128,16 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        KikoenaiAlertDialog.textAction(
+          context,
+          label: "取消",
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text("取消"),
         ),
-        FilledButton(
+        KikoenaiAlertDialog.textAction(
+          context,
+          label: "确定",
+          isConfirm: true,
           onPressed: _handleRename,
-          child: const Text("确定"),
         ),
       ],
     );

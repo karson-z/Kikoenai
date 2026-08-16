@@ -8,3 +8,10 @@ workspace:
   - kikoenai_core
   - kikoenai_sites
   - kikoenai_app
+
+# 让代码生成器可以在 workspace 根目录一键执行：
+#   dart run build_runner build
+# 会为所有成员包（kikoenai_core / kikoenai_sites / kikoenai_app）运行各自的生成器
+# （freezed / json_serializable / hive_ce_generator / flutter_gen_runner）。
+dev_dependencies:
+  build_runner: ^2.15.1

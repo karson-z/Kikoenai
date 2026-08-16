@@ -72,7 +72,7 @@ class SimpleExtendedImage extends StatelessWidget {
         memCacheWidth: cacheWidth,
         useOldImageOnUrlChange: true,
         placeholder: (c, u) => LottieLoadingIndicator(
-          assetPath: 'assets/animation/StarLoader.json',
+          assetPath: Assets.animation.starLoader.path,
           size: loadingSize ?? 60.0,
         ),
         errorBuilder: (c, u, e) => _buildAssetImage(

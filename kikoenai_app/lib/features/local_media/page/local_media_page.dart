@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
@@ -212,38 +213,24 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  void _showScanCompleteDialog(
+  Future<void> _showScanCompleteDialog(
     BuildContext context,
     WidgetRef ref,
     List<FileNode> pendingNodes,
-  ) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('扫描完成'),
-          content: Text(
-            '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('暂不'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
-                ref.read(scraperQueueProvider.notifier).start();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
-              },
-              child: const Text('一键加入并开始'),
-            ),
-          ],
-        );
-      },
+  ) async {
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '扫描完成',
+      content: '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
+      cancelLabel: '暂不',
+      confirmLabel: '一键加入并开始',
     );
+    if (!confirmed) return;
+    ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
+    ref.read(scraperQueueProvider.notifier).start();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
   }
 }

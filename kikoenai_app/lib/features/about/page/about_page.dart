@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_version_config.dart';
+import '../../../core/constants/app_images.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/widgets/layout/app_toast.dart';
 // 假设这是你存放 provider 的路径，请根据实际情况修改引入
@@ -70,7 +71,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/images/muzumi.jpg',
+                      Assets.images.muzumi.path,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
