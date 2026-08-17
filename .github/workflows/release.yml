@@ -193,7 +193,8 @@ jobs:
           }
 
       - name: Build and package Windows portable zip
-        run: ./build-windows.ps1 -Version "$env:VERSION_NAME"
+        shell: bash
+        run: ./build-windows.sh --version "$VERSION_NAME"
 
       - name: Install Inno Setup
         if: github.ref_type == 'tag'

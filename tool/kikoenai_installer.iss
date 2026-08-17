@@ -1,7 +1,7 @@
 ﻿; Kikoenai Windows 安装包脚本（Inno Setup 6）
 ;
 ; 使用方法：
-;   1. 先执行 ./build-windows.ps1 生成 dist 目录下的便携包
+;   1. 在 Git Bash 执行 ./build-windows.sh，生成 dist 目录下的便携包
 ;   2. 编译本脚本：
 ;        "F:\Inno Setup 6\ISCC.exe" tool\kikoenai_installer.iss
 ;   3. 安装包输出到 dist\kikoenai-v<version>-setup.exe
