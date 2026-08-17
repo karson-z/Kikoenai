@@ -71,7 +71,10 @@ dependencies:
       ref: 2380e0523ec2687485416e0ffe9ada43f20a8ab1
   disk_space_2: ^1.0.12
   visibility_detector: ^0.4.0+2
-  flutter_overlay_window: ^0.5.0
+  flutter_overlay_window:
+    git:
+      url: https://github.com/karson-z/flutter_overlay_window.git
+      ref: 13b1cbac2c6b9622558030f84d20916880a53eac
   window_manager: ^0.4.3
   tray_manager: ^0.2.2
   # 官方仓库 media-kit/media-kit @ 7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f（2026-05-20 合并 PR #1352）：

@@ -433,7 +433,7 @@ flutter-framework/
 
 | Provider                              | 位置                                              | 说明                                              |
 | ------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
-| `playerControllerProvider`            | [player_controller_provider.dart](file:///f:/flutterwork/flutter-framework/lib/features/player/presentation/provider/player_controller_provider.dart) | `PlayerController extends Notifier<AppPlayerState>`：监听 audio handler 流 → 更新 state；`_loadPlayerState` 从历史恢复；`handleFileTap` 处理文件点击播放；`restoreHistory` 恢复历史会话；`cyclePlayMode` 循环切换播放模式；通过 `IsolateNameServer` 与悬浮窗 isolate 双向通信 |
+| `playerControllerProvider`            | [player_controller_provider.dart](file:///f:/flutterwork/flutter-framework/lib/features/player/presentation/provider/player_controller_provider.dart) | `PlayerController extends Notifier<AppPlayerState>`：监听 audio handler 流 → 更新 state；`_loadPlayerState` 从历史恢复；`handleFileTap` 处理文件点击播放；`restoreHistory` 恢复历史会话；`cyclePlayMode` 循环切换播放模式；通过 `flutter_overlay_window` 消息通道与悬浮窗双向通信 |
 | `themeNotifierProvider`               | theme_view_model.dart                           | 见上                                              |
 | `goRouterProvider`                    | app_router.dart                                 | 见上                                              |
 | `apiClientProvider`                   | api_client.dart                                 | 暴露 `ApiClient.instance`                         |
@@ -503,7 +503,7 @@ main()
     → HistoryController.upsert(HistoryEntry)
 
   [悬浮窗 isolate]
-  IsolateNameServer 'overlay_playback_port' ↔ 悬浮窗双向指令
+  flutter_overlay_window BasicMessageChannel ↔ 悬浮窗双向指令
     (play/pause/next/previous/closeOverlay/toggleLock/color/savePosition/updateFontSize)
 ```
 
@@ -561,7 +561,7 @@ features/* ──► core/service/* ──► core/storage, core/utils/*
 - **下载**：`features/download` → `DownloadService` → `background_downloader` + `AppStorage.settingsBox`。
 - **认证**：`features/auth` → `AuthRepository` → `ApiClient` + `CacheService`（UUID/会话）。
 - **主题**：任意 Widget → `themeNotifierProvider`/`explicitDarkModeProvider` → `AppStorage.settingsBox`；`MyApp` → `AppTheme` → `AppColors`/`AppFontPreset`。
-- **悬浮歌词**：`overlayMain` → `LyricsOverlayContent` → `lyricsControllerProvider` ↔（IsolateNameServer）↔ `PlayerController._listenToOverlayCommands`。
+- **悬浮歌词**：`overlayMain` → `LyricsOverlayContent` → `lyricsControllerProvider` ↔（插件消息通道）↔ `PlayerController._listenToOverlayCommands`。
 
 ### 8.3 外部服务依赖
 
@@ -669,7 +669,7 @@ flutter analyze
 
 ### 10.5 悬浮窗入口
 
-`overlayMain()`（`@pragma("vm:entry-point")`）由 `flutter_overlay_window` 在 Android 端拉起独立 isolate，与主 App 通过 `IsolateNameServer.registerPortWithName('overlay_playback_port', ...)` 进行跨 isolate 通信。
+`overlayMain()`（`@pragma("vm:entry-point")`）由 `flutter_overlay_window` 在 Android 端拉起独立 isolate，并通过插件内部的 `BasicMessageChannel` 与主 App 双向通信；业务层不再管理 `ReceivePort`、`SendPort` 或命名端口。
 
 ---
 

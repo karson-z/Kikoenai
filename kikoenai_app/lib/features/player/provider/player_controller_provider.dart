@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:isolate';
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:hive_ce/hive.dart' hide IsolateNameServer;
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_player.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
@@ -29,7 +27,7 @@ final playerControllerProvider =
 class PlayerController extends Notifier<AppPlayerState> {
   Timer? _playbackTicker;
 
-  ReceivePort? _overlayReceivePort;
+  StreamSubscription<Map<String, dynamic>>? _overlayCommandSubscription;
 
   Timer? _controlsHideTimer;
 
@@ -62,7 +60,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     startControlsHideTimer();
 
     ref.onDispose(() {
-      _closeOverlayPort();
+      _overlayCommandSubscription?.cancel();
       _controlsHideTimer?.cancel();
       _playbackTicker?.cancel();
       stop();
@@ -181,12 +179,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
-  void _closeOverlayPort() {
-    IsolateNameServer.removePortNameMapping('overlay_playback_port');
-    _overlayReceivePort?.close();
-    _overlayReceivePort = null;
-  }
-
   void _listenToPlayer() {
     _player.stream.videoParams.listen((params) {
       final width = params.dw ?? params.w ?? 0;
@@ -217,84 +209,60 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _listenToOverlayCommands() {
-    debugPrint('AudioController: 准备连接悬浮窗事件总线 (IsolateNameServer)...');
+    debugPrint('AudioController: 准备连接悬浮窗插件消息通道...');
+    final manager = ref.read(subtitleManagerProvider);
+    _overlayCommandSubscription = manager.eventStream.listen((message) {
+      debugPrint('AudioController: 插件通道捕获到指令 -> $message');
+      final action = message['action'] as String?;
+      final payload = message['payload'];
+      if (action == null) return;
 
-    // 清理可能残留的同名映射
-    IsolateNameServer.removePortNameMapping('overlay_playback_port');
+      final lyricsNotifier = ref.read(lyricsControllerProvider.notifier);
+      final setting = AppStorage.settingsBox;
 
-    // 实例化接收端口
-    _overlayReceivePort = ReceivePort();
-
-    // 在全局命名空间注册 SendPort
-    final success = IsolateNameServer.registerPortWithName(
-      _overlayReceivePort!.sendPort,
-      'overlay_playback_port',
-    );
-
-    if (success) {
-      debugPrint('AudioController: 悬浮窗播控端口 [overlay_playback_port] 注册成功');
-
-      // 监听内存通道传入的数据
-      _overlayReceivePort!.listen((message) {
-        debugPrint('AudioController: 内存通道捕获到指令 -> $message');
-        String? action;
-        Map<dynamic, dynamic>? payload;
-
-        if (message is Map) {
-          action = message['action'] as String?;
-          payload = message['payload'] as Map<dynamic, dynamic>?;
-        } else if (message is String) {
-          action = message;
-        }
-        if (action == null) return;
-        final lyricsNotifier = ref.read(lyricsControllerProvider.notifier);
-        final setting = AppStorage.settingsBox;
-
-        switch (action) {
-          case PlayerConstants.play:
-            play();
-            break;
-          case PlayerConstants.pause:
-            pause();
-            break;
-          case PlayerConstants.next:
-            next();
-            break;
-          case PlayerConstants.previous:
-            previous();
-            break;
-          case PlayerConstants.closeOverlay:
-            lyricsNotifier.hide(isUserAction: true);
-            break;
-          case PlayerConstants.toggleLock:
-            final isLocked = ref.read(lyricsControllerProvider).isLocked;
-            lyricsNotifier.updateLockState(!isLocked);
-            break;
-          case PlayerConstants.color:
-            final colorValue = payload?['color'] as int?;
-            if (colorValue != null) {
-              setting.put(StorageKeys.overlayLyricsFontColor, colorValue);
-            }
-            break;
-          case PlayerConstants.savePosition:
-            final x = payload?['x'] as double?;
-            final y = payload?['y'] as double?;
-            if (x != null && y != null) {
-              setting.put(StorageKeys.overlayLyricsPositionX, x);
-              setting.put(StorageKeys.overlayLyricsPositionY, y);
-            }
-            break;
-          case PlayerConstants.updateFontSize:
-            final size = payload?['size'] as double?;
-            if (size != null) {
-              setting.put(StorageKeys.overlayLyricsFontSize, size);
-            }
-            break;
-        }
-      });
-    } else {
-      debugPrint('AudioController: ⚠ 悬浮窗播控端口注册失败，名称可能被占用。');
-    }
+      switch (action) {
+        case PlayerConstants.play:
+          play();
+          break;
+        case PlayerConstants.pause:
+          pause();
+          break;
+        case PlayerConstants.next:
+          next();
+          break;
+        case PlayerConstants.previous:
+          previous();
+          break;
+        case PlayerConstants.closeOverlay:
+          lyricsNotifier.hide(isUserAction: true);
+          break;
+        case PlayerConstants.toggleLock:
+          final isLocked = ref.read(lyricsControllerProvider).isLocked;
+          lyricsNotifier.updateLockState(!isLocked);
+          break;
+        case PlayerConstants.color:
+          final colorValue = payload is Map ? payload['color'] as int? : null;
+          if (colorValue != null) {
+            setting.put(StorageKeys.overlayLyricsFontColor, colorValue);
+          }
+          break;
+        case PlayerConstants.savePosition:
+          final x = payload is Map ? payload['x'] as double? : null;
+          final y = payload is Map ? payload['y'] as double? : null;
+          if (x != null && y != null) {
+            setting.put(StorageKeys.overlayLyricsPositionX, x);
+            setting.put(StorageKeys.overlayLyricsPositionY, y);
+          }
+          break;
+        case PlayerConstants.updateFontSize:
+          final size = payload is Map ? payload['size'] as double? : null;
+          if (size != null) {
+            setting.put(StorageKeys.overlayLyricsFontSize, size);
+          }
+          break;
+      }
+    });
+    unawaited(manager.init());
   }
 
   /// 监听播放状态变化
