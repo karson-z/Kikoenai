@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_lyric/core/lyric_model.dart';
 import 'package:flutter_lyric/core/lyric_parse.dart';
+import 'package:kikoenai/core/constants/app_player.dart';
 
 import '../../../../core/service/lyrics/lyrics_parse_service.dart';
 import '../../player/provider/player_controller_provider.dart';
@@ -62,7 +63,7 @@ class OverlayLyricSyncService {
     _contentSub?.close();
     _contentSub = ref.listen<AsyncValue<String?>>(
       lyricsContentProvider(url),
-          (previous, next) {
+      (previous, next) {
         next.when(
           data: (rawLrc) {
             if (rawLrc != null && rawLrc.isNotEmpty) {
@@ -70,11 +71,19 @@ class OverlayLyricSyncService {
                 // 1. 解析歌词
                 _currentLyricModel = LyricParse.parse(
                   rawLrc,
-                  parsers: [VttParser(), LrcParser(), QrcParser(), FallbackParser()],
+                  parsers: [
+                    VttParser(),
+                    LrcParser(),
+                    QrcParser(),
+                    FallbackParser(),
+                  ],
                 );
 
                 // 2. 立即计算一次当前位置，确保数据第一时间发出
-                final currentPosition = ref.read(playerControllerProvider).progressBarState.current;
+                final currentPosition = ref
+                    .read(playerControllerProvider)
+                    .progressBarState
+                    .current;
                 _onPositionChanged(currentPosition);
 
                 // 3. 核心修复：数据准备好了，确保窗口打开
@@ -88,8 +97,7 @@ class OverlayLyricSyncService {
               _handleNoLyrics();
             }
           },
-          loading: () {
-          },
+          loading: () {},
           error: (err, stack) {
             debugPrint('歌词 Provider 错误: $err');
             _handleNoLyrics();
@@ -122,10 +130,12 @@ class OverlayLyricSyncService {
 
     _positionSub = AudioService.position.listen(_onPositionChanged);
   }
+
   void _handleNoLyrics() {
     _currentLyricModel = null;
     ref.read(lyricsControllerProvider.notifier).hide();
   }
+
   /// 关闭字幕同步（隐藏悬浮窗时调用）
   void stopSync() {
     if (!_isSyncing) return;
@@ -157,7 +167,8 @@ class OverlayLyricSyncService {
     final currentLine = lines[playIndex];
     String displayText = currentLine.text;
 
-    if (currentLine.translation != null && currentLine.translation!.isNotEmpty) {
+    if (currentLine.translation != null &&
+        currentLine.translation!.isNotEmpty) {
       displayText += '\n${currentLine.translation}';
     }
 
@@ -187,9 +198,10 @@ class OverlayLyricSyncService {
   }
 
   void _sendToOverlay(String text) {
-    ref.read(subtitleManagerProvider).syncBusinessState({
-      'text': text,
-    });
+    ref.read(subtitleManagerProvider).sendToOverlay(
+      PlayerConstants.syncBusinessState,
+      {'text': text},
+    );
   }
 
   void dispose() {

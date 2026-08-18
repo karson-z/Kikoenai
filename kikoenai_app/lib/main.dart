@@ -18,12 +18,21 @@ import 'core/service/player/player_service.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/page/overly_lyrics_panel.dart';
+import 'features/overly-lyrics/provider/overly_lyrics_manager.dart';
+import 'features/overly-lyrics/provider/overly_lyrics_provider.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppStorage.init();
-  runApp(const ProviderScope(child: _OverlayApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        subtitleEndpointProvider.overrideWithValue(SubtitleEndpoint.overlay),
+      ],
+      child: const _OverlayApp(),
+    ),
+  );
 }
 
 class _OverlayApp extends ConsumerWidget {

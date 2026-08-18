@@ -166,7 +166,7 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
                   themeNotifier.setFontPreset(preset);
                   ref
                       .read(lyricsControllerProvider.notifier)
-                      .updateFontPreset(preset);
+                      .updateFontPresetAndSendToOverlay(preset);
                 },
               );
             }).toList(),

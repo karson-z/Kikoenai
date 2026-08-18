@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,8 +16,14 @@ class LyricsOverlayContent extends ConsumerStatefulWidget {
 }
 
 class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
+  static const _resizeAnimationDuration = Duration(milliseconds: 300);
+  static const double _lyricsOnlyHeight = 250;
+  static const double _controlsHeight = 350;
+  static const double _settingsHeight = 410;
+
   bool _showControls = false;
   bool _showSettings = false;
+  int _resizeRevision = 0;
 
   final List<Color> _presetColors = [
     Colors.white,
@@ -26,19 +33,54 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
     Colors.amber,
   ];
 
-  void _toggleControls() async {
+  void _toggleControls() {
+    final willShowControls = !_showControls;
+    if (willShowControls) {
+      _requestOverlayHeight(_controlsHeight);
+    }
     setState(() {
-      _showControls = !_showControls;
+      _showControls = willShowControls;
       if (!_showControls) {
         _showSettings = false;
       }
     });
+    if (!willShowControls) {
+      _requestOverlayHeight(_lyricsOnlyHeight, afterAnimation: true);
+    }
   }
 
   void _toggleSettings() {
+    final willShowSettings = !_showSettings;
+    if (willShowSettings) {
+      _requestOverlayHeight(_settingsHeight);
+    }
     setState(() {
-      _showSettings = !_showSettings;
+      _showSettings = willShowSettings;
     });
+    if (!willShowSettings) {
+      _requestOverlayHeight(_controlsHeight, afterAnimation: true);
+    }
+  }
+
+  void _requestOverlayHeight(double height, {bool afterAnimation = false}) {
+    final revision = ++_resizeRevision;
+    unawaited(
+      Future<void>(() async {
+        if (afterAnimation) {
+          await Future<void>.delayed(_resizeAnimationDuration);
+        }
+        if (!mounted || revision != _resizeRevision) return;
+        await ref
+            .read(lyricsControllerProvider.notifier)
+            .resizeOverlayHeight(height);
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _resizeRevision++;
+    super.dispose();
   }
 
   @override
@@ -67,7 +109,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
       child: Listener(
         onPointerUp: (event) {
           if (!isLocked) {
-            lyricsCtrl.saveCurrentPosition();
+            lyricsCtrl.saveCurrentPositionToMain();
           }
         },
         child: GestureDetector(
@@ -147,7 +189,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             icon: const Icon(Icons.close, color: Colors.redAccent, size: 24),
-            onPressed: () => lyricsCtrl.hideFromOverly(),
+            onPressed: () => lyricsCtrl.sendCloseToMain(),
           ),
         ],
       ),
@@ -178,8 +220,8 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   size: 24,
                 ),
                 onPressed: () {
-                  lyricsCtrl.toggleLock(true);
-                  lyricsCtrl.sendToggleLock();
+                  lyricsCtrl.lockInsideOverlay();
+                  lyricsCtrl.sendToggleLockToMain();
                   _toggleControls();
                 },
               ),
@@ -191,7 +233,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   color: Colors.white,
                   size: 28,
                 ),
-                onPressed: () => lyricsCtrl.sendPrevious(),
+                onPressed: () => lyricsCtrl.sendPreviousToMain(),
               ),
               IconButton(
                 padding: EdgeInsets.zero,
@@ -203,7 +245,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   color: Colors.white,
                   size: 42,
                 ),
-                onPressed: () => lyricsCtrl.sendPlayToggle(),
+                onPressed: () => lyricsCtrl.sendPlayToggleToMain(),
               ),
               IconButton(
                 padding: EdgeInsets.zero,
@@ -213,7 +255,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   color: Colors.white,
                   size: 28,
                 ),
-                onPressed: () => lyricsCtrl.sendNext(),
+                onPressed: () => lyricsCtrl.sendNextToMain(),
               ),
               IconButton(
                 padding: EdgeInsets.zero,
@@ -229,7 +271,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 300),
+          duration: _resizeAnimationDuration,
           curve: Curves.easeInOut,
           alignment: Alignment.topCenter,
           child: _showSettings
@@ -245,7 +287,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         GestureDetector(
-                          onTap: () => lyricsCtrl.updateFontSize(
+                          onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
                             (fontSize - 2).clamp(16.0, 24.0),
                           ),
                           child: const Text(
@@ -258,7 +300,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => lyricsCtrl.updateFontSize(
+                          onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
                             (fontSize + 2).clamp(16.0, 24.0),
                           ),
                           child: const Text(
@@ -275,7 +317,8 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                           final isSelected =
                               color.toARGB32() == textColor.toARGB32();
                           return GestureDetector(
-                            onTap: () => lyricsCtrl.setTextColor(color),
+                            onTap: () =>
+                                lyricsCtrl.setTextColorAndSendToMain(color),
                             child: Container(
                               width: 24,
                               height: 24,

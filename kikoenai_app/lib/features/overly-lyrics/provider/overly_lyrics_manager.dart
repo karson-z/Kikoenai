@@ -1,1 +1,273 @@
-import 'dart:io';import 'dart:async';import 'package:flutter/widgets.dart';import 'package:flutter_overlay_window/flutter_overlay_window.dart';import 'package:kikoenai/core/constants/app_player.dart';abstract class SubtitleManager {  factory SubtitleManager() {    if (Platform.isWindows || Platform.isLinux) {      return DesktopSubtitleManager();    } else if (Platform.isAndroid) {      return AndroidSubtitleManager();    }    throw UnsupportedError('Unsupported platform');  }  // 统一的事件暴露接口  Stream<Map<String, dynamic>> get eventStream;  // 初始化底层环境与权限  /// 这里由主应用初始化  Future<void> init();  // 显示字幕悬浮窗  Future<void> showOverlay({    bool isLocked = false,    double width = -1,    double height = 350,    double posX = 0,    double posY = 0,  });  // 隐藏字幕悬浮窗  Future<void> hideOverlay();  // 调整悬浮窗尺寸  Future<void> resizeOverlay(double width, double height);  // 开启点击穿透，进入锁定状态  Future<void> lock({bool isMain = false});  // 恢复事件拦截，解除锁定状态  Future<void> unlock({bool isMain = false});  // 同步业务状态 (包含歌词文本、播放状态等)  Future<void> syncBusinessState(Map<String, dynamic> state);  // 发送业务控制指令  Future<void> sendCommand(String command, [dynamic payload]);  // 获取悬浮窗当前坐标  Future<Offset> getOverlayPosition();  // 释放资源  void dispose();}class AndroidSubtitleManager implements SubtitleManager {  // 1. 实现绝对单例模式  static final AndroidSubtitleManager _instance =      AndroidSubtitleManager._internal();  factory AndroidSubtitleManager() => _instance;  AndroidSubtitleManager._internal(); // 私有构造函数  final StreamController<Map<String, dynamic>> _eventController =      StreamController<Map<String, dynamic>>.broadcast();  bool _isInitialized = false;  StreamSubscription? _overlaySubscription; // 保存底层监听器的引用  @override  Stream<Map<String, dynamic>> get eventStream => _eventController.stream;  @override  Future<void> init() async {    if (_isInitialized) return;    _isInitialized = true;    // 2. 挂载系统级的消息通道，并保存引用    _overlaySubscription = FlutterOverlayWindow.overlayListener.listen((event) {      debugPrint('IPC Receiver (Main): $event');      if (event is Map) {        final action = event['action'] as String?;        final payload = event['payload'];        _eventController.add({'action': action, 'payload': payload});      }    });  }  @override  Future<void> showOverlay({    bool isLocked = false,    double width = -1,    double height = 750,    double posX = 0,    double posY = 0,  }) async {    bool isGranted = await FlutterOverlayWindow.isPermissionGranted();    if (!isGranted) {      await FlutterOverlayWindow.requestPermission();    }    // 根据传入的锁定状态决定初始 Flag    final flag = isLocked ? OverlayFlag.clickThrough : OverlayFlag.defaultFlag;    await FlutterOverlayWindow.showOverlay(      enableDrag: true,      flag: flag,      alignment: OverlayAlignment.center,      visibility: NotificationVisibility.visibilityPublic,      width: width.toInt(),      height: height.toInt(),      positionGravity: PositionGravity.auto,      startPosition: OverlayPosition(posX, posY),    );  }  @override  Future<void> hideOverlay() async {    await FlutterOverlayWindow.closeOverlay();  }  @override  Future<void> resizeOverlay(double width, double height) async {    // enableDrag 传 true 保持窗口的可拖拽属性    await FlutterOverlayWindow.resizeOverlay(      width.toInt(),      height.toInt(),      true,    );  }  @override  Future<void> lock({bool isMain = false}) async {    if (!isMain) {      await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);    } else {      await FlutterOverlayWindow.shareData({        'action': PlayerConstants.lockOverlay,      });    }  }  @override  Future<void> unlock({bool isMain = false}) async {    if (!isMain) {      await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);    } else {      await FlutterOverlayWindow.shareData({        'action': PlayerConstants.unlockOverlay,      });    }  }  @override  Future<void> syncBusinessState(Map<String, dynamic> state) async {    await FlutterOverlayWindow.shareData({      'action': PlayerConstants.syncBusinessState,      'payload': state,    });  }  @override  Future<void> sendCommand(String command, [dynamic payload]) async {    try {      debugPrint('IPC Sender (Overlay Isolate): 尝试发送指令 $command');      await FlutterOverlayWindow.shareData({        'action': command,        'payload': payload,      });      debugPrint('IPC Sender: 播控指令 [$command] 插件通道投递成功');    } catch (e) {      debugPrint('IPC Send Exception: $e');    }  }  @override  void dispose() {    // 3. 作为全局单例，通常不需要频繁 close。    // 但为了严谨，如果你一定要 dispose，必须同时取消掉底层系统通道的订阅    _overlaySubscription?.cancel();    _isInitialized = false;  }  @override  Future<Offset> getOverlayPosition() async {    try {      // 获取底层返回的 OverlayPosition      final position = await FlutterOverlayWindow.getOverlayPosition();      // 转换为通用的 Offset 类型返回      return Offset(position.x.toDouble(), position.y.toDouble());    } catch (e) {      debugPrint('IPC Exception: 获取Android悬浮窗坐标失败 $e');      return Offset.zero;    }  }}/// 等待Flutter 官方支持多窗口， 不强行实现该功能class DesktopSubtitleManager implements SubtitleManager {  static final DesktopSubtitleManager _instance =      DesktopSubtitleManager._internal();  factory DesktopSubtitleManager() => _instance;  final StreamController<Map<String, dynamic>> _eventController =      StreamController<Map<String, dynamic>>.broadcast();  DesktopSubtitleManager._internal();  @override  Stream<Map<String, dynamic>> get eventStream => _eventController.stream;  @override  Future<void> init() async {}  @override  Future<void> showOverlay({    bool isLocked = false,    double width = -1,    double height = 350,    double posX = 0,    double posY = 0,  }) async {}  @override  Future<void> hideOverlay() async {}  @override  Future<void> resizeOverlay(double width, double height) async {}  @override  Future<void> lock({bool isMain = false}) async {}  @override  Future<void> unlock({bool isMain = false}) async {}  @override  Future<void> syncBusinessState(Map<String, dynamic> state) async {}  @override  Future<void> sendCommand(String command, [dynamic payload]) async {}  @override  void dispose() {    _eventController.close();  }  @override  Future<Offset> getOverlayPosition() async {    return Offset.zero;  }}
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+
+enum SubtitleEndpoint { main, overlay }
+
+abstract class SubtitleManager {
+  factory SubtitleManager(SubtitleEndpoint endpoint) {
+    if (Platform.isWindows || Platform.isLinux) {
+      return DesktopSubtitleManager(endpoint);
+    } else if (Platform.isAndroid) {
+      return AndroidSubtitleManager(endpoint);
+    }
+    throw UnsupportedError('Unsupported platform');
+  }
+
+  SubtitleEndpoint get endpoint;
+
+  /// Main -> Overlay messages. Only the overlay endpoint receives this stream.
+  Stream<Map<String, dynamic>> get messagesFromMain;
+
+  /// Overlay -> Main messages. Only the main endpoint receives this stream.
+  Stream<Map<String, dynamic>> get messagesFromOverlay;
+
+  Future<void> init();
+
+  Future<void> showOverlay({
+    bool isLocked = false,
+    double width = -1,
+    double height = 250,
+    double posX = 0,
+    double posY = 0,
+  });
+
+  Future<void> hideOverlay();
+
+  Future<void> resizeOverlay(double width, double height);
+
+  /// Changes the interaction flag on the overlay window itself.
+  Future<void> setOverlayInteractionLocked(bool isLocked);
+
+  /// Main -> Overlay sender.
+  Future<void> sendToOverlay(String action, [dynamic payload]);
+
+  /// Overlay -> Main sender.
+  Future<void> sendToMain(String action, [dynamic payload]);
+
+  Future<Offset> getOverlayPosition();
+
+  void dispose();
+}
+
+class AndroidSubtitleManager implements SubtitleManager {
+  static final Map<SubtitleEndpoint, AndroidSubtitleManager> _instances = {};
+
+  factory AndroidSubtitleManager(SubtitleEndpoint endpoint) {
+    return _instances.putIfAbsent(
+      endpoint,
+      () => AndroidSubtitleManager._internal(endpoint),
+    );
+  }
+
+  AndroidSubtitleManager._internal(this.endpoint);
+
+  @override
+  final SubtitleEndpoint endpoint;
+
+  final StreamController<Map<String, dynamic>> _messagesFromMainController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _messagesFromOverlayController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  bool _isInitialized = false;
+  StreamSubscription<dynamic>? _incomingSubscription;
+
+  @override
+  Stream<Map<String, dynamic>> get messagesFromMain =>
+      _messagesFromMainController.stream;
+
+  @override
+  Stream<Map<String, dynamic>> get messagesFromOverlay =>
+      _messagesFromOverlayController.stream;
+
+  @override
+  Future<void> init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+
+    if (endpoint == SubtitleEndpoint.main) {
+      _incomingSubscription = FlutterOverlayWindow.messagesFromOverlay.listen(
+        (event) => _addMessage(event, _messagesFromOverlayController),
+      );
+    } else {
+      _incomingSubscription = FlutterOverlayWindow.messagesFromMain.listen(
+        (event) => _addMessage(event, _messagesFromMainController),
+      );
+    }
+  }
+
+  void _addMessage(
+    dynamic event,
+    StreamController<Map<String, dynamic>> controller,
+  ) {
+    debugPrint('IPC Receiver (${endpoint.name}): $event');
+    if (event is! Map) return;
+
+    controller.add({
+      'action': event['action'] as String?,
+      'payload': event['payload'],
+    });
+  }
+
+  @override
+  Future<void> showOverlay({
+    bool isLocked = false,
+    double width = -1,
+    double height = 250,
+    double posX = 0,
+    double posY = 0,
+  }) async {
+    final isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    if (!isGranted) {
+      await FlutterOverlayWindow.requestPermission();
+    }
+
+    final flag = isLocked ? OverlayFlag.clickThrough : OverlayFlag.defaultFlag;
+    await FlutterOverlayWindow.showOverlay(
+      enableDrag: true,
+      flag: flag,
+      alignment: OverlayAlignment.center,
+      visibility: NotificationVisibility.visibilityPublic,
+      width: width.toInt(),
+      height: height.toInt(),
+      positionGravity: PositionGravity.auto,
+      startPosition: OverlayPosition(posX, posY),
+    );
+  }
+
+  @override
+  Future<void> hideOverlay() async {
+    await FlutterOverlayWindow.closeOverlay();
+  }
+
+  @override
+  Future<void> resizeOverlay(double width, double height) async {
+    await FlutterOverlayWindow.resizeOverlay(
+      width.toInt(),
+      height.toInt(),
+      true,
+      keepTop: true,
+    );
+  }
+
+  @override
+  Future<void> setOverlayInteractionLocked(bool isLocked) async {
+    _requireEndpoint(SubtitleEndpoint.overlay, 'setOverlayInteractionLocked');
+    await FlutterOverlayWindow.updateFlag(
+      isLocked ? OverlayFlag.clickThrough : OverlayFlag.defaultFlag,
+    );
+  }
+
+  @override
+  Future<void> sendToOverlay(String action, [dynamic payload]) async {
+    _requireEndpoint(SubtitleEndpoint.main, 'sendToOverlay');
+    debugPrint('IPC Sender (Main -> Overlay): $action');
+    await FlutterOverlayWindow.sendToOverlay({
+      'action': action,
+      'payload': payload,
+    });
+  }
+
+  @override
+  Future<void> sendToMain(String action, [dynamic payload]) async {
+    _requireEndpoint(SubtitleEndpoint.overlay, 'sendToMain');
+    debugPrint('IPC Sender (Overlay -> Main): $action');
+    await FlutterOverlayWindow.sendToMain({
+      'action': action,
+      'payload': payload,
+    });
+  }
+
+  void _requireEndpoint(SubtitleEndpoint expected, String operation) {
+    if (endpoint != expected) {
+      throw StateError(
+        '$operation requires the ${expected.name} endpoint, '
+        'but this manager is ${endpoint.name}.',
+      );
+    }
+  }
+
+  @override
+  Future<Offset> getOverlayPosition() async {
+    try {
+      final position = await FlutterOverlayWindow.getOverlayPosition();
+      return Offset(position.x.toDouble(), position.y.toDouble());
+    } catch (error) {
+      debugPrint('IPC Exception: 获取Android悬浮窗坐标失败 $error');
+      return Offset.zero;
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_incomingSubscription?.cancel());
+    _incomingSubscription = null;
+    _isInitialized = false;
+  }
+}
+
+/// 等待 Flutter 官方支持多窗口，不强行实现该功能。
+class DesktopSubtitleManager implements SubtitleManager {
+  static final Map<SubtitleEndpoint, DesktopSubtitleManager> _instances = {};
+
+  factory DesktopSubtitleManager(SubtitleEndpoint endpoint) {
+    return _instances.putIfAbsent(
+      endpoint,
+      () => DesktopSubtitleManager._internal(endpoint),
+    );
+  }
+
+  DesktopSubtitleManager._internal(this.endpoint);
+
+  @override
+  final SubtitleEndpoint endpoint;
+
+  final StreamController<Map<String, dynamic>> _messagesFromMainController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _messagesFromOverlayController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  @override
+  Stream<Map<String, dynamic>> get messagesFromMain =>
+      _messagesFromMainController.stream;
+
+  @override
+  Stream<Map<String, dynamic>> get messagesFromOverlay =>
+      _messagesFromOverlayController.stream;
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<void> showOverlay({
+    bool isLocked = false,
+    double width = -1,
+    double height = 250,
+    double posX = 0,
+    double posY = 0,
+  }) async {}
+
+  @override
+  Future<void> hideOverlay() async {}
+
+  @override
+  Future<void> resizeOverlay(double width, double height) async {}
+
+  @override
+  Future<void> setOverlayInteractionLocked(bool isLocked) async {}
+
+  @override
+  Future<void> sendToOverlay(String action, [dynamic payload]) async {}
+
+  @override
+  Future<void> sendToMain(String action, [dynamic payload]) async {}
+
+  @override
+  Future<Offset> getOverlayPosition() async => Offset.zero;
+
+  @override
+  void dispose() {}
+}

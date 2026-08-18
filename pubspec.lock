@@ -490,11 +490,9 @@ packages:
   flutter_overlay_window:
     dependency: transitive
     description:
-      path: "."
-      ref: "13b1cbac2c6b9622558030f84d20916880a53eac"
-      resolved-ref: "13b1cbac2c6b9622558030f84d20916880a53eac"
-      url: "https://github.com/karson-z/flutter_overlay_window.git"
-    source: git
+      path: "../flutter_overlay_window"
+      relative: true
+    source: path
     version: "0.5.1"
   flutter_plugin_android_lifecycle:
     dependency: transitive

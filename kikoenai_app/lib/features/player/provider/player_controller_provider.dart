@@ -211,7 +211,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   void _listenToOverlayCommands() {
     debugPrint('AudioController: 准备连接悬浮窗插件消息通道...');
     final manager = ref.read(subtitleManagerProvider);
-    _overlayCommandSubscription = manager.eventStream.listen((message) {
+    _overlayCommandSubscription = manager.messagesFromOverlay.listen((message) {
       debugPrint('AudioController: 插件通道捕获到指令 -> $message');
       final action = message['action'] as String?;
       final payload = message['payload'];
@@ -292,9 +292,10 @@ class PlayerController extends Notifier<AppPlayerState> {
     _handler.playbackState.map((p) => p.playing).distinct().listen((isPlaying) {
       state = state.copyWith(playing: isPlaying);
       _updateTrackerStatus(isPlaying: isPlaying, isCompleted: false);
-      ref.read(subtitleManagerProvider).syncBusinessState({
-        'isPlaying': isPlaying,
-      });
+      ref.read(subtitleManagerProvider).sendToOverlay(
+        PlayerConstants.syncBusinessState,
+        {'isPlaying': isPlaying},
+      );
     });
 
     // 当前播放曲目
