@@ -108,7 +108,7 @@ class _HotWorksSection extends ConsumerWidget {
     final hotState = ref.watch(hotWorksProvider);
     return hotState.when(
       data: (state) {
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
@@ -124,7 +124,7 @@ class _HotWorksSection extends ConsumerWidget {
               },
             ),
             SliverToBoxAdapter(
-              child: ResponsiveHorizontalCardList(items: state.works),
+              child: ResponsiveHorizontalCardList(items: state.itemList),
             ),
           ],
         );
@@ -153,7 +153,7 @@ class _RecommendedWorksSection extends ConsumerWidget {
     return recommendedState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
@@ -171,7 +171,7 @@ class _RecommendedWorksSection extends ConsumerWidget {
                 );
               },
             ),
-            SliverToBoxAdapter(child: WorkListHorizontal(items: state.works)),
+            SliverToBoxAdapter(child: WorkListHorizontal(items: state.itemList)),
           ],
         );
       },
@@ -201,7 +201,7 @@ class _NewestWorksSection extends ConsumerWidget {
     return newestState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
@@ -212,20 +212,16 @@ class _NewestWorksSection extends ConsumerWidget {
             ),
             if (isListMode)
               ResponsiveWorkList(
-                work: state.works,
-                hasMore: state.hasMore,
-                isLoading: state.isLoading,
-                onLoadMore: () {
-                  ref.read(newWorksProvider.notifier).loadMore();
+                pagingState: state,
+                fetchNextPage: () {
+                  ref.read(newWorksProvider.notifier).fetchNextPage();
                 },
               )
             else
               ResponsiveCardGrid(
-                work: state.works,
-                hasMore: state.hasMore,
-                isLoading: state.isLoading,
-                onLoadMore: () {
-                  ref.read(newWorksProvider.notifier).loadMore();
+                pagingState: state,
+                fetchNextPage: () {
+                  ref.read(newWorksProvider.notifier).fetchNextPage();
                 },
               ),
           ],

@@ -101,9 +101,6 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
     if (list.isEmpty || list.last != widget.sortOrder) {
       Future.microtask(() => manager.markAsActive(widget.sortOrder));
     }
-    final worksAsync = ref.watch(categoryProvider(widget.sortOrder));
-    final categoryController = ref.read(categoryProvider(widget.sortOrder).notifier);
-
     return ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
       child: NotificationListener<ScrollNotification>(
@@ -186,30 +183,23 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
         skipLoadingOnRefresh: true,
 
         data: (data) {
-          // 如果数据为空，显示空状态（可选）
-          if (data.works.isEmpty) {
-            return const SliverToBoxAdapter(child: Center(child: Text("暂无数据")));
-          }
-
           // 网格 / 列表模式（全局共享 + 持久化）
           final isListMode =
               ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
           if (isListMode) {
             return ResponsiveWorkList(
-              work: data.works,
-              hasMore: data.hasMore,
-              isLoading: categoryWorks.isLoading,
-              onLoadMore: () {
-                categoryController.loadMore();
+              pagingState: data,
+              emptyMessage: '暂无数据',
+              fetchNextPage: () {
+                categoryController.fetchNextPage();
               },
             );
           }
           return ResponsiveCardGrid(
-            work: data.works,
-            hasMore: data.hasMore,
-            isLoading: categoryWorks.isLoading,
-            onLoadMore: () {
-              categoryController.loadMore();
+            pagingState: data,
+            emptyMessage: '暂无数据',
+            fetchNextPage: () {
+              categoryController.fetchNextPage();
             },
           );
         },

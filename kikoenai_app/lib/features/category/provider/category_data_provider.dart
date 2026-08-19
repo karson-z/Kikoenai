@@ -2,15 +2,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/age_rating.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
+import 'package:kikoenai/core/widgets/pagination/kiko_paging_state.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../../core/service/site/site_api_provider.dart';
 import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
-class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
+class CategoryDataNotifier extends AsyncNotifier<KikoPagingState<Work>> {
   CategoryDataNotifier(this.sortOrder);
   final SortOrder sortOrder;
+  int _requestVersion = 0;
 
   SiteApi get _api => ref.read(activeSiteApiProvider);
 
@@ -37,18 +39,24 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
   }
 
   @override
-  Future<FilterDataState> build() async {
+  Future<KikoPagingState<Work>> build() async {
+    _requestVersion++;
     ref.watch(activeSiteIdProvider);
     if (!_api.supports(SiteFeature.search)) {
-      return const FilterDataState();
+      return KikoPagingState<Work>().appendPage(
+        pageKey: 1,
+        pageItems: const <Work>[],
+        totalCount: 0,
+      );
     }
-    return await _load(reset: true);
+    return _loadPage(pageKey: 1, current: KikoPagingState<Work>());
   }
 
-  Future<FilterDataState> _load({required bool reset}) async {
+  Future<KikoPagingState<Work>> _loadPage({
+    required int pageKey,
+    required KikoPagingState<Work> current,
+  }) async {
     final ui = ref.read(searchFilterProvider(FilterModule.category));
-    final prev = state.value ?? const FilterDataState();
-    final page = reset ? 1 : prev.currentPage + 1;
     final List<SearchTag> mergedTags = List.from(ui.selectedTags);
     mergedTags.addAll(AppStorage.filterTagsBox.values);
     final isNSFW = AppStorage.settingsBox.get(
@@ -62,7 +70,7 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
     }
 
     // 4. 构建包含所有条件(分类特有 + 全局 + SFW + 关键词)的查询字符串
-    var queryParams = SearchTag.buildTagQueryPath(
+    final queryParams = SearchTag.buildTagQueryPath(
       mergedTags,
       keyword: ui.keyword,
     );
@@ -70,7 +78,7 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
     // 发起网络请求
     final result = await _api.searchWorks(
       SearchWorksRequest(
-        page: page,
+        page: pageKey,
         order: sortOrder.value, // 使用传入的参数
         sort: ui.sortDirection.value,
         subtitle: ui.subtitleFilter,
@@ -78,42 +86,42 @@ class CategoryDataNotifier extends AsyncNotifier<FilterDataState> {
       ),
     );
 
-    final newWorks = result.items;
-    final totalCount = result.pagination.totalCount;
-    final currentPage = result.pagination.currentPage;
-    final list = reset ? newWorks : [...prev.works, ...newWorks];
-
-    return prev.copyWith(
-      works: list,
-      currentPage: currentPage,
-      totalCount: totalCount,
-      hasMore: list.length < totalCount,
+    return current.appendPage(
+      pageKey: pageKey,
+      pageItems: result.items,
+      totalCount: result.pagination.totalCount,
       filterFingerprint: fingerprintOf(ui),
     );
   }
 
-  Future<void> loadMore() async {
+  Future<void> fetchNextPage() async {
+    if (state.isLoading) return;
     final current = state.value;
-    if (current == null || current.isLoading || !current.hasMore) {
+    if (current == null || current.isLoading || !current.hasNextPage) {
       return;
     }
 
-    // 开始加载
-    state = AsyncData(current.copyWith(isLoading: true));
+    final requestVersion = ++_requestVersion;
+    state = AsyncData(current.copyWith(isLoading: true, error: null));
 
     try {
-      final result = await _load(reset: false);
-
-      state = AsyncData(result.copyWith(isLoading: false));
-    } catch (e, st) {
-      state = AsyncData(current.copyWith(isLoading: false));
-      Error.throwWithStackTrace(e, st);
+      final result = await _loadPage(
+        pageKey: current.nextPageKey,
+        current: current,
+      );
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(result);
+      }
+    } catch (error) {
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(current.copyWith(isLoading: false, error: error));
+      }
     }
   }
 }
 
 // 暴露 Provider
 final categoryProvider = AsyncNotifierProvider.family
-    .autoDispose<CategoryDataNotifier, FilterDataState, SortOrder>(
+    .autoDispose<CategoryDataNotifier, KikoPagingState<Work>, SortOrder>(
       CategoryDataNotifier.new,
     );

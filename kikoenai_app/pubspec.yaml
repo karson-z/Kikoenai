@@ -71,6 +71,7 @@ dependencies:
       ref: 2380e0523ec2687485416e0ffe9ada43f20a8ab1
   disk_space_2: ^1.0.12
   visibility_detector: ^0.4.0+2
+  infinite_scroll_pagination: ^5.1.1
   flutter_overlay_window:
     path: ../package/flutter_overlay_window
   window_manager: ^0.4.3

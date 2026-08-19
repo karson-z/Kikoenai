@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/pagination/kiko_paging_state.dart';
 import 'package:kikoenai/features/album/widget/work_grid_layout.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../provider/work_provider.dart';
@@ -22,24 +23,27 @@ class SmartWorksSliverGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 1. 根据传入的枚举，动态获取对应的 State 和 Notifier 方法
-    AsyncValue<WorkState> asyncState;
-    VoidCallback onLoadMore;
+    AsyncValue<KikoPagingState<Work>> asyncState;
+    VoidCallback fetchNextPage;
     VoidCallback onRetry;
 
     switch (source) {
       case WorkDataSource.hot:
         asyncState = ref.watch(hotWorksProvider);
-        onLoadMore = () => ref.read(hotWorksProvider.notifier).loadMore();
+        fetchNextPage = () =>
+            ref.read(hotWorksProvider.notifier).fetchNextPage();
         onRetry = () => ref.read(hotWorksProvider.notifier).refresh();
         break;
       case WorkDataSource.recommended:
         asyncState = ref.watch(recommendedWorksProvider);
-        onLoadMore = () => ref.read(recommendedWorksProvider.notifier).loadMore();
+        fetchNextPage = () =>
+            ref.read(recommendedWorksProvider.notifier).fetchNextPage();
         onRetry = () => ref.read(recommendedWorksProvider.notifier).refresh();
         break;
       case WorkDataSource.newest:
         asyncState = ref.watch(newWorksProvider);
-        onLoadMore = () => ref.read(newWorksProvider.notifier).loadMore();
+        fetchNextPage = () =>
+            ref.read(newWorksProvider.notifier).fetchNextPage();
         onRetry = () => ref.read(newWorksProvider.notifier).refresh();
         break;
     }
@@ -49,10 +53,8 @@ class SmartWorksSliverGrid extends ConsumerWidget {
       // --- 数据获取成功：直接投喂给下层的 ResponsiveCardGrid ---
       data: (state) {
         return ResponsiveCardGrid(
-          work: state.works,
-          hasMore: state.hasMore,
-          isLoading: state.isLoading,
-          onLoadMore: onLoadMore,
+          pagingState: state,
+          fetchNextPage: fetchNextPage,
         );
       },
 
