@@ -26,6 +26,7 @@ import '../../../../../core/widgets/layout/app_toast.dart';
 import '../../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../../local_media/provider/file_path_notifier.dart';
 import '../../../local_media/provider/file_scanner_notifier.dart';
+import '../../../overly-lyrics/provider/overly_lyrics_provider.dart';
 import '../../../overly-lyrics/widget/overly_setting_panel.dart';
 import '../../provider/player_controller_provider.dart';
 
@@ -238,11 +239,12 @@ class _MoreOptionsContent extends ConsumerWidget {
           }
         },
       ),
-      QuickActionItem(
-        icon: Icons.picture_in_picture_alt,
-        label: "桌面字幕",
-        onTap: () => _handleSubtitleConfig(context),
-      ),
+      if (ref.read(overlayLyricsSupportedProvider))
+        QuickActionItem(
+          icon: Icons.picture_in_picture_alt,
+          label: "桌面字幕",
+          onTap: () => _handleSubtitleConfig(context),
+        ),
     ];
   }
 

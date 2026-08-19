@@ -10,12 +10,10 @@ abstract class SubtitleManager {
   static const double defaultOverlayHeight = 120;
 
   factory SubtitleManager(SubtitleEndpoint endpoint) {
-    if (Platform.isWindows || Platform.isLinux) {
-      return DesktopSubtitleManager(endpoint);
-    } else if (Platform.isAndroid) {
+    if (Platform.isAndroid) {
       return AndroidSubtitleManager(endpoint);
     }
-    throw UnsupportedError('Unsupported platform');
+    return NoopSubtitleManager(endpoint);
   }
 
   SubtitleEndpoint get endpoint;
@@ -211,18 +209,18 @@ class AndroidSubtitleManager implements SubtitleManager {
   }
 }
 
-/// 等待 Flutter 官方支持多窗口，不强行实现该功能。
-class DesktopSubtitleManager implements SubtitleManager {
-  static final Map<SubtitleEndpoint, DesktopSubtitleManager> _instances = {};
+/// Android 以外的平台不启用系统悬浮歌词，但保持调用链安全。
+class NoopSubtitleManager implements SubtitleManager {
+  static final Map<SubtitleEndpoint, NoopSubtitleManager> _instances = {};
 
-  factory DesktopSubtitleManager(SubtitleEndpoint endpoint) {
+  factory NoopSubtitleManager(SubtitleEndpoint endpoint) {
     return _instances.putIfAbsent(
       endpoint,
-      () => DesktopSubtitleManager._internal(endpoint),
+      () => NoopSubtitleManager._internal(endpoint),
     );
   }
 
-  DesktopSubtitleManager._internal(this.endpoint);
+  NoopSubtitleManager._internal(this.endpoint);
 
   @override
   final SubtitleEndpoint endpoint;

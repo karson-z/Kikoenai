@@ -107,24 +107,25 @@ class SettingsPage extends ConsumerWidget {
                     AppConstants.aoOpenSLES: 'OpenSL',
                   },
                 ),
-              _ChevronTile(
-                title: '桌面字幕',
-                trailingText: '配置桌面字幕',
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (context) {
-                      return const BackButtonPriorityWrapper(
-                        zIndex: 101, // 确保层级高于之前的面板
-                        name: 'SubtitleConfigBottomSheet',
-                        child: SubtitleConfigBottomSheet(),
-                      );
-                    },
-                  );
-                },
-              ),
+              if (Platform.isAndroid)
+                _ChevronTile(
+                  title: '桌面字幕',
+                  trailingText: '配置桌面字幕',
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (context) {
+                        return const BackButtonPriorityWrapper(
+                          zIndex: 101, // 确保层级高于之前的面板
+                          name: 'SubtitleConfigBottomSheet',
+                          child: SubtitleConfigBottomSheet(),
+                        );
+                      },
+                    );
+                  },
+                ),
               _ChevronTile(
                 title: '音频类型偏好',
                 trailingText: 'wav > mp3...',

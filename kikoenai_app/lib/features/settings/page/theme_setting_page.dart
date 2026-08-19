@@ -164,9 +164,11 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
                 isSelected: themeState.fontPreset == preset,
                 onTap: () {
                   themeNotifier.setFontPreset(preset);
-                  ref
-                      .read(lyricsControllerProvider.notifier)
-                      .updateFontPresetAndSendToOverlay(preset);
+                  if (ref.read(overlayLyricsSupportedProvider)) {
+                    ref
+                        .read(lyricsControllerProvider.notifier)
+                        .updateFontPresetAndSendToOverlay(preset);
+                  }
                 },
               );
             }).toList(),

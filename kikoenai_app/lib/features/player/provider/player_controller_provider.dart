@@ -292,10 +292,12 @@ class PlayerController extends Notifier<AppPlayerState> {
     _handler.playbackState.map((p) => p.playing).distinct().listen((isPlaying) {
       state = state.copyWith(playing: isPlaying);
       _updateTrackerStatus(isPlaying: isPlaying, isCompleted: false);
-      ref.read(subtitleManagerProvider).sendToOverlay(
-        PlayerConstants.syncBusinessState,
-        {'isPlaying': isPlaying},
-      );
+      if (ref.read(overlayLyricsSupportedProvider)) {
+        ref.read(subtitleManagerProvider).sendToOverlay(
+          PlayerConstants.syncBusinessState,
+          {'isPlaying': isPlaying},
+        );
+      }
     });
 
     // 当前播放曲目
@@ -323,7 +325,9 @@ class PlayerController extends Notifier<AppPlayerState> {
         }
       });
     }
-    _listenToOverlayCommands();
+    if (ref.read(overlayLyricsSupportedProvider)) {
+      _listenToOverlayCommands();
+    }
   }
 
   void _updateSkipInfo() {

@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_manager.dart';
+import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +33,32 @@ void main() {
       );
     });
   });
+
+  test('uses a safe no-op manager outside Android', () async {
+    final manager = SubtitleManager(SubtitleEndpoint.main);
+
+    expect(manager, isA<NoopSubtitleManager>());
+    await manager.init();
+    await manager.showOverlay();
+    await manager.sendToOverlay('test');
+    await manager.hideOverlay();
+    expect(await manager.getOverlayPosition(), Offset.zero);
+  }, skip: Platform.isAndroid);
+
+  test(
+    'keeps the subtitle manager provider readable outside Android',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(overlayLyricsSupportedProvider), isFalse);
+      expect(
+        container.read(subtitleManagerProvider),
+        isA<NoopSubtitleManager>(),
+      );
+    },
+    skip: Platform.isAndroid,
+  );
 
   test('uses the shared 120dp overlay height by default', () async {
     MethodCall? showOverlayCall;

@@ -15,13 +15,16 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 当用户开启桌面字幕的时候再挂起监听
-    AppStorage.settingsBox.get(
+    final overlayLyricsSupported = ref.watch(overlayLyricsSupportedProvider);
+    final overlayLyricsEnabled =
+        AppStorage.settingsBox.get(
           StorageKeys.desktopLyricsEnabled,
           defaultValue: false,
-        )
-        ? ref.listen(lyricsControllerProvider, (_, __) {})
-        : null;
+        ) ==
+        true;
+    if (overlayLyricsSupported && overlayLyricsEnabled) {
+      ref.listen(lyricsControllerProvider, (_, __) {});
+    }
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
     final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);

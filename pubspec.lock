@@ -478,15 +478,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
-  flutter_lyric:
-    dependency: transitive
-    description:
-      path: "."
-      ref: "2380e0523ec2687485416e0ffe9ada43f20a8ab1"
-      resolved-ref: "2380e0523ec2687485416e0ffe9ada43f20a8ab1"
-      url: "https://github.com/karson-z/flutter_lyric.git"
-    source: git
-    version: "3.0.3"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:

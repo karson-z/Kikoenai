@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
@@ -9,6 +11,10 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/storage/hive_key.dart';
 import 'overly_lyrics_manager.dart';
 import 'overly_lyrics_sync_service.dart';
+
+final overlayLyricsSupportedProvider = Provider<bool>(
+  (ref) => Platform.isAndroid,
+);
 
 final subtitleEndpointProvider = Provider<SubtitleEndpoint>(
   (ref) => SubtitleEndpoint.main,

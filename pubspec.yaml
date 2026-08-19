@@ -6,6 +6,7 @@ environment:
 
 workspace:
   - package/flutter_overlay_window
+  - package/flutter_lyric
   - kikoenai_core
   - kikoenai_sites
   - kikoenai_app
