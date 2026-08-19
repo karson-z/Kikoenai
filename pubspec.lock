@@ -487,13 +487,6 @@ packages:
       url: "https://github.com/karson-z/flutter_lyric.git"
     source: git
     version: "3.0.3"
-  flutter_overlay_window:
-    dependency: transitive
-    description:
-      path: "../flutter_overlay_window"
-      relative: true
-    source: path
-    version: "0.5.1"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:

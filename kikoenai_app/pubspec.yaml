@@ -72,7 +72,7 @@ dependencies:
   disk_space_2: ^1.0.12
   visibility_detector: ^0.4.0+2
   flutter_overlay_window:
-    path: ../../flutter_overlay_window
+    path: ../package/flutter_overlay_window
   window_manager: ^0.4.3
   tray_manager: ^0.2.2
   # 官方仓库 media-kit/media-kit @ 7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f（2026-05-20 合并 PR #1352）：

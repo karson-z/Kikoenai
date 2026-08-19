@@ -5,6 +5,7 @@ environment:
   sdk: '3.12.2'
 
 workspace:
+  - package/flutter_overlay_window
   - kikoenai_core
   - kikoenai_sites
   - kikoenai_app

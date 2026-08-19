@@ -1,0 +1,4 @@
+include: package:flutter_lints/flutter.yaml
+
+# 有关此文件的更多信息，请参阅
+# https://dart.dev/guides/language/analysis-options
