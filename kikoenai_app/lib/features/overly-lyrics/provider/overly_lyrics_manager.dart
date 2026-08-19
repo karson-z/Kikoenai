@@ -7,6 +7,8 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 enum SubtitleEndpoint { main, overlay }
 
 abstract class SubtitleManager {
+  static const double defaultOverlayHeight = 120;
+
   factory SubtitleManager(SubtitleEndpoint endpoint) {
     if (Platform.isWindows || Platform.isLinux) {
       return DesktopSubtitleManager(endpoint);
@@ -29,7 +31,7 @@ abstract class SubtitleManager {
   Future<void> showOverlay({
     bool isLocked = false,
     double width = -1,
-    double height = 250,
+    double height = SubtitleManager.defaultOverlayHeight,
     double posX = 0,
     double posY = 0,
   });
@@ -116,7 +118,7 @@ class AndroidSubtitleManager implements SubtitleManager {
   Future<void> showOverlay({
     bool isLocked = false,
     double width = -1,
-    double height = 250,
+    double height = SubtitleManager.defaultOverlayHeight,
     double posX = 0,
     double posY = 0,
   }) async {
@@ -245,7 +247,7 @@ class DesktopSubtitleManager implements SubtitleManager {
   Future<void> showOverlay({
     bool isLocked = false,
     double width = -1,
-    double height = 250,
+    double height = SubtitleManager.defaultOverlayHeight,
     double posX = 0,
     double posY = 0,
   }) async {}

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:text_scroll/text_scroll.dart';
+import '../provider/overly_lyrics_manager.dart';
 import '../provider/overly_lyrics_provider.dart';
 
 class LyricsOverlayContent extends ConsumerStatefulWidget {
@@ -17,9 +18,9 @@ class LyricsOverlayContent extends ConsumerStatefulWidget {
 
 class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
   static const _resizeAnimationDuration = Duration(milliseconds: 300);
-  static const double _lyricsOnlyHeight = 250;
-  static const double _controlsHeight = 350;
-  static const double _settingsHeight = 410;
+  static const double _settingsPanelHeight = 60;
+  static const double _settingsHeight =
+      SubtitleManager.defaultOverlayHeight + _settingsPanelHeight;
 
   bool _showControls = false;
   bool _showSettings = false;
@@ -35,17 +36,18 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
 
   void _toggleControls() {
     final willShowControls = !_showControls;
-    if (willShowControls) {
-      _requestOverlayHeight(_controlsHeight);
-    }
+    final wasShowingSettings = _showSettings;
     setState(() {
       _showControls = willShowControls;
       if (!_showControls) {
         _showSettings = false;
       }
     });
-    if (!willShowControls) {
-      _requestOverlayHeight(_lyricsOnlyHeight, afterAnimation: true);
+    if (!willShowControls && wasShowingSettings) {
+      _requestOverlayHeight(
+        SubtitleManager.defaultOverlayHeight,
+        afterAnimation: true,
+      );
     }
   }
 
@@ -58,7 +60,10 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
       _showSettings = willShowSettings;
     });
     if (!willShowSettings) {
-      _requestOverlayHeight(_controlsHeight, afterAnimation: true);
+      _requestOverlayHeight(
+        SubtitleManager.defaultOverlayHeight,
+        afterAnimation: true,
+      );
     }
   }
 
