@@ -78,4 +78,66 @@ void main() {
     expect(find.byKey(const Key('player-panel')), findsOneWidget);
     expect(controller.isPanelClosed, isTrue);
   });
+
+  testWidgets('bottom navigation ignores the iOS top safe area', (
+    tester,
+  ) async {
+    const topInset = 47.0;
+    const bottomInset = 34.0;
+    const navigationContentHeight = 68.0;
+    const navigationHeight = navigationContentHeight + bottomInset;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            padding: EdgeInsets.only(top: topInset, bottom: bottomInset),
+            viewPadding: EdgeInsets.only(
+              top: topInset,
+              bottom: bottomInset,
+            ),
+          ),
+          child: Scaffold(
+            body: PlayerSheetPanel(
+              showPanel: false,
+              minHeight: 75,
+              maxHeight: 600,
+              bottomNavBarHeight: navigationHeight,
+              body: const SizedBox.expand(key: Key('body')),
+              bottomNavBar: RepaintBoundary(
+                key: const Key('bottom-navigation'),
+                child: NavigationBar(
+                  height: navigationContentHeight,
+                  maintainBottomViewPadding: true,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      label: 'Settings',
+                    ),
+                  ],
+                ),
+              ),
+              panelBuilder: (_, _) => const SizedBox(
+                key: Key('player-panel'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const Key('bottom-navigation'))).height,
+      navigationHeight,
+    );
+    expect(
+      tester.getBottomRight(find.byKey(const Key('body'))).dy,
+      tester.getTopLeft(find.byKey(const Key('bottom-navigation'))).dy,
+    );
+  });
 }
