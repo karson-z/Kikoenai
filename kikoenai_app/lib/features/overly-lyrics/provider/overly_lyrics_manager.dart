@@ -7,7 +7,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 enum SubtitleEndpoint { main, overlay }
 
 abstract class SubtitleManager {
-  static const double defaultOverlayHeight = 120;
+  static const double defaultOverlayHeight = 190;
 
   factory SubtitleManager(SubtitleEndpoint endpoint) {
     if (Platform.isAndroid) {
