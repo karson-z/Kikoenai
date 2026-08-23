@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_lyric/flutter_lyric.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_error_retry_view.dart';
 import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_widget.dart';
 
 import '../../provider/player_controller_provider.dart';
@@ -75,7 +76,11 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text("加载失败: $err")),
+      error: (err, stack) => KikoenaiErrorRetryView(
+        message: '字幕加载失败，请检查网络后重试',
+        foregroundColor: Colors.white,
+        onRetry: () => ref.invalidate(lyricsContentProvider(lyricUrl)),
+      ),
     );
   }
 }
