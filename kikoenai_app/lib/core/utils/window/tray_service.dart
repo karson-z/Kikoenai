@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
+import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -71,7 +72,7 @@ class TrayService with TrayListener {
         _restoreWindow();
         break;
       case _kMenuKeyExit:
-        _exitApp();
+        exitApp();
         break;
     }
   }
@@ -95,18 +96,32 @@ class TrayService with TrayListener {
     await windowManager.setSkipTaskbar(false);
   }
 
-  Future<void> _exitApp() async {
-    await trayManager.destroy();
-    await windowManager.destroy();
-  }
-
-  /// 销毁托盘图标（应用退出前调用）。
-  Future<void> dispose() async {
-    if (!_initialized) return;
+  /// 干净退出应用（托盘菜单“退出”与关闭窗口的退出分支共用）。
+  ///
+  /// 顺序很关键：先隐藏窗口，让用户感知为“点击即关闭”；再释放最重的
+  /// 原生资源——media_kit 的 mpv Player（不主动释放会导致进程退出卡顿
+  /// 数秒，见 media-kit issue #180 / #266）与托盘图标；最后结束进程。
+  /// 注意：window_manager 的 [windowManager.destroy] 在 Windows 上只是
+  /// `PostQuitMessage(0)`，窗口要等整个引擎/插件拆完才消失，所以必须
+  /// 先 [windowManager.hide]。
+  Future<void> exitApp() async {
+    try {
+      await windowManager.hide();
+    } catch (_) {
+      // 窗口可能已销毁，忽略即可，不阻塞退出。
+    }
+    try {
+      await PlayerService.instance.dispose();
+    } catch (e) {
+      debugPrint('PlayerService dispose failed on exit: $e');
+    }
     try {
       await trayManager.destroy();
       trayManager.removeListener(this);
     } catch (_) {}
     _initialized = false;
+    try {
+      await windowManager.destroy();
+    } catch (_) {}
   }
 }

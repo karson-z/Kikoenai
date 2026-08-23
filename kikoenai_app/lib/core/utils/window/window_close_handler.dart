@@ -76,8 +76,9 @@ class WindowCloseHandler {
         await windowManager.setSkipTaskbar(true);
         await windowManager.hide();
       case WindowCloseAction.exit:
-        await TrayService.instance.dispose();
-        await windowManager.destroy();
+        // 统一走 TrayService.exitApp：先隐藏窗口（用户感知为“立即关闭”），
+        // 再释放 mpv 播放核心与托盘资源，最后结束进程。
+        await TrayService.instance.exitApp();
     }
   }
 
