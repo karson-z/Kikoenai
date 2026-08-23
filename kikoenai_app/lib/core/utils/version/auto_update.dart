@@ -18,6 +18,7 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 
 /// 安装类型枚举
 enum InstallationType {
+  windowsSetup, // kikoenai-v1.1.2-setup.exe (Inno Setup 安装包)
   windowsMsix, // Kikoenai_windows_1.7.5.msix
   windowsPortable, // Kikoenai_windows_1.7.5.zip
   linuxDeb, // Kikoenai_linux_1.7.5_amd64.deb
@@ -76,7 +77,8 @@ class AutoUpdater {
 
     try {
       if (Platform.isWindows) {
-        // Windows 平台支持 MSIX 和 ZIP 便携版
+        // Windows 平台支持 Setup 安装包（优先，支持静默自动更新）、MSIX 和 ZIP 便携版
+        availableTypes.add(InstallationType.windowsSetup);
         availableTypes.add(InstallationType.windowsMsix);
         availableTypes.add(InstallationType.windowsPortable);
       } else if (Platform.isLinux) {
@@ -317,6 +319,8 @@ class AutoUpdater {
   /// 获取安装类型的描述
   String _getInstallationTypeDescription(InstallationType type) {
     switch (type) {
+      case InstallationType.windowsSetup:
+        return 'Windows 安装包 (Setup EXE)';
       case InstallationType.windowsMsix:
         return 'Windows MSIX 包';
       case InstallationType.windowsPortable:
@@ -600,6 +604,12 @@ class AutoUpdater {
 
     // 检查文件是否已存在
     if (await file.exists()) {
+      // GitHub 未提供 digest 时不做哈希校验，直接复用已下载的文件
+      if (expectedHash.isEmpty) {
+        KikoenaiLogger().i('Update: file already exists, skipping download: $filePath');
+        _downloadProgress.value = 1.0;
+        return filePath;
+      }
       try {
         //使用哈希验证文件完整性
         final localHash = await OtherUtil.calculateFileHash(file);
@@ -636,14 +646,18 @@ class AutoUpdater {
       },
     );
 
-    // 下载完成后验证文件哈希
-    final downloadedHash = await OtherUtil.calculateFileHash(file);
-    if (downloadedHash != expectedHash) {
-      // 哈希不匹配，删除文件并抛出异常
-      await file.delete();
-      throw Exception('文件完整性验证失败: 期望 $expectedHash，实际 $downloadedHash');
+    // 下载完成后验证文件哈希（GitHub 提供 digest 时校验，否则跳过）
+    if (expectedHash.isNotEmpty) {
+      final downloadedHash = await OtherUtil.calculateFileHash(file);
+      if (downloadedHash != expectedHash) {
+        // 哈希不匹配，删除文件并抛出异常
+        await file.delete();
+        throw Exception('文件完整性验证失败: 期望 $expectedHash，实际 $downloadedHash');
+      }
+      KikoenaiLogger().i('Update: file downloaded and hash verified: $filePath');
+    } else {
+      KikoenaiLogger().i('Update: file downloaded (no digest provided): $filePath');
     }
-    KikoenaiLogger().i('Update: file downloaded and hash verified: $filePath');
 
     return filePath;
   }
@@ -665,6 +679,13 @@ class AutoUpdater {
           } else {
             throw 'Could not launch $fileUri';
           }
+        } else if (installationType == InstallationType.windowsSetup) {
+          // Inno Setup 安装包：静默升级；安装完成后安装器会自动重新启动应用
+          await Process.start(
+            filePath,
+            ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'],
+            runInShell: true,
+          );
         } else {
           await Process.start('explorer.exe', [filePath], runInShell: true);
         }
@@ -731,6 +752,8 @@ class AutoUpdater {
   /// 根据安装类型获取文件名模式
   List<String> _getFilePatterns(InstallationType installationType) {
     switch (installationType) {
+      case InstallationType.windowsSetup:
+        return ['setup', '.exe'];
       case InstallationType.windowsMsix:
         return ['windows', '.msix'];
       case InstallationType.windowsPortable:

@@ -6,7 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_version_config.dart';
 import '../../../core/constants/app_images.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/storage/hive_key.dart';
 import '../../../core/widgets/layout/app_toast.dart';
+import '../../settings/widget/hive_switch_tile.dart';
 // 假设这是你存放 provider 的路径，请根据实际情况修改引入
 import '../provider/about_provider.dart';
 
@@ -125,6 +127,13 @@ class _AboutPageState extends ConsumerState<AboutPage> {
           ),
           _buildDivider(),
           _buildSectionHeader(context, '维护'),
+
+          // 自动更新开关：启动时自动检查新版本
+          const HiveSwitchTile(
+            title: '自动更新',
+            storageKey: StorageKeys.autoUpdate,
+            defaultValue: true,
+          ),
 
           // 5. 修改“检查更新”项
           _buildListTile(

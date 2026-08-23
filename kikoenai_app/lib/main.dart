@@ -17,6 +17,7 @@ import 'core/service/file/local_media_sync_scheduler.dart';
 import 'core/service/player/player_service.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
+import 'core/utils/version/auto_update.dart';
 import 'features/overly-lyrics/page/overly_lyrics_panel.dart';
 import 'features/overly-lyrics/provider/overly_lyrics_manager.dart';
 import 'features/overly-lyrics/provider/overly_lyrics_provider.dart';
@@ -94,6 +95,13 @@ void main() async {
   unawaited(setupSiteApi());
   setupDesktopWindow();
   unawaited(LocalMediaSyncScheduler.instance.runStartupCheck());
+  // 启动后延迟自动检查更新（由设置项“自动更新”控制；发现新版本会弹窗提示）
+  unawaited(
+    Future.delayed(
+      const Duration(seconds: 3),
+      () => AutoUpdater().autoCheckForUpdates(),
+    ),
+  );
   //  Failed to update ui::AXTree, error: 342 will not be in the tree and is not the new root
   // ExcludeSemantics 会禁用整个 app 的无障碍功能，避免这个bug
   runApp(const ProviderScope(child: ExcludeSemantics(child: MyApp())));
