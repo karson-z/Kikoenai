@@ -93,61 +93,15 @@ class SleepTimerButton extends ConsumerWidget {
   }
 
   Future<void> showCancelSleepTimerDialog(BuildContext context, WidgetRef ref) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor =isDark ?  const Color(0xFF5A89BF) : Theme.of(context).primaryColor;
-
-    // 颜色适配
-    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final titleColor = isDark ? Colors.white : const Color(0xFF333333);
-    final contentColor = isDark ? Colors.white70 : const Color(0xFF666666);
-
-    // 使用 KikoenaiDialog.show
-    final confirm = await KikoenaiDialog.show<bool>(
-      context: context,
-      clickMaskDismiss: true,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: bgColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "关闭定时",
-            style: TextStyle(
-              color: titleColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            "确定要取消当前的定时关闭任务吗？",
-            style: TextStyle(color: contentColor, fontSize: 15),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          actions: [
-            // 取消按钮
-            TextButton(
-              onPressed: () => KikoenaiDialog.dismiss(popWith: false),
-              style: TextButton.styleFrom(
-                foregroundColor: contentColor,
-              ),
-              child: const Text("取消"),
-            ),
-            // 确定按钮
-            TextButton(
-              onPressed: () => KikoenaiDialog.dismiss(popWith: true),
-              style: TextButton.styleFrom(
-                foregroundColor: primaryColor, // 使用主题色高亮
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              child: const Text("确定"),
-            ),
-          ],
-        );
-      },
+    // 使用统一弹窗样式
+    final confirm = await KikoenaiAlertDialog.confirm(
+      context,
+      title: "关闭定时",
+      content: "确定要取消当前的定时关闭任务吗？",
     );
 
     // 如果用户点击了确定
-    if (confirm == true) {
+    if (confirm) {
       ref.read(sleepTimerProvider.notifier).stopTimer();
     }
   }

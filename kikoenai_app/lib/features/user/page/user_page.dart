@@ -5,6 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/marked/page/review_page.dart';
 import 'package:kikoenai/features/playlist/page/playlist_page.dart';
+import '../../../core/constants/app_images.dart';
 import '../../../core/service/site/site_api_provider.dart';
 import '../../../core/service/site/site_availability.dart';
 import '../../auth/provider/auth_provider.dart';
@@ -69,10 +70,10 @@ class UserPage extends ConsumerWidget {
                               AsyncValue(:final value?) => Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const SimpleExtendedImage.avatar(
+                                  SimpleExtendedImage.avatar(
                                     width: 32,
                                     height: 32,
-                                    'assets/images/app_icon.jpg',
+                                    Assets.images.logo.path,
                                   ),
                                   const SizedBox(width: 12),
                                   Flexible(
@@ -118,10 +119,10 @@ class UserPage extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const SimpleExtendedImage.avatar(
+                                SimpleExtendedImage.avatar(
                                   width: 80,
                                   height: 80,
-                                  'assets/images/app_icon.jpg',
+                                  Assets.images.logo.path,
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(

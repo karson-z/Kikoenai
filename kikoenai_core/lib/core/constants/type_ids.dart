@@ -20,6 +20,7 @@ class TypeIds {
   static const int nodeStatus = 14;
   static const int nodeSource = 15;
   static const int searchTag = 16;
+  static const int serverInfo = 17;
 
   // --- 认证与用户 (30-49) ---
   static const int authResponse = 30;

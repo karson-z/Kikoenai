@@ -61,8 +61,9 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
       // 检查在异步请求期间，播放器是否已经切走了，防止旧请求覆盖新状态 (竞态条件处理)
       final activeTrack = ref.read(playerControllerProvider).currentItem;
       if (activeTrack?.workId != workId ||
-          activeTrack?.contentId != track.contentId)
+          activeTrack?.contentId != track.contentId) {
         return;
+      }
 
       final currentWorkPlaylist = ref
           .read(playerControllerProvider)
@@ -72,10 +73,6 @@ class LyricsMatchController extends Notifier<LyricsMatchState> {
                 item.workId == workId && item.contentId == track.contentId,
           )
           .toList();
-
-      /// 尝试不做数据归一化
-      // final playListProcessed = LyricsDataProcess.batchPlayListProcess(currentWorkPlaylist);
-      // final lyricListProcessed = LyricsDataProcess.batchLyricsProcess(targetSubtitleList);
 
       // 执行自动匹配
       final matches = MatchLyrics.match(

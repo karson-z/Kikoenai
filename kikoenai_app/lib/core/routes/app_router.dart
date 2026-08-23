@@ -5,7 +5,7 @@ import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/page/auth_page.dart';
 import 'package:kikoenai/features/local_media/page/local_media_page.dart';
-import 'package:kikoenai/features/local_media/page/parsed_works_page.dart';
+import 'package:kikoenai/features/dl_page/page/parsed_works_page.dart';
 import 'package:kikoenai/features/log/page/logger_view.dart';
 import 'package:kikoenai/features/settings/page/setting_cache_page.dart';
 import 'package:kikoenai/features/settings/page/global_filter_page.dart';
@@ -61,7 +61,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: state.uri.path,
         extra: state.extra,
         activeRuntime: ref.read(activeSiteProvider),
-        siteRegistry: ref.read(siteRegistryProvider),
         surfacePolicies: ref.read(surfacePolicyRegistryProvider),
       );
       if (isAvailable) return null;

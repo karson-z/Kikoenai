@@ -10,6 +10,7 @@ import '../../api/site_info.dart';
 import '../../api/site_plugin.dart';
 import '../../network/exception.dart';
 import '../../network/http_client.dart';
+import '../../network/request_config.dart';
 
 /// asmr.one 站点适配实现。
 ///
@@ -34,6 +35,7 @@ class AsmrOneSiteApi extends SiteApi {
   final SitesHttpClient _http;
 
   /// 暴露 HTTP 客户端（供业务层直接 getBytes 等场景使用）
+  @override
   SitesHttpClient get httpClient => _http;
 
   /// 当前使用的服务器
@@ -78,10 +80,32 @@ class AsmrOneSiteApi extends SiteApi {
 
   static final SitePlugin plugin = SitePlugin(
     info: info,
-    createApi: (context) => AsmrOneSiteApi(
-      httpClient: context.httpClient,
-      initialServer: context.initialServer,
-    ),
+    createApi: (context) {
+      final initialServer = context.resolveInitialServer(info)!;
+      final tokenFor = context.tokenFor;
+      final recoverReadRequest = context.recoverReadRequest;
+      final onUnauthorized = context.onUnauthorized;
+      final httpClient = SitesHttpClient(
+        config: RequestConfig(
+          baseUrl: initialServer.resolvedBaseUrl,
+          referer: 'https://www.asmr.one/',
+          extraHeaders: {'Origin': 'https://www.asmr.one'},
+          enableLogger: true,
+          enableCookie: true,
+          useProxy: initialServer.useProxy,
+          onUnauthorized:
+              onUnauthorized == null ? null : (_) => onUnauthorized(info.id),
+        ),
+        tokenProvider: tokenFor == null ? null : () => tokenFor(info.id),
+        readRequestRecovery: recoverReadRequest == null
+            ? null
+            : (exception) => recoverReadRequest(info.id, exception),
+      );
+      return AsmrOneSiteApi(
+        httpClient: httpClient,
+        initialServer: initialServer,
+      );
+    },
   );
 
   /// 当前站点支持的功能集合
@@ -376,10 +400,16 @@ class AsmrOneSiteApi extends SiteApi {
     required String recommendUuid,
     required ListenEventType type,
   }) async {
-    await _http.post<Map<String, dynamic>>(
+    // itemId 接口期望整型：上游 workId 是 String，这里显式转 int 再发送。
+    // 非数字时直接跳过上报，绝不回退成字符串（服务端不接受）。
+    final int? itemId = int.tryParse(workId);
+    if (itemId == null) return;
+    // feedback 接口返回 200 + 纯数字体（成功标志，非 JSON 对象），
+    // 用 dynamic 接收并忽略，避免 `as Map<String, dynamic>` 强转崩溃。
+    await _http.post<dynamic>(
       '/recommender/feedback',
       data: {
-        'itemId': workId,
+        'itemId': itemId,
         'recommendUuid': recommendUuid,
         'type': type.type,
       },
@@ -399,12 +429,15 @@ class AsmrOneSiteApi extends SiteApi {
     }
     if (_currentServer.id == server.id) return;
     _currentServer = server;
-    _http.updateBaseUrl(server.baseUrl);
+    _http.updateConnection(
+      baseUrl: server.resolvedBaseUrl,
+      useProxy: server.useProxy,
+    );
   }
 
   @override
   Future<ServerHealth> checkHealth(ServerInfo server) async {
-    final url = '${server.baseUrl}/health?cache=false';
+    final url = '${server.resolvedBaseUrl}/health?cache=false';
     final stopwatch = Stopwatch()..start();
     try {
       await _http.dio.get<dynamic>(

@@ -581,29 +581,24 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
       context: context,
       clickMaskDismiss: true,
       builder: (context) {
-        // 使用 Theme 自动适配 Dialog 背景，或手动指定
-        return AlertDialog(
-          backgroundColor: _cSurface,
-          title: Text("确认删除", style: TextStyle(color: _cTextMain)),
-          content: Text(
-            "确定要删除 “$groupName” 中的所有 ${tasks.length} 个文件吗？\n此操作不可恢复。",
-            style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[300] : const Color(0xFF334155)),
-          ),
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          actionsPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        return KikoenaiAlertDialog(
+          titleText: "确认删除",
+          contentText:
+              "确定要删除 “$groupName” 中的所有 ${tasks.length} 个文件吗？\n此操作不可恢复。",
           actions: [
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: "取消",
               onPressed: () => KikoenaiDialog.dismiss(),
-              child: const Text("取消", style: TextStyle(color: Colors.grey)),
             ),
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: "删除",
+              isDestructive: true,
               onPressed: () {
                 KikoenaiDialog.dismiss();
                 ref.read(allTasksProvider.notifier).deleteGroup(groupName);
               },
-              child: const Text("删除", style: TextStyle(color: Colors.red)),
             ),
           ],
         );

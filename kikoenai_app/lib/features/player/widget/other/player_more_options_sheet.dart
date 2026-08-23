@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/provider/audio_file_provider.dart';
+import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
 import 'package:kikoenai/features/player/widget/other/player_lyrics_edit.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_mapping_sheet.dart';
@@ -23,7 +24,9 @@ import '../../../../../core/widgets/common/manage_playlist_dialog.dart';
 import '../../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../../../../core/widgets/layout/app_toast.dart';
 import '../../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
+import '../../../local_media/provider/file_path_notifier.dart';
 import '../../../local_media/provider/file_scanner_notifier.dart';
+import '../../../overly-lyrics/provider/overly_lyrics_provider.dart';
 import '../../../overly-lyrics/widget/overly_setting_panel.dart';
 import '../../provider/player_controller_provider.dart';
 
@@ -51,9 +54,9 @@ SliverWoltModalSheetPage _buildWoltPage(
   PlaybackItem track,
 ) {
   return SliverWoltModalSheetPage(
+    hasTopBarLayer: false,
     isTopBarLayerAlwaysVisible: false,
     hasSabGradient: false,
-    navBarHeight: 0,
     mainContentSliversBuilder: (context) => [
       const SliverPadding(padding: EdgeInsets.only(top: 16)),
       SliverToBoxAdapter(
@@ -208,42 +211,25 @@ class _MoreOptionsContent extends ConsumerWidget {
         icon: Icons.folder_open_outlined,
         label: "文件管理",
         onTap: () async {
-          if (workId == null) {
-            KikoenaiToast.info("当前播放的歌曲不是DLsite中的作品或未解析，无法进行文件管理");
-            return;
-          }
           try {
-            // 直接获取 FileNodeLibraryIndex，无需再 fromTree 转换
             FileNodeLibraryIndex index;
-            Work? resolvedWork = work;
             if (track.isLocal) {
-              // 处理本地逻辑
-              final localIndex = FileScannerStorage().getWorkFileIndexLocally(
-                workId,
-              );
-              if (localIndex == null) {
-                KikoenaiToast.warning("当前拿不到本地的音频数据，请查看音频是否被删除,或扫描是否完成");
-                return; // 提前退出
-              }
-              index = localIndex;
+              index = await _buildLocalIndexForTrack(ref, track);
             } else {
               final contentId = track.contentId;
               if (contentId == null) {
                 KikoenaiToast.warning('当前音频缺少来源站点信息');
                 return;
               }
-              final remoteData = await Future.wait<Object?>([
-                ref.read(trackFileNodeIndexProvider(contentId).future),
-                ref.read(workDetailProvider(contentId).future),
-              ]);
-              index = remoteData[0]! as FileNodeLibraryIndex;
-              resolvedWork = remoteData[1] as Work?;
+              index = await ref.read(
+                trackFileNodeIndexProvider(contentId).future,
+              );
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
               context,
               index: index,
-              work: resolvedWork,
+              work: work,
               isFirstPage: false,
             );
             WoltModalSheet.of(context).addPage(fileTreePage);
@@ -253,12 +239,58 @@ class _MoreOptionsContent extends ConsumerWidget {
           }
         },
       ),
-      QuickActionItem(
-        icon: Icons.picture_in_picture_alt,
-        label: "桌面字幕",
-        onTap: () => _handleSubtitleConfig(context),
-      ),
+      if (ref.read(overlayLyricsSupportedProvider))
+        QuickActionItem(
+          icon: Icons.picture_in_picture_alt,
+          label: "桌面字幕",
+          onTap: () => _handleSubtitleConfig(context),
+        ),
     ];
+  }
+
+  /// 为本地 [track] 构建索引：遍历 audio / video 扫描目标，
+  /// 找到包含该文件的目录后构建 [FileNodeLibraryIndex] 并跳转到所在层级。
+  ///
+  /// 找不到时抛出 [StateError]，由调用方 catch 转为 Toast。
+  Future<FileNodeLibraryIndex> _buildLocalIndexForTrack(
+    WidgetRef ref,
+    PlaybackItem track,
+  ) async {
+    final filePath = track.url;
+    final normalizedFilePath = FileNodeLibraryIndex.normalizePath(filePath);
+    final targets = ref.read(scanTargetsProvider.notifier);
+
+    for (final mode in const [ScanMode.audio, ScanMode.video]) {
+      for (final target in targets.getTargetsByMode(mode)) {
+        if (!_isPathInsideRoot(normalizedFilePath, target.path)) continue;
+
+        final cachedNodes = FileScannerStorage().getNodesByRootPath(
+          mode,
+          target.path,
+        );
+        if (cachedNodes.isEmpty) continue;
+
+        final index = FileNodeLibraryIndex(
+          flatNodes: cachedNodes,
+          rootPath: target.path,
+        )..applySort(ref.read(fileSortProvider));
+        if (index.jumpToFilePath(normalizedFilePath)) {
+          return index;
+        }
+      }
+    }
+    throw StateError('本地文件未在已扫描目录中找到：$filePath');
+  }
+
+  bool _isPathInsideRoot(String filePath, String rootPath) {
+    final normalizedFilePath = FileNodeLibraryIndex.normalizePath(
+      filePath,
+    ).toLowerCase();
+    final normalizedRootPath = FileNodeLibraryIndex.normalizePath(
+      rootPath,
+    ).toLowerCase();
+    return normalizedFilePath == normalizedRootPath ||
+        normalizedFilePath.startsWith('$normalizedRootPath/');
   }
 
   void _handleAlbumTap(
@@ -274,13 +306,7 @@ class _MoreOptionsContent extends ConsumerWidget {
 
     context.push(
       AppRoutes.detail,
-      extra: {
-        'workId': workId,
-        'siteId': track.contentId?.siteId,
-        'remoteId': track.contentId?.remoteId,
-        if (work != null) 'work': work,
-        'isLocal': track.isLocal,
-      },
+      extra: {'workId': workId, if (work != null) 'work': work},
     );
   }
 

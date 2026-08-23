@@ -62,10 +62,7 @@ class FileTreeWoltSheet {
       navBarHeight: 110,
       isTopBarLayerAlwaysVisible: true,
       hasSabGradient: false,
-      leadingNavBarWidget: FileTreeStickyHeader(
-        index: index,
-        work: work,
-      ),
+      leadingNavBarWidget: FileTreeStickyHeader(index: index, work: work),
       stickyActionBar: _buildInternalActionBar(work, isFirstPage),
       mainContentSliversBuilder: (modalContext) => [
         const SliverPadding(padding: EdgeInsets.only(top: 16)),
@@ -152,16 +149,17 @@ class _SliverFileTreeContent extends ConsumerStatefulWidget {
   final Work? work;
   final FileNodeLibraryIndex index;
 
-  const _SliverFileTreeContent({
-    required this.index,
-    this.work,
-  });
+  const _SliverFileTreeContent({required this.index, this.work});
 
   @override
-  ConsumerState<_SliverFileTreeContent> createState() => _SliverFileTreeContentState();
+  ConsumerState<_SliverFileTreeContent> createState() =>
+      _SliverFileTreeContentState();
 }
 
-class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> {
+class _SliverFileTreeContentState
+    extends ConsumerState<_SliverFileTreeContent> {
+  bool _indexBound = false;
+
   @override
   void initState() {
     super.initState();
@@ -176,9 +174,13 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
 
   Icon _getIconForNode(FileNode node) {
     if (node.isFolder) return const Icon(Icons.folder, color: Colors.amber);
-    if (node.isAudio) return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
+    if (node.isAudio) {
+      return const Icon(Icons.audiotrack, color: Colors.purpleAccent);
+    }
     if (node.isImage) return const Icon(Icons.image, color: Colors.blue);
-    if (node.isVideo) return const Icon(Icons.videocam, color: Colors.redAccent);
+    if (node.isVideo) {
+      return const Icon(Icons.videocam, color: Colors.redAccent);
+    }
     if (node.isText) return const Icon(Icons.description, color: Colors.grey);
     return const Icon(Icons.insert_drive_file, color: Colors.blueGrey);
   }
@@ -235,9 +237,13 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
       onTap: () {
         if (node.isFolder) {
           // 点击文件夹，触发 Provider 更新状态
-          ref.read(breadcrumbProvider(BreadCrumbBarType.player).notifier).enterFolder(node);
+          ref
+              .read(breadcrumbProvider(BreadCrumbBarType.player).notifier)
+              .enterFolder(node);
         } else {
-          ref.read(fileSelectionProvider.notifier).toggleNodeForIndex(node, widget.index);
+          ref
+              .read(fileSelectionProvider.notifier)
+              .toggleNodeForIndex(node, widget.index);
         }
       },
       child: Padding(
@@ -251,7 +257,9 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
                   .read(fileSelectionProvider.notifier)
                   .toggleNodeForIndex(node, widget.index),
               visualDensity: VisualDensity.compact,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
             const SizedBox(width: 8),
             _getIconForNode(node),
@@ -269,27 +277,52 @@ class _SliverFileTreeContentState extends ConsumerState<_SliverFileTreeContent> 
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: node.isFolder ? FontWeight.w500 : FontWeight.normal,
+                            fontWeight: node.isFolder
+                                ? FontWeight.w500
+                                : FontWeight.normal,
                             color: isDownloaded ? Colors.grey.shade600 : null,
                           ),
                         ),
                       ),
                       if (isDownloaded) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.check_circle, size: 14, color: Theme.of(context).primaryColor.withAlpha(70)),
+                        Icon(
+                          Icons.check_circle,
+                          size: 14,
+                          color: Theme.of(context).primaryColor.withAlpha(70),
+                        ),
                         const SizedBox(width: 2),
-                        Text("已下载", style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor.withAlpha(70))),
+                        Text(
+                          "已下载",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).primaryColor.withAlpha(70),
+                          ),
+                        ),
                       ],
                     ],
                   ),
                   if (!node.isFolder && node.size != null)
-                    Text(OtherUtil.formatBytes(node.size ?? 0), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Text(
+                      OtherUtil.formatBytes(node.size ?? 0),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                   if (node.isFolder)
-                    Text('$subItemCount 项', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Text(
+                      '$subItemCount 项',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (node.isFolder) const Icon(Icons.chevron_right, color: Colors.grey),
+            if (node.isFolder)
+              const Icon(Icons.chevron_right, color: Colors.grey),
           ],
         ),
       ),
@@ -301,11 +334,7 @@ class FileTreeStickyHeader extends ConsumerWidget {
   final Work? work;
   final FileNodeLibraryIndex index;
 
-  const FileTreeStickyHeader({
-    super.key,
-    required this.index,
-    this.work,
-  });
+  const FileTreeStickyHeader({super.key, required this.index, this.work});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -10,6 +10,7 @@ import 'package:kikoenai_core/core/model/user/auth_response.dart';
 import 'package:kikoenai_core/core/model/player/player_state.dart';
 import 'package:kikoenai_core/core/model/playlist/playlist.dart';
 import 'package:kikoenai_core/core/model/local_media/scan_mode.dart';
+import 'package:kikoenai_sites/api/server_info.dart';
 
 class CacheService {
   // 单例模式
@@ -119,6 +120,28 @@ class CacheService {
     return AppStorage.settingsBox.get(_siteKey(StorageKeys.currentHost, siteId))
         as String?;
   }
+
+  Future<void> saveSiteServers(
+    List<ServerInfo> servers, {
+    required String siteId,
+  }) async {
+    await AppStorage.settingsBox.put(
+      _siteKey(StorageKeys.siteServers, siteId),
+      List<ServerInfo>.from(servers),
+    );
+  }
+
+  List<ServerInfo> getSiteServers({required String siteId}) {
+    final value = AppStorage.settingsBox.get(
+      _siteKey(StorageKeys.siteServers, siteId),
+    );
+    if (value is! List) return const [];
+    return value.whereType<ServerInfo>().toList(growable: false);
+  }
+
+  Future<void> clearSiteServers({required String siteId}) => AppStorage
+      .settingsBox
+      .delete(_siteKey(StorageKeys.siteServers, siteId));
 
   Future<String> getOrGenerateRecommendUuid({
     String siteId = legacySiteId,

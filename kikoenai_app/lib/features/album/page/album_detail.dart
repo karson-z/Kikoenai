@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
@@ -47,7 +48,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // 解析路由参数，取出 Work / workId / isLocal
+    // 解析路由参数，取出 Work / workId
     var workRaw = widget.extra['work'];
     Work? work;
     if (workRaw is Map) {
@@ -56,32 +57,14 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
       work = workRaw;
     }
     final int workId = widget.extra['workId'] as int? ?? work?.id ?? 0;
-    final bool isLocal = widget.extra['isLocal'] as bool? ?? false;
-    final contentId = SiteContentId(
-      siteId:
-          widget.extra['siteId'] as String? ??
-          work?.siteId ??
-          SiteContentId.legacySiteId,
-      remoteId:
-          widget.extra['remoteId']?.toString() ??
-          work?.remoteId ??
-          workId.toString(),
-    );
 
     final content = _AlbumDetailContent(
       controller: _drawerController,
       backgroundColor: isDark ? Colors.black : Colors.white,
       work: work,
       workId: workId,
-      contentId: contentId,
-      isLocal: isLocal,
     );
-
-    if (isLocal) return content;
-    return ProviderScope(
-      overrides: [siteContextIdProvider.overrideWithValue(contentId.siteId)],
-      child: content,
-    );
+    return content;
   }
 }
 
@@ -91,16 +74,12 @@ class _AlbumDetailContent extends ConsumerWidget {
     required this.backgroundColor,
     required this.work,
     required this.workId,
-    required this.contentId,
-    required this.isLocal,
   });
 
   final KikoenaiInnerDrawerController controller;
   final Color backgroundColor;
   final Work? work;
   final int workId;
-  final SiteContentId contentId;
-  final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,17 +98,10 @@ class _AlbumDetailContent extends ConsumerWidget {
             ? AlbumDetailSimilarWorkDrawer(
                 circleName: work?.circle?.name,
                 workId: workId,
-                contentId: contentId,
                 hasInitialWork: work != null,
-                isLocal: isLocal,
               )
             : const SizedBox.shrink(),
-        child: AlbumDetailContainer(
-          workId: workId,
-          contentId: contentId,
-          initialWork: work,
-          isLocal: isLocal,
-        ),
+        child: AlbumDetailContainer(workId: workId, initialWork: work),
       ),
     );
   }
@@ -140,20 +112,14 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
     super.key,
     required this.circleName,
     required this.workId,
-    required this.contentId,
     this.hasInitialWork = false,
-    this.isLocal = false,
   });
 
   final String? circleName;
   final int workId;
-  final SiteContentId contentId;
 
   /// 进入时是否已携带完整 Work（列表跳转场景）。为 true 则无需等待详情接口。
   final bool hasInitialWork;
-
-  /// 本地作品：无需拉详情接口，直接视为就绪。
-  final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -164,16 +130,18 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
       return const Center(child: Text('暂无相关作品'));
     }
 
-    // 就绪判定：本地 / 已有 initialWork 直接就绪；
-    // 否则监听 workDetailProvider，等详情接口成功返回后才发起 /search。
-    final bool ready = isLocal || hasInitialWork || _isDetailLoaded(ref);
+    // 已有完整 Work 时可直接查询相似作品，否则等待当前活动站点详情加载完成。
+    final bool ready = hasInitialWork || _isDetailLoaded(ref);
 
     if (!ready) {
       return const Center(child: CircularProgressIndicator());
     }
 
     final workListAsync = ref.watch(
-      similarWorkProvider((siteId: contentId.siteId, circle: circleName!)),
+      similarWorkProvider((
+        siteId: ref.watch(activeSiteIdProvider),
+        circle: circleName!,
+      )),
     );
 
     return workListAsync.when(
@@ -209,8 +177,8 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
   /// 监听详情接口状态：仅当 hasValue（成功加载过）时返回 true。
   /// 注意：仅监听是否有值，不监听是否正在刷新，避免下拉刷新时抽屉闪烁。
   bool _isDetailLoaded(WidgetRef ref) {
-    if (isLocal || hasInitialWork) return true;
-    final asyncValue = ref.watch(workDetailProvider(contentId));
+    if (hasInitialWork) return true;
+    final asyncValue = ref.watch(albumWorkDetailProvider(workId));
     return asyncValue.hasValue;
   }
 }
@@ -219,50 +187,39 @@ class AlbumDetailContainer extends ConsumerWidget {
   const AlbumDetailContainer({
     super.key,
     required this.workId,
-    required this.contentId,
     this.initialWork,
-    required this.isLocal,
   });
 
   final int workId;
-  final SiteContentId contentId;
   final Work? initialWork;
-  final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final availableSurfaces = ref.watch(availableSurfacesProvider);
-    final canShowTracks =
-        isLocal || availableSurfaces.contains(AppSurface.albumTracksSection);
+    final primarySiteHasTracks = availableSurfaces.contains(
+      AppSurface.albumTracksSection,
+    );
     final canShowSimilarWorks = availableSurfaces.contains(
       AppSurface.albumSimilarWorks,
     );
-    final canSubmitReview =
-        !isLocal && availableSurfaces.contains(AppSurface.submitReviewAction);
-    final workStatus = isLocal
-        ? null
-        : ref.watch(workDetailProvider(contentId));
-    final Work? work = initialWork ?? workStatus?.value;
+    final canSubmitReview = availableSurfaces.contains(
+      AppSurface.submitReviewAction,
+    );
+    final workStatus = ref.watch(albumWorkDetailProvider(workId));
+    final Work? work = initialWork ?? workStatus.value;
 
     if (work == null) {
       return _AlbumDetailLoadingScaffold(workId: workId);
     }
 
-    // 解析评价按钮文本：null 表示加载中（显示 spinner），仅 !isLocal 时有意义
-    final String? reviewLabel = isLocal
-        ? null
-        : workStatus!.when(
-            data: (s) => WorkProgress.fromString(s?.progress).label,
-            error: (_, __) => '标记',
-            loading: () => null,
-          );
+    // null 表示加载中，评价状态由当前活动站点详情提供。
+    final String? reviewLabel = workStatus.when(
+      data: (s) => WorkProgress.fromString(s?.progress).label,
+      error: (_, __) => '标记',
+      loading: () => null,
+    );
 
-    // 选择文件区段子类，不在视图层用 if 切换
-    final Widget fileSection = switch ((isLocal, canShowTracks)) {
-      (true, _) => LocalAlbumFileSection(work: work),
-      (false, true) => RemoteAlbumFileSection(work: work, contentId: contentId),
-      (false, false) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-    };
+    final Widget fileSection = AlbumMediaSourceSection(work: work);
 
     return AlbumDetailView(
       heroTag: work.effectiveHeroTag,
@@ -276,10 +233,9 @@ class AlbumDetailContainer extends ConsumerWidget {
       rateAverage2dp: work.rateAverage2dp,
       reviewCount: work.reviewCount,
       duration: work.duration,
-      userRating: isLocal ? 0 : (workStatus?.value?.userRating ?? 0),
+      userRating: workStatus.value?.userRating ?? 0,
       vas: work.vas,
       tags: work.tags,
-      isLocal: isLocal,
       reviewLabel: reviewLabel,
       onReviewTap: canSubmitReview
           ? () => _showReviewSheet(context, ref, work, workStatus)
@@ -290,19 +246,14 @@ class AlbumDetailContainer extends ConsumerWidget {
       onCircleTap: canShowSimilarWorks
           ? () => _navigateToCategory(context, ref, work.name)
           : null,
-      onRatingUpdate: isLocal
-          ? (int _) => ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('本地模式下无法提交评价')))
-          : canSubmitReview
-          ? (int newRating) =>
-                _submitRating(context, ref, work.id, contentId, newRating)
+      onRatingUpdate: canSubmitReview
+          ? (int newRating) => _submitRating(context, ref, work.id, newRating)
           : null,
       // 文件区段（sliver）
       fileSection: fileSection,
       // 下拉刷新（仅网络）
-      onRefresh: !isLocal && canShowTracks
-          ? () => ref.refresh(trackFileNodeIndexProvider(contentId).future)
+      onRefresh: primarySiteHasTracks
+          ? () => ref.refresh(albumTrackFileNodeIndexProvider(work.id).future)
           : null,
     );
   }
@@ -331,14 +282,8 @@ class AlbumDetailContainer extends ConsumerWidget {
         return ReviewBottomSheet(
           initialStatus: initialStatus,
           onSubmit: (newStatus) async {
-            await HandleSubmit.handleRatingSubmit(
-              context,
-              ref,
-              newStatus,
-              siteId: contentId.siteId,
-              remoteId: contentId.remoteId,
-            );
-            ref.invalidate(workDetailProvider(contentId));
+            await HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+            ref.invalidate(albumWorkDetailProvider(work.id));
           },
         );
       },
@@ -361,19 +306,12 @@ class AlbumDetailContainer extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     int workId,
-    SiteContentId contentId,
     int newRating,
   ) {
     final currentStatus = UserWorkStatus(workId: workId);
     final newStatus = currentStatus.copyWith(rating: newRating, workId: workId);
-    HandleSubmit.handleRatingSubmit(
-      context,
-      ref,
-      newStatus,
-      siteId: contentId.siteId,
-      remoteId: contentId.remoteId,
-    );
-    ref.invalidate(workDetailProvider(contentId));
+    HandleSubmit.handleRatingSubmit(context, ref, newStatus);
+    ref.invalidate(albumWorkDetailProvider(workId));
   }
 }
 
@@ -404,7 +342,6 @@ class AlbumDetailView extends StatelessWidget {
     this.vas,
     this.tags,
     // 顶部操作
-    required this.isLocal,
     this.reviewLabel,
     this.onReviewTap,
     this.onDrawerOpen,
@@ -442,9 +379,7 @@ class AlbumDetailView extends StatelessWidget {
   final List<Tag>? tags;
 
   // --- 顶部操作 ---
-  final bool isLocal;
-
-  /// 评价按钮文本；null 表示加载中（显示 spinner）。仅 !isLocal 时使用。
+  /// 评价按钮文本；null 表示加载中。
   final String? reviewLabel;
   final VoidCallback? onReviewTap;
   final VoidCallback? onDrawerOpen;
@@ -523,20 +458,7 @@ class AlbumDetailView extends StatelessWidget {
 
   List<Widget> _buildActions() {
     return [
-      if (isLocal)
-        Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: const Text(
-            '本地作品',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        )
-      else if (onReviewTap != null)
+      if (onReviewTap != null)
         InkWell(
           borderRadius: BorderRadius.circular(4),
           onTap: onReviewTap,

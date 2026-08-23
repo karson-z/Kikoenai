@@ -4,7 +4,7 @@ version: 0.1.0
 publish_to: none
 
 environment:
-  sdk: '3.11.5'
+  sdk: '>=3.12.0 <4.0.0'
 
 resolution: workspace
 
@@ -18,7 +18,11 @@ dependencies:
   path: ^1.9.1
   uuid: ^4.5.2
   audio_service: ^0.18.12
-  media_kit: ^1.2.6
+  media_kit:
+    git:
+      url: https://github.com/media-kit/media-kit.git
+      ref: 7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f
+      path: media_kit
 
 dev_dependencies:
   flutter_test:

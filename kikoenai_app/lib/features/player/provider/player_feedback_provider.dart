@@ -74,12 +74,18 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
       if (currentUser == null) return;
       final api = ref.read(siteApiByIdProvider(siteId));
       if (!api.supports(SiteFeature.feedback)) return;
-      await api.submitPlaybackFeedback(
-        workId: state.currentWorkId!,
-        recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
-        type: ListenEventType.start,
-      );
-      debugPrint("[埋点] 开始播放作品: ${state.currentWorkId}");
+      // 埋点属尽力而为的遥测：失败仅打日志，不抛出未处理异常，
+      // 也不在计时器里每秒重试（无论成败都只尝试一次）。
+      try {
+        await api.submitPlaybackFeedback(
+          workId: state.currentWorkId!,
+          recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
+          type: ListenEventType.start,
+        );
+        debugPrint("[埋点] 开始播放作品: ${state.currentWorkId}");
+      } catch (e) {
+        debugPrint("[埋点] 开始播放上报失败: $e");
+      }
       state = state.copyWith(hasReportedStart: true);
     }
   }
@@ -98,13 +104,17 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
           .getOrGenerateRecommendUuid(siteId: siteId);
       final api = ref.read(siteApiByIdProvider(siteId));
       if (!api.supports(SiteFeature.feedback)) return;
-      await api.submitPlaybackFeedback(
-        workId: state.currentWorkId!,
-        recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
-        type: ListenEventType.fiveMinutes,
-      );
-
-      debugPrint("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
+      // 同上：埋点失败只打日志，不抛异常、不每秒重试。
+      try {
+        await api.submitPlaybackFeedback(
+          workId: state.currentWorkId!,
+          recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
+          type: ListenEventType.fiveMinutes,
+        );
+        debugPrint("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
+      } catch (e) {
+        debugPrint("[埋点] 5分钟上报失败: $e");
+      }
 
       state = state.copyWith(hasReported5Mins: true);
     }

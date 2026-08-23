@@ -1,5 +1,6 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
 
+import '../network/http_client.dart';
 import 'listen_event_type.dart';
 import 'server_health.dart';
 import 'server_info.dart';
@@ -43,6 +44,11 @@ import 'site_feature.dart';
 /// ```
 abstract class SiteApi {
   const SiteApi();
+
+  /// 本站点拥有的网络客户端。
+  ///
+  /// 非网络型站点可以保持为 null；注册表会负责释放非 null 的客户端。
+  SitesHttpClient? get httpClient => null;
 
   /// 当前站点支持的功能集合。
   ///

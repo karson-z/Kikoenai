@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
@@ -14,6 +15,7 @@ import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
 import '../widget/work_grid_layout.dart';
 import '../widget/work_horizontal.dart';
+import '../widget/work_list_layout.dart';
 import '../widget/smart_works_sliver_grid.dart';
 
 class AlbumPage extends ConsumerWidget {
@@ -106,7 +108,7 @@ class _HotWorksSection extends ConsumerWidget {
     final hotState = ref.watch(hotWorksProvider);
     return hotState.when(
       data: (state) {
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
@@ -122,7 +124,7 @@ class _HotWorksSection extends ConsumerWidget {
               },
             ),
             SliverToBoxAdapter(
-              child: ResponsiveHorizontalCardList(items: state.works),
+              child: ResponsiveHorizontalCardList(items: state.itemList),
             ),
           ],
         );
@@ -151,7 +153,7 @@ class _RecommendedWorksSection extends ConsumerWidget {
     return recommendedState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
@@ -169,7 +171,7 @@ class _RecommendedWorksSection extends ConsumerWidget {
                 );
               },
             ),
-            SliverToBoxAdapter(child: WorkListHorizontal(items: state.works)),
+            SliverToBoxAdapter(child: WorkListHorizontal(items: state.itemList)),
           ],
         );
       },
@@ -194,23 +196,34 @@ class _NewestWorksSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final newestState = ref.watch(newWorksProvider);
+    final isListMode =
+        ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
     return newestState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏
-        if (state.works.isEmpty) {
+        if (state.itemList.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverMainAxisGroup(
           slivers: [
-            const SectionHeader(title: '最新作品'),
-            ResponsiveCardGrid(
-              work: state.works,
-              hasMore: state.hasMore,
-              isLoading: state.isLoading,
-              onLoadMore: () {
-                ref.read(newWorksProvider.notifier).loadMore();
-              },
+            const SectionHeader(
+              title: '最新作品',
+              trailing: WorkLayoutToggleButton(),
             ),
+            if (isListMode)
+              ResponsiveWorkList(
+                pagingState: state,
+                fetchNextPage: () {
+                  ref.read(newWorksProvider.notifier).fetchNextPage();
+                },
+              )
+            else
+              ResponsiveCardGrid(
+                pagingState: state,
+                fetchNextPage: () {
+                  ref.read(newWorksProvider.notifier).fetchNextPage();
+                },
+              ),
           ],
         );
       },

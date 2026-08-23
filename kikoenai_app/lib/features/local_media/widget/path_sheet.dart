@@ -342,18 +342,20 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
     final shouldOpenSettings = await KikoenaiDialog.show<bool>(
       context: context,
       clickMaskDismiss: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text("需要文件管理权限"),
-        content: const Text("添加扫描路径需要读取设备中的媒体和字幕文件。请在系统设置中允许文件管理权限后重试。"),
+      builder: (dialogContext) => KikoenaiAlertDialog(
+        titleText: "需要文件管理权限",
+        contentText: "添加扫描路径需要读取设备中的媒体和字幕文件。请在系统设置中允许文件管理权限后重试。",
         actions: [
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            dialogContext,
+            label: "取消",
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text("取消"),
           ),
-          FilledButton.icon(
+          KikoenaiAlertDialog.textAction(
+            dialogContext,
+            label: "去设置",
+            isConfirm: true,
             onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.settings_outlined),
-            label: const Text("去设置"),
           ),
         ],
       ),
@@ -388,15 +390,19 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
   void _showClearConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("清空当前模式路径?"),
-        content: const Text("这将移除当前选定模式下所有已添加的文件夹及缓存数据，此操作无法撤销。"),
+      builder: (context) => KikoenaiAlertDialog(
+        titleText: "清空当前模式路径?",
+        contentText: "这将移除当前选定模式下所有已添加的文件夹及缓存数据，此操作无法撤销。",
         actions: [
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            context,
+            label: "取消",
             onPressed: () => Navigator.pop(context),
-            child: const Text("取消"),
           ),
-          TextButton(
+          KikoenaiAlertDialog.textAction(
+            context,
+            label: "确认清空",
+            isDestructive: true,
             onPressed: () async {
               final fileScannerNotifier = ref.read(
                 fileScannerProvider.notifier,
@@ -423,10 +429,6 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
               if (!context.mounted) return;
               Navigator.pop(context);
             },
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text("确认清空"),
           ),
         ],
       ),

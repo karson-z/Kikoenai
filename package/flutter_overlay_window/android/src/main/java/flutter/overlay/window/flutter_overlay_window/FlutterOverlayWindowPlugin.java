@@ -1,0 +1,255 @@
+package flutter.overlay.window.flutter_overlay_window;
+
+import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
+import android.service.notification.StatusBarNotification;
+import android.util.Log;
+import android.view.WindowManager;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationManagerCompat;
+
+import java.util.Map;
+
+import io.flutter.FlutterInjector;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
+import io.flutter.embedding.engine.FlutterEngineGroup;
+import io.flutter.embedding.engine.dart.DartExecutor;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import io.flutter.plugin.common.BasicMessageChannel;
+import io.flutter.plugin.common.JSONMessageCodec;
+import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
+import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry;
+
+public class FlutterOverlayWindowPlugin implements
+        FlutterPlugin, ActivityAware, BasicMessageChannel.MessageHandler<Object>, MethodCallHandler,
+        PluginRegistry.ActivityResultListener {
+
+    private static BasicMessageChannel<Object> mainLegacyMessenger;
+    private static BasicMessageChannel<Object> mainMessagesFromOverlayChannel;
+
+    private MethodChannel channel;
+    private Context context;
+    private Activity mActivity;
+    private BasicMessageChannel<Object> legacyMessenger;
+    private BasicMessageChannel<Object> mainToOverlayMessenger;
+    private BasicMessageChannel<Object> overlayToMainMessenger;
+    private Result pendingResult;
+    final int REQUEST_CODE_FOR_OVERLAY_PERMISSION = 1248;
+
+    @Override
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
+        this.context = flutterPluginBinding.getApplicationContext();
+        channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), OverlayConstants.CHANNEL_TAG);
+        channel.setMethodCallHandler(this);
+
+        legacyMessenger = new BasicMessageChannel(flutterPluginBinding.getBinaryMessenger(), OverlayConstants.MESSENGER_TAG,
+                JSONMessageCodec.INSTANCE);
+        mainToOverlayMessenger = new BasicMessageChannel<>(flutterPluginBinding.getBinaryMessenger(),
+                OverlayConstants.MAIN_TO_OVERLAY_MESSENGER_TAG, JSONMessageCodec.INSTANCE);
+        overlayToMainMessenger = new BasicMessageChannel<>(flutterPluginBinding.getBinaryMessenger(),
+                OverlayConstants.OVERLAY_TO_MAIN_MESSENGER_TAG, JSONMessageCodec.INSTANCE);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    @Override
+    public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+        pendingResult = result;
+        if (call.method.equals("checkPermission")) {
+            result.success(checkOverlayPermission());
+        } else if (call.method.equals("requestPermission")) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                intent.setData(Uri.parse("package:" + mActivity.getPackageName()));
+                mActivity.startActivityForResult(intent, REQUEST_CODE_FOR_OVERLAY_PERMISSION);
+            } else {
+                result.success(true);
+            }
+        } else if (call.method.equals("showOverlay")) {
+            if (!checkOverlayPermission()) {
+                result.error("PERMISSION", "overlay permission is not enabled", null);
+                return;
+            }
+            Integer height = call.argument("height");
+            Integer width = call.argument("width");
+            String alignment = call.argument("alignment");
+            String flag = call.argument("flag");
+            String overlayTitle = call.argument("overlayTitle");
+            String overlayContent = call.argument("overlayContent");
+            String notificationVisibility = call.argument("notificationVisibility");
+            boolean enableDrag = call.argument("enableDrag");
+            String positionGravity = call.argument("positionGravity");
+            Map<String, Integer> startPosition = call.argument("startPosition");
+            int startX = startPosition != null ? startPosition.getOrDefault("x", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
+            int startY = startPosition != null ? startPosition.getOrDefault("y", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
+
+
+            WindowSetup.width = width != null ? width : -1;
+            WindowSetup.height = height != null ? height : -1;
+            WindowSetup.enableDrag = enableDrag;
+            WindowSetup.setGravityFromAlignment(alignment != null ? alignment : "center");
+            WindowSetup.setFlag(flag != null ? flag : "flagNotFocusable");
+            WindowSetup.overlayTitle = overlayTitle;
+            WindowSetup.overlayContent = overlayContent == null ? "" : overlayContent;
+            WindowSetup.positionGravity = positionGravity;
+            WindowSetup.setNotificationVisibility(notificationVisibility);
+
+            final Intent intent = new Intent(context, OverlayService.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            intent.putExtra("startX", startX);
+            intent.putExtra("startY", startY);
+            context.startService(intent);
+            result.success(null);
+        } else if (call.method.equals("isOverlayActive")) {
+            result.success(OverlayService.isRunning);
+            return;
+        } else if (call.method.equals("isOverlayActive")) {
+            result.success(OverlayService.isRunning);
+            return;
+        } else if (call.method.equals("moveOverlay")) {
+            int x = call.argument("x");
+            int y = call.argument("y");
+            result.success(OverlayService.moveOverlay(x, y));
+        } else if (call.method.equals("getOverlayPosition")) {
+            result.success(OverlayService.getCurrentPosition());
+        } else if (call.method.equals("closeOverlay")) {
+            if (OverlayService.isRunning) {
+                final Intent i = new Intent(context, OverlayService.class);
+                context.stopService(i);
+                result.success(true);
+            }
+            return;
+        } else {
+            result.notImplemented();
+        }
+
+    }
+
+    @Override
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        channel.setMethodCallHandler(null);
+        legacyMessenger.setMessageHandler(null);
+        mainToOverlayMessenger.setMessageHandler(null);
+        if (mainLegacyMessenger == legacyMessenger) {
+            mainLegacyMessenger = null;
+        }
+        if (mainMessagesFromOverlayChannel == overlayToMainMessenger) {
+            mainMessagesFromOverlayChannel = null;
+        }
+    }
+
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        mActivity = binding.getActivity();
+        binding.addActivityResultListener(this);
+        mainLegacyMessenger = legacyMessenger;
+        mainLegacyMessenger.setMessageHandler(this);
+        mainMessagesFromOverlayChannel = overlayToMainMessenger;
+        mainToOverlayMessenger.setMessageHandler(this::sendMainMessageToOverlay);
+        if (FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG) == null) {
+            FlutterEngineGroup enn = new FlutterEngineGroup(context);
+            DartExecutor.DartEntrypoint dEntry = new DartExecutor.DartEntrypoint(
+                    FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+                    "overlayMain");
+            FlutterEngine engine = enn.createAndRunEngine(context, dEntry);
+            FlutterEngineCache.getInstance().put(OverlayConstants.CACHED_TAG, engine);
+        }
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        this.mActivity = null;
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        onAttachedToActivity(binding);
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        this.mActivity = null;
+    }
+
+    @Override
+    public void onMessage(@Nullable Object message, @NonNull BasicMessageChannel.Reply<Object> reply) {
+        sendMessageToOverlay(OverlayConstants.MESSENGER_TAG, message, reply);
+    }
+
+    private void sendMainMessageToOverlay(
+            @Nullable Object message,
+            @NonNull BasicMessageChannel.Reply<Object> reply) {
+        sendMessageToOverlay(OverlayConstants.MAIN_TO_OVERLAY_MESSENGER_TAG, message, reply);
+    }
+
+    private void sendMessageToOverlay(
+            @NonNull String channelName,
+            @Nullable Object message,
+            @NonNull BasicMessageChannel.Reply<Object> reply) {
+        FlutterEngine overlayEngine = FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG);
+        if (overlayEngine == null) {
+            reply.reply(null);
+            return;
+        }
+
+        BasicMessageChannel<Object> overlayMessageChannel = new BasicMessageChannel<>(
+                overlayEngine.getDartExecutor().getBinaryMessenger(),
+                channelName,
+                JSONMessageCodec.INSTANCE);
+        overlayMessageChannel.send(message, reply);
+    }
+
+    static void sendLegacyMessageToMain(
+            @Nullable Object message,
+            @NonNull BasicMessageChannel.Reply<Object> reply) {
+        sendMessageToMain(mainLegacyMessenger, message, reply);
+    }
+
+    static void sendOverlayMessageToMain(
+            @Nullable Object message,
+            @NonNull BasicMessageChannel.Reply<Object> reply) {
+        sendMessageToMain(mainMessagesFromOverlayChannel, message, reply);
+    }
+
+    private static void sendMessageToMain(
+            @Nullable BasicMessageChannel<Object> target,
+            @Nullable Object message,
+            @NonNull BasicMessageChannel.Reply<Object> reply) {
+        if (target == null) {
+            reply.reply(null);
+            return;
+        }
+        target.send(message, reply);
+    }
+
+    private boolean checkOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return Settings.canDrawOverlays(context);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_FOR_OVERLAY_PERMISSION) {
+            pendingResult.success(checkOverlayPermission());
+            return true;
+        }
+        return false;
+    }
+
+}

@@ -9,6 +9,7 @@ import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dar
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
+import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 import '../../../features/player/page/player_view.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/player_sheet_panel.dart';
@@ -55,10 +56,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool isMobile = context.isMobile;
     final String currentPath = GoRouterState.of(context).uri.path;
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
+    // NavigationBar owns a SafeArea. Reserve both its content height and the
+    // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
+    final bottomNavBarHeight =
+        AppConstants.kAppBottomNavHeight +
+        MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.watch(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
     final panelController = ref.watch(panelControllerProvider);
+    final hasPlaybackItems = ref.watch(
+      playerControllerProvider.select(
+        (state) => state.playbackQueue.isNotEmpty,
+      ),
+    );
 
     Widget bodyContent;
     if (isMobile) {
@@ -104,6 +115,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           controller: panelController,
           minHeight: AppConstants.kMiniPlayerHeight,
           maxHeight: MediaQuery.sizeOf(context).height,
+          showPanel: hasPlaybackItems,
           fadeCollapsed: false,
           panelBuilder: (ScrollController sc, AnimationController controller) {
             return PlayerView(
@@ -113,10 +125,12 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           },
           body: bodyContent,
           showBottomNavBar: isMobile ? showBottomNav : false,
-          bottomNavBarHeight: AppConstants.kAppBottomNavHeight,
+          bottomNavBarHeight: bottomNavBarHeight,
           bottomNavBar: isMobile
               ? RepaintBoundary(
                   child: NavigationBar(
+                    height: AppConstants.kAppBottomNavHeight,
+                    maintainBottomViewPadding: true,
                     selectedIndex: selectedIndex,
                     onDestinationSelected: (index) =>
                         _navigateTo(destinations[index].branchIndex),

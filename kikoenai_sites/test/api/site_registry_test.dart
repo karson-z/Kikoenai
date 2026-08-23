@@ -18,9 +18,9 @@ class _FakeServerApi extends SiteApi {
 
   @override
   Set<SiteFeature> get supportedFeatures => const {
-        SiteFeature.serverSwitch,
-        SiteFeature.healthCheck,
-      };
+    SiteFeature.serverSwitch,
+    SiteFeature.healthCheck,
+  };
 
   @override
   ServerInfo get currentServer => _currentServer;
@@ -64,6 +64,38 @@ SitePlugin _plugin(String id, Set<SiteFeature> features) {
 
 void main() {
   group('SiteRegistry', () {
+    test('registers all built-in sites with isolated HTTP clients', () {
+      final resolvedSiteIds = <String>[];
+      final registry = SiteRegistry();
+      addTearDown(registry.clear);
+
+      final context = SiteRuntimeContext(
+        initialServerFor: (info) {
+          resolvedSiteIds.add(info.id);
+          return info.defaultServer;
+        },
+      );
+      registry.registerAvailable(builtInSitePlugins, context: context);
+
+      expect(registry.allInfo.map((info) => info.id), ['asmr.one', 'asmr.gay']);
+      expect(resolvedSiteIds, ['asmr.one', 'asmr.gay']);
+
+      final asmrOne = registry.requireRuntime('asmr.one');
+      final asmrGay = registry.requireRuntime('asmr.gay');
+      expect(asmrOne.httpClient, isNotNull);
+      expect(asmrGay.httpClient, isNotNull);
+      expect(asmrOne.httpClient, isNot(same(asmrGay.httpClient)));
+      expect(
+        asmrOne.httpClient!.dio.options.baseUrl,
+        AsmrOneSiteApi.info.defaultServer!.baseUrl,
+      );
+      expect(
+        asmrGay.httpClient!.dio.options.baseUrl,
+        AsmrGaySiteApi.info.defaultServer!.baseUrl,
+      );
+      expect(registry.contains('kikoeru'), isFalse);
+    });
+
     test('keeps independent runtimes for multiple sites', () {
       final registry = SiteRegistry();
       registry.register(_plugin('site.one', {SiteFeature.search}));
@@ -135,6 +167,32 @@ void main() {
         () => registry.switchServer('site.servers', 'missing'),
         throwsArgumentError,
       );
+    });
+
+    test('injects persisted servers into a self-hosted runtime', () {
+      const customServer = ServerInfo(
+        id: 'home-nas',
+        baseUrl: 'https://nas.example.com/kikoeru',
+        port: 8443,
+        label: 'Home NAS',
+        useProxy: false,
+        isDefault: true,
+      );
+      final registry = SiteRegistry();
+      addTearDown(registry.clear);
+
+      final runtime = registry.register(
+        KikoeruSiteApi.plugin,
+        context: SiteRuntimeContext(serversFor: (info) => const [customServer]),
+      );
+
+      expect(runtime.info.servers, const [customServer]);
+      expect(runtime.api.currentServer, customServer);
+      expect(
+        runtime.httpClient!.dio.options.baseUrl,
+        'https://nas.example.com:8443/kikoeru/api',
+      );
+      expect(AsmrOneSiteApi.info.servers, isNotEmpty);
     });
   });
 }

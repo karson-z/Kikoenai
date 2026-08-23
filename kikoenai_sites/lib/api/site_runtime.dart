@@ -9,6 +9,7 @@ import 'site_plugin.dart';
 class SiteRuntime {
   SiteRuntime._({
     required this.plugin,
+    required this.info,
     required this.api,
     required this.httpClient,
   });
@@ -17,10 +18,13 @@ class SiteRuntime {
     SitePlugin plugin, {
     SiteRuntimeContext context = const SiteRuntimeContext(),
   }) {
+    final info = context.resolveInfo(plugin.info);
+    final api = plugin.createApi(context);
     return SiteRuntime._(
       plugin: plugin,
-      api: plugin.createApi(context),
-      httpClient: context.httpClient,
+      info: info,
+      api: api,
+      httpClient: api.httpClient,
     );
   }
 
@@ -31,16 +35,17 @@ class SiteRuntime {
   }) {
     return SiteRuntime._(
       plugin: SitePlugin(info: info, createApi: (_) => api),
+      info: info,
       api: api,
       httpClient: httpClient,
     );
   }
 
   final SitePlugin plugin;
+  final SiteInfo info;
   final SiteApi api;
   final SitesHttpClient? httpClient;
 
-  SiteInfo get info => plugin.info;
   String get siteId => info.id;
   ServerInfo? get currentServer => info.servers.isEmpty
       ? null

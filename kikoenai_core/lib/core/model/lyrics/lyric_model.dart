@@ -7,26 +7,26 @@ part 'lyric_model.g.dart';
 class LyricConfigModel {
   // === 字体大小细分 ===
   @HiveField(0)
-  final double mainFontSize;       // 主歌词大??(默认 18)
+  final double mainFontSize; // 主歌词大??(默认 25)
 
   @HiveField(1)
-  final double transFontSize;      // 翻译歌词大小 (默认 14)
+  final double transFontSize; // 翻译歌词大小 (默认 15)
 
   @HiveField(2)
-  final double activeFontSize;     // 高亮??正在播放)的大??(默认 22)
+  final double activeFontSize; // 高亮??正在播放)的大??(默认 30)
 
   @HiveField(3)
-  final double lineGap;            // 普通行之间的间??(默认 15)
+  final double lineGap; // 普通行之间的间??(默认 24)
 
   @HiveField(4)
-  final double translationGap;     // 主歌词与翻译歌词之间的间??(默认 8)
+  final double translationGap; // 主歌词与翻译歌词之间的间??(默认 6)
 
   const LyricConfigModel({
-    this.mainFontSize = 18.0,
-    this.transFontSize = 12.0,
-    this.activeFontSize = 22.0,
-    this.lineGap = 35.0,
-    this.translationGap = 5.0,
+    this.mainFontSize = 25.0,
+    this.transFontSize = 15.0,
+    this.activeFontSize = 30.0,
+    this.lineGap = 24.0,
+    this.translationGap = 6.0,
   });
 
   // 用于更新状态的 CopyWith

@@ -142,26 +142,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
               ],
             ),
           ),
-          data: (response) {
-            final works = response.items;
-
-            final hasMore = works.length < response.pagination.totalCount;
-
-            if (works.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '没有找到相关作品',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
+          data: (pagingState) {
             return RefreshIndicator(
               onRefresh: () async {
                 return ref.refresh(
@@ -169,13 +150,12 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 );
               },
               child: PlaylistCardGridView(
-                work: works,
+                pagingState: pagingState,
                 padding: const EdgeInsets.all(12),
-                hasMore: hasMore,
-                onLoadMore: () {
+                fetchNextPage: () {
                   ref
                       .read(playlistWorksProvider(targetPlaylist.id).notifier)
-                      .loadMore();
+                      .fetchNextPage();
                 },
               ),
             );

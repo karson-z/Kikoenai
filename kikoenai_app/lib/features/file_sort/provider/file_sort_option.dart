@@ -3,6 +3,8 @@ import 'package:kikoenai/core/storage/hive_key.dart';
 
 /// 文件树排序字段
 enum FileSortField {
+  /// 默认：不进行任何排序，保持接口/扫描返回顺序
+  defaultSort,
   title,
   titleNumber,
   duration,
@@ -15,7 +17,7 @@ class FileSortOption {
   final bool descending;
 
   const FileSortOption({
-    this.field = FileSortField.title,
+    this.field = FileSortField.defaultSort,
     this.descending = false,
   });
 
@@ -38,7 +40,7 @@ class FileSortOption {
     return FileSortOption(
       field: fieldIndex != null && fieldIndex < FileSortField.values.length
           ? FileSortField.values[fieldIndex]
-          : FileSortField.title,
+          : FileSortField.defaultSort,
       descending: descending,
     );
   }

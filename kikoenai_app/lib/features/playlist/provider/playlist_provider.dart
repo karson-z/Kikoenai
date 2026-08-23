@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playlist_filter.dart';
+import 'package:kikoenai/core/widgets/pagination/kiko_paging_state.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
@@ -33,27 +34,36 @@ final fetchPlaylistsProvider =
     });
 
 final playlistWorksProvider = AsyncNotifierProvider.autoDispose
-    .family<PlaylistWorksNotifier, PagedResult<Work>, String>(
+    .family<PlaylistWorksNotifier, KikoPagingState<Work>, String>(
       PlaylistWorksNotifier.new,
     );
 
-class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
+class PlaylistWorksNotifier extends AsyncNotifier<KikoPagingState<Work>> {
   PlaylistWorksNotifier(this.playlistId);
   final String playlistId;
-  int _page = 1;
   final int _pageSize = 20;
+  int _requestVersion = 0;
 
   @override
-  Future<PagedResult<Work>> build() async {
+  Future<KikoPagingState<Work>> build() async {
+    _requestVersion++;
     ref.watch(activeSiteIdProvider);
-    _page = 1;
-    return _fetchData(page: 1, playlistId: playlistId);
+    return _loadPage(pageKey: 1, current: KikoPagingState<Work>());
   }
 
-  Future<PagedResult<Work>> _fetchData({
-    required int page,
-    required String playlistId,
+  Future<KikoPagingState<Work>> _loadPage({
+    required int pageKey,
+    required KikoPagingState<Work> current,
   }) async {
+    final response = await _fetchData(page: pageKey);
+    return current.appendPage(
+      pageKey: pageKey,
+      pageItems: response.items,
+      totalCount: response.pagination.totalCount,
+    );
+  }
+
+  Future<PagedResult<Work>> _fetchData({required int page}) async {
     final api = ref.read(activeSiteApiProvider);
     if (!api.supports(SiteFeature.playlistWorks)) {
       return const PagedResult<Work>(
@@ -95,29 +105,25 @@ class PlaylistWorksNotifier extends AsyncNotifier<PagedResult<Work>> {
     }
   }
 
-  Future<void> loadMore() async {
-    if (state.isLoading || !state.hasValue) return;
+  Future<void> fetchNextPage() async {
+    if (state.isLoading) return;
+    final current = state.value;
+    if (current == null || current.isLoading || !current.hasNextPage) return;
 
-    final currentData = state.value!;
-    if (currentData.items.length >= currentData.pagination.totalCount) return;
-
-    final nextPage = _page + 1;
+    final requestVersion = ++_requestVersion;
+    state = AsyncData(current.copyWith(isLoading: true, error: null));
     try {
-      final newResponse = await _fetchData(
-        page: nextPage,
-        playlistId: playlistId,
+      final result = await _loadPage(
+        pageKey: current.nextPageKey,
+        current: current,
       );
-
-      state = AsyncValue.data(
-        PagedResult<Work>(
-          items: [...currentData.items, ...newResponse.items],
-          pagination: newResponse.pagination,
-        ),
-      );
-
-      _page = nextPage;
-    } catch (e) {
-      print("加载更多失败: $e");
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(result);
+      }
+    } catch (error) {
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(current.copyWith(isLoading: false, error: error));
+      }
     }
   }
 }

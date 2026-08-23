@@ -439,13 +439,9 @@ class _SubtitlePickerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        '选择字幕文件',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
+    return KikoenaiAlertDialog(
+      titleText: '选择字幕文件',
       contentPadding: const EdgeInsets.only(top: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: SizedBox(
         width: double.maxFinite,
         height: MediaQuery.of(context).size.height * 0.5,
@@ -490,11 +486,11 @@ class _SubtitlePickerDialog extends StatelessWidget {
                 },
               ),
       ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       actions: [
-        TextButton(
+        KikoenaiAlertDialog.textAction(
+          context,
+          label: '取消',
           onPressed: () => KikoenaiDialog.dismiss(),
-          child: const Text('取消'),
         ),
       ],
     );

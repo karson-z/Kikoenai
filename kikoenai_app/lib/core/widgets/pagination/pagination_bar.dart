@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 用于限制输入只能是数字
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 
 class PaginationBar extends StatelessWidget {
   final int currentPage;
@@ -82,8 +83,8 @@ class PaginationBar extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('跳转到页码'),
+        return KikoenaiAlertDialog(
+          titleText: '跳转到页码',
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
@@ -100,13 +101,16 @@ class PaginationBar extends StatelessWidget {
             },
           ),
           actions: [
-            TextButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '取消',
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
             ),
-            FilledButton(
+            KikoenaiAlertDialog.textAction(
+              context,
+              label: '跳转',
+              isConfirm: true,
               onPressed: () => _handleJump(context, controller.text, maxPage),
-              child: const Text('跳转'),
             ),
           ],
         );

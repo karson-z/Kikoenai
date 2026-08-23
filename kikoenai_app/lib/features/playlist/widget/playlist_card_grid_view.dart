@@ -1,120 +1,76 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:kikoenai/config/work_layout_config.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/widgets/pagination/paging_indicators.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 
-import '../../../../core/widgets/loading/lottie_loading.dart';
-
 class PlaylistCardGridView extends StatelessWidget {
-  final List<Work> work;
-  final bool hasMore;
-  final VoidCallback onLoadMore;
+  final PagingState<int, Work> pagingState;
+  final VoidCallback fetchNextPage;
 
-  // 可选：允许外部传入 Controller 或 Padding
   final ScrollController? scrollController;
   final EdgeInsetsGeometry? padding;
 
   const PlaylistCardGridView({
     super.key,
-    required this.work,
-    required this.hasMore,
-    required this.onLoadMore,
+    required this.pagingState,
+    required this.fetchNextPage,
     this.scrollController,
     this.padding,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1. 空状态：直接返回普通的 Widget，不再需要 SliverFillRemaining
-    if (work.isEmpty && !hasMore) {
-      return _buildEmptyView();
-    }
-
     final layout = WorkLayoutConfig.card(context);
 
-    // 2. 使用 CustomScrollView 封装，使其成为一个独立的滚动视图
-    return CustomScrollView(
-      controller: scrollController,
-      // 保证即使内容很少也能滑动，以便触发刷新等操作
+    return PagedGridView<int, Work>(
+      state: pagingState,
+      fetchNextPage: fetchNextPage,
+      scrollController: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        // 支持外部传入 Padding
-        SliverPadding(
-          padding: padding ?? EdgeInsets.zero,
-          sliver: SliverGrid.builder(
-            itemCount: work.length,
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 240,
-              crossAxisSpacing: layout.horizontalSpacing,
-              mainAxisSpacing: layout.verticalSpacing,
-              childAspectRatio: 0.75,
-            ),
-            itemBuilder: (context, index) {
-              // 触发加载更多
-              if (index == work.length - 1 && hasMore) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  onLoadMore();
-                });
-              }
-              final item = work[index];
-              return WorkCard(
-                id: item.id,
-                title: item.title,
-                name: item.name,
-                circleName: item.circle?.name,
-                mainCoverUrl: item.mainCoverUrl,
-                heroTag: item.effectiveHeroTag,
-                hasSubtitle: item.hasSubtitle,
-                ageCategoryString: item.ageCategoryString,
-                release: item.release,
-                vas: item.vas,
-                tags: item.tags,
-                onTap: () {
-                  context.push(AppRoutes.detail, extra: {'work': item});
-                },
-              );
-            },
-          ),
-        ),
-
-        // 3. 底部 Footer
-        SliverToBoxAdapter(child: _buildFooter(context)),
-      ],
-    );
-  }
-
-  /// 普通的空状态视图 (Center 居中即可)
-  Widget _buildEmptyView() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 54, color: Colors.grey),
-          SizedBox(height: 16),
-          Text("这里什么都没有哦", style: TextStyle(color: Colors.grey)),
-        ],
+      padding: padding,
+      showNewPageProgressIndicatorAsGridChild: false,
+      showNewPageErrorIndicatorAsGridChild: false,
+      showNoMoreItemsIndicatorAsGridChild: false,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 240,
+        crossAxisSpacing: layout.horizontalSpacing,
+        mainAxisSpacing: layout.verticalSpacing,
+        childAspectRatio: 0.75,
       ),
-    );
-  }
-
-  Widget _buildFooter(BuildContext context) {
-    // 底部稍微留点距离
-    if (hasMore) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: LottieLoadingIndicator(message: "loading...", size: 80),
-      );
-    }
-
-    return const Padding(
-      padding: EdgeInsets.only(top: 20, bottom: 40),
-      child: Center(
-        child: Text(
-          "内容もうないから、無理無理(ヾﾉ･∀･`)ﾑﾘﾑﾘ",
-          style: TextStyle(color: Colors.grey, fontSize: 12),
-        ),
+      builderDelegate: PagedChildBuilderDelegate<Work>(
+        invisibleItemsThreshold: 3,
+        itemBuilder: (context, item, index) {
+          return WorkCard(
+            id: item.id,
+            title: item.title,
+            name: item.name,
+            circleName: item.circle?.name,
+            mainCoverUrl: item.mainCoverUrl,
+            heroTag: item.effectiveHeroTag,
+            hasSubtitle: item.hasSubtitle,
+            ageCategoryString: item.ageCategoryString,
+            release: item.release,
+            vas: item.vas,
+            tags: item.tags,
+            onTap: () {
+              context.push(AppRoutes.detail, extra: {'work': item});
+            },
+          );
+        },
+        firstPageProgressIndicatorBuilder: (_) =>
+            const PagingProgressIndicator(),
+        newPageProgressIndicatorBuilder: (_) => const PagingProgressIndicator(),
+        firstPageErrorIndicatorBuilder: (_) =>
+            PagingFirstPageErrorIndicator(onRetry: fetchNextPage),
+        newPageErrorIndicatorBuilder: (_) =>
+            PagingNewPageErrorIndicator(onRetry: fetchNextPage),
+        noItemsFoundIndicatorBuilder: (_) =>
+            const PagingEmptyIndicator(message: '没有找到相关作品'),
+        noMoreItemsIndicatorBuilder: (_) => const PagingNoMoreItemsIndicator(),
       ),
     );
   }

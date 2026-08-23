@@ -9,6 +9,7 @@ void main() {
       expect(config.connectTimeout, const Duration(seconds: 10));
       expect(config.userAgent, 'kikoenai-sites/0.1.0');
       expect(config.accept, 'application/json');
+      expect(config.useProxy, isTrue);
     });
 
     test('copyWith 正确覆盖指定字段', () {
@@ -16,11 +17,13 @@ void main() {
       final updated = config.copyWith(
         baseUrl: 'https://custom.example.com/api',
         userAgent: 'MyApp/1.0',
+        useProxy: false,
       );
       expect(updated.baseUrl, 'https://custom.example.com/api');
       expect(updated.userAgent, 'MyApp/1.0');
       // 未修改字段保持不变
       expect(updated.accept, 'application/json');
+      expect(updated.useProxy, isFalse);
     });
 
     test('defaultHeaders 包含 User-Agent / Referer / Accept', () {

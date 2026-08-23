@@ -1,22 +1,24 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/age_rating.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
+import 'package:kikoenai/core/widgets/pagination/kiko_paging_state.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../../core/service/cache/cache_service.dart';
 import '../../../../../core/service/site/site_api_provider.dart';
 import '../../../../../core/storage/hive_key.dart';
 
-abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
+abstract class BaseWorksNotifier extends AsyncNotifier<KikoPagingState<Work>> {
+  int _requestVersion = 0;
+
   /// 子类必须实现这个方法，负责调用具体的 API 并返回 PagedResult<Work>
   Future<PagedResult<Work>?> fetchWorksData(int page);
 
   @override
-  Future<WorkState> build() async {
+  Future<KikoPagingState<Work>> build() async {
+    _requestVersion++;
     ref.watch(activeSiteIdProvider);
-    return _loadPage(1);
+    return _loadPage(pageKey: 1, current: KikoPagingState<Work>());
   }
 
   /// 公共的 Keyword 构建方法，组装全局标签和特殊限制
@@ -26,7 +28,7 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
     // 1. 注入全局筛选标签 (从 Hive 中读取)
     tagsToApply.addAll(AppStorage.filterTagsBox.values);
 
-    // 2. 注入 NSFW 限制标签
+    // 2. 注入 SFW 限制标签
     final isNSFW = AppStorage.settingsBox.get(
       StorageKeys.nsfwKey,
       defaultValue: false,
@@ -46,47 +48,54 @@ abstract class BaseWorksNotifier extends AsyncNotifier<WorkState> {
   }
 
   /// 核心的通用加载与解析逻辑
-  Future<WorkState> _loadPage(int page) async {
-    // 1. 调用子类实现的具体网络请求
-    final data = await fetchWorksData(page);
-    // 2. 统一解析数据
-    final newWorks = data?.items ?? [];
-    final total = data?.pagination.totalCount ?? 0;
-    // 3. 统一合并逻辑：第一页覆盖，其他页追加
-    final currentWorks = state.value?.works ?? [];
-    final finalWorks = page == 1 ? newWorks : [...currentWorks, ...newWorks];
-
-    return WorkState(
-      works: finalWorks,
-      currentPage: page,
-      totalCount: total,
-      hasMore: finalWorks.length < total,
+  Future<KikoPagingState<Work>> _loadPage({
+    required int pageKey,
+    required KikoPagingState<Work> current,
+  }) async {
+    final data = await fetchWorksData(pageKey);
+    return current.appendPage(
+      pageKey: pageKey,
+      pageItems: data?.items ?? const <Work>[],
+      totalCount: data?.pagination.totalCount ?? 0,
     );
   }
 
-  /// 通用加载更多
-  Future<void> loadMore() async {
+  /// 加载下一页。追加页错误保存在 PagingState 中，供分页组件展示和重试。
+  Future<void> fetchNextPage() async {
+    if (state.isLoading) return;
     final current = state.value;
-    if (current == null || current.isLoading || !current.hasMore) {
+    if (current == null || current.isLoading || !current.hasNextPage) {
       return;
     }
 
-    state = AsyncData(current.copyWith(isLoading: true));
+    final requestVersion = ++_requestVersion;
+    state = AsyncData(current.copyWith(isLoading: true, error: null));
 
     try {
-      final result = await _loadPage(current.currentPage + 1);
-
-      state = AsyncData(result.copyWith(isLoading: false));
-    } catch (e, st) {
-      state = AsyncData(current.copyWith(isLoading: false));
-      rethrow;
+      final result = await _loadPage(
+        pageKey: current.nextPageKey,
+        current: current,
+      );
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(result);
+      }
+    } catch (error) {
+      if (requestVersion == _requestVersion) {
+        state = AsyncData(current.copyWith(isLoading: false, error: error));
+      }
     }
   }
 
   /// 通用刷新
   Future<void> refresh() async {
+    final requestVersion = ++_requestVersion;
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _loadPage(1));
+    final result = await AsyncValue.guard(
+      () => _loadPage(pageKey: 1, current: KikoPagingState<Work>()),
+    );
+    if (requestVersion == _requestVersion) {
+      state = result;
+    }
   }
 }
 
@@ -104,7 +113,7 @@ class HotWorksNotifier extends BaseWorksNotifier {
 }
 
 final hotWorksProvider =
-    AsyncNotifierProvider.autoDispose<HotWorksNotifier, WorkState>(
+    AsyncNotifierProvider.autoDispose<HotWorksNotifier, KikoPagingState<Work>>(
       HotWorksNotifier.new,
     );
 
@@ -130,7 +139,7 @@ class NewWorksNotifier extends BaseWorksNotifier {
 }
 
 final newWorksProvider =
-    AsyncNotifierProvider.autoDispose<NewWorksNotifier, WorkState>(
+    AsyncNotifierProvider.autoDispose<NewWorksNotifier, KikoPagingState<Work>>(
       NewWorksNotifier.new,
     );
 
@@ -159,19 +168,20 @@ class RecommendedWorksNotifier extends BaseWorksNotifier {
 }
 
 final recommendedWorksProvider =
-    AsyncNotifierProvider.autoDispose<RecommendedWorksNotifier, WorkState>(
-      RecommendedWorksNotifier.new,
-    );
+    AsyncNotifierProvider.autoDispose<
+      RecommendedWorksNotifier,
+      KikoPagingState<Work>
+    >(RecommendedWorksNotifier.new);
 
 final albumAllEmptyProvider = Provider<bool>((ref) {
   final hot = ref.watch(hotWorksProvider);
   final recommended = ref.watch(recommendedWorksProvider);
   final newest = ref.watch(newWorksProvider);
 
-  bool isEmpty(AsyncValue<WorkState> state) {
+  bool isEmpty(AsyncValue<KikoPagingState<Work>> state) {
     if (state.isLoading && !state.hasValue) return false;
     if (state.hasError && !state.hasValue) return false;
-    return state.value?.works.isEmpty ?? true;
+    return state.value?.itemList.isEmpty ?? true;
   }
 
   return isEmpty(hot) && isEmpty(recommended) && isEmpty(newest);

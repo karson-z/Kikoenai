@@ -10,6 +10,7 @@ class SiteSelectionModal extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(siteRegistryChangesProvider);
     final registry = ref.watch(siteRegistryProvider);
     final activeSiteId = ref.watch(activeSiteIdProvider);
     final theme = Theme.of(context);
@@ -156,7 +157,7 @@ class _ServerSelectionModalState extends ConsumerState<ServerSelectionModal> {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               title: Text(server.label),
-              subtitle: Text(server.region ?? server.baseUrl),
+              subtitle: Text(server.region ?? server.resolvedBaseUrl),
               trailing: _latencyLabel(server.id),
               onTap: currentServerId == server.id
                   ? null

@@ -6,11 +6,15 @@ class SectionHeader extends StatelessWidget {
   final bool isShowMoreButton;
   final VoidCallback? onMore;
 
+  /// 标题右侧的自定义控件（如布局切换按钮），位于"更多"右侧。
+  final Widget? trailing;
+
   const SectionHeader({
     super.key,
-    this.isShowMoreButton =false,
+    this.isShowMoreButton = false,
     required this.title,
     this.onMore,
+    this.trailing,
   });
 
   @override
@@ -37,24 +41,29 @@ class SectionHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: Row(
                 children: [
-                  if(isShowMoreButton)
-                  Text(
-                    '更多',
-                    style: TextStyle(
-                      fontSize: 14,
+                  if (isShowMoreButton)
+                    Text(
+                      '更多',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: color,
+                      ),
+                    ),
+                  const SizedBox(width: 3),
+                  if (isShowMoreButton)
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
                       color: color,
                     ),
-                  ),
-                  const SizedBox(width: 3),
-                  if(isShowMoreButton)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: color,
-                  ),
                 ],
               ),
             ),
+
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
           ],
         ),
       ),

@@ -14,15 +14,13 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.karson.kikoenai"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.3.13750724"
+    // 使用插件要求的最高 NDK 版本（jni 要求 28.2，其余插件 27.x），NDK 向后兼容，
+    // 消除构建时的 NDK 版本警告。
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
@@ -50,6 +48,12 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 

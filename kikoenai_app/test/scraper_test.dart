@@ -28,7 +28,7 @@ void main() {
           '社团: ${result['circle']?['name']} (ID: ${result['circle']?['id']})',
         );
         print('贩卖日: ${result['release']}');
-        print('NSFW: ${result['nsfw']}');
+        print('SFW: ${result['nsfw']}');
         print('标签数: ${(result['tags'] as List).length}');
         print('声优数: ${(result['vas'] as List).length}');
         print('售出数: ${result['dl_count']}');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
@@ -9,7 +10,6 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../../core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 import '../provider/file_scanner_notifier.dart';
 import '../widget/path_sheet.dart';
-import '../widget/scraper_drawer.dart';
 
 class ScannerPage extends ConsumerWidget {
   const ScannerPage({super.key});
@@ -20,9 +20,7 @@ class ScannerPage extends ConsumerWidget {
     final scannerState = ref.watch(fileScannerProvider);
     final scannerNotifier = ref.read(fileScannerProvider.notifier);
 
-    final queueState = ref.watch(scraperQueueProvider);
     final currentMode = scannerState.scanMode;
-    final queueCount = queueState.pending.length + queueState.processing.length;
     final root = scannerState.rootPath;
 
     // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
@@ -88,17 +86,6 @@ class ScannerPage extends ConsumerWidget {
                           ? null
                           : () => scannerNotifier.refreshCurrentTarget(),
                     ),
-                    IconButton(
-                      tooltip: '解析队列',
-                      icon: Badge(
-                        isLabelVisible: queueCount > 0,
-                        label: Text(queueCount.toString()),
-                        child: const Icon(Icons.swap_vert_circle_outlined),
-                      ),
-                      onPressed: () {
-                        Scaffold.of(context).openEndDrawer();
-                      },
-                    ),
                   ],
                 ),
               );
@@ -106,7 +93,6 @@ class ScannerPage extends ConsumerWidget {
           ),
         ],
       ),
-      endDrawer: const ScraperQueueDrawer(),
       body: Column(
         children: [
           if (root.isNotEmpty)
@@ -227,38 +213,24 @@ class ScannerPage extends ConsumerWidget {
     );
   }
 
-  void _showScanCompleteDialog(
+  Future<void> _showScanCompleteDialog(
     BuildContext context,
     WidgetRef ref,
     List<FileNode> pendingNodes,
-  ) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('扫描完成'),
-          content: Text(
-            '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('暂不'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
-                ref.read(scraperQueueProvider.notifier).start();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
-              },
-              child: const Text('一键加入并开始'),
-            ),
-          ],
-        );
-      },
+  ) async {
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '扫描完成',
+      content: '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
+      cancelLabel: '暂不',
+      confirmLabel: '一键加入并开始',
     );
+    if (!confirmed) return;
+    ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
+    ref.read(scraperQueueProvider.notifier).start();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
   }
 }

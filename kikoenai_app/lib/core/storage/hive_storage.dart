@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:kikoenai_sites/api/server_info.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -50,6 +51,7 @@ class AppStorage {
     Hive.registerAdapter(SearchTagAdapter());
     Hive.registerAdapter(ScanModeAdapter());
     Hive.registerAdapter(ScanTargetAdapter());
+    Hive.registerAdapter(ServerInfoAdapter());
     // 3. 并行打开 Box
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
@@ -69,6 +71,14 @@ class AppStorage {
       _openBox<ScanTarget>(
         BoxNames.scanTarget,
       ).then((val) => scanTargetBox = val),
+    ]);
+
+    // 清理历史遗留：设置页已移除的"背景处理与性能"项
+    // （模糊半径/缩放分辨率/编码质量），删除旧版存过的残留值。
+    await Future.wait([
+      settingsBox.delete('blur_background'),
+      settingsBox.delete('background_scale'),
+      settingsBox.delete('background_quality'),
     ]);
   }
 

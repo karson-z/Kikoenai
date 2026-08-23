@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
-import '../../../../core/routes/app_routes.dart';
-import '../../../../core/service/site/site_availability.dart';
+import '../../../core/constants/app_images.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../../core/service/site/site_availability.dart';
 import '../provider/auth_provider.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
@@ -124,8 +125,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // --- LOGO 区域 ---
-                    const SimpleExtendedImage(
-                      'assets/images/muzumi.jpg',
+                    SimpleExtendedImage(
+                      Assets.images.muzumi.path,
                       width: 64,
                       height: 64,
                       fit: BoxFit.contain,

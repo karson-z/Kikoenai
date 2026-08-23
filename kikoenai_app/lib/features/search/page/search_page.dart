@@ -6,6 +6,7 @@ import 'package:kikoenai/features/search/provider/search_provider.dart';
 import '../../../../core/widgets/layout/app_search_app_bar.dart';
 import '../../category/provider/category_data_provider.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -40,7 +41,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     // 2. 更新分类页面的关键字状态
     ref.read(searchFilterProvider(FilterModule.category).notifier).updateKeyword(val);
-    ref.invalidate(categoryProvider);
+    // 仅刷新当前排序对应的 tab，避免全 family 失效触发所有存活 tab 请求
+    ref.invalidate(
+      categoryProvider(
+        ref.read(searchFilterProvider(FilterModule.category)).sortOption,
+      ),
+    );
     // 3. 跳转到结果展示页 (CategoryPage)
     context.go(AppRoutes.category);
   }
@@ -150,28 +156,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   /// 清空确认弹窗
-  void _showClearHistoryDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("清空历史记录"),
-          content: const Text("确定要删除所有搜索历史吗？"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("取消"),
-            ),
-            TextButton(
-              onPressed: () {
-                ref.read(searchHistoryProvider.notifier).clear();
-                Navigator.of(context).pop();
-              },
-              child: const Text("清空"),
-            ),
-          ],
-        );
-      },
+  Future<void> _showClearHistoryDialog(BuildContext context) async {
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: "清空历史记录",
+      content: "确定要删除所有搜索历史吗？",
+      confirmLabel: "清空",
     );
+    if (confirmed) {
+      ref.read(searchHistoryProvider.notifier).clear();
+    }
   }
 }

@@ -172,46 +172,30 @@ void main() {
   );
 
   group('route surface policy', () {
-    late SiteRegistry registry;
     late SiteRuntime activeRuntime;
 
     setUp(() {
       activeRuntime = _runtime('site.active', {SiteFeature.search});
-      registry = SiteRegistry()
-        ..registerRuntime(activeRuntime)
-        ..registerRuntime(_runtime('site.detail', {SiteFeature.detail}));
     });
 
-    test('uses content site for remote album detail', () {
+    test('uses active site for album detail', () {
       expect(
         appRouteSurfacePolicy.isAvailable(
           path: AppRoutes.detail,
-          extra: const {'siteId': 'site.detail', 'workId': 1},
+          extra: const {'workId': 1},
           activeRuntime: activeRuntime,
-          siteRegistry: registry,
-          surfacePolicies: defaultSurfacePolicyRegistry,
-        ),
-        isTrue,
-      );
-      expect(
-        appRouteSurfacePolicy.isAvailable(
-          path: AppRoutes.detail,
-          extra: const {'siteId': 'site.active', 'workId': 1},
-          activeRuntime: activeRuntime,
-          siteRegistry: registry,
           surfacePolicies: defaultSurfacePolicyRegistry,
         ),
         isFalse,
       );
-    });
-
-    test('always allows local detail and rejects an unknown remote site', () {
       expect(
         appRouteSurfacePolicy.isAvailable(
           path: AppRoutes.detail,
-          extra: const {'siteId': 'missing', 'isLocal': true},
-          activeRuntime: activeRuntime,
-          siteRegistry: registry,
+          extra: const {'workId': 1},
+          activeRuntime: _runtime('site.detail', {
+            SiteFeature.detail,
+            SiteFeature.tracks,
+          }),
           surfacePolicies: defaultSurfacePolicyRegistry,
         ),
         isTrue,
@@ -219,9 +203,12 @@ void main() {
       expect(
         appRouteSurfacePolicy.isAvailable(
           path: AppRoutes.detail,
-          extra: const {'siteId': 'missing'},
-          activeRuntime: activeRuntime,
-          siteRegistry: registry,
+          extra: const {'workId': 1},
+          activeRuntime: _runtime('site.files', {
+            SiteFeature.detail,
+            SiteFeature.fileSystemSearch,
+            SiteFeature.fileSystemBrowse,
+          }),
           surfacePolicies: defaultSurfacePolicyRegistry,
         ),
         isFalse,
@@ -234,7 +221,6 @@ void main() {
           path: AppRoutes.hotAndRecommend,
           extra: const {'source': WorkDataSource.newest},
           activeRuntime: activeRuntime,
-          siteRegistry: registry,
           surfacePolicies: defaultSurfacePolicyRegistry,
         ),
         isTrue,
@@ -244,7 +230,6 @@ void main() {
           path: AppRoutes.hotAndRecommend,
           extra: const {'source': WorkDataSource.recommended},
           activeRuntime: activeRuntime,
-          siteRegistry: registry,
           surfacePolicies: defaultSurfacePolicyRegistry,
         ),
         isFalse,

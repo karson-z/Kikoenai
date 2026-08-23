@@ -43,6 +43,12 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+  # MSVC 14.51+（VS 2026，GitHub windows-latest 镜像）对 <experimental/coroutine> + /await
+  # 硬性报错（STL1011）；permission_handler_windows 0.2.2 仍在使用该旧协程方案。
+  # 定义此宏暂时静默该弃用错误，等待插件上游迁移到 C++20 <coroutine>。
+  if(MSVC)
+    target_compile_definitions(${TARGET} PRIVATE "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
+  endif()
 endfunction()
 
 # Flutter library and tool build rules.

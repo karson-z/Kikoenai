@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/file_sort/provider/file_sort_option.dart';
 
@@ -52,14 +54,16 @@ class FileNodeLibraryIndex {
     String? rootPath,
     NodeSource fallbackFolderSource = NodeSource.localWork,
   }) {
-    final effectiveRoot =
-        rootPath ??
-        roots
-            .map((n) => n.rootPath)
+
+    // 计算 effectiveRoot
+    final effectiveRoot = rootPath ??
+        roots.map((n) => n.rootPath)
             .firstWhere((p) => p != null && p.isNotEmpty, orElse: () => null) ??
         'tree://root';
 
+    // 遍历树并计时
     final flatNodes = <FileNode>[];
+
     for (final node in roots) {
       _flattenTreeNode(
         node: node,
@@ -68,7 +72,6 @@ class FileNodeLibraryIndex {
         flatNodes: flatNodes,
       );
     }
-
     return FileNodeLibraryIndex(
       flatNodes: flatNodes,
       rootPath: effectiveRoot,
@@ -282,6 +285,22 @@ class FileNodeLibraryIndex {
     return getFilesInFolder(folder, recursive: true);
   }
 
+  /// 递归收集索引中所有字幕文件，返回扁平的 [FileNode] 列表。
+  ///
+  /// 遍历 [nodeByPath] 中已建索引的全部非文件夹节点，按
+  /// [FileExtensions.isSubtitle] 过滤；返回的节点会清空 `children`，
+  /// 确保是"平"的（不携带子项）。顺序不保证，调用方如需排序请自行处理。
+  List<FileNode> collectAllSubtitles() {
+    final result = <FileNode>[];
+    for (final node in nodeByPath.values) {
+      final path = node.path;
+      if (path != null && FileExtensions.isSubtitle(path)) {
+        result.add(node.copyWith(children: null));
+      }
+    }
+    return result;
+  }
+
   /// 递归遍历 folder 树，依次访问每个 folder 节点（含其本身）。
   ///
   /// [visit] 接收当前 folder 的 [NodeFolder] 与其在 [folderMap] 中的直接文件列表。
@@ -409,6 +428,9 @@ class FileNodeLibraryIndex {
   }
 
   void _sort(FileSortOption option) {
+    // 默认排序：不进行任何处理，保持接口/扫描返回顺序
+    if (option.field == FileSortField.defaultSort) return;
+
     // 文件夹没有 duration/size，这两种模式下继续按标题升序。
     // 标题和标题序号模式则与文件使用相同规则，否则纯文件夹目录会看起来“排序失效”。
     rootNode.walkIncludingSelf((node) {
@@ -438,6 +460,8 @@ class FileNodeLibraryIndex {
 
   int _compareByField(FileNode a, FileNode b, FileSortField field) {
     switch (field) {
+      case FileSortField.defaultSort:
+        return 0;
       case FileSortField.title:
         return _compareTitles(a.title, b.title);
       case FileSortField.titleNumber:

@@ -69,7 +69,14 @@ class WorkCard extends ConsumerWidget {
                 children: [
                   Hero(
                     tag: heroTag,
-                    child: SimpleExtendedImage(mainCoverUrl ?? '', width: 240),
+                    child: SimpleExtendedImage(
+                      mainCoverUrl ?? '',
+                      width: 240,
+                      // 限制解码宽度，避免按原图（可达 1000px+）解码导致滚动掉帧
+                      cacheWidth: 480,
+                      // 静态占位代替 Lottie：快速滚动时多个动画实例会拖垮帧率
+                      loadingPlaceholder: const _CoverLoadingPlaceholder(),
+                    ),
                   ),
                   _PositionedBadge(
                     top: 8,
@@ -131,7 +138,16 @@ class WorkCard extends ConsumerWidget {
                                   ).notifier,
                                 )
                                 .toggleTag(TagType.circle.stringValue, name!);
-                            ref.invalidate(categoryProvider);
+                            // 仅刷新当前排序对应的 tab，避免全 family 失效触发所有存活 tab 请求
+                            ref.invalidate(
+                              categoryProvider(
+                                ref
+                                    .read(
+                                      searchFilterProvider(FilterModule.category),
+                                    )
+                                    .sortOption,
+                              ),
+                            );
                             context.go(AppRoutes.category);
                           }
                         },
@@ -156,6 +172,19 @@ class WorkCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 封面加载中的轻量静态占位：跟随亮暗主题的灰底色块，无动画开销。
+class _CoverLoadingPlaceholder extends StatelessWidget {
+  const _CoverLoadingPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ColoredBox(
+      color: isDark ? const Color(0xFF242424) : const Color(0xFFF0F0F2),
     );
   }
 }

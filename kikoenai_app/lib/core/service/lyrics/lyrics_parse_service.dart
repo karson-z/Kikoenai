@@ -1,20 +1,23 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_lyric/core/lyric_model.dart';
 import 'package:flutter_lyric/core/lyric_parse.dart';
-import 'package:flutter_lyric/core/lyric_scroll_behavior.dart';
 import 'package:flutter_lyric/core/lyric_style.dart';
+import 'package:flutter_lyric/core/lyric_styles.dart';
 
 import 'package:kikoenai_core/kikoenai_core.dart';
+
 /// Vtt 字幕解析器
 class VttParser extends LyricParse {
   // 匹配 VTT 时间轴的正则：支持 00:00.000 或 00:00:00.000
-  static final RegExp _timeArrowRegex = RegExp(r'(\d{2,}:?\d{2}:\d{2}\.\d{3})|(\d{2}:\d{2}\.\d{3})');
+  static final RegExp _timeArrowRegex = RegExp(
+    r'(\d{2,}:?\d{2}:\d{2}\.\d{3})|(\d{2}:\d{2}\.\d{3})',
+  );
   @override
   bool isMatch(String mainLyric) {
     return mainLyric.contains("WEBVTT");
   }
+
   @override
   LyricModel parseRaw(String mainLyric, {String? translationLyric}) {
     final lines = const LineSplitter().convert(mainLyric);
@@ -63,12 +66,14 @@ class VttParser extends LyricParse {
         content = content.replaceAll(RegExp(r'<[^>]*>'), '');
 
         if (content.isNotEmpty && content != "//") {
-          lyricLines.add(LyricLine(
-            start: Duration(milliseconds: startMs),
-            end: Duration(milliseconds: endMs),
-            text: content,
-            translation: translationMap[startMs], // 尝试匹配翻译
-          ));
+          lyricLines.add(
+            LyricLine(
+              start: Duration(milliseconds: startMs),
+              end: Duration(milliseconds: endMs),
+              text: content,
+              translation: translationMap[startMs], // 尝试匹配翻译
+            ),
+          );
         }
       }
     }
@@ -96,7 +101,9 @@ class VttParser extends LyricParse {
         secondsWithMs = double.parse(parts[1]);
       }
 
-      return (hours * 3600000 + minutes * 60000 + (secondsWithMs * 1000).round());
+      return (hours * 3600000 +
+          minutes * 60000 +
+          (secondsWithMs * 1000).round());
     } catch (e) {
       return 0;
     }
@@ -105,79 +112,17 @@ class VttParser extends LyricParse {
 
 class LyricStyleFactory {
   static LyricStyle createStyle(LyricConfigModel config) {
-    return LyricStyle(
-      textStyle: TextStyle(
-        fontSize: config.mainFontSize, // 建议设置小一点，如 18-20
-        color: Colors.white.withOpacity(0.5), // 降低不透明度，模拟“失焦”感
-        height: 1.5, // 增加行高，增加呼吸感
-        fontWeight: FontWeight.w500,
+    final appleStyle = LyricStyles.appleMusic;
+    return appleStyle.copyWith(
+      textStyle: appleStyle.textStyle.copyWith(fontSize: config.mainFontSize),
+      activeStyle: appleStyle.activeStyle.copyWith(
+        fontSize: config.activeFontSize,
       ),
-
-      activeStyle: TextStyle(
-        fontSize: config.activeFontSize, // 建议设置大一点，如 28-32，形成巨大反差
-        color: Colors.white,
-        fontWeight: FontWeight.w800, // 极粗字体，强调视觉重心
-        height: 1.2,
-      ),
-
-      translationStyle: TextStyle(
+      translationStyle: appleStyle.translationStyle.copyWith(
         fontSize: config.transFontSize,
-        color: Colors.white.withOpacity(0.4), // 翻译更淡
-        height: 1.5,
       ),
-
       lineGap: config.lineGap,
       translationLineGap: config.translationGap,
-      // --- 颜色 ---
-      translationActiveColor: Colors.white,
-      selectedColor: Colors.white,
-      selectedTranslationColor: Colors.white,
-      // --- 对齐与布局 ---
-      lineTextAlign: TextAlign.left,
-      contentAlignment: CrossAxisAlignment.start,
-      // 具体的 Padding
-      contentPadding: const EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 20),
-      // --- 锚点 ---
-      selectionAnchorPosition: 0.5,
-      activeAnchorPosition: 200,
-      selectionAlignment: MainAxisAlignment.end,
-      activeAlignment: MainAxisAlignment.start,
-
-      scrollBehavior: SpringScrollConfig(
-        springDescription: SpringDescription.withDampingRatio(
-          mass: 1.0,
-          stiffness: 100.0,
-          ratio: 1.0,
-        ),
-      ),
-      // --- 渐隐效果 ---
-      fadeRange: FadeRange(top: 0.1, bottom: 0.4),
-
-      enableSwitchAnimation: true,
-      switchEnterDuration: const Duration(milliseconds: 400),
-      switchExitDuration: const Duration(milliseconds: 400),
-      switchEnterCurve: Curves.easeOutQuart,
-      switchExitCurve: Curves.easeInQuad,
-
-      // --- 自动恢复逻辑 ---
-      selectionAutoResumeMode: SelectionAutoResumeMode.neverResume,
-      selectionAutoResumeDuration: const Duration(milliseconds: 100),
-      activeAutoResumeDuration: const Duration(milliseconds: 2000),
-
-      // --- 高亮渐变特效 ---
-      // activeHighlightGradient: LinearGradient(
-      //   begin: Alignment.topCenter, // 从上到下
-      //   end: Alignment.bottomCenter,
-      //   colors: [
-      //     // 起始：稍微带点亮度的半透明白 (根据需要调整透明度 0.1 - 0.3)
-      //     Colors.white.withOpacity(0.25),
-      //     // 结束：几乎完全透明，但这能让渐变更柔和
-      //     Colors.white.withOpacity(0.05),
-      //   ],
-      //   // 关键：加一个中间点，让白色主要集中在中间，两边快速淡出
-      //   stops: const [0.0, 1.0],
-      // ),
-      activeHighlightExtraFadeWidth: 40,
     );
   }
 }

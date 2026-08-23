@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-class CollapsibleTabBar extends StatelessWidget {
+class CollapsibleTabBar extends ConsumerWidget {
   final TabController controller;
   final List<String> filters;
   final SortDirection? sortDirection;
@@ -24,7 +26,7 @@ class CollapsibleTabBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       height: 46,
       child: Container(
@@ -65,6 +67,12 @@ class CollapsibleTabBar extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+
+            // 作品浏览布局切换（网格 / 列表，全局持久化）
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: WorkLayoutToggleButton(),
             ),
 
             // 排序图标

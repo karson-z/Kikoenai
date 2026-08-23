@@ -32,7 +32,7 @@ class MoreOptionsBottomSheet extends StatelessWidget {
               // 专辑封面
               SimpleExtendedImage(
                 borderRadius: BorderRadius.circular(8),
-                track.coverUrl ?? track.smallCoverUrl ?? "",
+                track.coverUrl ?? track.smallCoverUrl,
                 width: 60,
                 height: 60,
               ),

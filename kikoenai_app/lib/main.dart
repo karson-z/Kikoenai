@@ -14,15 +14,25 @@ import 'app/app.dart';
 import 'core/service/audio/audio_service_ctrl.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/service/file/local_media_sync_scheduler.dart';
+import 'core/service/player/player_service.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 import 'features/overly-lyrics/page/overly_lyrics_panel.dart';
+import 'features/overly-lyrics/provider/overly_lyrics_manager.dart';
+import 'features/overly-lyrics/provider/overly_lyrics_provider.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppStorage.init();
-  runApp(const ProviderScope(child: _OverlayApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        subtitleEndpointProvider.overrideWithValue(SubtitleEndpoint.overlay),
+      ],
+      child: const _OverlayApp(),
+    ),
+  );
 }
 
 class _OverlayApp extends ConsumerWidget {
@@ -63,6 +73,11 @@ class _OverlayApp extends ConsumerWidget {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  // 在主 isolate 提前创建全局唯一的 Player，明确其归属（media_kit 的 Player
+  // 会 spawn 专属 isolate + 原生 mpv）。若等音频服务/UI 再创建，一旦未来
+  // audio handler 被移到其他 isolate，会静默产生第二个 Player 导致
+  // 热重载/热重启崩溃。
+  PlayerService.instance;
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent, // 强制透明
@@ -79,5 +94,7 @@ void main() async {
   unawaited(setupSiteApi());
   setupDesktopWindow();
   unawaited(LocalMediaSyncScheduler.instance.runStartupCheck());
-  runApp(const ProviderScope(child: MyApp()));
+  //  Failed to update ui::AXTree, error: 342 will not be in the tree and is not the new root
+  // ExcludeSemantics 会禁用整个 app 的无障碍功能，避免这个bug
+  runApp(const ProviderScope(child: ExcludeSemantics(child: MyApp())));
 }

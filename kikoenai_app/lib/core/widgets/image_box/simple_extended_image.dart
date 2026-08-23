@@ -7,34 +7,32 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 
 import '../../constants/app_images.dart';
-import '../../theme/app_theme.dart';
 
 class SimpleExtendedImage extends StatelessWidget {
-  final String url;
+  final String? url;
   final double? width;
   final double? height;
-  final String placeholder;
   final BoxShape shape;
   final BorderRadius? borderRadius;
-  final Widget? replacement;
   final BoxFit? fit;
   final int? cacheWidth;
   final double? loadingSize;
-  final double? origAspectRatio;
+
+  /// 自定义加载占位 Widget；为 null 时使用默认 Lottie 动画。
+  /// 滚动列表中建议传轻量静态占位（灰底色块），避免多个 Lottie 同时动画导致掉帧。
+  final Widget? loadingPlaceholder;
 
   const SimpleExtendedImage(
     this.url, {
     super.key,
     this.width,
     this.height,
-    this.placeholder = placeholderImage,
-    this.replacement,
     this.fit,
     this.shape = BoxShape.rectangle,
     this.borderRadius,
     this.loadingSize,
-    this.origAspectRatio,
     this.cacheWidth,
+    this.loadingPlaceholder,
   });
 
   const SimpleExtendedImage.avatar(
@@ -42,19 +40,18 @@ class SimpleExtendedImage extends StatelessWidget {
     super.key,
     this.width,
     this.height,
-    this.placeholder = placeholderImage,
-    this.replacement,
     this.fit,
     this.shape = BoxShape.circle,
     this.borderRadius,
     this.loadingSize,
-    this.origAspectRatio,
+    this.loadingPlaceholder,
     this.cacheWidth = 300,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1. 计算目标显示尺寸
+    // 规范化 URL，统一处理 null
+    final String safeUrl = url ?? '';
     final double targetWidth = width ?? MediaQuery.sizeOf(context).width;
     final double targetHeight = height ?? MediaQuery.sizeOf(context).height;
     final BoxFit targetFit = fit ?? BoxFit.cover;
@@ -66,35 +63,44 @@ class SimpleExtendedImage extends StatelessWidget {
 
     Widget imageContent;
 
-    if (url.startsWith('http') || url.startsWith('https')) {
+    if (safeUrl.startsWith('http') || safeUrl.startsWith('https')) {
       // --- 网络图片 ---
       imageContent = CachedNetworkImage(
         httpHeaders: httpHeaders,
-        imageUrl: url,
+        imageUrl: safeUrl,
         width: targetWidth,
         height: targetHeight,
         fit: targetFit,
+        memCacheWidth: cacheWidth,
         useOldImageOnUrlChange: true,
-        placeholder: (c, u) => LottieLoadingIndicator(
-          assetPath: 'assets/animation/StarLoader.json',
-          size: loadingSize ?? 60.0,
+        placeholder: (c, u) =>
+            loadingPlaceholder ??
+            LottieLoadingIndicator(
+              assetPath: Assets.animation.starLoader.path,
+              size: loadingSize ?? 60.0,
+            ),
+        errorBuilder: (c, u, e) => _buildAssetImage(
+          placeholderImage,
+          width: targetWidth,
+          height: targetHeight,
+          fit: targetFit,
         ),
-        errorBuilder: (c, u, e) => _buildPlaceholder(),
         fadeInDuration: const Duration(milliseconds: 120),
         fadeOutDuration: const Duration(milliseconds: 120),
       );
-    } else if (url == placeholder || url == placeholderImage) {
-      imageContent = _buildPlaceholder();
-    } else if (url.startsWith('assets/')) {
+    } else if (safeUrl.startsWith('assets/')) {
       imageContent = _buildAssetImage(
-        url,
+        safeUrl,
         width: targetWidth,
         height: targetHeight,
         fit: targetFit,
       );
+    } else if (safeUrl.isEmpty) {
+      // 空 URL：灰色背景 + 音乐图标，避免 ExtendedFileImageProvider 抛 PathNotFoundException
+      imageContent = _buildPlaceholder();
     } else {
-      // 本地文件路径（例如 FilePicker 选择后的本地路径）
-      final localFile = File(url.split('?').first);
+      // 本地文件路径
+      final localFile = _resolveLocalFile(safeUrl);
       imageContent = ExtendedImage.file(
         localFile,
         width: targetWidth,
@@ -103,8 +109,14 @@ class SimpleExtendedImage extends StatelessWidget {
         loadStateChanged: (state) {
           switch (state.extendedImageLoadState) {
             case LoadState.loading:
-            case LoadState.failed:
               return _buildPlaceholder();
+            case LoadState.failed:
+              return _buildAssetImage(
+                placeholderImage,
+                width: targetWidth,
+                height: targetHeight,
+                fit: targetFit,
+              );
             case LoadState.completed:
               return ExtendedRawImage(
                 image: state.extendedImageInfo?.image,
@@ -126,20 +138,47 @@ class SimpleExtendedImage extends StatelessWidget {
     }
   }
 
+  /// 解析本地文件路径，兼容 file:// 协议头和查询参数
+  File _resolveLocalFile(String rawUrl) {
+    String path = rawUrl;
+    // 去掉查询参数
+    final queryIndex = path.indexOf('?');
+    if (queryIndex >= 0) {
+      path = path.substring(0, queryIndex);
+    }
+    // 处理 file:// 协议头
+    if (path.startsWith('file://')) {
+      return File(Uri.parse(path).toFilePath());
+    }
+    return File(path);
+  }
+
+  /// 构建空 URL 占位图（url 为空/null 时使用）：灰色背景 + 音乐图标。
+  /// 通过 LayoutBuilder 感知父组件约束；父约束无界时（如 WoltModalSheet 传递
+  /// BoxConstraints(biggest)）回退到构造参数或 MediaQuery 屏幕尺寸，
+  /// 避免 Icon(size: infinity) 崩溃。
   Widget _buildPlaceholder() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = math.min(
-          constraints.maxWidth,
-          constraints.maxHeight,
-        );
+        // 优先用父组件约束，无界时回退到构造参数 / MediaQuery
+        final double w = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : (width ?? MediaQuery.sizeOf(context).width);
+        final double h = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : (height ?? MediaQuery.sizeOf(context).height);
+        final double size = math.min(w, h);
+        final double iconSize = size * 0.5;
 
-        return ColoredBox(
-          color: const Color(0xFFE5E6E8),
-          child: Center(
-            child: Icon(
-              Icons.music_note_outlined,
-              size: size * 0.5,
+        return SizedBox(
+          width: w,
+          height: h,
+          child: ColoredBox(
+            color: const Color(0xFFE5E6E8),
+            child: Center(
+              child: iconSize > 0
+                  ? Icon(Icons.music_note_outlined, size: iconSize)
+                  : const SizedBox.shrink(),
             ),
           ),
         );

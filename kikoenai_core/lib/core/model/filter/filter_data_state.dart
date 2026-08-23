@@ -14,5 +14,7 @@ abstract class FilterDataState with _$FilterDataState {
     @Default(0) int totalCount,
     @Default(true) bool hasMore,
     @Default(false) bool isLoading,
+    // 生成该数据时使用的筛选条件指纹，用于判断缓存数据是否已过期
+    @Default('') String filterFingerprint,
   }) = _FilterDataState;
 }

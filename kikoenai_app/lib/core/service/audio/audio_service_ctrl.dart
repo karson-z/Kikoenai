@@ -27,7 +27,7 @@ class AudioServiceSingleton {
   static Future<void> init() async {
     debugPrint("AudioServiceSingleton.init()");
     _instance = await AudioService.init(
-      builder: () => MyAudioHandler(),
+      builder: () => MyAudioHandler(PlayerService.instance.player),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.karson.kikoenai.audio',
         androidNotificationChannelName: 'Kikoenai',
@@ -40,7 +40,14 @@ class AudioServiceSingleton {
 }
 
 class MyAudioHandler extends BaseAudioHandler {
-  final Player _player = PlayerService.instance.player;
+  /// 全局唯一的播放器实例，由调用方从 [PlayerService] 注入（主 isolate 创建）。
+  ///
+  /// 采用构造函数注入而非在类内直接访问 `PlayerService.instance`：
+  /// 静态单例是 per-isolate 的，若 handler 未来被移到后台 isolate，
+  /// 隐式访问会静默创建第二个 Player；显式注入会让跨 isolate 问题
+  /// 在编译/构造时就暴露出来。
+  final Player _player;
+
   late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
   final List<MediaItem> _playlist = [];
@@ -56,7 +63,7 @@ class MyAudioHandler extends BaseAudioHandler {
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false)
           as bool;
 
-  MyAudioHandler() {
+  MyAudioHandler(this._player) {
     _lifecycleListener = AppLifecycleListener(
       onStateChange: _handleLifecycleState,
     );
@@ -98,10 +105,15 @@ class MyAudioHandler extends BaseAudioHandler {
       try {
         // 避免音视频文件没有对应的索引文件导致无法进行range跳转
         await nativePlayer.setProperty('hr-seek', 'yes');
+        // media_kit 默认开启 cache-on-disk（把流缓存写入磁盘文件），在部分环境/版本下
+        // 会因无法创建缓存文件而报 "lavf: Failed to create file cache" → 首次加载失败 →
+        // keep-open 模式下 mpv 将其视为播放结束 → completed 事件 → 自动重开同一 URL
+        // （表现为切换歌曲时同一地址被请求两次）。这里关闭磁盘缓存，改用内存缓存。
+        await nativePlayer.setProperty('cache-on-disk', 'no');
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
         KikoenaiLogger().i("当前缓存路径:$cacheDir");
-        // await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
+        await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {

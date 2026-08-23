@@ -26,7 +26,7 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
             height: 4,
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -52,7 +52,7 @@ class SubtitleConfigBottomSheet extends ConsumerWidget {
             title: const Text('物理穿透锁定'),
             subtitle: const Text('锁定后鼠标/手势将穿透字幕'),
             value: state.isLocked,
-            onChanged: (val) => controller.toggleLock(val,isMain: true),
+            onChanged: controller.setLockFromMain,
           ),
         ],
       ),

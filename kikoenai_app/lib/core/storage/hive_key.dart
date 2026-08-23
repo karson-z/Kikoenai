@@ -13,6 +13,9 @@ class StorageKeys {
   /// 用于多服务器切换场景
   static const String currentHost = 'current_host';
 
+  /// 用户配置的站点服务器列表（List<ServerInfo>）
+  static const String siteServers = 'site_servers';
+
   /// 推荐系统的会话 UUID
   /// 用于标记推荐流的上下文或用户指纹
   static const String recommendUuid = 'recommend_uuid';
@@ -87,9 +90,13 @@ class StorageKeys {
   /// 当用户点击快速收藏按钮时，音频将被添加到的默认列表
   static const String quickMarkTargetPlaylist = 'quick_mark_target_playlist';
 
-  /// 是否启用成人模式 (NSFW)
+  /// 是否启用 SFW 模式（开启时注入全年龄过滤标签）
   /// 类型: bool
   static const String nsfwKey = 'nsfw_enabled';
+
+  /// 作品浏览布局模式（首页"最新作品" / 分类页共用）
+  /// 取值: 'grid' | 'list'
+  static const String workLayoutMode = 'work_layout_mode';
 
   /// 文件下载保存的本地目录路径
   static const String fileDownloadKey = 'file_download_path';
@@ -125,14 +132,6 @@ class StorageKeys {
   /// 桌面字幕位置 Y轴
   static const String overlayLyricsPositionY = 'overlay_lyrics_positionY';
 
-  /// 播放器背景模糊程度
-  static const String blurBackground = 'blur_background';
-
-  /// 播放器背景图片缩放比例
-  static const String backgroundScale = 'background_scale';
-
-  /// 播放器背景图片编码质量
-  static const String backgroundQuality = 'background_quality';
   // ==================== Internal Wrapper Keys (内部缓存包装) ====================
 
   /// 缓存包装器 - 实际数据字段 Key
