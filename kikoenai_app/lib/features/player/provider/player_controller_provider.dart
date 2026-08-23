@@ -10,13 +10,13 @@ import 'package:kikoenai/features/history/provider/history_controller_provider.d
 import 'package:kikoenai/features/player/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
+import '../../../core/service/audio/audio_service.dart';
 import '../../overly-lyrics/provider/overly_lyrics_provider.dart';
 
 final playerControllerProvider =

@@ -8,17 +8,18 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import '../../constants/app_constants.dart';
-import '../../utils/data/other.dart';
+import 'package:kikoenai_core/kikoenai_core.dart' as core_models;
+// ignore: unused_import
+import 'package:kikoenai_core/core/utils/other.dart';
 
-/// 全局单例的 AudioService 管理器
 class AudioServiceSingleton {
   AudioServiceSingleton._();
 
   static late final AudioHandler _instance;
-
   static AudioHandler get instance {
     return _instance;
   }
@@ -26,7 +27,7 @@ class AudioServiceSingleton {
   static Future<void> init() async {
     debugPrint("AudioServiceSingleton.init()");
     _instance = await AudioService.init(
-      builder: () => MyAudioHandler(),
+      builder: () => MyAudioHandler(PlayerService.instance.player),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.karson.kikoenai.audio',
         androidNotificationChannelName: 'Kikoenai',
@@ -38,46 +39,62 @@ class AudioServiceSingleton {
   }
 }
 
-/// 自定义音频处理器，连接系统服务状态与底层播放引擎。
 class MyAudioHandler extends BaseAudioHandler {
-  /// 引用全局的媒体播放引擎
-  final Player _player = PlayerService.instance.player;
+  /// 全局唯一的播放器实例，由调用方从 [PlayerService] 注入（主 isolate 创建）。
+  ///
+  /// 采用构造函数注入而非在类内直接访问 `PlayerService.instance`：
+  /// 静态单例是 per-isolate 的，若 handler 未来被移到后台 isolate，
+  /// 隐式访问会静默创建第二个 Player；显式注入会让跨 isolate 问题
+  /// 在编译/构造时就暴露出来。
+  final Player _player;
 
+  late final AudioSession _audioSession;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
-
   final List<MediaItem> _playlist = [];
-
   int _currentIndex = -1;
-
   AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
-
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
-
-  AudioSession? _audioSession;
-
-  bool _playInterrupted = false;
-
-  bool _pausedByDeviceDisconnect = false;
-
-  DateTime? _lastDisconnectTime;
-
-  Timer? _debounceTimer;
-
-  StreamSubscription? _noisySubscription;
-  StreamSubscription? _deviceSubscription;
-
   double _normalVolume = 100.0;
+  bool _isInterrupted = false;
+  bool _pausedByBackground = false;
+  late final AppLifecycleListener _lifecycleListener;
 
-  bool get _ignoreAudioFocus =>
-      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false) as bool;
+  bool get isIgnoreAudioFocus =>
+      _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false)
+      as bool;
 
-  MyAudioHandler() {
+  MyAudioHandler(this._player) {
+    _lifecycleListener = AppLifecycleListener(
+      onStateChange: _handleLifecycleState,
+    );
     _listenMpvLogs();
     _initPlayerConfig();
     _setupAudioSession();
     _notifyAudioHandlerAboutPlaybackEvents();
     _listenForDurationChanges();
     _listenForPositionChanges();
+    _listenErrorStream();
+  }
+
+  bool get playInBackground =>
+      _settingBox.get(StorageKeys.playerPlayInBackground, defaultValue: true)
+      as bool;
+
+  void _handleLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (!playInBackground && _player.state.playing) {
+        _pausedByBackground = true;
+        _player.pause();
+      }
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed && _pausedByBackground) {
+      _pausedByBackground = false;
+      if (!playInBackground) return;
+      play();
+    }
   }
 
   Future<void> _initPlayerConfig() async {
@@ -86,17 +103,29 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_player.platform is NativePlayer) {
       final nativePlayer = _player.platform as NativePlayer;
       try {
+        // 避免音视频文件没有对应的索引文件导致无法进行range跳转
+        await nativePlayer.setProperty('hr-seek', 'yes');
+        // media_kit 默认开启 cache-on-disk（把流缓存写入磁盘文件），在部分环境/版本下
+        // 会因无法创建缓存文件而报 "lavf: Failed to create file cache" → 首次加载失败 →
+        // keep-open 模式下 mpv 将其视为播放结束 → completed 事件 → 自动重开同一 URL
+        // （表现为切换歌曲时同一地址被请求两次）。这里关闭磁盘缓存，改用内存缓存。
+        await nativePlayer.setProperty('cache-on-disk', 'no');
+        await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
+        KikoenaiLogger().i("当前缓存路径:$cacheDir");
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
         if (Platform.isAndroid) {
           await nativePlayer.setProperty("volume-max", "100");
-          final String audioOutputMode = _settingBox.get(
+          final String audioOutputMode =
+          _settingBox.get(
             StorageKeys.audioOutputMode,
             defaultValue: AppConstants.defaultAoMode,
-          ) as String;
-          final String safeAoMode = AppConstants.validAoModes.contains(audioOutputMode)
+          )
+          as String;
+          final String safeAoMode =
+          AppConstants.validAoModes.contains(audioOutputMode)
               ? audioOutputMode
               : AppConstants.defaultAoMode;
           await nativePlayer.setProperty("ao", safeAoMode);
@@ -108,173 +137,89 @@ class MyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  Future<void> _applyAudioSessionConfiguration() async {
-    if (_audioSession == null) return;
-
-    if (_ignoreAudioFocus) {
-      await _audioSession!.configure(const AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionCategoryOptions:
-        AVAudioSessionCategoryOptions.mixWithOthers,
-        avAudioSessionMode: AVAudioSessionMode.defaultMode,
-        avAudioSessionRouteSharingPolicy:
-        AVAudioSessionRouteSharingPolicy.defaultPolicy,
-        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          usage: AndroidAudioUsage.media,
-        ),
-        androidAudioFocusGainType:
-        AndroidAudioFocusGainType.gainTransientMayDuck,
-        androidWillPauseWhenDucked: false,
-      ));
-    } else {
-      await _audioSession!.configure(const AudioSessionConfiguration.music());
-    }
-  }
-
-  void _listenMpvLogs() {
-    _player.stream.log.listen((event) {
-      final logMessage = "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
-      if (event.level.contains('error')) {
-        KikoenaiLogger().e(logMessage);
-      } else if (event.level.contains('warn')) {
-        KikoenaiLogger().w(logMessage);
-      } else {
-        debugPrint(logMessage);
-      }
-    });
-  }
-
-  Future<void> _setIgnoreAudioFocus(bool ignore) async {
-    await _settingBox.put(StorageKeys.ignoreAudioFocus, ignore);
-    await _applyAudioSessionConfiguration();
-  }
-
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
-    await _applyAudioSessionConfiguration();
+    await _audioSession.configure(const AudioSessionConfiguration.music());
 
-    _audioSession!.interruptionEventStream.listen((event) {
-      if (_ignoreAudioFocus) return;
+    _audioSession.interruptionEventStream.listen((event) {
+      if (isIgnoreAudioFocus) return;
 
       if (event.begin) {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            _player.setVolume(_normalVolume * 0.3);
+            _player.setVolume(30.0);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
             if (_player.state.playing) {
               _player.pause();
-              _playInterrupted = true;
+              _isInterrupted = true;
             }
             break;
         }
       } else {
         switch (event.type) {
           case AudioInterruptionType.duck:
-            _player.setVolume(_normalVolume);
+            _player.setVolume(100.0);
             break;
           case AudioInterruptionType.pause:
           case AudioInterruptionType.unknown:
-            if (_playInterrupted) {
+            if (_isInterrupted) {
               play();
-              _playInterrupted = false;
+              _isInterrupted = false;
             }
             break;
         }
       }
     });
 
-    _noisySubscription = _audioSession!.becomingNoisyEventStream.listen((_) {
-      if (_player.state.playing) {
-        _player.pause();
-        _pausedByDeviceDisconnect = true;
-        _lastDisconnectTime = DateTime.now();
-      }
+    _audioSession.becomingNoisyEventStream.listen((_) {
+      pause();
+      _isInterrupted = false;
     });
+  }
 
-    _deviceSubscription = _audioSession!.devicesChangedEventStream.listen((event) {
-      if (event.devicesAdded.isEmpty || !_pausedByDeviceDisconnect) return;
+  void _listenErrorStream() {
+    _player.stream.error.listen((error) {
+      KikoenaiToast.error('播放错误: $error');
+    });
+  }
 
-      final isRealHeadset = event.devicesAdded.any((d) =>
-      d.isOutput && (
-          d.type == AudioDeviceType.bluetoothA2dp ||
-              d.type == AudioDeviceType.wiredHeadset ||
-              d.type == AudioDeviceType.wiredHeadphones ||
-              d.type == AudioDeviceType.bluetoothLe ||
-              d.type == AudioDeviceType.usbAudio
-      )
-      );
-
-      if (isRealHeadset) {
-        final now = DateTime.now();
-        final timeSinceDisconnect = _lastDisconnectTime != null
-            ? now.difference(_lastDisconnectTime!).inMilliseconds
-            : 0;
-
-        if (timeSinceDisconnect < 1500) {
-          _pausedByDeviceDisconnect = false;
-          return;
-        }
-
-        _debounceTimer?.cancel();
-        _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-          if (_pausedByDeviceDisconnect) {
-            play();
-            _pausedByDeviceDisconnect = false;
-          }
-        });
+  void _listenMpvLogs() {
+    _player.stream.log.listen((event) {
+      final logMessage =
+          "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
+      if (event.level.contains('error')) {
+        KikoenaiLogger().e(logMessage);
+      } else if (event.level.contains('warn')) {
+        KikoenaiLogger().w(logMessage);
+      } else {
+        KikoenaiLogger().i(logMessage);
       }
     });
   }
 
   @override
   Future<void> play() async {
-    _pausedByDeviceDisconnect = false;
-
-    if (_ignoreAudioFocus) {
-      await _audioSession?.setActive(true);
-      await _player.play();
-      return;
-    }
-
-    if (_audioSession != null) {
-      final success = await _audioSession!.setActive(true);
-      if (success) {
-        await _player.play();
-      } else {
-        KikoenaiLogger().e("获取音频焦点失败，无法播放");
+    if (!isIgnoreAudioFocus) {
+      final success = await _audioSession.setActive(true);
+      if (!success) {
+        KikoenaiLogger().w("无法获取音频焦点，播放可能会被系统静音或中断");
       }
-    } else {
-      await _player.play();
     }
+    await _player.play();
   }
 
   @override
   Future<void> pause() async {
-    _playInterrupted = false;
-    _pausedByDeviceDisconnect = false;
     await _player.pause();
   }
 
-  @override
-  Future<void> stop() async {
-    _playInterrupted = false;
-    _pausedByDeviceDisconnect = false;
-    await _player.stop();
-    await _audioSession?.setActive(false);
-    return super.stop();
-  }
-
-  Future<void> dispose() async {
-    _debounceTimer?.cancel();
-    _noisySubscription?.cancel();
-    _deviceSubscription?.cancel();
-  }
-
-  Future<void> _playIndex(int index, {Duration? position, bool autoPlay = true}) async {
+  Future<void> _playIndex(
+      int index, {
+        Duration? position,
+        bool autoPlay = true,
+      }) async {
     if (index < 0 || index >= _playlist.length) return;
 
     _currentIndex = index;
@@ -284,12 +229,15 @@ class MyAudioHandler extends BaseAudioHandler {
     playbackState.add(playbackState.value.copyWith(queueIndex: index));
 
     final media = _buildMedia(item, startPosition: position);
-
-    await _player.open(media, play: false);
-
-    if (autoPlay) {
-      await play();
+    if (autoPlay && !isIgnoreAudioFocus) {
+      final success = await _audioSession.setActive(true);
+      if (!success) {
+        autoPlay = false;
+        KikoenaiLogger().w("获取音频焦点失败，已降级为只加载不播放");
+      }
     }
+
+    await _player.open(media, play: autoPlay);
   }
 
   Future<void> initPlayback({
@@ -303,7 +251,10 @@ class MyAudioHandler extends BaseAudioHandler {
     await setVolume(volume);
     await setRepeatMode(repeatMode);
     await setShuffleMode(
-        shuffleEnabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none);
+      shuffleEnabled
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
+    );
 
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
@@ -327,7 +278,11 @@ class MyAudioHandler extends BaseAudioHandler {
     if (_playlist.isEmpty) return;
 
     try {
-      await _playIndex(initialIndex, position: initialPosition, autoPlay: autoPlay);
+      await _playIndex(
+        initialIndex,
+        position: initialPosition,
+        autoPlay: autoPlay,
+      );
     } catch (e) {
       debugPrint("Error loading playlist: $e");
     }
@@ -335,11 +290,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   Media _buildMedia(MediaItem item, {Duration? startPosition}) {
     final url = item.extras!['url'] as String;
-    return Media(
-      url,
-      extras: {'id': item.id},
-      start: startPosition,
-    );
+    return Media(url, extras: {'id': item.id}, start: startPosition);
   }
 
   @override
@@ -363,17 +314,14 @@ class MyAudioHandler extends BaseAudioHandler {
     if (index < 0 || index >= _playlist.length) return;
     _playlist.removeAt(index);
     queue.add(List.from(_playlist));
-
     if (index == _currentIndex) {
-      if (_playlist.isEmpty) {
-        await stop();
-      } else {
-        final nextPlayIndex = index >= _playlist.length ? 0 : index;
-        await _playIndex(nextPlayIndex);
-      }
+      final nextPlayIndex = index >= _playlist.length ? 0 : index;
+      await _playIndex(nextPlayIndex);
     } else if (index < _currentIndex) {
       _currentIndex--;
-      playbackState.add(playbackState.value.copyWith(queueIndex: _currentIndex));
+      playbackState.add(
+        playbackState.value.copyWith(queueIndex: _currentIndex),
+      );
     }
   }
 
@@ -397,10 +345,10 @@ class MyAudioHandler extends BaseAudioHandler {
       nextIndex = Random().nextInt(_playlist.length);
     } else {
       if (nextIndex >= _playlist.length) {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+        if (_repeatMode == AudioServiceRepeatMode.all ||
+            _repeatMode == AudioServiceRepeatMode.group) {
           nextIndex = 0;
         } else {
-          await stop();
           return;
         }
       }
@@ -418,7 +366,8 @@ class MyAudioHandler extends BaseAudioHandler {
       prevIndex = Random().nextInt(_playlist.length);
     } else {
       if (prevIndex < 0) {
-        if (_repeatMode == AudioServiceRepeatMode.all || _repeatMode == AudioServiceRepeatMode.group) {
+        if (_repeatMode == AudioServiceRepeatMode.all ||
+            _repeatMode == AudioServiceRepeatMode.group) {
           prevIndex = _playlist.length - 1;
         } else {
           prevIndex = 0;
@@ -459,32 +408,38 @@ class MyAudioHandler extends BaseAudioHandler {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
-      playbackState.add(playbackState.value.copyWith(
-        playing: playing,
-        controls: [
-          MediaControl.skipToPrevious,
-          if (playing) MediaControl.pause else MediaControl.play,
-          MediaControl.stop,
-          MediaControl.skipToNext,
-        ],
-        systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [0, 1, 3],
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(
+          playing: playing,
+          controls: [
+            MediaControl.skipToPrevious,
+            if (playing) MediaControl.pause else MediaControl.play,
+            MediaControl.stop,
+            MediaControl.skipToNext,
+          ],
+          systemActions: const {MediaAction.seek},
+          androidCompactActionIndices: const [0, 1, 3],
+        ),
+      );
     });
 
     _player.stream.buffering.listen((buffering) {
-      playbackState.add(playbackState.value.copyWith(
-        processingState: buffering
-            ? AudioProcessingState.buffering
-            : AudioProcessingState.ready,
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(
+          processingState: buffering
+              ? AudioProcessingState.buffering
+              : AudioProcessingState.ready,
+        ),
+      );
     });
 
     _player.stream.completed.listen((completed) {
       if (completed) {
-        playbackState.add(playbackState.value.copyWith(
-          processingState: AudioProcessingState.completed,
-        ));
+        playbackState.add(
+          playbackState.value.copyWith(
+            processingState: AudioProcessingState.completed,
+          ),
+        );
 
         if (_repeatMode == AudioServiceRepeatMode.one) {
           _playIndex(_currentIndex);
@@ -505,11 +460,13 @@ class MyAudioHandler extends BaseAudioHandler {
     });
     _player.stream.buffer.listen((bufferedPosition) {
       playbackState.add(
-          playbackState.value.copyWith(bufferedPosition: bufferedPosition));
+        playbackState.value.copyWith(bufferedPosition: bufferedPosition),
+      );
     });
   }
 
-  Stream<double> get volumeStream => _player.stream.volume.map((v) => v / 100.0);
+  Stream<double> get volumeStream =>
+      _player.stream.volume.map((v) => v / 100.0);
 
   double get volume => _normalVolume / 100.0;
 
@@ -520,12 +477,10 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   @override
-  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
-    if (name == 'setIgnoreAudioFocus') {
-      final bool ignore = extras?['ignore'] ?? false;
-      await _setIgnoreAudioFocus(ignore);
-      return;
-    }
+  Future<dynamic> customAction(
+      String name, [
+        Map<String, dynamic>? extras,
+      ]) async {
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);
@@ -551,9 +506,9 @@ class MyAudioHandler extends BaseAudioHandler {
         _currentIndex++;
       }
 
-      playbackState.add(playbackState.value.copyWith(
-        queueIndex: _currentIndex,
-      ));
+      playbackState.add(
+        playbackState.value.copyWith(queueIndex: _currentIndex),
+      );
     }
     return super.customAction(name, extras);
   }

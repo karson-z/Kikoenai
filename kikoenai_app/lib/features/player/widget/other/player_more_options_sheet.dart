@@ -11,7 +11,6 @@ import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_mapping_she
 import 'package:kikoenai/features/player/widget/other/player_more_widget.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../core/routes/app_routes.dart';
-import '../../../../../core/service/audio/audio_service_ctrl.dart';
 import '../../../../../core/service/file/file_node_library_index.dart';
 import '../../../../../core/service/file/file_scanner_storage.dart';
 import '../../../../../core/storage/hive_key.dart';
@@ -24,6 +23,7 @@ import '../../../../../core/widgets/common/manage_playlist_dialog.dart';
 import '../../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../../../../core/widgets/layout/app_toast.dart';
 import '../../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
+import '../../../../core/service/audio/audio_service.dart';
 import '../../../local_media/provider/file_path_notifier.dart';
 import '../../../local_media/provider/file_scanner_notifier.dart';
 import '../../../overly-lyrics/provider/overly_lyrics_provider.dart';

@@ -11,7 +11,7 @@ import 'package:kikoenai/core/utils/window/window_init_desktop.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:media_kit/media_kit.dart';
 import 'app/app.dart';
-import 'core/service/audio/audio_service_ctrl.dart';
+import 'core/service/audio/audio_service.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/service/file/local_media_sync_scheduler.dart';
 import 'core/service/player/player_service.dart';
