@@ -28,9 +28,12 @@ Git and GitHub Actions
   workflow [ref]              使用 gh 手动触发 Android APK 工作流。
   workflow-status [limit]     查看最近的 Android APK 工作流运行记录。
   release [patch|minor|major] 自动递增版本、提交、打 tag 并发布（默认：patch）。
+  ci-release [patch|minor|major]
+                              推送当前分支，由 CI 递增版本、提交、打 tag 并发布。
 
 包参数可选：kikoenai_core、kikoenai_sites、kikoenai_app 或 all。
 release 会推送 v* tag，并因此触发 Android APK 工作流。
+ci-release 会先推送当前分支，再触发 Version Bump and Release 工作流。
 EOF
 }
 
@@ -177,6 +180,23 @@ case "$command_name" in
     [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko workflow-status [limit]"
     require_command gh
     (cd "$ROOT_DIR" && gh run list --workflow android-apk.yml --limit "$limit")
+    ;;
+  ci-release)
+    [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko ci-release [patch|minor|major]"
+    release_type="${2:-patch}"
+    case "$release_type" in
+      patch|minor|major) ;;
+      *) fail "Release type must be patch, minor, or major." ;;
+    esac
+
+    ensure_clean_worktree
+    branch="$(current_branch)"
+    require_command gh
+    git -C "$ROOT_DIR" push origin "$branch"
+    (cd "$ROOT_DIR" && gh workflow run version-release.yml \
+      --ref "$branch" \
+      -f "increment=$release_type")
+    printf "Pushed %s and requested a CI %s release.\n" "$branch" "$release_type"
     ;;
   release)
     [[ $# -le 2 ]] || fail "Usage: ./scripts/kiko release [patch|minor|major]"

@@ -1,0 +1,135 @@
+name: Version Bump and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: Version component to increment
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: version-release-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bump-version:
+    name: Bump version and start release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.2"
+
+      - name: Validate release request
+        env:
+          INCREMENT: ${{ inputs.increment }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "branch" ]; then
+            echo "Version releases must run from a branch, got: $GITHUB_REF_TYPE"
+            exit 1
+          fi
+
+          case "$INCREMENT" in
+            patch|minor|major) ;;
+            *)
+              echo "Unsupported version increment: $INCREMENT"
+              exit 1
+              ;;
+          esac
+
+      - name: Resolve next version
+        id: version
+        env:
+          INCREMENT: ${{ inputs.increment }}
+        run: |
+          git fetch origin --tags
+
+          full_version="$(dart run tool/version_manager.dart next "$INCREMENT")"
+          version="${full_version%%+*}"
+          tag="v$version"
+
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            echo "Tag already exists: $tag"
+            exit 1
+          fi
+
+          echo "full=$full_version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Update version files
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.full }}
+          INCREMENT: ${{ inputs.increment }}
+        run: |
+          updated_version="$(dart run tool/version_manager.dart bump "$INCREMENT")"
+          if [ "$updated_version" != "$EXPECTED_VERSION" ]; then
+            echo "Version changed while preparing the release."
+            exit 1
+          fi
+
+      - name: Commit version and create tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            kikoenai_app/pubspec.yaml \
+            kikoenai_app/lib/config/app_version_config.dart
+
+          if git diff --cached --quiet; then
+            echo "Version manager did not produce any changes."
+            exit 1
+          fi
+
+          git commit -m "chore(release): $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+
+      - name: Push version commit and tag
+        env:
+          BRANCH: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git push --atomic origin \
+            "HEAD:refs/heads/$BRANCH" \
+            "refs/tags/$TAG"
+
+      # Pushes made with GITHUB_TOKEN do not start another workflow, so dispatch
+      # the existing release workflow explicitly after the tag is available.
+      - name: Start build and release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh workflow run release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TAG"
+
+      - name: Write summary
+        env:
+          FULL_VERSION: ${{ steps.version.outputs.full }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          {
+            echo "## Release requested"
+            echo
+            echo "- Version: $FULL_VERSION"
+            echo "- Tag: $TAG"
+            echo "- Branch: $GITHUB_REF_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"
