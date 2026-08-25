@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/service/audio/audio_playback_state.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
@@ -408,13 +409,17 @@ class MyAudioHandler extends BaseAudioHandler {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
+      final currentState = playbackState.value;
       playbackState.add(
-        playbackState.value.copyWith(
+        currentState.copyWith(
           playing: playing,
+          processingState: processingStateForPlayingEvent(
+            playing: playing,
+            current: currentState.processingState,
+          ),
           controls: [
             MediaControl.skipToPrevious,
             if (playing) MediaControl.pause else MediaControl.play,
-            MediaControl.stop,
             MediaControl.skipToNext,
           ],
           systemActions: const {MediaAction.seek},
