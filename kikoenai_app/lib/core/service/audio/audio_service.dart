@@ -5,7 +5,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/core/service/audio/audio_playback_state.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
@@ -227,7 +226,14 @@ class MyAudioHandler extends BaseAudioHandler {
     final item = _playlist[index];
 
     mediaItem.add(item);
-    playbackState.add(playbackState.value.copyWith(queueIndex: index));
+    playbackState.add(
+      playbackState.value.copyWith(
+        queueIndex: index,
+        processingState: AudioProcessingState.loading,
+        errorCode: null,
+        errorMessage: null,
+      ),
+    );
 
     final media = _buildMedia(item, startPosition: position);
     if (autoPlay && !isIgnoreAudioFocus) {
@@ -238,7 +244,18 @@ class MyAudioHandler extends BaseAudioHandler {
       }
     }
 
-    await _player.open(media, play: autoPlay);
+    try {
+      await _player.open(media, play: autoPlay);
+    } catch (error) {
+      playbackState.add(
+        playbackState.value.copyWith(
+          playing: false,
+          processingState: AudioProcessingState.error,
+          errorMessage: error.toString(),
+        ),
+      );
+      rethrow;
+    }
   }
 
   Future<void> initPlayback({
@@ -409,14 +426,9 @@ class MyAudioHandler extends BaseAudioHandler {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
-      final currentState = playbackState.value;
       playbackState.add(
-        currentState.copyWith(
+        playbackState.value.copyWith(
           playing: playing,
-          processingState: processingStateForPlayingEvent(
-            playing: playing,
-            current: currentState.processingState,
-          ),
           controls: [
             MediaControl.skipToPrevious,
             if (playing) MediaControl.pause else MediaControl.play,
