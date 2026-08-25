@@ -1,7 +1,15 @@
 .dart_tool/
 .dart_tool/*
+.DS_Store
+.build/
+.buildlog/
+.history
+.pub-cache/
+.pub/
 build/
 build/*
+/coverage/
+/flutter-framework/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages

@@ -21,7 +21,7 @@ Options:
 Examples:
   ./build-gen.sh
   ./build-gen.sh --watch
-  ./build-gen.sh --clean -- --delete-conflicting-outputs
+  ./build-gen.sh --clean
 
 Windows: run this file from Git Bash.
 EOF

@@ -103,7 +103,7 @@ require_file "$KIKO_APP_DIR/pubspec.yaml" \
   "App pubspec was not found at $KIKO_APP_DIR/pubspec.yaml."
 
 version_raw="$(awk '/^version:[[:space:]]*/ { print $2; exit }' "$KIKO_APP_DIR/pubspec.yaml")"
-[[ -n "$version_raw" ]] || fail 'Unable to read version from kikoenai_app/pubspec.yaml.'
+[[ -n "$version_raw" ]] || fail 'Unable to read version from pubspec.yaml.'
 if [[ -n "$version_override" ]]; then
   version="${version_override#v}"
 else

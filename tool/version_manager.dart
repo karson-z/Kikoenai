@@ -79,9 +79,9 @@ class _Options {
 
 class _VersionManager {
   _VersionManager(Directory rootDirectory)
-    : _pubspec = File('${rootDirectory.path}/kikoenai_app/pubspec.yaml'),
+    : _pubspec = File('${rootDirectory.path}/pubspec.yaml'),
       _versionConfig = File(
-        '${rootDirectory.path}/kikoenai_app/lib/config/app_version_config.dart',
+        '${rootDirectory.path}/lib/config/app_version_config.dart',
       );
 
   static final RegExp _pubspecPattern = RegExp(
@@ -101,7 +101,7 @@ class _VersionManager {
     final pubspecMatch = _singleMatch(
       _pubspecPattern,
       pubspecText,
-      'kikoenai_app/pubspec.yaml version',
+      'pubspec.yaml version',
     );
     final configMatch = _singleMatch(
       _configPattern,
@@ -142,7 +142,7 @@ class _VersionManager {
     final pubspecMatch = _singleMatch(
       _pubspecPattern,
       pubspecText,
-      'kikoenai_app/pubspec.yaml version',
+      'pubspec.yaml version',
     );
     final configMatch = _singleMatch(
       _configPattern,

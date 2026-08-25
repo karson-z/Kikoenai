@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP_DIR: kikoenai_app
+  APP_DIR: "."
   FLUTTER_VERSION: "3.44.8"
   APK_BASENAME: Kikoenai_android
   ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -66,11 +66,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate Dart code
-        run: |
-          for package in kikoenai_core kikoenai_sites kikoenai_app; do
-            echo "Running build_runner in ${package}"
-            (cd "${package}" && dart run build_runner build --delete-conflicting-outputs)
-          done
+        run: dart run build_runner build --workspace
 
       - name: Configure Android signing
         working-directory: ${{ env.APP_DIR }}/android
@@ -183,14 +179,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate Dart code
-        run: |
-          foreach ($package in @('kikoenai_core', 'kikoenai_sites', 'kikoenai_app')) {
-            Write-Host "Running build_runner in ${package}"
-            Push-Location $package
-            dart run build_runner build --delete-conflicting-outputs
-            if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
-            Pop-Location
-          }
+        run: dart run build_runner build --workspace
 
       - name: Build and package Windows portable zip
         shell: bash

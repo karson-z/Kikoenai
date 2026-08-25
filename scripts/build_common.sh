@@ -5,7 +5,7 @@
 set -Eeuo pipefail
 
 KIKO_ROOT_DIR="${KIKO_ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-KIKO_APP_DIR="$KIKO_ROOT_DIR/kikoenai_app"
+KIKO_APP_DIR="$KIKO_ROOT_DIR"
 
 fail() {
   printf 'Error: %s\n' "$*" >&2

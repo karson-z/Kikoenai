@@ -42,7 +42,7 @@ packages:
     source: hosted
     version: "0.14.8"
   archive:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: archive
       sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
@@ -66,7 +66,7 @@ packages:
     source: hosted
     version: "2.13.1"
   audio_service:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: audio_service
       sha256: "95f3267f3449eb5cf71c8fcf1d556f57af1e898e2dc5815fb168d1843653edb7"
@@ -90,7 +90,7 @@ packages:
     source: hosted
     version: "0.1.4"
   audio_session:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: audio_session
       sha256: f9e7711a0e24ca8b40f5d7ac374c3c6e55016f3157912badd18199cdbbca5c4d
@@ -98,7 +98,7 @@ packages:
     source: hosted
     version: "0.2.4"
   back_button_interceptor:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: back_button_interceptor
       sha256: b85977faabf4aeb95164b3b8bf81784bed4c54ea1aef90a036ab6927ecf80c5a
@@ -106,7 +106,7 @@ packages:
     source: hosted
     version: "8.0.4"
   background_downloader:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: background_downloader
       sha256: bdd41f116998233182cc4ec04cb6afac534067d640ddebb791ce44593f574b87
@@ -170,7 +170,7 @@ packages:
     source: hosted
     version: "8.12.7"
   cached_network_image_ce:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cached_network_image_ce
       sha256: "974594da61403c25849107ce6df0a31034f8a660612dc89c582b70caa03e6e98"
@@ -202,7 +202,7 @@ packages:
     source: hosted
     version: "1.4.1"
   charset_converter:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: charset_converter
       sha256: da90e0a5bc3bea06df12615cac23544db4e7f06fb26bec0c7253229fc291e12e
@@ -282,7 +282,7 @@ packages:
     source: hosted
     version: "0.3.5+4"
   crypto:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: crypto
       sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
@@ -298,7 +298,7 @@ packages:
     source: hosted
     version: "1.0.2"
   cupertino_icons:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cupertino_icons
       sha256: "41e005c33bd814be4d3096aff55b1908d419fde52ca656c8c47719ec745873cd"
@@ -330,7 +330,7 @@ packages:
     source: hosted
     version: "0.7.14"
   device_info_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: device_info_plus
       sha256: a7fd703482b391a87d60b6061d04dfdeab07826b96f9abd8f5ed98068acc0074
@@ -346,7 +346,7 @@ packages:
     source: hosted
     version: "7.0.3"
   dio:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: dio
       sha256: "0df44ebba85e503958eb75d07eedd3c86275a58c1d3eda2f2ce8f0a2c3abbb3c"
@@ -362,7 +362,7 @@ packages:
     source: hosted
     version: "2.2.1"
   disk_space_2:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: disk_space_2
       sha256: "7e9952cd5142dccf8a177ad8ae08a58788864625058bd3fa1bf0870e0ef02827"
@@ -370,7 +370,7 @@ packages:
     source: hosted
     version: "1.0.13"
   equatable:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: equatable
       sha256: "3bce007a596ff8b3119c45d68aaef631272537c03d30e5d4534dd24bf4c5eaa2"
@@ -378,7 +378,7 @@ packages:
     source: hosted
     version: "2.1.0"
   extended_image:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: extended_image
       sha256: e81d801cd692921f152834e01f39bba8b3d6302c48ad420d499c6062a7e24737
@@ -418,7 +418,7 @@ packages:
     source: hosted
     version: "7.0.1"
   file_picker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: file_picker
       sha256: "57d9a1dd5063f85fa3107fb42d1faffda52fdc948cefd5fe5ea85267a5fc7343"
@@ -434,12 +434,12 @@ packages:
     source: hosted
     version: "1.1.1"
   flutter:
-    dependency: transitive
+    dependency: "direct main"
     description: flutter
     source: sdk
     version: "0.0.0"
   flutter_cache_manager:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_cache_manager
       sha256: "1de7849213b4c73c85aca7e0ac687a9a5d82ccdb594366b9dcc26cb6a2189cd2"
@@ -447,7 +447,7 @@ packages:
     source: hosted
     version: "3.4.2"
   flutter_colorpicker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_colorpicker
       sha256: "969de5f6f9e2a570ac660fb7b501551451ea2a1ab9e2097e89475f60e07816ea"
@@ -463,7 +463,7 @@ packages:
     source: hosted
     version: "5.15.0"
   flutter_gen_runner:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: flutter_gen_runner
       sha256: "2b0fff517a75a14ed2eff749c1da2d6b8b568e542ad2b1c967356669a4c29bb2"
@@ -471,7 +471,7 @@ packages:
     source: hosted
     version: "5.15.0"
   flutter_lints:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: flutter_lints
       sha256: a25a15ebbdfc33ab1cd26c63a6ee519df92338a9c10f122adda92938253bef04
@@ -487,7 +487,7 @@ packages:
     source: hosted
     version: "2.0.35"
   flutter_riverpod:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_riverpod
       sha256: "9255e1e3ad6e38906a1b4f8287678f95f378744c5b46b1985588543f3f19046e"
@@ -495,7 +495,7 @@ packages:
     source: hosted
     version: "3.3.2"
   flutter_slidable:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_slidable
       sha256: a857de7ea701f276fd6a6c4c67ae885b60729a3449e42766bb0e655171042801
@@ -511,7 +511,7 @@ packages:
     source: hosted
     version: "0.7.0"
   flutter_svg:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_svg
       sha256: "35882981abcbfb8c15b286f0cd690ff25bac12d95eff3e25ee207f37d4c42e7f"
@@ -519,7 +519,7 @@ packages:
     source: hosted
     version: "2.3.0"
   flutter_test:
-    dependency: transitive
+    dependency: "direct dev"
     description: flutter
     source: sdk
     version: "0.0.0"
@@ -529,7 +529,7 @@ packages:
     source: sdk
     version: "0.0.0"
   freezed:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: freezed
       sha256: "8599ba37236328ff6f97269ecce875d251a367eb2929c9bbf9b811b2ce56c74e"
@@ -537,7 +537,7 @@ packages:
     source: hosted
     version: "3.2.6-dev.1"
   freezed_annotation:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: freezed_annotation
       sha256: "7294967ff0a6d98638e7acb774aac3af2550777accd8149c90af5b014e6d44d8"
@@ -561,7 +561,7 @@ packages:
     source: hosted
     version: "2.1.3"
   go_router:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: go_router
       sha256: d8f590a69729f719177ea68eb1e598295e8dbc41bbc247fed78b2c8a25660d7c
@@ -569,7 +569,7 @@ packages:
     source: hosted
     version: "16.3.0"
   google_fonts:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: google_fonts
       sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
@@ -593,7 +593,7 @@ packages:
     source: hosted
     version: "2.0.0"
   hive_ce:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: hive_ce
       sha256: "8e9980e68643afb1e765d3af32b47996552a64e190d03faf622cea07c1294418"
@@ -601,7 +601,7 @@ packages:
     source: hosted
     version: "2.19.3"
   hive_ce_flutter:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: hive_ce_flutter
       sha256: "2677e95a333ff15af43ccd06af7eb7abbf1a4f154ea071997f3de4346cae913a"
@@ -609,7 +609,7 @@ packages:
     source: hosted
     version: "2.3.4"
   hive_ce_generator:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: hive_ce_generator
       sha256: "69800cb5e9bde43d457d24d38c20f458cf95b122c25ba04cfe9519578f31548d"
@@ -625,7 +625,7 @@ packages:
     source: hosted
     version: "2.0.2"
   html:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: html
       sha256: "6d1264f2dffa1b1101c25a91dff0dc2daee4c18e87cd8538729773c073dbf602"
@@ -681,7 +681,7 @@ packages:
     source: hosted
     version: "2.4.1"
   infinite_scroll_pagination:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: infinite_scroll_pagination
       sha256: b0d28e37cd8f62490ff6aef63f9db93d4c78b7f11b7c6b26f33c69d8476fda78
@@ -737,7 +737,7 @@ packages:
     source: hosted
     version: "0.7.2"
   json_annotation:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: json_annotation
       sha256: "2a743920d81b7910627f68ee2c9ac1fc0bfee32b9fc3403587d7c6791ca12f80"
@@ -745,7 +745,7 @@ packages:
     source: hosted
     version: "4.12.0"
   json_serializable:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: json_serializable
       sha256: e45aefa0324f08c683caafbb94b72837aa6193c61822799c916e45f4a263113d
@@ -785,7 +785,7 @@ packages:
     source: hosted
     version: "2.1.1"
   logger:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: logger
       sha256: "25aee487596a6257655a1e091ec2ae66bc30e7af663592cc3a27e6591e05035c"
@@ -793,7 +793,7 @@ packages:
     source: hosted
     version: "2.7.0"
   logging:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: logging
       sha256: c8245ada5f1717ed44271ed1c26b8ce85ca3228fd2ffdb75468ab01979309d61
@@ -801,7 +801,7 @@ packages:
     source: hosted
     version: "1.3.0"
   lottie:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: lottie
       sha256: "58dda9eee3f1b1fb9d490b0161635cffe93022b3b8ca0687e3df33a53620ead2"
@@ -825,7 +825,7 @@ packages:
     source: hosted
     version: "0.13.0"
   media_kit:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: media_kit
       ref: "7762e2cf540d6f14e7b1fe8f4e62e0680cb5f48f"
@@ -866,7 +866,7 @@ packages:
     source: hosted
     version: "1.1.4"
   media_kit_libs_video:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: media_kit_libs_video
       sha256: "2b235b5dac79c6020e01eef5022c6cc85fedc0df1738aadc6ea489daa12a92a9"
@@ -882,7 +882,7 @@ packages:
     source: hosted
     version: "1.0.11"
   media_kit_video:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: media_kit_video
       sha256: afaa509e7b7e0bf247557a3a740cde903a52c34ace9810f94500e127bd7b043d
@@ -914,7 +914,7 @@ packages:
     source: hosted
     version: "2.0.0"
   native_flutter_proxy:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: native_flutter_proxy
       sha256: "35f1a3c8993ad4dfc0ed67637fb4562ee6c307b785d27abc04cd6a21abcab014"
@@ -946,7 +946,7 @@ packages:
     source: hosted
     version: "2.1.0"
   open_filex:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: open_filex
       sha256: "9976da61b6a72302cf3b1efbce259200cd40232643a467aac7370addf94d6900"
@@ -978,7 +978,7 @@ packages:
     source: hosted
     version: "3.2.1"
   palette_generator_master:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: palette_generator_master
       sha256: "66e3e307a1e7b8ebbd5439d427be0bcb47d7035f45f1888c779122e3df9b9dce"
@@ -986,7 +986,7 @@ packages:
     source: hosted
     version: "1.1.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
@@ -1002,7 +1002,7 @@ packages:
     source: hosted
     version: "1.1.0"
   path_provider:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path_provider
       sha256: a7f4874f987173da295a61c181b8ee71dab59b332a486b391babf26a1b884825
@@ -1050,7 +1050,7 @@ packages:
     source: hosted
     version: "2.3.0"
   permission_handler:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: permission_handler
       sha256: fe54465bcc62a4564c6e4db337bbaded6c0c0fa6e10487414436d163114784f6
@@ -1178,7 +1178,7 @@ packages:
     source: hosted
     version: "1.0.0-dev.10"
   riverpod_lint:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: riverpod_lint
       sha256: "166f29492228dc471b6fe294092560ccd5545ed15c9fc155622455b58b2451a9"
@@ -1186,7 +1186,7 @@ packages:
     source: hosted
     version: "3.1.4"
   rxdart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: rxdart
       sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
@@ -1242,7 +1242,7 @@ packages:
     source: hosted
     version: "0.2.2"
   scroll_to_index:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: scroll_to_index
       sha256: b707546e7500d9f070d63e5acf74fd437ec7eeeb68d3412ef7b0afada0b4f176
@@ -1250,7 +1250,7 @@ packages:
     source: hosted
     version: "3.0.1"
   scrollable_positioned_list:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: scrollable_positioned_list
       sha256: "1b54d5f1329a1e263269abc9e2543d90806131aa14fe7c6062a8054d57249287"
@@ -1471,7 +1471,7 @@ packages:
     source: hosted
     version: "0.6.17"
   text_scroll:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: text_scroll
       sha256: "164b49e6134fca874989213d4e7ba225e2c3f9e30d9e32f14d543b2fc55716a0"
@@ -1487,7 +1487,7 @@ packages:
     source: hosted
     version: "2.1.6"
   tray_manager:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: tray_manager
       sha256: bdc3ac6c36f3d12d871459e4a9822705ce5a1165a17fa837103bc842719bf3f7
@@ -1519,7 +1519,7 @@ packages:
     source: hosted
     version: "3.0.2"
   url_launcher:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: url_launcher
       sha256: f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8
@@ -1583,7 +1583,7 @@ packages:
     source: hosted
     version: "3.1.5"
   uuid:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: uuid
       sha256: "9b129329f58692f6e6578329498a8fe9fbe98f090beb764ffbb8ee2eadd01dcd"
@@ -1623,7 +1623,7 @@ packages:
     source: hosted
     version: "2.2.0"
   visibility_detector:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: visibility_detector
       sha256: dd5cc11e13494f432d15939c3aa8ae76844c42b723398643ce9addb88a5ed420
@@ -1655,7 +1655,7 @@ packages:
     source: hosted
     version: "1.6.0"
   watcher:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: watcher
       sha256: "1398c9f081a753f9226febe8900fce8f7d0a67163334e1c94a2438339d79d635"
@@ -1711,7 +1711,7 @@ packages:
     source: hosted
     version: "1.1.5"
   window_manager:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: window_manager
       sha256: "732896e1416297c63c9e3fb95aea72d0355f61390263982a47fd519169dc5059"
@@ -1719,7 +1719,7 @@ packages:
     source: hosted
     version: "0.4.3"
   wolt_modal_sheet:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: wolt_modal_sheet
       sha256: "03e28e39dd4de44dc58a7c623877488a89ca3b41a62fc3e70bfc86b64be067d6"
@@ -1767,5 +1767,5 @@ packages:
     source: hosted
     version: "2.1.0"
 sdks:
-  dart: "3.12.2"
+  dart: ">=3.12.0 <4.0.0"
   flutter: ">=3.44.0"

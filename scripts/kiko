@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGES=(kikoenai_core kikoenai_sites kikoenai_app)
+PACKAGES=(kikoenai_core kikoenai_sites kikoenai)
 
 usage() {
   cat <<'EOF'
@@ -31,7 +31,7 @@ Git and GitHub Actions
   ci-release [patch|minor|major]
                               推送当前分支，由 CI 递增版本、提交、打 tag 并发布。
 
-包参数可选：kikoenai_core、kikoenai_sites、kikoenai_app 或 all。
+包参数可选：kikoenai_core、kikoenai_sites、kikoenai 或 all。
 release 会推送 v* tag，并因此触发 Android APK 工作流。
 ci-release 会先推送当前分支，再触发 Version Bump and Release 工作流。
 EOF
@@ -55,7 +55,16 @@ run_fvm_in_package() {
   local package="$1"
   shift
   require_command fvm
-  (cd "$ROOT_DIR/$package" && fvm "$@")
+  (cd "$(package_directory "$package")" && fvm "$@")
+}
+
+package_directory() {
+  local package="$1"
+  if [[ "$package" == "kikoenai" ]]; then
+    printf '%s\n' "$ROOT_DIR"
+  else
+    printf '%s\n' "$ROOT_DIR/$package"
+  fi
 }
 
 is_package() {
@@ -82,8 +91,10 @@ for_each_package() {
   local target="$1"
   local action="$2"
   local package
+  local package_dir
   while IFS= read -r package; do
     printf '\n==> %s\n' "$package"
+    package_dir="$(package_directory "$package")"
     case "$action" in
       generate)
         run_fvm_in_package "$package" dart run build_runner build
@@ -95,10 +106,10 @@ for_each_package() {
         run_fvm_in_package "$package" flutter test
         ;;
       format)
-        run_fvm dart format "$package/lib" "$package/test"
+        run_fvm dart format "$package_dir/lib" "$package_dir/test"
         ;;
       format-check)
-        run_fvm dart format --output=none --set-exit-if-changed "$package/lib" "$package/test"
+        run_fvm dart format --output=none --set-exit-if-changed "$package_dir/lib" "$package_dir/test"
         ;;
       *)
         fail "Unsupported package action '$action'."
@@ -148,11 +159,11 @@ case "$command_name" in
     ;;
   run)
     shift
-    run_fvm_in_package kikoenai_app flutter run "$@"
+    run_fvm_in_package kikoenai flutter run "$@"
     ;;
   ios-build)
     shift
-    run_fvm_in_package kikoenai_app flutter build ios "$@"
+    run_fvm_in_package kikoenai flutter build ios "$@"
     ;;
   status)
     git -C "$ROOT_DIR" status --short --branch
@@ -220,8 +231,8 @@ case "$command_name" in
     updated_full_version="$(run_fvm dart run tool/version_manager.dart bump "$release_type")"
     [[ "$updated_full_version" == "$next_full_version" ]] || fail "Version changed while preparing the release."
     git -C "$ROOT_DIR" add -- \
-      kikoenai_app/pubspec.yaml \
-      kikoenai_app/lib/config/app_version_config.dart
+      pubspec.yaml \
+      lib/config/app_version_config.dart
     git -C "$ROOT_DIR" commit -m "chore(release): $tag"
     git -C "$ROOT_DIR" tag -a "$tag" -m "Release $tag"
     if ! git -C "$ROOT_DIR" push --atomic origin "$branch" "$tag"; then
