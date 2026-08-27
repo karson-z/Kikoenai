@@ -9,7 +9,6 @@ import '../../../core/constants/app_images.dart';
 import '../../../core/service/site/site_api_provider.dart';
 import '../../../core/service/site/site_availability.dart';
 import '../../auth/provider/auth_provider.dart';
-import '../../download/page/download_page.dart';
 import '../../history/page/history_page.dart';
 
 class UserPage extends ConsumerWidget {
@@ -28,7 +27,6 @@ class UserPage extends ConsumerWidget {
         (label: '我的收藏', page: const ReviewPage()),
       if (availableSurfaces.contains(AppSurface.userPlaylistsTab))
         (label: '播放列表', page: const PlaylistPage()),
-      (label: '下载列表', page: const DownloadPage()),
     ];
     final colorScheme = Theme.of(context).colorScheme; // 获取当前主题色板
 
@@ -99,6 +97,14 @@ class UserPage extends ConsumerWidget {
                       ),
                       actions: [
                         IconButton(
+                          tooltip: '下载管理',
+                          icon: const Icon(Icons.download_outlined),
+                          onPressed: () {
+                            context.push(AppRoutes.downloads);
+                          },
+                        ),
+                        IconButton(
+                          tooltip: '设置',
                           icon: const Icon(Icons.settings_outlined),
                           onPressed: () {
                             context.push(AppRoutes.settings);

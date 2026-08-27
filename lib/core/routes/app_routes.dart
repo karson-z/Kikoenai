@@ -12,6 +12,7 @@ class AppRoutes {
   @Deprecated('Use cloudDrive instead.')
   static const String webDav = cloudDrive;
   static const String parsedWorks = '/parsed';
+  static const String downloads = '/downloads';
   static const String test = '/test';
   static const String siteUnavailable = '/site-unavailable';
 
@@ -34,6 +35,8 @@ class AppRoutes {
   static String get settingsComment => '$settings/comment';
   static String get settingsLog => '$settings/log';
   static String get settingsGlobalFilter => '$settings/filter';
+  static String get settingsAlist => '$settings/alist';
+  static String get settingsWebDav => '$settings/webdav';
 
   static List<String> get mainPages => [
     AppRoutes.home,

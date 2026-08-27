@@ -14,6 +14,8 @@ import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
 import '../../auth/provider/auth_provider.dart';
+import '../../cloud_drive/provider/alist_server_provider.dart';
+import '../../cloud_drive/provider/webdav_connection_controller.dart';
 import '../../overly-lyrics/widget/overly_setting_panel.dart';
 import '../widget/default_playlist_setting_tile.dart';
 import '../widget/hive_switch_tile.dart';
@@ -77,6 +79,11 @@ class SettingsPage extends ConsumerWidget {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          const _SettingsSection(
+            title: '云盘',
+            children: [_AlistSettingsTile(), _WebDavSettingsTile()],
           ),
           const SizedBox(height: 24),
           _SettingsSection(
@@ -382,6 +389,41 @@ class _ServerSelectionTile extends ConsumerWidget {
           builder: (context) => const ServerSelectionModal(),
         );
       },
+    );
+  }
+}
+
+class _AlistSettingsTile extends ConsumerWidget {
+  const _AlistSettingsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(alistServerStateProvider);
+    return _ChevronTile(
+      title: 'AList 域名',
+      trailingText: state.currentServer.label,
+      onTap: () => context.push(AppRoutes.settingsAlist),
+    );
+  }
+}
+
+class _WebDavSettingsTile extends ConsumerWidget {
+  const _WebDavSettingsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(webDavConnectionControllerProvider);
+    final status = state.isConnecting
+        ? '连接中'
+        : state.isConnected
+        ? '已连接'
+        : state.serverUrl.isEmpty
+        ? '未配置'
+        : '已配置';
+    return _ChevronTile(
+      title: 'WebDAV 连接',
+      trailingText: status,
+      onTap: () => context.push(AppRoutes.settingsWebDav),
     );
   }
 }

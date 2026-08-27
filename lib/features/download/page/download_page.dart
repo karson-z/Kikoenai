@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../../../core/service/download/download_service.dart';
 import '../../../../core/widgets/common/action_button.dart';
 import '../provider/download_provider.dart';
@@ -21,10 +20,7 @@ class DownloadPage extends ConsumerStatefulWidget {
 class _DownloadPageState extends ConsumerState<DownloadPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ItemScrollController _itemScrollController = ItemScrollController();
-  final ItemPositionsListener _itemPositionsListener =
-  ItemPositionsListener.create();
-  bool _isTabClicking = false;
+  int _selectedTabIndex = 0;
 
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
 
@@ -40,12 +36,9 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        _isTabClicking = true;
-        _scrollToSection(_tabController.index);
-      }
+      if (_selectedTabIndex == _tabController.index) return;
+      setState(() => _selectedTabIndex = _tabController.index);
     });
-    _itemPositionsListener.itemPositions.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(allTasksProvider.notifier).refreshTasks();
@@ -55,55 +48,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
   @override
   void dispose() {
     _tabController.dispose();
-    _itemPositionsListener.itemPositions.removeListener(_onScroll);
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_isTabClicking) return;
-
-    final downloadingList = ref.read(downloadingTasksProvider);
-    final int completedHeaderIndex =
-        1 + (downloadingList.isEmpty ? 1 : downloadingList.length);
-
-    final positions = _itemPositionsListener.itemPositions.value;
-
-    if (positions.isEmpty) return;
-
-    final minIndex = positions
-        .where((ItemPosition position) => position.itemTrailingEdge > 0)
-        .reduce((ItemPosition min, ItemPosition position) =>
-    position.itemLeadingEdge < min.itemLeadingEdge ? position : min)
-        .index;
-
-    if (minIndex >= completedHeaderIndex) {
-      if (_tabController.index != 1) _tabController.animateTo(1);
-    } else {
-      if (_tabController.index != 0) _tabController.animateTo(0);
-    }
-  }
-
-  void _scrollToSection(int tabIndex) {
-    int targetIndex = 0;
-    if (tabIndex == 1) {
-      final downloadingList = ref.read(downloadingTasksProvider);
-      final Set<String> groups =
-      downloadingList.map((e) => e.task.group).toSet();
-      final int downloadingGroupCount = groups.isEmpty ? 1 : groups.length;
-      targetIndex = 1 + downloadingGroupCount;
-    }
-
-    _itemScrollController
-        .scrollTo(
-      index: targetIndex,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-    )
-        .then((_) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) setState(() => _isTabClicking = false);
-      });
-    });
   }
 
   Map<String, List<TaskRecord>> _groupTasks(List<TaskRecord> list) {
@@ -123,22 +68,10 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
     final downloadingList = ref.watch(downloadingTasksProvider);
     final completedList = ref.watch(completedTasksProvider);
     final downloadService = ref.read(downloadServiceProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    // --- 1. 数据分组 ---
     final groupedDownloading = _groupTasks(downloadingList);
-    final List<String> downloadingGroupKeys = groupedDownloading.keys.toList();
-
     final groupedCompleted = _groupTasks(completedList);
-    final List<String> completedGroupKeys = groupedCompleted.keys.toList();
-
-    // --- 2. 计算数量 ---
-    final int downloadingCount =
-    downloadingGroupKeys.isEmpty ? 1 : downloadingGroupKeys.length;
-    final int completedCount =
-    completedGroupKeys.isEmpty ? 1 : completedGroupKeys.length;
-
-    // 总数 = 标题1 + 下载组 + 标题2 + 完成组 + 底部垫高
-    final int totalCount = 1 + downloadingCount + 1 + completedCount + 1;
 
     return Scaffold(
       appBar: AppBar(
@@ -147,147 +80,123 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
         title: Align(
           alignment: Alignment.centerLeft,
           child: Container(
-            width: 200,
-            height: 40,
-            padding: const EdgeInsets.all(4),
+            key: const ValueKey('download_tabs'),
+            width: 180,
+            height: 36,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: TabBar(
               controller: _tabController,
               isScrollable: false,
               indicatorSize: TabBarIndicatorSize.tab,
-              //  TabBar 指示器颜色
               indicator: BoxDecoration(
-                color: isDark ? const Color(0xFF334155) : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withAlpha(isDark ? 20 : 8),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1)),
-                ],
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(6),
               ),
               dividerColor: Colors.transparent,
+              dividerHeight: 0,
               labelPadding: EdgeInsets.zero,
-              //  TabBar 文字颜色
-              labelColor: isDark ? Colors.white : Colors.black,
-              unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
-              onTap: (index) {},
-              tabs: const [Tab(text: '进行中'), Tab(text: '已完成')],
+              labelColor: colorScheme.onSurface,
+              unselectedLabelColor: colorScheme.onSurfaceVariant,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w400,
+              ),
+              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+              splashFactory: NoSplash.splashFactory,
+              tabs: const [Tab(text: '下载中'), Tab(text: '已完成')],
             ),
           ),
         ),
-        actions: [
+        actions: _selectedTabIndex == 0 ? [
           AppActionButton(
               icon: Icons.play_arrow_rounded,
               tooltip: "全部开始",
               color: const Color(0xFF2563EB),
-              onTap: () {
-                //  类型转换错误: 显式转换为 DownloadTask
-                final tasks = downloadingList
-                    .map((e) => e.task)
-                    .whereType<DownloadTask>()
-                    .toList();
-                if (tasks.isNotEmpty) {
-                  downloadService.resumeAll(tasks);
-                }
-              }),
+              onTap: downloadingList.isEmpty
+                  ? null
+                  : () {
+                      final tasks = downloadingList
+                          .map((e) => e.task)
+                          .whereType<DownloadTask>()
+                          .toList();
+                      downloadService.resumeAll(tasks);
+                    }),
           const SizedBox(width: 8),
           AppActionButton(
               icon: Icons.pause_rounded,
               tooltip: "全部暂停",
               color: const Color(0xFF64748B),
-              onTap: () {
-                // 类型转换错误
-                final tasks = downloadingList
-                    .map((e) => e.task)
-                    .whereType<DownloadTask>()
-                    .toList();
-                if (tasks.isNotEmpty) {
-                  downloadService.pauseAll(tasks);
-                }
-              }),
+              onTap: downloadingList.isEmpty
+                  ? null
+                  : () {
+                      final tasks = downloadingList
+                          .map((e) => e.task)
+                          .whereType<DownloadTask>()
+                          .toList();
+                      downloadService.pauseAll(tasks);
+                    }),
           const SizedBox(width: 16),
-        ],
+        ] : const [],
       ),
-      body: ScrollablePositionedList.builder(
-        itemCount: totalCount,
-        itemScrollController: _itemScrollController,
-        itemPositionsListener: _itemPositionsListener,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        itemBuilder: (context, index) {
-          // Index 0: 标题
-          if (index == 0) return _buildSectionHeader("进行中");
-
-          // Index 1 ~ N: 下载组
-          if (index <= downloadingCount) {
-            if (downloadingList.isEmpty) return _buildEmptyState(true);
-
-            final groupIndex = index - 1;
-            final groupName = downloadingGroupKeys[groupIndex];
-            final tasks = groupedDownloading[groupName]!;
-
-            return _buildDownloadingGroupCard(groupName, tasks);
-          }
-          final int completedHeaderIndex = 1 + downloadingCount;
-
-          // Index N+1: 标题
-          if (index == completedHeaderIndex) return _buildSectionHeader("已完成");
-
-          final int groupStartIndex = completedHeaderIndex + 1;
-          final int groupEndIndex = groupStartIndex + completedCount;
-
-          // Index N+2 ~ M: 完成组
-          if (index < groupEndIndex) {
-            if (completedList.isEmpty) return _buildEmptyState(false);
-
-            final groupIndex = index - groupStartIndex;
-            final groupName = completedGroupKeys[groupIndex];
-            final tasks = groupedCompleted[groupName]!;
-
-            return _buildCompletedGroupCard(groupName, tasks);
-          }
-          // 底部
-          return const SizedBox(height: 80);
-        },
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildTaskList(groupedDownloading, isDownloading: true),
+          _buildTaskList(groupedCompleted, isDownloading: false),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(title,
-          style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              //  标题颜色
-              color: _cTextSub)),
+  Widget _buildTaskList(
+    Map<String, List<TaskRecord>> groupedTasks, {
+    required bool isDownloading,
+  }) {
+    final groupNames = groupedTasks.keys.toList(growable: false);
+    if (groupNames.isEmpty) {
+      return Center(child: _buildEmptyState(isDownloading));
+    }
+    return ListView.builder(
+      key: PageStorageKey<String>(
+        isDownloading ? 'downloading_tasks' : 'completed_tasks',
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      itemCount: groupNames.length,
+      itemBuilder: (context, index) {
+        final groupName = groupNames[index];
+        final tasks = groupedTasks[groupName]!;
+        return isDownloading
+            ? _buildDownloadingGroupCard(groupName, tasks)
+            : _buildCompletedGroupCard(groupName, tasks);
+      },
     );
   }
 
   Widget _buildEmptyState(bool isDownloading) {
-    return Container(
-      height: 100,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-                isDownloading
-                    ? Icons.cloud_download_outlined
-                    : Icons.check_circle_outline,
-                size: 28,
-                // 空状态图标颜色
-                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
-            const SizedBox(height: 4),
-            Text(isDownloading ? "暂无下载任务" : "暂无历史记录",
-                style: TextStyle(
-                  // 空状态文字颜色
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                    fontSize: 12)),
-          ],
-        ),
+    return Column(
+      key: ValueKey(
+        isDownloading ? 'downloading_empty_state' : 'completed_empty_state',
       ),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+            isDownloading
+                ? Icons.cloud_download_outlined
+                : Icons.check_circle_outline,
+            size: 28,
+            // 空状态图标颜色
+            color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
+        const SizedBox(height: 4),
+        Text(isDownloading ? "暂无下载任务" : "暂无历史记录",
+            style: TextStyle(
+              // 空状态文字颜色
+                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                fontSize: 12)),
+      ],
     );
   }
 

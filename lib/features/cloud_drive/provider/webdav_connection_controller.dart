@@ -113,13 +113,14 @@ class WebDavController extends Notifier<WebDavSessionState> {
   }
 
   Future<bool> connect(WebDavConnectionConfig rawConfig) async {
+    final previousState = state;
+    final previousClient = _client;
     WebDavConnectionConfig config;
     try {
       config = rawConfig.validated();
     } on FormatException catch (error) {
-      state = state.copyWith(
+      state = previousState.copyWith(
         isConnecting: false,
-        isConnected: false,
         errorMessage: error.message,
       );
       return false;
@@ -146,14 +147,14 @@ class WebDavController extends Notifier<WebDavSessionState> {
 
     try {
       await client.readDir(config.rootPath);
-      _client?.c.close(force: true);
-      _client = client;
-      _baseUri = Uri.parse(config.serverUrl);
       await AppStorage.settingsBox.putAll({
         StorageKeys.webDavServerUrl: config.serverUrl,
         StorageKeys.webDavUsername: config.username,
         StorageKeys.webDavRootPath: config.rootPath,
       });
+      previousClient?.c.close(force: true);
+      _client = client;
+      _baseUri = Uri.parse(config.serverUrl);
       state = state.copyWith(
         isConnecting: false,
         isConnected: true,
@@ -163,11 +164,8 @@ class WebDavController extends Notifier<WebDavSessionState> {
       return true;
     } catch (error) {
       client.c.close(force: true);
-      _client = null;
-      _baseUri = null;
-      state = state.copyWith(
+      state = previousState.copyWith(
         isConnecting: false,
-        isConnected: false,
         errorMessage: describeError(error),
       );
       return false;

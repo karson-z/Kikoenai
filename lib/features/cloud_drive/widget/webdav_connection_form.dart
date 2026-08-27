@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../provider/webdav_connection_controller.dart';
 
 class WebDavConnectionForm extends ConsumerStatefulWidget {
-  const WebDavConnectionForm({super.key});
+  const WebDavConnectionForm({super.key, this.showDisconnectAction = false});
+
+  final bool showDisconnectAction;
 
   @override
   ConsumerState<WebDavConnectionForm> createState() =>
@@ -69,13 +71,15 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Icon(
-                    Icons.cloud_sync_outlined,
+                    state.isConnected
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_sync_outlined,
                     size: 48,
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    '连接 WebDAV',
+                    state.isConnected ? 'WebDAV 已连接' : '连接 WebDAV',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
@@ -174,9 +178,32 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.cloud_done_outlined),
-                      label: Text(state.isConnecting ? '正在连接' : '连接'),
+                      label: Text(
+                        state.isConnecting
+                            ? '正在连接'
+                            : state.isConnected
+                            ? '重新连接'
+                            : '连接',
+                      ),
                     ),
                   ),
+                  if (widget.showDisconnectAction && state.isConnected) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: state.isConnecting
+                            ? null
+                            : ref
+                                  .read(
+                                    webDavConnectionControllerProvider.notifier,
+                                  )
+                                  .disconnect,
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('断开连接'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

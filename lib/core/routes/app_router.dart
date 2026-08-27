@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/features/about/page/about_page.dart';
 import 'package:kikoenai/features/auth/page/auth_page.dart';
+import 'package:kikoenai/features/cloud_drive/page/alist_server_management_page.dart';
+import 'package:kikoenai/features/cloud_drive/page/webdav_settings_page.dart';
+import 'package:kikoenai/features/download/page/download_page.dart';
 import 'package:kikoenai/features/local_media/page/local_media_page.dart';
 import 'package:kikoenai/features/dl_page/page/parsed_works_page.dart';
 import 'package:kikoenai/features/log/page/logger_view.dart';
@@ -175,6 +178,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => const MaterialPage(child: AuthPage()),
       ),
       GoRoute(
+        path: AppRoutes.downloads,
+        pageBuilder: (context, state) => SlideRightTransitionPage(
+          key: state.pageKey,
+          child: const DownloadPage(),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.settings,
         pageBuilder: (context, state) => SlideRightTransitionPage(
           key: state.pageKey,
@@ -228,6 +238,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => SlideRightTransitionPage(
               key: state.pageKey,
               child: const GlobalFilterTagsPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsAlist),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const AlistServerManagementPage(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsWebDav),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const WebDavSettingsPage(),
             ),
           ),
         ],

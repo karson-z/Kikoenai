@@ -1,6 +1,17 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
+
+class _ConnectedWebDavController extends WebDavController {
+  @override
+  WebDavSessionState build() => const WebDavSessionState(
+    serverUrl: 'https://active.example.com/dav/',
+    username: 'active-user',
+    rootPath: '/active',
+    isConnected: true,
+  );
+}
 
 void main() {
   group('WebDavConnectionConfig', () {
@@ -73,5 +84,35 @@ void main() {
     );
 
     expect(WebDavController.describeError(error), contains('认证失败'));
+  });
+
+  test('invalid reconnect keeps the active session state', () async {
+    final container = ProviderContainer(
+      overrides: [
+        webDavConnectionControllerProvider.overrideWith(
+          _ConnectedWebDavController.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final connected = await container
+        .read(webDavConnectionControllerProvider.notifier)
+        .connect(
+          const WebDavConnectionConfig(
+            serverUrl: 'not-a-url',
+            username: 'replacement',
+            password: 'secret',
+            rootPath: '/replacement',
+          ),
+        );
+    final state = container.read(webDavConnectionControllerProvider);
+
+    expect(connected, isFalse);
+    expect(state.isConnected, isTrue);
+    expect(state.serverUrl, 'https://active.example.com/dav/');
+    expect(state.username, 'active-user');
+    expect(state.rootPath, '/active');
+    expect(state.errorMessage, isNotNull);
   });
 }
