@@ -16,6 +16,15 @@ class StorageKeys {
   /// 用户配置的站点服务器列表（List<ServerInfo>）
   static const String siteServers = 'site_servers';
 
+  /// Last successfully connected WebDAV endpoint (credentials excluded).
+  static const String webDavServerUrl = 'webdav_server_url';
+
+  /// Last successfully connected WebDAV username.
+  static const String webDavUsername = 'webdav_username';
+
+  /// Directory opened after connecting to WebDAV.
+  static const String webDavRootPath = 'webdav_root_path';
+
   /// 推荐系统的会话 UUID
   /// 用于标记推荐流的上下文或用户指纹
   static const String recommendUuid = 'recommend_uuid';

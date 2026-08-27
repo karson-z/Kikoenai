@@ -9,6 +9,7 @@ library;
 export 'package:kikoenai_core/kikoenai_core.dart';
 
 // ---- Site API 抽象层 ----
+export 'api/alist_site_api.dart';
 export 'api/listen_event_type.dart';
 export 'api/server_health.dart';
 export 'api/server_info.dart';

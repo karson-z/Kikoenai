@@ -41,23 +41,30 @@ const List<NavigationItem> appNavigationItems = [
   ),
   NavigationItem(
     label: '本地媒体',
-    icon: Icon(Icons.local_hospital_outlined),
+    icon: Icon(Icons.perm_media_outlined),
     routePath: AppRoutes.localMedia,
     branchIndex: 2,
     surface: AppSurface.localMediaPage,
   ),
   NavigationItem(
+    label: '网盘',
+    icon: Icon(Icons.cloud_outlined),
+    routePath: AppRoutes.cloudDrive,
+    branchIndex: 3,
+    surface: AppSurface.cloudDrivePage,
+  ),
+  NavigationItem(
     label: 'DL库',
     icon: Icon(Icons.library_music_outlined),
     routePath: AppRoutes.parsedWorks,
-    branchIndex: 3,
+    branchIndex: 4,
     surface: AppSurface.parsedWorksPage,
   ),
   NavigationItem(
     label: '我的',
     icon: Icon(Icons.account_circle_outlined),
     routePath: AppRoutes.user,
-    branchIndex: 4,
+    branchIndex: 5,
     surface: AppSurface.userPage,
   ),
   // NavigationItem(label: '测试', icon:Icon(Icons.tab_sharp), routePath: AppRoutes.test)

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
@@ -85,6 +86,7 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
     required this.onEnterFolder,
     this.workResolver,
     this.sourceResolver,
+    this.onOpenFile,
   });
 
   /// 当前层级的直接子节点（由调用方从 `FileNodeLibraryIndex.currentChildren` 取）。
@@ -107,6 +109,10 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
 
   /// 按节点解析来源（本地媒体用）。为 null 时回退到 [source]。
   final NodeSource Function(FileNode node)? sourceResolver;
+
+  /// Overrides the default preview/play behavior for non-folder entries.
+  final FutureOr<void> Function(FileNode node, List<FileNode> siblings)?
+  onOpenFile;
 
   @override
   ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
@@ -380,6 +386,12 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   ) async {
     if (node.isFolder) {
       widget.onEnterFolder(node);
+      return;
+    }
+
+    final onOpenFile = widget.onOpenFile;
+    if (onOpenFile != null) {
+      await onOpenFile(node, contextNodes);
       return;
     }
 

@@ -8,7 +8,8 @@ import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_mobile.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
-import 'package:kikoenai/features/asmr_gay/page/asmr_gay_browser_page.dart';
+import 'package:kikoenai/features/cloud_drive/model/cloud_drive_mode.dart';
+import 'package:kikoenai/features/cloud_drive/page/cloud_drive_browser_page.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
@@ -22,12 +23,15 @@ class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 站点切换：asmr.gay（文件系统型站点）走文件浏览器替代作品列表
+    // 文件系统型站点使用通用云盘浏览器替代作品列表。
     final isFileSystemSite = ref.watch(
       siteSupportsProvider(SiteFeature.fileSystemBrowse),
     );
     if (isFileSystemSite) {
-      return const AsmrGayBrowserPage(isRoot: true);
+      return const CloudDriveBrowserPage(
+        mode: CloudDriveMode.alistApi,
+        isRoot: true,
+      );
     }
 
     final deviceType = context.deviceType;

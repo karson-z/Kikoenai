@@ -63,6 +63,20 @@ SiteRuntimeContext _createRuntimeContext(
       final persisted = cache.getSiteServers(siteId: info.id);
       final resolved =
           overridden ?? (persisted.isEmpty ? info.servers : persisted);
+      if (info.id == AsmrGaySiteApi.info.id) {
+        final valid = resolved
+            .where((server) {
+              try {
+                AsmrGaySiteApi.normalizeBaseUrl(server);
+                return true;
+              } catch (error) {
+                debugPrint('忽略无效的 AList 服务器 ${server.id}: $error');
+                return false;
+              }
+            })
+            .toList(growable: false);
+        return valid.isEmpty ? info.servers : valid;
+      }
       if (info.id != KikoeruSiteApi.info.id) return resolved;
       return resolved
           .where((server) {
@@ -148,6 +162,7 @@ SitePlugin? _findBuiltInPlugin(String siteId) {
 
 void _validateServerList(String siteId, List<ServerInfo> servers) {
   final ids = <String>{};
+  final baseUrls = <String>{};
   for (final server in servers) {
     if (server.id.trim().isEmpty) {
       throw ArgumentError('站点 $siteId 的服务器 ID 不能为空');
@@ -157,6 +172,12 @@ void _validateServerList(String siteId, List<ServerInfo> servers) {
     }
     if (siteId == KikoeruSiteApi.info.id) {
       KikoeruSiteApi.apiBaseUrlFor(server);
+    }
+    if (siteId == AsmrGaySiteApi.info.id) {
+      final baseUrl = AsmrGaySiteApi.normalizeBaseUrl(server);
+      if (!baseUrls.add(baseUrl.toLowerCase())) {
+        throw ArgumentError('AList 存在重复地址: $baseUrl');
+      }
     }
   }
 }

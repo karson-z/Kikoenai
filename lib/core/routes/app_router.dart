@@ -11,6 +11,7 @@ import 'package:kikoenai/features/settings/page/setting_cache_page.dart';
 import 'package:kikoenai/features/settings/page/global_filter_page.dart';
 import 'package:kikoenai/features/site/page/site_unavailable_page.dart';
 import 'package:kikoenai/features/user/page/user_page.dart';
+import 'package:kikoenai/features/cloud_drive/page/cloud_drive_page.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import '../../features/album/page/album_detail.dart';
 import '../../features/album/page/category_works_page.dart';
@@ -127,6 +128,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.localMedia,
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: ScannerPage()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.cloudDrive,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CloudDrivePage()),
               ),
             ],
           ),

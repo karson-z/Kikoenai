@@ -7,6 +7,10 @@ class AppRoutes {
   static const String search = '/search';
   static const String login = '/login';
   static const String localMedia = '/media';
+  static const String cloudDrive = '/webdav';
+
+  @Deprecated('Use cloudDrive instead.')
+  static const String webDav = cloudDrive;
   static const String parsedWorks = '/parsed';
   static const String test = '/test';
   static const String siteUnavailable = '/site-unavailable';
@@ -35,6 +39,7 @@ class AppRoutes {
     AppRoutes.home,
     AppRoutes.category,
     AppRoutes.localMedia,
+    AppRoutes.cloudDrive,
     AppRoutes.parsedWorks,
     AppRoutes.user,
     AppRoutes.test,

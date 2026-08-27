@@ -7,6 +7,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/service/site/site_api_setup.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/features/cloud_drive/provider/alist_server_provider.dart';
 import 'package:kikoenai/features/settings/widget/service_selection.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 
@@ -93,6 +94,100 @@ void main() {
       );
     },
   );
+
+  test('persisted AList domains use the shared Sites runtime', () async {
+    const primary = ServerInfo(
+      id: 'alist-primary',
+      baseUrl: 'https://alist-primary.example',
+      label: 'Primary AList',
+      isDefault: true,
+    );
+    const backup = ServerInfo(
+      id: 'alist-backup',
+      baseUrl: 'https://alist-backup.example',
+      label: 'Backup AList',
+      useProxy: false,
+    );
+    await CacheService.instance.saveSiteServers(const [
+      primary,
+      backup,
+    ], siteId: AsmrGaySiteApi.info.id);
+
+    await setupSiteApi();
+
+    final runtime = siteRegistry.requireRuntime(AsmrGaySiteApi.info.id);
+    expect(runtime.info.servers, const [primary, backup]);
+    expect(runtime.currentServer, primary);
+    expect((runtime.api as AsmrGaySiteApi).rawBaseUrl, isNull);
+
+    await switchServer(backup.id, siteId: AsmrGaySiteApi.info.id);
+    expect(runtime.currentServer, backup);
+    expect(
+      CacheService.instance.getCurrentHost(siteId: AsmrGaySiteApi.info.id),
+      backup.resolvedBaseUrl,
+    );
+  });
+
+  test(
+    'invalid persisted AList domains fall back to built-in servers',
+    () async {
+      await CacheService.instance.saveSiteServers(const [
+        ServerInfo(
+          id: 'invalid-alist',
+          baseUrl: 'ftp://invalid.example.com',
+          label: 'Invalid AList',
+        ),
+      ], siteId: AsmrGaySiteApi.info.id);
+
+      await setupSiteApi();
+
+      expect(
+        siteRegistry.serversOf(AsmrGaySiteApi.info.id),
+        AsmrGaySiteApi.info.servers,
+      );
+    },
+  );
+
+  test('AList server updates reject duplicate domains', () async {
+    await setupSiteApi();
+
+    expect(
+      () => updateSiteServers(AsmrGaySiteApi.info.id, const [
+        ServerInfo(
+          id: 'first',
+          baseUrl: 'https://alist.example.com/',
+          label: 'First',
+        ),
+        ServerInfo(
+          id: 'second',
+          baseUrl: 'https://alist.example.com',
+          label: 'Second',
+        ),
+      ]),
+      throwsArgumentError,
+    );
+  });
+
+  test('cloud-drive AList controller adds and selects a domain', () async {
+    await setupSiteApi();
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    const custom = ServerInfo(
+      id: 'custom-alist',
+      baseUrl: 'https://custom-alist.example',
+      label: 'Custom AList',
+      useProxy: false,
+    );
+
+    await container.read(alistServerControllerProvider).upsert(custom);
+
+    expect(siteRegistry.serversOf(AsmrGaySiteApi.info.id), contains(custom));
+    expect(siteRegistry.currentServerOf(AsmrGaySiteApi.info.id), custom);
+    expect(
+      CacheService.instance.getSiteServers(siteId: AsmrGaySiteApi.info.id),
+      contains(custom),
+    );
+  });
 
   test(
     'Kikoeru is registered and unregistered immediately with user servers',

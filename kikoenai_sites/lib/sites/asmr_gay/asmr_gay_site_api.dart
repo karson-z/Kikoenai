@@ -3,7 +3,7 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 
 import '../../api/server_health.dart';
 import '../../api/server_info.dart';
-import '../../api/site_api.dart';
+import '../../api/alist_site_api.dart';
 import '../../api/site_feature.dart';
 import '../../api/site_info.dart';
 import '../../api/site_plugin.dart';
@@ -16,20 +16,58 @@ import '../../network/request_config.dart';
 /// 这是一个基于 Alist 的文件系统型站点，与 asmr.one（数据库型）不同，
 /// 内容按目录树组织，通过 `/api/fs/list` 按路径分页浏览。
 ///
-/// 站点内置 4 个服务器镜像，应用启动时由
+/// 站点默认内置 4 个服务器镜像，也接受宿主通过 [SiteRuntimeContext]
+/// 注入的 AList 域名列表。应用启动时由
 /// `SiteRegistry.bootstrapHealthyServers()` 自动选择健康服务器；
 /// 运行时可通过 `SiteRegistry.switchServer(...)` 无缝切换。
 ///
 /// 健康检查直接请求服务器根域名（Alist 站点无 `/health` 端点）。
-class AsmrGaySiteApi extends SiteApi {
+class AsmrGaySiteApi extends AlistSiteApi {
   AsmrGaySiteApi({
+    List<ServerInfo>? servers,
     SitesHttpClient? httpClient,
     ServerInfo? initialServer,
     this.rawBaseUrl = _defaultRawBaseUrl,
-  }) : _http = httpClient ?? SitesHttpClient.instance,
-       _currentServer = initialServer ?? _defaultServers.first;
+  }) : _servers = List<ServerInfo>.unmodifiable(servers ?? _defaultServers),
+       _currentServer =
+           initialServer ??
+           (servers?.isNotEmpty == true
+               ? servers!.first
+               : _defaultServers.first) {
+    if (_servers.isEmpty) {
+      throw ArgumentError('AList 至少需要配置一个服务器');
+    }
+    for (final server in _servers) {
+      normalizeBaseUrl(server);
+    }
+    final configured = _servers.where(
+      (server) => server.id == _currentServer.id,
+    );
+    if (configured.isEmpty) {
+      throw ArgumentError('初始服务器不属于 AList 运行时服务器列表');
+    }
+    _currentServer = configured.first;
+    final baseUrl = normalizeBaseUrl(_currentServer);
+    _http =
+        httpClient ??
+        SitesHttpClient(
+          config: RequestConfig(
+            baseUrl: baseUrl,
+            referer: '$baseUrl/',
+            enableCookie: true,
+            useProxy: _currentServer.useProxy,
+          ),
+        );
+  }
 
-  final SitesHttpClient _http;
+  late final SitesHttpClient _http;
+  final List<ServerInfo> _servers;
+
+  @override
+  SiteInfo get siteInfo => info;
+
+  @override
+  NodeSource get fileNodeSource => NodeSource.asmrGay;
 
   /// 暴露 HTTP 客户端（供业务层直接 getBytes 等场景使用）
   @override
@@ -95,12 +133,17 @@ class AsmrGaySiteApi extends SiteApi {
   static final SitePlugin plugin = SitePlugin(
     info: info,
     createApi: (context) {
-      final initialServer = context.resolveInitialServer(info)!;
+      final servers = context.resolveServers(info);
+      if (servers.isEmpty) {
+        throw StateError('AList 至少需要配置一个服务器');
+      }
+      final initialServer = context.resolveInitialServer(info) ?? servers.first;
+      final baseUrl = normalizeBaseUrl(initialServer);
       final recoverReadRequest = context.recoverReadRequest;
       final httpClient = SitesHttpClient(
         config: RequestConfig(
-          baseUrl: initialServer.resolvedBaseUrl,
-          referer: '${initialServer.resolvedBaseUrl}/',
+          baseUrl: baseUrl,
+          referer: '$baseUrl/',
           enableLogger: true,
           enableCookie: true,
           useProxy: initialServer.useProxy,
@@ -110,11 +153,45 @@ class AsmrGaySiteApi extends SiteApi {
             : (exception) => recoverReadRequest(info.id, exception),
       );
       return AsmrGaySiteApi(
+        servers: servers,
         httpClient: httpClient,
         initialServer: initialServer,
+        rawBaseUrl: _usesOnlyBuiltInServers(servers)
+            ? _defaultRawBaseUrl
+            : null,
       );
     },
   );
+
+  /// Validates and normalizes an AList web root.
+  static String normalizeBaseUrl(ServerInfo server) {
+    final uri = Uri.tryParse(server.resolvedBaseUrl.trim());
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw FormatException('AList 地址无效: ${server.resolvedBaseUrl}');
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      throw const FormatException('AList 地址仅支持 HTTP 或 HTTPS');
+    }
+    if (uri.userInfo.isNotEmpty) {
+      throw const FormatException('AList 地址不能包含账号或密码');
+    }
+    if (uri.hasQuery || uri.hasFragment) {
+      throw const FormatException('AList 地址不能包含查询参数或锚点');
+    }
+    var path = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    if (path == '/') path = '';
+    return uri.replace(path: path, query: null, fragment: null).toString();
+  }
+
+  static bool _usesOnlyBuiltInServers(List<ServerInfo> servers) {
+    return servers.every(
+      (server) => _defaultServers.any(
+        (builtIn) =>
+            builtIn.id == server.id &&
+            normalizeBaseUrl(builtIn) == normalizeBaseUrl(server),
+      ),
+    );
+  }
 
   /// 当前站点支持的功能集合
   @override
@@ -182,14 +259,10 @@ class AsmrGaySiteApi extends SiteApi {
   ///
   /// 业务层优先使用本方法获取统一的 [FileNode] 视图；
   /// 需要站点 readme 等元信息时再调用 [browseFileSystem] / [getSiteReadme]。
-  Future<PagedResult<FileNode>> browseAsFileNodes(
-    FsListRequest request,
-  ) async {
+  @override
+  Future<PagedResult<FileNode>> browseAsFileNodes(FsListRequest request) async {
     final result = await browseFileSystem(request);
-    final nodes = toFileNodes(
-      result.content,
-      parentPath: request.path,
-    );
+    final nodes = toFileNodes(result.content, parentPath: request.path);
     return PagedResult<FileNode>(
       items: nodes,
       pagination: Pagination(
@@ -204,6 +277,7 @@ class AsmrGaySiteApi extends SiteApi {
   ///
   /// 与 [browseAsFileNodes] 对称，搜索结果条目自带 [FsEntry.parent]，
   /// 转换时无需调用方传入父路径。
+  @override
   Future<PagedResult<FileNode>> searchAsFileNodes(
     FsSearchRequest request,
   ) async {
@@ -223,10 +297,7 @@ class AsmrGaySiteApi extends SiteApi {
   ///
   /// [parentPath] 为这些条目所属的父目录路径（用于拼接完整路径与标记 folderPath）。
   /// 当条目自身携带 [FsEntry.parent]（如搜索结果）时，优先使用条目的 parent。
-  List<FileNode> toFileNodes(
-    List<FsEntry> entries, {
-    String parentPath = '',
-  }) {
+  List<FileNode> toFileNodes(List<FsEntry> entries, {String parentPath = ''}) {
     return entries
         .map((e) => toFileNode(e, parentPath: parentPath))
         .toList(growable: false);
@@ -247,8 +318,7 @@ class AsmrGaySiteApi extends SiteApi {
   /// [parentPath] 为可选参数：搜索结果条目自带 [FsEntry.parent]，
   /// 此时无需传入；list 结果条目不带 parent，需由调用方传入请求路径。
   FileNode toFileNode(FsEntry entry, {String parentPath = ''}) {
-    final effectiveParent =
-        entry.parent.isNotEmpty ? entry.parent : parentPath;
+    final effectiveParent = entry.parent.isNotEmpty ? entry.parent : parentPath;
     final fullPath = NodeFolder.joinPath(effectiveParent, entry.name);
     final isDir = entry.isDir;
 
@@ -259,8 +329,8 @@ class AsmrGaySiteApi extends SiteApi {
       title: entry.name,
       size: entry.size,
       lastModified: entry.modified?.millisecondsSinceEpoch ?? 0,
-      source: NodeSource.asmrGay,
-      siteId: info.id,
+      source: fileNodeSource,
+      siteId: siteInfo.id,
       remoteId: fullPath,
       path: fullPath,
       folderPath: effectiveParent,
@@ -277,22 +347,23 @@ class AsmrGaySiteApi extends SiteApi {
 
   @override
   Future<void> switchServer(ServerInfo server) async {
-    // 仅允许切换到站点声明的服务器，避免外部传入伪造 ServerInfo
-    if (!_defaultServers.any((s) => s.id == server.id)) {
-      throw ArgumentError('站点 asmr.gay 不存在服务器: ${server.id}');
+    final configured = _servers.where((item) => item.id == server.id);
+    if (configured.isEmpty) {
+      throw ArgumentError('AList 不存在服务器: ${server.id}');
     }
-    if (_currentServer.id == server.id) return;
-    _currentServer = server;
+    final target = configured.first;
+    if (_currentServer == target) return;
+    _currentServer = target;
     _http.updateConnection(
-      baseUrl: server.resolvedBaseUrl,
-      useProxy: server.useProxy,
+      baseUrl: normalizeBaseUrl(target),
+      useProxy: target.useProxy,
     );
   }
 
   @override
   Future<ServerHealth> checkHealth(ServerInfo server) async {
     // Alist 站点无 /health 端点，直接请求根域名验证连通性
-    final url = server.resolvedBaseUrl;
+    final url = normalizeBaseUrl(server);
     final stopwatch = Stopwatch()..start();
     try {
       await _http.dio.get<dynamic>(
@@ -385,11 +456,12 @@ class AsmrGaySiteApi extends SiteApi {
       return '$rawBase$encodedPath?sign=$sign';
     }
 
-    final base = _currentServer.resolvedBaseUrl;
+    final base = normalizeBaseUrl(_currentServer);
+    final encodedPath = _encodePathSegments(normalizedPath);
     if (sign.isEmpty) {
-      return '$base/d$normalizedPath';
+      return '$base/d$encodedPath';
     }
-    return '$base/d$normalizedPath?sign=$sign';
+    return '$base/d$encodedPath?sign=$sign';
   }
 
   /// 对路径中的每一段做 URL 编码，保留 `/` 作为分隔符。
@@ -397,9 +469,6 @@ class AsmrGaySiteApi extends SiteApi {
   /// Alist 路径可能包含中文或特殊字符（如空格、`[`、`]`），直接拼接会
   /// 导致播放器/下载器请求失败。此辅助函数仅编码路径段，不编码 `/`。
   String _encodePathSegments(String path) {
-    return path
-        .split('/')
-        .map(Uri.encodeComponent)
-        .join('/');
+    return path.split('/').map(Uri.encodeComponent).join('/');
   }
 }

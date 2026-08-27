@@ -38,6 +38,7 @@ void main() {
       '首页',
       '分类',
       '本地媒体',
+      '网盘',
       'DL库',
       '我的',
     ]);
@@ -45,11 +46,19 @@ void main() {
       AppRoutes.home,
       AppRoutes.category,
       AppRoutes.localMedia,
+      AppRoutes.cloudDrive,
       AppRoutes.parsedWorks,
       AppRoutes.user,
     ]);
     expect(shellRoute.branches, hasLength(appNavigationItems.length));
-    expect(appNavigationItems.map((item) => item.branchIndex), [0, 1, 2, 3, 4]);
+    expect(appNavigationItems.map((item) => item.branchIndex), [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+    ]);
     expect(
       shellRoute.branches.map(
         (branch) => (branch.routes.first as GoRoute).path,

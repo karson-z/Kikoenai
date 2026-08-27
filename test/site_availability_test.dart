@@ -114,14 +114,14 @@ void main() {
 
     expect(
       container.read(visibleDestinationsProvider).map((item) => item.label),
-      ['本地媒体', 'DL库', '我的'],
+      ['本地媒体', '网盘', 'DL库', '我的'],
     );
 
     await container.read(activeSiteIdProvider.notifier).activate('site.search');
 
     expect(
       container.read(visibleDestinationsProvider).map((item) => item.label),
-      ['首页', '分类', '本地媒体', 'DL库', '我的'],
+      ['首页', '分类', '本地媒体', '网盘', 'DL库', '我的'],
     );
   });
 

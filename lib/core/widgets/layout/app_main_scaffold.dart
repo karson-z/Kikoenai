@@ -47,11 +47,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       (item) => item.branchIndex == selectedBranchIndex,
     );
     final selectedIndex = visibleSelectedIndex < 0 ? 0 : visibleSelectedIndex;
-    final NavigationItem? selectedItem =
-        selectedBranchIndex >= 0 &&
-            selectedBranchIndex < appNavigationItems.length
-        ? appNavigationItems[selectedBranchIndex]
-        : null;
+    final NavigationItem? selectedItem = appNavigationItems
+        .where((item) => item.branchIndex == selectedBranchIndex)
+        .firstOrNull;
     final String title = selectedItem?.label ?? '';
     final bool isMobile = context.isMobile;
     final String currentPath = GoRouterState.of(context).uri.path;
