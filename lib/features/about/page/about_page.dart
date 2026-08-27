@@ -73,7 +73,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      Assets.images.muzumi.path,
+                      Assets.icons.appIcon,
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

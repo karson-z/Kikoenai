@@ -11,6 +11,7 @@ import '../provider/cloud_drive_source_provider.dart';
 import '../provider/webdav_connection_controller.dart';
 import '../widget/cloud_drive_breadcrumb.dart';
 import '../widget/cloud_drive_file_details.dart';
+import '../widget/cloud_drive_scroll_aware_layout.dart';
 import '../widget/cloud_drive_state_content.dart';
 import '../widget/cloud_drive_toolbar.dart';
 
@@ -169,104 +170,104 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       cloudDriveBrowserControllerProvider(_args).notifier,
     );
 
-    return RefreshIndicator(
-      onRefresh: controller.refresh,
-      child: CustomScrollView(
-        key: ValueKey('cloud_drive_${widget.mode.name}_$_currentPath'),
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: CloudDriveToolbar(
-              isRoot: widget.isRoot,
-              isLoading: state.isBusy,
-              usesRemoteSearch: state.usesRemoteSearch,
-              searchController: _searchController,
-              searchFocusNode: _searchFocusNode,
-              scope: state.scope,
-              sort: state.sort,
-              onBack: () => Navigator.of(context).maybePop(),
-              onManageSource: widget.onManageSource,
-              manageTooltip: widget.manageTooltip,
-              onRefresh: controller.refresh,
-              onSearchChanged: (query) {
-                controller.updateLocalSearch(query);
-              },
-              onSearchSubmitted: (query) {
-                _searchFocusNode.unfocus();
-                controller.search(query);
-              },
-              onClearSearch: _clearSearch,
-              onScopeChanged: controller.setScope,
-              onSortChanged: controller.setSort,
-            ),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: CloudDriveBreadcrumbHeaderDelegate(
-              segments: _pathSegments,
-              onHomeTap: () => _jumpToSegment(-1),
-              onSegmentTap: _jumpToSegment,
-            ),
-          ),
-          if (showLoading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (showError)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: CloudDriveErrorContent(
-                message: error,
-                isRoot: widget.isRoot,
-                isSearch: state.isSearchMode,
-                onRetry: controller.refresh,
-                onBack: () => Navigator.of(context).maybePop(),
-              ),
-            )
-          else if (showEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: CloudDriveEmptyContent(
-                isSearch: state.isSearchMode,
-                isDirectoryEmpty: state.nodes.isEmpty,
-                onRefresh: controller.refresh,
-              ),
-            )
-          else ...[
-            FileNodeBrowser(
-              currentNodes: nodes,
-              work: null,
-              source: nodeSource,
-              config: FileBrowserConfig(
-                showDownloadBadge: false,
-                showFolderStatus: false,
-                subtitlesCopyMode: false,
-                enableFolderLongPress: false,
-                enableImagePreview: widget.mode == CloudDriveMode.alistApi,
-                enableTextPreview: widget.mode == CloudDriveMode.alistApi,
-                enableAudioContextMenu: false,
-                showFolderEnterIcon: false,
-                showFileMetaInfo: true,
-              ),
-              onEnterFolder: _enterFolder,
-              onOpenFile: widget.mode == CloudDriveMode.webDav
-                  ? (node, siblings) =>
-                        showCloudDriveFileDetails(context, node, siblings)
-                  : null,
-            ),
-            SliverToBoxAdapter(
-              child: CloudDriveFooter(
-                isLoadingMore: state.isLoadingActivePage,
-                hasMore: state.hasMore,
-                loadedCount: nodes.length,
-                totalCount: state.activeTotalCount,
-                onLoadMore: controller.loadMore,
+    return CloudDriveScrollAwareLayout(
+      toolbar: CloudDriveToolbar(
+        isRoot: widget.isRoot,
+        isLoading: state.isBusy,
+        usesRemoteSearch: state.usesRemoteSearch,
+        searchController: _searchController,
+        searchFocusNode: _searchFocusNode,
+        scope: state.scope,
+        sort: state.sort,
+        onBack: () => Navigator.of(context).maybePop(),
+        onManageSource: widget.onManageSource,
+        manageTooltip: widget.manageTooltip,
+        onRefresh: controller.refresh,
+        onSearchChanged: (query) {
+          controller.updateLocalSearch(query);
+        },
+        onSearchSubmitted: (query) {
+          _searchFocusNode.unfocus();
+          controller.search(query);
+        },
+        onClearSearch: _clearSearch,
+        onScopeChanged: controller.setScope,
+        onSortChanged: controller.setSort,
+      ),
+      child: RefreshIndicator(
+        onRefresh: controller.refresh,
+        child: CustomScrollView(
+          key: ValueKey('cloud_drive_${widget.mode.name}_$_currentPath'),
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: CloudDriveBreadcrumbHeaderDelegate(
+                segments: _pathSegments,
+                onHomeTap: () => _jumpToSegment(-1),
+                onSegmentTap: _jumpToSegment,
               ),
             ),
+            if (showLoading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (showError)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: CloudDriveErrorContent(
+                  message: error,
+                  isRoot: widget.isRoot,
+                  isSearch: state.isSearchMode,
+                  onRetry: controller.refresh,
+                  onBack: () => Navigator.of(context).maybePop(),
+                ),
+              )
+            else if (showEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: CloudDriveEmptyContent(
+                  isSearch: state.isSearchMode,
+                  isDirectoryEmpty: state.nodes.isEmpty,
+                  onRefresh: controller.refresh,
+                ),
+              )
+            else ...[
+              FileNodeBrowser(
+                currentNodes: nodes,
+                work: null,
+                source: nodeSource,
+                config: FileBrowserConfig(
+                  showDownloadBadge: false,
+                  showFolderStatus: false,
+                  subtitlesCopyMode: false,
+                  enableFolderLongPress: false,
+                  enableImagePreview: widget.mode == CloudDriveMode.alistApi,
+                  enableTextPreview: widget.mode == CloudDriveMode.alistApi,
+                  enableAudioContextMenu: false,
+                  showFolderEnterIcon: false,
+                  showFileMetaInfo: true,
+                ),
+                onEnterFolder: _enterFolder,
+                onOpenFile: widget.mode == CloudDriveMode.webDav
+                    ? (node, siblings) =>
+                          showCloudDriveFileDetails(context, node, siblings)
+                    : null,
+              ),
+              SliverToBoxAdapter(
+                child: CloudDriveFooter(
+                  isLoadingMore: state.isLoadingActivePage,
+                  hasMore: state.hasMore,
+                  loadedCount: nodes.length,
+                  totalCount: state.activeTotalCount,
+                  onLoadMore: controller.loadMore,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

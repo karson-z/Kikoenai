@@ -141,7 +141,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                   ),
                                 ),
                                 child: SimpleExtendedImage(
-                                  Assets.images.muzumi.path,
+                                  Assets.icons.appIcon,
                                   width: 64,
                                   height: 64,
                                   fit: BoxFit.cover,
