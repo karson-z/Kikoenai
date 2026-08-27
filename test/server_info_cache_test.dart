@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
+import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_api_setup.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/features/cloud_drive/provider/alist_server_provider.dart';
+import 'package:kikoenai/features/settings/provider/self_hosted_site_controller.dart';
 import 'package:kikoenai/features/settings/widget/service_selection.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 
@@ -128,6 +130,16 @@ void main() {
     );
   });
 
+  test('persisted AList selection migrates back to a content site', () async {
+    await CacheService.instance.saveActiveSiteId(AsmrGaySiteApi.info.id);
+
+    await setupSiteApi();
+
+    expect(initialActiveSiteId, AsmrOneSiteApi.info.id);
+    expect(siteRegistry.activeId, AsmrOneSiteApi.info.id);
+    expect(CacheService.instance.getActiveSiteId(), AsmrOneSiteApi.info.id);
+  });
+
   test(
     'invalid persisted AList domains fall back to built-in servers',
     () async {
@@ -187,6 +199,27 @@ void main() {
       CacheService.instance.getSiteServers(siteId: AsmrGaySiteApi.info.id),
       contains(custom),
     );
+  });
+
+  test('self-hosted controller registers and activates Kikoeru', () async {
+    await setupSiteApi();
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    const custom = ServerInfo(
+      id: 'custom-kikoeru',
+      baseUrl: 'https://kikoeru.example.com',
+      label: 'My Kikoeru',
+      useProxy: false,
+    );
+
+    await container
+        .read(selfHostedSiteControllerProvider)
+        .addAndActivate(custom);
+
+    expect(siteRegistry.contains(KikoeruSiteApi.info.id), isTrue);
+    expect(siteRegistry.serversOf(KikoeruSiteApi.info.id), contains(custom));
+    expect(container.read(activeSiteIdProvider), KikoeruSiteApi.info.id);
+    expect(CacheService.instance.getActiveSiteId(), KikoeruSiteApi.info.id);
   });
 
   test(
@@ -249,7 +282,18 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(find.text('ASMR.GAY'), findsNothing);
+      expect(find.text('添加自建站'), findsOneWidget);
       expect(find.text('Kikoeru 自建站'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('add_self_hosted_site')));
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextFormField, '站点地址'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
 
       const server = ServerInfo(
         id: 'widget-nas',

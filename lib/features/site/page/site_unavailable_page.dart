@@ -110,7 +110,8 @@ class _SiteUnavailablePageState extends ConsumerState<SiteUnavailablePage> {
         runtime.api.supports(SiteFeature.serverSwitch) &&
         runtime.api.supports(SiteFeature.healthCheck);
     final canSwitchSite = registry.allInfo.any(
-      (info) => info.id != incident.siteId,
+      (info) =>
+          info.id != incident.siteId && isSelectableContentSiteId(info.id),
     );
 
     return Scaffold(

@@ -4,13 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_mobile.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
-import 'package:kikoenai/features/cloud_drive/model/cloud_drive_mode.dart';
-import 'package:kikoenai/features/cloud_drive/page/cloud_drive_browser_page.dart';
-import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../provider/work_provider.dart';
 import '../widget/responsive_horizontal_card_list.dart';
 import '../widget/section_header.dart';
@@ -23,17 +19,6 @@ class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 文件系统型站点使用通用云盘浏览器替代作品列表。
-    final isFileSystemSite = ref.watch(
-      siteSupportsProvider(SiteFeature.fileSystemBrowse),
-    );
-    if (isFileSystemSite) {
-      return const CloudDriveBrowserPage(
-        mode: CloudDriveMode.alistApi,
-        isRoot: true,
-      );
-    }
-
     final deviceType = context.deviceType;
     final availableSurfaces = ref.watch(availableSurfacesProvider);
     final isEmpty = ref.watch(albumAllEmptyProvider);
@@ -175,7 +160,9 @@ class _RecommendedWorksSection extends ConsumerWidget {
                 );
               },
             ),
-            SliverToBoxAdapter(child: WorkListHorizontal(items: state.itemList)),
+            SliverToBoxAdapter(
+              child: WorkListHorizontal(items: state.itemList),
+            ),
           ],
         );
       },
@@ -200,8 +187,7 @@ class _NewestWorksSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final newestState = ref.watch(newWorksProvider);
-    final isListMode =
-        ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
+    final isListMode = ref.watch(workLayoutModeProvider) == WorkLayoutMode.list;
     return newestState.when(
       data: (state) {
         // 如果数据为空，彻底隐藏

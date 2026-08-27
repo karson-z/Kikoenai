@@ -4,16 +4,46 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 
 import '../../../../core/service/site/site_api_provider.dart';
 import '../../../../core/service/site/site_api_setup.dart';
+import '../provider/self_hosted_site_controller.dart';
+import 'self_hosted_site_form_dialog.dart';
 
-class SiteSelectionModal extends ConsumerWidget {
+class SiteSelectionModal extends ConsumerStatefulWidget {
   const SiteSelectionModal({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SiteSelectionModal> createState() => _SiteSelectionModalState();
+}
+
+class _SiteSelectionModalState extends ConsumerState<SiteSelectionModal> {
+  bool _isAdding = false;
+
+  Future<void> _addSelfHostedSite() async {
+    final server = await showSelfHostedSiteFormDialog(context);
+    if (server == null || !mounted) return;
+    setState(() => _isAdding = true);
+    try {
+      await ref.read(selfHostedSiteControllerProvider).addAndActivate(server);
+      if (mounted) Navigator.pop(context, KikoeruSiteApi.info.id);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_describeError(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _isAdding = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.watch(siteRegistryChangesProvider);
     final registry = ref.watch(siteRegistryProvider);
     final activeSiteId = ref.watch(activeSiteIdProvider);
     final theme = Theme.of(context);
+    final contentSites = registry.allInfo
+        .where((info) => isSelectableContentSiteId(info.id))
+        .toList(growable: false);
 
     return SafeArea(
       child: ListView(
@@ -22,10 +52,10 @@ class SiteSelectionModal extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-            child: Text('选择站点', style: theme.textTheme.titleLarge),
+            child: Text('选择内容站点', style: theme.textTheme.titleLarge),
           ),
           const Divider(height: 1),
-          for (final info in registry.allInfo)
+          for (final info in contentSites)
             ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 24,
@@ -51,9 +81,37 @@ class SiteSelectionModal extends ConsumerWidget {
                       if (context.mounted) Navigator.pop(context, info.id);
                     },
             ),
+          const Divider(height: 1),
+          ListTile(
+            key: const ValueKey('add_self_hosted_site'),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 4,
+            ),
+            leading: Icon(
+              Icons.add_business_outlined,
+              color: theme.colorScheme.primary,
+            ),
+            title: const Text('添加自建站'),
+            subtitle: const Text('Kikoeru'),
+            trailing: _isAdding
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap: _isAdding ? null : _addSelfHostedSite,
+          ),
         ],
       ),
     );
+  }
+
+  static String _describeError(Object error) {
+    if (error is FormatException) return error.message;
+    if (error is ArgumentError) return error.message?.toString() ?? '配置无效';
+    if (error is StateError) return error.message;
+    return '添加自建站失败';
   }
 }
 

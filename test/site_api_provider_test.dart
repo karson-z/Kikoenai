@@ -67,4 +67,46 @@ void main() {
     expect(container.read(activeSiteIdProvider), 'site.two');
     expect(registry.activeId, 'site.two');
   });
+
+  test('AList runtime cannot be activated as the content site', () async {
+    final registry = SiteRegistry()
+      ..registerRuntime(_runtime('site.one', {SiteFeature.search}))
+      ..registerRuntime(
+        _runtime(AsmrGaySiteApi.info.id, {SiteFeature.fileSystemBrowse}),
+      );
+    final container = ProviderContainer(
+      overrides: [
+        siteRegistryProvider.overrideWithValue(registry),
+        initialActiveSiteIdProvider.overrideWithValue('site.one'),
+        siteSelectionPersistenceProvider.overrideWithValue((_) async {}),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container
+          .read(activeSiteIdProvider.notifier)
+          .activate(AsmrGaySiteApi.info.id),
+      throwsArgumentError,
+    );
+    expect(container.read(activeSiteIdProvider), 'site.one');
+  });
+
+  test('an initial AList selection falls back to a content site', () {
+    final registry = SiteRegistry()
+      ..registerRuntime(
+        _runtime(AsmrGaySiteApi.info.id, {SiteFeature.fileSystemBrowse}),
+      )
+      ..registerRuntime(_runtime('site.one', {SiteFeature.search}));
+    final container = ProviderContainer(
+      overrides: [
+        siteRegistryProvider.overrideWithValue(registry),
+        initialActiveSiteIdProvider.overrideWithValue(AsmrGaySiteApi.info.id),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(container.read(activeSiteIdProvider), 'site.one');
+    expect(registry.activeId, 'site.one');
+  });
 }

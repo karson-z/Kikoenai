@@ -125,6 +125,25 @@ void main() {
     );
   });
 
+  test('file-system-only sites do not expose the home page', () {
+    final runtime = _runtime('site.files', {
+      SiteFeature.fileSystemBrowse,
+      SiteFeature.fileSystemSearch,
+    });
+
+    expect(
+      defaultSurfacePolicyRegistry.isAvailable(AppSurface.homePage, runtime),
+      isFalse,
+    );
+    expect(
+      defaultSurfacePolicyRegistry.isAvailable(
+        AppSurface.cloudDrivePage,
+        runtime,
+      ),
+      isTrue,
+    );
+  });
+
   test('site context can be scoped independently from the active site', () {
     final registry = SiteRegistry()
       ..registerRuntime(_runtime('site.active', const {}))

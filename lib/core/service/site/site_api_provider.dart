@@ -25,23 +25,33 @@ class ActiveSiteIdNotifier extends Notifier<String> {
     ref.watch(siteRegistryChangesProvider);
     final registry = ref.watch(siteRegistryProvider);
     final currentId = registry.activeId;
-    if (currentId != null && registry.contains(currentId)) {
+    if (currentId != null &&
+        registry.contains(currentId) &&
+        isSelectableContentSiteId(currentId)) {
       return currentId;
     }
     final initialId = ref.watch(initialActiveSiteIdProvider);
-    if (registry.contains(initialId)) {
+    if (registry.contains(initialId) && isSelectableContentSiteId(initialId)) {
       registry.activeId = initialId;
       return initialId;
     }
-    if (registry.allInfo.isEmpty) {
-      throw StateError('没有已注册的站点');
+
+    String? fallbackId;
+    for (final info in registry.allInfo) {
+      if (isSelectableContentSiteId(info.id)) {
+        fallbackId = info.id;
+        break;
+      }
     }
-    final fallbackId = registry.allInfo.first.id;
+    if (fallbackId == null) throw StateError('没有已注册的内容站点');
     registry.activeId = fallbackId;
     return fallbackId;
   }
 
   Future<void> activate(String siteId) async {
+    if (!isSelectableContentSiteId(siteId)) {
+      throw ArgumentError('站点 $siteId 只能作为云盘来源');
+    }
     final registry = ref.read(siteRegistryProvider);
     registry.requireRuntime(siteId);
     if (state == siteId) return;

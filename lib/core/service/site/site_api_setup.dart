@@ -19,10 +19,17 @@ String _initialActiveSiteId = CacheService.legacySiteId;
 
 String get initialActiveSiteId => _initialActiveSiteId;
 
+/// AList is a cloud-drive source and must not become the app's content site.
+bool isSelectableContentSiteId(String siteId) =>
+    siteId != AsmrGaySiteApi.info.id;
+
 /// Compatibility access for startup logging and callers not yet under Riverpod.
 SiteApi get siteApi {
   final persistedId = CacheService.instance.getActiveSiteId();
-  final siteId = persistedId != null && siteRegistry.contains(persistedId)
+  final siteId =
+      persistedId != null &&
+          siteRegistry.contains(persistedId) &&
+          isSelectableContentSiteId(persistedId)
       ? persistedId
       : _initialActiveSiteId;
   return siteRegistry.requireApi(siteId);
@@ -44,11 +51,19 @@ Future<void> setupSiteApi() async {
     throw StateError('没有能够解析到服务器的站点');
   }
 
+  final contentSiteIds = siteRegistry.allInfo
+      .map((info) => info.id)
+      .where(isSelectableContentSiteId)
+      .toList(growable: false);
+  if (contentSiteIds.isEmpty) {
+    throw StateError('没有可用的内容站点');
+  }
+
   final cachedActiveId = cache.getActiveSiteId();
   _initialActiveSiteId =
-      cachedActiveId != null && siteRegistry.contains(cachedActiveId)
+      cachedActiveId != null && contentSiteIds.contains(cachedActiveId)
       ? cachedActiveId
-      : siteRegistry.allInfo.first.id;
+      : contentSiteIds.first;
   await cache.saveActiveSiteId(_initialActiveSiteId);
   siteRegistry.activeId = _initialActiveSiteId;
 }
@@ -171,7 +186,10 @@ void _validateServerList(String siteId, List<ServerInfo> servers) {
       throw ArgumentError('站点 $siteId 存在重复服务器 ID: ${server.id}');
     }
     if (siteId == KikoeruSiteApi.info.id) {
-      KikoeruSiteApi.apiBaseUrlFor(server);
+      final baseUrl = KikoeruSiteApi.webBaseUrlFor(server);
+      if (!baseUrls.add(baseUrl.toLowerCase())) {
+        throw ArgumentError('Kikoeru 存在重复地址: $baseUrl');
+      }
     }
     if (siteId == AsmrGaySiteApi.info.id) {
       final baseUrl = AsmrGaySiteApi.normalizeBaseUrl(server);
