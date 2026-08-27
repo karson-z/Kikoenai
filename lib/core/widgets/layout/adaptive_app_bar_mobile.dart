@@ -4,6 +4,8 @@ import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 import '../../theme/theme_view_model.dart';
 
 class MobileSearchAppBar extends ConsumerWidget {
+  static const double toolbarHeight = 64;
+
   final String hintText;
   final VoidCallback? onSearchTap;
 
@@ -22,10 +24,10 @@ class MobileSearchAppBar extends ConsumerWidget {
         final topPadding = MediaQuery.of(context).padding.top;
         return Padding(
           padding: EdgeInsets.only(
-              top: topPadding + 16,
-              left: 16,
-              right: 16,
-              bottom: 16
+            top: topPadding + 8,
+            left: 16,
+            right: 16,
+            bottom: 8,
           ),
           child: Row(
             children: [

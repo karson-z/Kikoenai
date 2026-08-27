@@ -35,7 +35,9 @@ class AlbumPage extends ConsumerWidget {
     return Scaffold(
       appBar: deviceType == DeviceType.mobile && canSearch
           ? PreferredSize(
-              preferredSize: const Size.fromHeight(80),
+              preferredSize: const Size.fromHeight(
+                MobileSearchAppBar.toolbarHeight,
+              ),
               child: MobileSearchAppBar(
                 onSearchTap: () {
                   debugPrint('跳转到搜索页面');
