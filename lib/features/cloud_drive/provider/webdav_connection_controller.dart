@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/service/player/media_http_headers_registry.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -98,10 +99,14 @@ class WebDavSessionState {
 class WebDavController extends Notifier<WebDavSessionState> {
   webdav.Client? _client;
   Uri? _baseUri;
+  void Function()? _unregisterPlaybackHeadersResolver;
 
   @override
   WebDavSessionState build() {
-    ref.onDispose(() => _client?.c.close(force: true));
+    ref.onDispose(() {
+      _unregisterPlaybackHeadersResolver?.call();
+      _client?.c.close(force: true);
+    });
     final box = AppStorage.settingsBox;
     return WebDavSessionState(
       serverUrl:
@@ -153,8 +158,18 @@ class WebDavController extends Notifier<WebDavSessionState> {
         StorageKeys.webDavRootPath: config.rootPath,
       });
       previousClient?.c.close(force: true);
+      _unregisterPlaybackHeadersResolver?.call();
       _client = client;
       _baseUri = Uri.parse(config.serverUrl);
+      _unregisterPlaybackHeadersResolver = MediaHttpHeadersRegistry.instance
+          .register(
+            (request) => buildPlaybackHttpHeaders(
+              client: client,
+              baseUri: _baseUri!,
+              url: request.url,
+              extras: request.extras,
+            ),
+          );
       state = state.copyWith(
         isConnecting: false,
         isConnected: true,
@@ -173,6 +188,8 @@ class WebDavController extends Notifier<WebDavSessionState> {
   }
 
   void disconnect() {
+    _unregisterPlaybackHeadersResolver?.call();
+    _unregisterPlaybackHeadersResolver = null;
     _client?.c.close(force: true);
     _client = null;
     _baseUri = null;
@@ -224,6 +241,78 @@ class WebDavController extends Notifier<WebDavSessionState> {
       port: baseUri.hasPort ? baseUri.port : null,
       pathSegments: [...baseSegments, ...remoteSegments],
     );
+  }
+
+  static Map<String, String> buildPlaybackHttpHeaders({
+    required webdav.Client client,
+    required Uri baseUri,
+    required String url,
+    required Map<String, dynamic> extras,
+  }) {
+    if (extras['source'] != NodeSource.cloudDrive.name ||
+        extras['siteId'] != webDavSiteId) {
+      return const {};
+    }
+
+    final fileUri = Uri.tryParse(url);
+    if (fileUri == null ||
+        (fileUri.scheme != 'http' && fileUri.scheme != 'https') ||
+        !_isUnderBaseUri(baseUri, fileUri)) {
+      return const {};
+    }
+
+    final authPath = _pathAndQuery(fileUri);
+    final authorization =
+        client.auth.authorize('GET', authPath) ??
+        _preemptiveBasicAuthorization(client, authPath);
+    if (authorization == null || authorization.isEmpty) return const {};
+    return {'Authorization': authorization};
+  }
+
+  static String? _preemptiveBasicAuthorization(
+    webdav.Client client,
+    String path,
+  ) {
+    if (client.auth.user.isEmpty && client.auth.pwd.isEmpty) return null;
+    return webdav.BasicAuth(
+      user: client.auth.user,
+      pwd: client.auth.pwd,
+    ).authorize('GET', path);
+  }
+
+  static bool _isUnderBaseUri(Uri baseUri, Uri fileUri) {
+    if (!_hasSameOrigin(baseUri, fileUri)) return false;
+    final baseSegments = baseUri.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    final fileSegments = fileUri.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    if (fileSegments.length < baseSegments.length) return false;
+    for (var i = 0; i < baseSegments.length; i++) {
+      if (fileSegments[i] != baseSegments[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _hasSameOrigin(Uri left, Uri right) {
+    return left.scheme == right.scheme &&
+        left.host == right.host &&
+        _effectivePort(left) == _effectivePort(right);
+  }
+
+  static int _effectivePort(Uri uri) {
+    if (uri.hasPort) return uri.port;
+    return switch (uri.scheme) {
+      'http' => 80,
+      'https' => 443,
+      _ => -1,
+    };
+  }
+
+  static String _pathAndQuery(Uri uri) {
+    final query = uri.hasQuery ? '?${uri.query}' : '';
+    return '${uri.path}$query';
   }
 
   static String describeError(Object error) {

@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
+import 'package:kikoenai_core/kikoenai_core.dart';
+import 'package:webdav_client/webdav_client.dart' as webdav;
 
 class _ConnectedWebDavController extends WebDavController {
   @override
@@ -73,6 +77,57 @@ void main() {
       uri.toString(),
       contains('%E4%B8%AD%E6%96%87%20%E9%9F%B3%E5%A3%B0.mp3'),
     );
+  });
+
+  test('buildPlaybackHttpHeaders injects authorization for WebDAV media', () {
+    final client = webdav.newClient(
+      'https://cloud.example.com/remote.php/dav/files/kiko/',
+      user: 'kiko',
+      password: 'secret',
+    );
+    client.auth = const webdav.BasicAuth(user: 'kiko', pwd: 'secret');
+
+    final headers = WebDavController.buildPlaybackHttpHeaders(
+      client: client,
+      baseUri: Uri.parse(
+        'https://cloud.example.com/remote.php/dav/files/kiko/',
+      ),
+      url: 'https://cloud.example.com/remote.php/dav/files/kiko/ASMR/track.mp3',
+      extras: const {
+        'source': 'cloudDrive',
+        'siteId': webDavSiteId,
+        'remoteId': '/ASMR/track.mp3',
+      },
+    );
+
+    expect(
+      headers['Authorization'],
+      'Basic ${base64Encode(utf8.encode('kiko:secret'))}',
+    );
+  });
+
+  test('buildPlaybackHttpHeaders ignores non-WebDAV media urls', () {
+    final client = webdav.newClient(
+      'https://cloud.example.com/remote.php/dav/files/kiko/',
+      user: 'kiko',
+      password: 'secret',
+    );
+    client.auth = const webdav.BasicAuth(user: 'kiko', pwd: 'secret');
+
+    final headers = WebDavController.buildPlaybackHttpHeaders(
+      client: client,
+      baseUri: Uri.parse(
+        'https://cloud.example.com/remote.php/dav/files/kiko/',
+      ),
+      url: 'https://cdn.example.com/ASMR/track.mp3',
+      extras: {
+        'source': NodeSource.cloudDrive.name,
+        'siteId': webDavSiteId,
+        'remoteId': '/ASMR/track.mp3',
+      },
+    );
+
+    expect(headers, isEmpty);
   });
 
   test('describeError returns an actionable authentication message', () {

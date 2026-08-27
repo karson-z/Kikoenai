@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/service/player/media_http_headers_registry.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
@@ -61,7 +62,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   bool get isIgnoreAudioFocus =>
       _settingBox.get(StorageKeys.ignoreAudioFocus, defaultValue: false)
-      as bool;
+          as bool;
 
   MyAudioHandler(this._player) {
     _lifecycleListener = AppLifecycleListener(
@@ -78,7 +79,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   bool get playInBackground =>
       _settingBox.get(StorageKeys.playerPlayInBackground, defaultValue: true)
-      as bool;
+          as bool;
 
   void _handleLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
@@ -119,13 +120,13 @@ class MyAudioHandler extends BaseAudioHandler {
         if (Platform.isAndroid) {
           await nativePlayer.setProperty("volume-max", "100");
           final String audioOutputMode =
-          _settingBox.get(
-            StorageKeys.audioOutputMode,
-            defaultValue: AppConstants.defaultAoMode,
-          )
-          as String;
+              _settingBox.get(
+                    StorageKeys.audioOutputMode,
+                    defaultValue: AppConstants.defaultAoMode,
+                  )
+                  as String;
           final String safeAoMode =
-          AppConstants.validAoModes.contains(audioOutputMode)
+              AppConstants.validAoModes.contains(audioOutputMode)
               ? audioOutputMode
               : AppConstants.defaultAoMode;
           await nativePlayer.setProperty("ao", safeAoMode);
@@ -216,10 +217,10 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> _playIndex(
-      int index, {
-        Duration? position,
-        bool autoPlay = true,
-      }) async {
+    int index, {
+    Duration? position,
+    bool autoPlay = true,
+  }) async {
     if (index < 0 || index >= _playlist.length) return;
 
     _currentIndex = index;
@@ -284,11 +285,11 @@ class MyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> loadPlaylist(
-      List<MediaItem> items, {
-        int initialIndex = 0,
-        Duration? initialPosition,
-        bool autoPlay = true,
-      }) async {
+    List<MediaItem> items, {
+    int initialIndex = 0,
+    Duration? initialPosition,
+    bool autoPlay = true,
+  }) async {
     _playlist.clear();
     _playlist.addAll(items);
     queue.add(List.from(_playlist));
@@ -308,7 +309,16 @@ class MyAudioHandler extends BaseAudioHandler {
 
   Media _buildMedia(MediaItem item, {Duration? startPosition}) {
     final url = item.extras!['url'] as String;
-    return Media(url, extras: {'id': item.id}, start: startPosition);
+    final httpHeaders = MediaHttpHeadersRegistry.instance.resolve(
+      url: url,
+      extras: item.extras ?? const <String, dynamic>{},
+    );
+    return Media(
+      url,
+      httpHeaders: httpHeaders,
+      extras: {'id': item.id},
+      start: startPosition,
+    );
   }
 
   @override
@@ -495,9 +505,9 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<dynamic> customAction(
-      String name, [
-        Map<String, dynamic>? extras,
-      ]) async {
+    String name, [
+    Map<String, dynamic>? extras,
+  ]) async {
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);

@@ -251,10 +251,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
                   showFileMetaInfo: true,
                 ),
                 onEnterFolder: _enterFolder,
-                onOpenFile: widget.mode == CloudDriveMode.webDav
-                    ? (node, siblings) =>
-                          showCloudDriveFileDetails(context, node, siblings)
-                    : null,
+                onOpenFile: null,
               ),
               SliverToBoxAdapter(
                 child: CloudDriveFooter(

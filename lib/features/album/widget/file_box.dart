@@ -111,8 +111,7 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
   final NodeSource Function(FileNode node)? sourceResolver;
 
   /// Overrides the default preview/play behavior for non-folder entries.
-  final FutureOr<void> Function(FileNode node, List<FileNode> siblings)?
-  onOpenFile;
+  final FutureOr<void> Function(FileNode node, List<FileNode> siblings)? onOpenFile;
 
   @override
   ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
