@@ -224,7 +224,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     );
     final body = isMobile
         ? ScrollAwareToolbarLayout(
-            forceToolbarVisible: query.isFilterOpen,
             notificationPredicate: (_) => true,
             toolbar: SizedBox(
               height: MobileSearchAppBar.toolbarHeight,

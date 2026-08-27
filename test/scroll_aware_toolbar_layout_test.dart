@@ -91,4 +91,41 @@ void main() {
     expect(tester.getSize(animatedToolbar).height, 80);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('preserves toolbar visibility across parent rebuilds', (
+    tester,
+  ) async {
+    var revision = 0;
+    late StateSetter rebuildLayout;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              rebuildLayout = setState;
+              return ScrollAwareToolbarLayout(
+                toolbar: SizedBox(height: 80, child: Text('$revision')),
+                child: const CustomScrollView(
+                  slivers: [SliverToBoxAdapter(child: SizedBox(height: 1000))],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final animatedToolbar = find.byType(AnimatedAlign);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(animatedToolbar).height, 0);
+
+    rebuildLayout(() => revision++);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1'), findsOneWidget);
+    expect(tester.getSize(animatedToolbar).height, 0);
+    expect(tester.takeException(), isNull);
+  });
 }
