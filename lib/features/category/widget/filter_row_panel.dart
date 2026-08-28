@@ -21,6 +21,7 @@ class FilterRowPanel extends StatelessWidget {
   final Color subTextColor;
   final Color fillColor;
   final Color primaryColor;
+  final double horizontalPadding;
 
   const FilterRowPanel({
     Key? key,
@@ -40,6 +41,7 @@ class FilterRowPanel extends StatelessWidget {
     required this.subTextColor,
     required this.fillColor,
     required this.primaryColor,
+    this.horizontalPadding = 16,
   }) : super(key: key);
 
   @override
@@ -54,7 +56,7 @@ class FilterRowPanel extends StatelessWidget {
 
     return Container(
       color: bgColor,
-      padding: const EdgeInsets.only(left: 16, right: 0),
+      padding: EdgeInsets.only(left: horizontalPadding),
       alignment: Alignment.centerLeft,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,12 +68,15 @@ class FilterRowPanel extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 InkWell(
+                  key: const ValueKey('filter-row-toggle'),
                   onTap: onToggleFilter, // 调用回调
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
-                      color: isFilterOpen ? primaryColor.withOpacity(0.1) : fillColor,
+                      color: isFilterOpen
+                          ? primaryColor.withValues(alpha: 0.1)
+                          : fillColor,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -170,7 +175,7 @@ class FilterRowPanel extends StatelessWidget {
                               alignment: Alignment.center,
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                               decoration: BoxDecoration(
-                                color: itemColor.withOpacity(0.1),
+                                color: itemColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(color: itemColor, width: 1),
                               ),
@@ -228,7 +233,11 @@ class FilterRowPanel extends StatelessWidget {
 
           // --- 3. 总数统计 ---
           Padding(
-            padding: const EdgeInsets.only(right: 16, left: 4, top: badgeSpaceOffset + 6),
+            padding: EdgeInsets.only(
+              right: horizontalPadding,
+              left: 4,
+              top: badgeSpaceOffset + 6,
+            ),
             child: Text(
               "共 $totalCount 条",
               style: TextStyle(

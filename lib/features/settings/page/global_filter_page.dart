@@ -112,16 +112,22 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
 
   // 4. 【AppBar瘦身】采用标准移动端高度、单行标题和紧凑按钮
   PreferredSizeWidget _buildAppBar() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return AppBar(
-      backgroundColor: const Color(0xFFF7F8FC),
+      backgroundColor:
+          theme.appBarTheme.backgroundColor ?? colorScheme.surface,
+      foregroundColor:
+          theme.appBarTheme.foregroundColor ?? colorScheme.onSurface,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      title: const Text(
+      title: Text(
         '全局筛选',
         style: TextStyle(
           fontSize: 18, // 标题字号 24 -> 18
           fontWeight: FontWeight.bold,
-          color: Color(0xFF1E1E28),
+          color: colorScheme.onSurface,
         ),
       ),
       actions: [
@@ -132,8 +138,8 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
           icon: const Icon(Icons.refresh, size: 16), // 图标缩小
           label: const Text('重置', style: TextStyle(fontSize: 13)),
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.grey[700],
-            side: BorderSide(color: Colors.grey[300]!),
+            foregroundColor: colorScheme.onSurfaceVariant,
+            side: BorderSide(color: colorScheme.outlineVariant),
             padding: const EdgeInsets.symmetric(horizontal: 12), // 按钮内边距减小
             minimumSize: const Size(0, 32), // 限制按钮高度
             shape: RoundedRectangleBorder(
@@ -149,8 +155,8 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
           icon: const Icon(Icons.add, size: 16),
           label: const Text('新建', style: TextStyle(fontSize: 13)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             minimumSize: const Size(0, 32),
             shape: RoundedRectangleBorder(
@@ -184,39 +190,42 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
           ),
         ],
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          dividerColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          splashColor: Colors.transparent,
-        ),
-        child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
-          // 5. 【卡片头部紧凑】
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: 16.0, // 24 -> 16
-            vertical: 4.0,    // 12 -> 4
+      child: Material(
+        type: MaterialType.transparency,
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            dividerColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            splashColor: Colors.transparent,
           ),
-          leading: Icon(icon, color: iconColor, size: 24), // 图标 28 -> 24
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // 字号 18 -> 16
-          ),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)), // 字号 13 -> 12
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                // 6. 【内容区域缩进优化】取消原本 68 的超大左缩进，增加屏幕利用率
-                padding: const EdgeInsets.only(
-                  left: 16.0,
-                  right: 16.0,
-                  bottom: 16.0,
-                ),
-                child: content,
-              ),
+          child: ExpansionTile(
+            initiallyExpanded: initiallyExpanded,
+            // 5. 【卡片头部紧凑】
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 16.0, // 24 -> 16
+              vertical: 4.0,    // 12 -> 4
             ),
-          ],
+            leading: Icon(icon, color: iconColor, size: 24), // 图标 28 -> 24
+            title: Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // 字号 18 -> 16
+            ),
+            subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)), // 字号 13 -> 12
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  // 6. 【内容区域缩进优化】取消原本 68 的超大左缩进，增加屏幕利用率
+                  padding: const EdgeInsets.only(
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0,
+                  ),
+                  child: content,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

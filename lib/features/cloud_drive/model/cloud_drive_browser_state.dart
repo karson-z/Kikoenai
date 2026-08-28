@@ -48,6 +48,7 @@ class CloudDriveBrowserState {
   final bool supportsPagination;
 
   bool get isBusy => isSearchMode ? isSearching : isLoading;
+  bool get hasLoadedDirectory => currentPage > 0;
   String? get activeError => isSearchMode ? searchErrorMessage : errorMessage;
   int get activeTotalCount =>
       isSearchMode && usesRemoteSearch ? searchTotalCount : totalCount;
