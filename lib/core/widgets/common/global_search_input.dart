@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../theme/theme_view_model.dart';
+import 'search_field_style.dart';
 
 class GlobalSearchInput extends ConsumerWidget {
   final ValueChanged<String>? onSubmitted;
@@ -25,7 +27,7 @@ class GlobalSearchInput extends ConsumerWidget {
     this.controller,
     this.focusNode,
     this.hintText = '搜索内容...',
-    this.borderRadius = 25,
+    this.borderRadius = appSearchBorderRadius,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.contentPadding = const EdgeInsets.symmetric(vertical: 10),
     this.autoFocus = false,

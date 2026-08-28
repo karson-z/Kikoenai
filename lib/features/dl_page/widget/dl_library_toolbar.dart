@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/widgets/common/toolbar_search_field.dart';
 
 class DlLibraryToolbar extends StatelessWidget {
   const DlLibraryToolbar({
@@ -28,7 +29,15 @@ class DlLibraryToolbar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       child: Row(
         children: [
-          Expanded(child: _buildSearchField(context)),
+          Expanded(
+            child: ToolbarSearchField(
+              controller: searchController,
+              focusNode: searchFocusNode,
+              hintText: '搜索标题 / RJ / 社团',
+              onChanged: onSearchChanged,
+              onClear: onClearSearch,
+            ),
+          ),
           if (isEditing)
             _buildIconButton(
               icon: Icons.delete_sweep_outlined,
@@ -64,50 +73,6 @@ class DlLibraryToolbar extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         icon: Icon(icon),
-      ),
-    );
-  }
-
-  Widget _buildSearchField(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      height: 36,
-      child: TextField(
-        controller: searchController,
-        focusNode: searchFocusNode,
-        textInputAction: TextInputAction.done,
-        decoration: InputDecoration(
-          hintText: '搜索标题 / RJ / 社团',
-          prefixIcon: const Icon(Icons.search, size: 20),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 36,
-            minHeight: 36,
-          ),
-          suffixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: searchController,
-            builder: (context, value, child) => value.text.isEmpty
-                ? const SizedBox.shrink()
-                : IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.expand(),
-                    tooltip: '清空搜索',
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: onClearSearch,
-                  ),
-          ),
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 32,
-            minHeight: 36,
-          ),
-          filled: true,
-          fillColor: isDark ? const Color(0xFF242426) : Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        ),
-        onChanged: onSearchChanged,
       ),
     );
   }
