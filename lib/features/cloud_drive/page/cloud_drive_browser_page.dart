@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
@@ -199,7 +200,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
         child: CustomScrollView(
           key: ValueKey('cloud_drive_${widget.mode.name}_$_currentPath'),
           controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: nonBouncingRefreshScrollPhysics,
           slivers: [
             SliverPersistentHeader(
               pinned: true,

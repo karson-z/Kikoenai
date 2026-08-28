@@ -34,21 +34,72 @@ void main() {
       ),
     );
 
-    final animatedToolbar = find.byType(AnimatedAlign);
-    expect(tester.getSize(animatedToolbar).height, 80);
+    final toolbarViewport = find.byKey(
+      const ValueKey('scroll-aware-toolbar-viewport'),
+    );
+    expect(tester.getSize(toolbarViewport).height, 80);
 
     await tester.drag(find.byKey(innerScrollKey), const Offset(0, -300));
     await tester.pumpAndSettle();
 
     final scrollable = Scrollable.of(tester.element(find.byKey(markerKey)));
     expect(scrollable.position.pixels, greaterThan(200));
-    expect(tester.getSize(animatedToolbar).height, 0);
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
 
-    await tester.drag(find.byKey(innerScrollKey), const Offset(0, 24));
+    final shortDrag = await tester.startGesture(
+      tester.getCenter(find.byKey(innerScrollKey)),
+    );
+    await shortDrag.moveBy(const Offset(0, 24));
+    await tester.pump();
+
+    final partialHeight = tester.getSize(toolbarViewport).height;
+    expect(partialHeight, greaterThan(0));
+    expect(partialHeight, lessThan(40));
+
+    await shortDrag.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
+
+    final revealDrag = await tester.startGesture(
+      tester.getCenter(find.byKey(innerScrollKey)),
+    );
+    await revealDrag.moveBy(const Offset(0, 56));
+    await tester.pump();
+    expect(tester.getSize(toolbarViewport).height, greaterThan(40));
+    expect(tester.getSize(toolbarViewport).height, lessThan(80));
+
+    await revealDrag.up();
     await tester.pumpAndSettle();
 
     expect(scrollable.position.pixels, greaterThan(200));
-    expect(tester.getSize(animatedToolbar).height, 80);
+    expect(tester.getSize(toolbarViewport).height, closeTo(80, 0.1));
+
+    final shortCollapse = await tester.startGesture(
+      tester.getCenter(find.byKey(innerScrollKey)),
+    );
+    await shortCollapse.moveBy(const Offset(0, -24));
+    await tester.pump();
+    expect(tester.getSize(toolbarViewport).height, greaterThan(40));
+    expect(tester.getSize(toolbarViewport).height, lessThan(80));
+
+    await shortCollapse.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(toolbarViewport).height, closeTo(80, 0.1));
+
+    final collapseDrag = await tester.startGesture(
+      tester.getCenter(find.byKey(innerScrollKey)),
+    );
+    await collapseDrag.moveBy(const Offset(0, -56));
+    await tester.pump();
+    expect(tester.getSize(toolbarViewport).height, greaterThan(0));
+    expect(tester.getSize(toolbarViewport).height, lessThan(40));
+
+    await collapseDrag.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
     expect(tester.takeException(), isNull);
   });
 
@@ -77,18 +128,20 @@ void main() {
       ),
     );
 
-    final animatedToolbar = find.byType(AnimatedAlign);
+    final toolbarViewport = find.byKey(
+      const ValueKey('scroll-aware-toolbar-viewport'),
+    );
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
     await tester.pumpAndSettle();
-    expect(tester.getSize(animatedToolbar).height, 0);
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
 
     updateLayout(() => forceVisible = true);
     await tester.pumpAndSettle();
-    expect(tester.getSize(animatedToolbar).height, 80);
+    expect(tester.getSize(toolbarViewport).height, 80);
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -100));
     await tester.pumpAndSettle();
-    expect(tester.getSize(animatedToolbar).height, 80);
+    expect(tester.getSize(toolbarViewport).height, 80);
     expect(tester.takeException(), isNull);
   });
 
@@ -116,16 +169,18 @@ void main() {
       ),
     );
 
-    final animatedToolbar = find.byType(AnimatedAlign);
+    final toolbarViewport = find.byKey(
+      const ValueKey('scroll-aware-toolbar-viewport'),
+    );
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
     await tester.pumpAndSettle();
-    expect(tester.getSize(animatedToolbar).height, 0);
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
 
     rebuildLayout(() => revision++);
     await tester.pumpAndSettle();
 
     expect(find.text('1'), findsOneWidget);
-    expect(tester.getSize(animatedToolbar).height, 0);
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
     expect(tester.takeException(), isNull);
   });
 }

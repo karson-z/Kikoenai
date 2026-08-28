@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/provider/work_layout_provider.dart';
 import '../../../core/widgets/loading/lottie_loading.dart';
+import '../../../core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../album/widget/work_grid_layout.dart';
 import '../../album/widget/work_list_layout.dart';
@@ -117,7 +118,7 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
                   key: PageStorageKey<String>(widget.sortOrder.label),
                   physics: widget.isFilterOpen
                       ? const NeverScrollableScrollPhysics()
-                      : const AlwaysScrollableScrollPhysics(),
+                      : nonBouncingRefreshScrollPhysics,
                   slivers: [
                     SliverOverlapInjector(
                       handle:
