@@ -11,7 +11,6 @@ import '../provider/cloud_drive_browser_controller.dart';
 import '../provider/cloud_drive_source_provider.dart';
 import '../provider/webdav_connection_controller.dart';
 import '../widget/cloud_drive_breadcrumb.dart';
-import '../widget/cloud_drive_file_details.dart';
 import '../widget/cloud_drive_scroll_aware_layout.dart';
 import '../widget/cloud_drive_state_content.dart';
 import '../widget/cloud_drive_toolbar.dart';
@@ -45,11 +44,13 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _scrollController = ScrollController();
+  late String _currentPath;
+  bool _isChangingPath = false;
 
   static const double _loadMoreThreshold = 240;
 
-  String get _currentPath => _normalizePath(widget.initialPath);
   CloudDriveBrowserArgs get _args => (mode: widget.mode, path: _currentPath);
+  bool get _isAtRoot => _currentPath == _normalizePath(widget.rootPath);
 
   List<String> get _pathSegments {
     final rootParts = _pathParts(widget.rootPath);
@@ -64,6 +65,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   @override
   void initState() {
     super.initState();
+    _currentPath = _normalizePath(widget.initialPath);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -94,29 +96,46 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   void _enterFolder(FileNode node) {
     final path = node.path;
     if (path == null || path.isEmpty || path == _currentPath) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CloudDriveBrowserPage(
-          mode: widget.mode,
-          initialPath: path,
-          rootPath: widget.rootPath,
-          isRoot: false,
-        ),
-      ),
-    );
+    _navigateToPath(path);
   }
 
   void _jumpToSegment(int segmentIndex) {
-    final total = _pathSegments.length;
-    final popCount = segmentIndex < 0
-        ? total
-        : (total - segmentIndex - 1).clamp(0, total);
-    if (popCount == 0) return;
-    var popped = 0;
-    Navigator.of(context).popUntil((route) {
-      if (popped >= popCount || route.isFirst) return true;
-      popped++;
-      return false;
+    final rootParts = _pathParts(widget.rootPath);
+    final targetParts = segmentIndex < 0
+        ? rootParts
+        : [...rootParts, ..._pathSegments.take(segmentIndex + 1)];
+    _navigateToPath('/${targetParts.join('/')}');
+  }
+
+  void _navigateBack() {
+    if (_isAtRoot) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    _jumpToSegment(_pathSegments.length - 2);
+  }
+
+  void _navigateToPath(String path) {
+    final nextPath = _normalizePath(path);
+    if (nextPath == _currentPath) return;
+
+    _searchFocusNode.unfocus();
+    _searchController.clear();
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    }
+
+    setState(() {
+      _currentPath = nextPath;
+      _isChangingPath = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _currentPath != nextPath) return;
+      await ref
+          .read(cloudDriveBrowserControllerProvider(_args).notifier)
+          .loadInitial();
+      if (!mounted || _currentPath != nextPath) return;
+      setState(() => _isChangingPath = false);
     });
   }
 
@@ -148,7 +167,11 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     );
 
     return PopScope(
-      canPop: !widget.isRoot,
+      canPop: _isAtRoot && !widget.isRoot,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop || _isAtRoot) return;
+        _navigateBack();
+      },
       child: widget.embedded
           ? body
           : Scaffold(
@@ -164,7 +187,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   ) {
     final nodes = state.visibleNodes;
     final error = state.activeError;
-    final showLoading = state.isBusy && nodes.isEmpty;
+    final showLoading = (_isChangingPath || state.isBusy) && nodes.isEmpty;
     final showError = error != null && nodes.isEmpty;
     final showEmpty = nodes.isEmpty && !state.isBusy && error == null;
     final controller = ref.read(
@@ -173,14 +196,14 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
 
     return CloudDriveScrollAwareLayout(
       toolbar: CloudDriveToolbar(
-        isRoot: widget.isRoot,
+        isRoot: _isAtRoot,
         isLoading: state.isBusy,
         usesRemoteSearch: state.usesRemoteSearch,
         searchController: _searchController,
         searchFocusNode: _searchFocusNode,
         scope: state.scope,
         sort: state.sort,
-        onBack: () => Navigator.of(context).maybePop(),
+        onBack: _navigateBack,
         onManageSource: widget.onManageSource,
         manageTooltip: widget.manageTooltip,
         onRefresh: controller.refresh,
@@ -220,10 +243,10 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
                 hasScrollBody: false,
                 child: CloudDriveErrorContent(
                   message: error,
-                  isRoot: widget.isRoot,
+                  isRoot: _isAtRoot,
                   isSearch: state.isSearchMode,
                   onRetry: controller.refresh,
-                  onBack: () => Navigator.of(context).maybePop(),
+                  onBack: _navigateBack,
                 ),
               )
             else if (showEmpty)

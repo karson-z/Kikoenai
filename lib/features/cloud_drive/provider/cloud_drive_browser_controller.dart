@@ -48,7 +48,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         page: 1,
         pageSize: _browsePageSize,
       );
-      if (requestVersion != _browseRequestVersion) return;
+      if (!ref.mounted || requestVersion != _browseRequestVersion) return;
       state = state.copyWith(
         nodes: result.items,
         currentPage: 1,
@@ -56,7 +56,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         isLoading: false,
       );
     } catch (error, stackTrace) {
-      if (requestVersion != _browseRequestVersion) return;
+      if (!ref.mounted || requestVersion != _browseRequestVersion) return;
       debugPrint('云盘目录加载失败: $error\n$stackTrace');
       state = state.copyWith(
         isLoading: false,
@@ -80,6 +80,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         page: nextPage,
         pageSize: _browsePageSize,
       );
+      if (!ref.mounted) return;
       state = state.copyWith(
         nodes: _appendUnique(state.nodes, result.items),
         currentPage: nextPage,
@@ -87,6 +88,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         isLoadingMore: false,
       );
     } catch (error) {
+      if (!ref.mounted) return;
       debugPrint('云盘目录分页加载失败: $error');
       state = state.copyWith(isLoadingMore: false);
     }
@@ -126,7 +128,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         page: 1,
         pageSize: _searchPageSize,
       );
-      if (requestVersion != _searchRequestVersion) return;
+      if (!ref.mounted || requestVersion != _searchRequestVersion) return;
       state = state.copyWith(
         searchNodes: result.items,
         searchPage: 1,
@@ -134,7 +136,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         isSearching: false,
       );
     } catch (error, stackTrace) {
-      if (requestVersion != _searchRequestVersion) return;
+      if (!ref.mounted || requestVersion != _searchRequestVersion) return;
       debugPrint('云盘搜索失败: $error\n$stackTrace');
       state = state.copyWith(
         isSearching: false,
@@ -155,6 +157,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         page: nextPage,
         pageSize: _searchPageSize,
       );
+      if (!ref.mounted) return;
       state = state.copyWith(
         searchNodes: _appendUnique(state.searchNodes, result.items),
         searchPage: nextPage,
@@ -162,6 +165,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
         isSearchingMore: false,
       );
     } catch (error) {
+      if (!ref.mounted) return;
       debugPrint('云盘搜索分页加载失败: $error');
       state = state.copyWith(isSearchingMore: false);
     }
