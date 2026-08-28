@@ -14,22 +14,12 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 ///
 /// 负责持有底层的 [Player] 与 [VideoController] 实例。
 /// UI 层可通过此类挂载视频画面，音频服务层通过此类控制播放核心。
-///
-/// ⚠️ 单例契约：本类是静态单例，[player] 只在它首次被访问的 isolate
-/// （即主 isolate，见 `main()` 中的提前初始化）中创建一次。
-/// 所有消费方（音频 handler、播放控制器、VideoController）必须复用
-/// 同一个实例，绝不能在其他 isolate 中再次访问本单例——Dart 的静态变量
-/// 是 per-isolate 的，那会静默创建第二个 [Player]（每个 Player 都会
-/// spawn 一个专属 isolate + 原生 mpv 实例），多个原生播放器并存时
-/// 热重载 / 热重启极易导致应用暂停、崩溃或退出。
 class PlayerService {
   PlayerService._();
 
   static final PlayerService _instance = PlayerService._();
 
   static PlayerService get instance => _instance;
-
-  Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
   /// 全局唯一的媒体播放器实例（在主 isolate 创建）。
   ///

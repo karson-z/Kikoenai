@@ -6,6 +6,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_player.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
+import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
@@ -99,6 +100,8 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   /// 从缓存恢复播放器状态
   Future<void> _loadPlayerState() async {
+    await ref.read(webDavAutoRestoreProvider.future);
+
     final volume =
         _settingsBox.get(StorageKeys.playerVolume, defaultValue: 1.0) as double;
 

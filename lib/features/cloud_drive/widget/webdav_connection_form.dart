@@ -125,7 +125,7 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
                     autofillHints: const [AutofillHints.password],
                     decoration: InputDecoration(
                       labelText: '密码',
-                      helperText: '密码仅保留在本次运行内',
+                      helperText: '连接成功后安全保存在系统凭据存储中',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         tooltip: _obscurePassword ? '显示密码' : '隐藏密码',

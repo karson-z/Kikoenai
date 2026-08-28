@@ -6,6 +6,7 @@ import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
+import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
 import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_provider.dart';
 import '../core/theme/theme_view_model.dart';
 import '../features/settings/provider/setting_provider.dart';
@@ -15,6 +16,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(webDavAutoRestoreProvider);
     final overlayLyricsSupported = ref.watch(overlayLyricsSupportedProvider);
     final overlayLyricsEnabled =
         AppStorage.settingsBox.get(

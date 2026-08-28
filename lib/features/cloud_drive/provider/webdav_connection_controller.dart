@@ -1,10 +1,13 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/player/media_http_headers_registry.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:webdav_client/webdav_client.dart' as webdav;
+
+import '../data/webdav_credential_store.dart';
 
 const String webDavSiteId = 'webdav';
 
@@ -100,6 +103,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
   webdav.Client? _client;
   Uri? _baseUri;
   void Function()? _unregisterPlaybackHeadersResolver;
+  Future<bool>? _restoreFuture;
 
   @override
   WebDavSessionState build() {
@@ -140,23 +144,17 @@ class WebDavController extends Notifier<WebDavSessionState> {
       clearError: true,
     );
 
-    final client =
-        webdav.newClient(
-            config.serverUrl,
-            user: config.username,
-            password: config.password,
-          )
-          ..setConnectTimeout(15000)
-          ..setSendTimeout(15000)
-          ..setReceiveTimeout(30000);
+    final client = createClient(config)
+      ..setConnectTimeout(15000)
+      ..setSendTimeout(15000)
+      ..setReceiveTimeout(30000);
 
     try {
       await client.readDir(config.rootPath);
-      await AppStorage.settingsBox.putAll({
-        StorageKeys.webDavServerUrl: config.serverUrl,
-        StorageKeys.webDavUsername: config.username,
-        StorageKeys.webDavRootPath: config.rootPath,
-      });
+      await persistConnectionConfig(config);
+      await ref
+          .read(webDavCredentialStoreProvider)
+          .writePassword(config.password);
       previousClient?.c.close(force: true);
       _unregisterPlaybackHeadersResolver?.call();
       _client = client;
@@ -187,7 +185,67 @@ class WebDavController extends Notifier<WebDavSessionState> {
     }
   }
 
-  void disconnect() {
+  Future<bool> restoreSavedConnection() {
+    return _restoreFuture ??= _restoreSavedConnection();
+  }
+
+  Future<bool> _restoreSavedConnection() async {
+    if (state.isConnected) return true;
+    if (state.serverUrl.isEmpty) return false;
+
+    state = state.copyWith(
+      isConnecting: true,
+      isConnected: false,
+      clearError: true,
+    );
+
+    String? password;
+    try {
+      password = await ref.read(webDavCredentialStoreProvider).readPassword();
+    } catch (_) {
+      state = state.copyWith(
+        isConnecting: false,
+        isConnected: false,
+        errorMessage: '无法读取已保存的 WebDAV 凭据，请重新连接',
+      );
+      return false;
+    }
+
+    if (password == null) {
+      state = state.copyWith(
+        isConnecting: false,
+        isConnected: false,
+        clearError: true,
+      );
+      return false;
+    }
+
+    return connect(
+      WebDavConnectionConfig(
+        serverUrl: state.serverUrl,
+        username: state.username,
+        password: password,
+        rootPath: state.rootPath,
+      ),
+    );
+  }
+
+  @protected
+  webdav.Client createClient(WebDavConnectionConfig config) => webdav.newClient(
+    config.serverUrl,
+    user: config.username,
+    password: config.password,
+  );
+
+  @protected
+  Future<void> persistConnectionConfig(WebDavConnectionConfig config) =>
+      AppStorage.settingsBox.putAll({
+        StorageKeys.webDavServerUrl: config.serverUrl,
+        StorageKeys.webDavUsername: config.username,
+        StorageKeys.webDavRootPath: config.rootPath,
+      });
+
+  Future<void> disconnect() async {
     _unregisterPlaybackHeadersResolver?.call();
     _unregisterPlaybackHeadersResolver = null;
     _client?.c.close(force: true);
@@ -199,6 +257,12 @@ class WebDavController extends Notifier<WebDavSessionState> {
       clearError: true,
       revision: state.revision + 1,
     );
+
+    try {
+      await ref.read(webDavCredentialStoreProvider).deletePassword();
+    } catch (_) {
+      state = state.copyWith(errorMessage: 'WebDAV 已断开，但自动连接凭据删除失败');
+    }
   }
 
   Future<List<FileNode>> listDirectory(String path) async {
@@ -408,3 +472,8 @@ final webDavConnectionControllerProvider =
     NotifierProvider<WebDavController, WebDavSessionState>(
       WebDavController.new,
     );
+
+final webDavAutoRestoreProvider = FutureProvider<bool>((ref) {
+  final controller = ref.read(webDavConnectionControllerProvider.notifier);
+  return Future<bool>.microtask(controller.restoreSavedConnection);
+});

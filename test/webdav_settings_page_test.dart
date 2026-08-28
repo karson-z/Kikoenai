@@ -17,7 +17,7 @@ class _TestWebDavController extends WebDavController {
   Future<bool> connect(WebDavConnectionConfig rawConfig) async => true;
 
   @override
-  void disconnect() {
+  Future<void> disconnect() async {
     state = state.copyWith(isConnected: false, clearError: true);
   }
 }
