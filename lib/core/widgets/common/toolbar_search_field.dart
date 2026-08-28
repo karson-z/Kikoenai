@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'search_field_style.dart';
 
 class ToolbarSearchField extends StatelessWidget {
   const ToolbarSearchField({
@@ -99,7 +98,7 @@ class ToolbarSearchField extends StatelessWidget {
           filled: true,
           fillColor: isDark ? const Color(0xFF242426) : Colors.grey.shade100,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(appSearchBorderRadius),
+            borderRadius: BorderRadius.circular(25),
             borderSide: BorderSide.none,
           ),
           contentPadding: EdgeInsets.zero,

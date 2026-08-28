@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai/core/widgets/common/search_field_style.dart';
 import 'package:kikoenai/core/widgets/common/toolbar_search_field.dart';
 import 'package:kikoenai/features/cloud_drive/model/cloud_drive_mode.dart';
 import 'package:kikoenai/features/cloud_drive/widget/cloud_drive_toolbar.dart';
@@ -122,7 +121,7 @@ void main() {
         expect(field.textAlignVertical, TextAlignVertical.center);
         expect(
           border.borderRadius,
-          BorderRadius.circular(appSearchBorderRadius),
+          BorderRadius.circular(25),
         );
         expect(find.text('测试内容'), findsOneWidget);
 
