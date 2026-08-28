@@ -31,6 +31,11 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
     );
   }
 
+  Future<void> loadIfNeeded() async {
+    if (state.hasLoadedDirectory || state.isLoading) return;
+    await loadInitial();
+  }
+
   Future<void> loadInitial() async {
     final requestVersion = ++_browseRequestVersion;
     state = state.copyWith(
@@ -230,8 +235,8 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       node.remoteId ?? node.path ?? node.mediaStreamUrl ?? node.title;
 }
 
-final cloudDriveBrowserControllerProvider = NotifierProvider.autoDispose
-    .family<
+final cloudDriveBrowserControllerProvider =
+    NotifierProvider.family<
       CloudDriveBrowserController,
       CloudDriveBrowserState,
       CloudDriveBrowserArgs

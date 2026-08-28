@@ -149,6 +149,32 @@ void main() {
       expect(state.nodes.single.path, '/one.mp3');
     },
   );
+
+  test('loadIfNeeded reuses the loaded directory until refresh', () async {
+    final source = _FakeCloudDriveSource(
+      supportsRemoteSearch: false,
+      supportsPagination: false,
+      pages: {
+        1: [_folder('/folder')],
+      },
+      totalCount: 1,
+    );
+    final container = ProviderContainer(
+      overrides: [cloudDriveSourceProvider.overrideWith((ref, mode) => source)],
+    );
+    addTearDown(container.dispose);
+    const args = (mode: CloudDriveMode.alistApi, path: '/');
+    final controller = container.read(
+      cloudDriveBrowserControllerProvider(args).notifier,
+    );
+
+    await controller.loadIfNeeded();
+    await controller.loadIfNeeded();
+    expect(source.listCallCount, 1);
+
+    await controller.refresh();
+    expect(source.listCallCount, 2);
+  });
 }
 
 FileNode _folder(String path) => FileNode(
@@ -188,6 +214,7 @@ class _FakeCloudDriveSource implements CloudDriveSource {
   final int totalCount;
   final List<FileNode> searchItems;
   final Completer<CloudDrivePageResult>? listCompleter;
+  int listCallCount = 0;
   int searchCallCount = 0;
   String? lastSearchPath;
 
@@ -206,6 +233,7 @@ class _FakeCloudDriveSource implements CloudDriveSource {
     required int page,
     required int pageSize,
   }) async {
+    listCallCount++;
     final pending = listCompleter;
     if (pending != null) return pending.future;
     return CloudDrivePageResult(

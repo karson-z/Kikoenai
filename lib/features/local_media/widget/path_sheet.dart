@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
 import 'package:kikoenai/core/service/permission/permission_service.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -10,15 +9,20 @@ import '../provider/file_path_notifier.dart';
 import '../provider/file_scanner_notifier.dart';
 
 class PathManagerSheet extends ConsumerStatefulWidget {
-  const PathManagerSheet({super.key});
+  const PathManagerSheet({super.key, this.initialMode});
 
-  static Future<void> show(BuildContext context) {
+  final ScanMode? initialMode;
+
+  static Future<void> show(
+    BuildContext context, {
+    ScanMode? initialMode,
+  }) {
     return KikoenaiDialog.showBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => const PathManagerSheet(),
+      builder: (context) => PathManagerSheet(initialMode: initialMode),
     );
   }
 
@@ -36,7 +40,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
     final activeTarget = ref
         .read(scanTargetsProvider.notifier)
         .getActiveTarget();
-    _currentMode = activeTarget?.scanMode ?? ScanMode.audio;
+    _currentMode = widget.initialMode ?? activeTarget?.scanMode ?? ScanMode.audio;
   }
 
   @override
@@ -131,7 +135,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.15),
+          color: Colors.grey.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Padding(
@@ -147,7 +151,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -230,7 +234,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
           selected: isSelected,
           selectedTileColor: Theme.of(
             context,
-          ).colorScheme.primaryContainer.withOpacity(0.1),
+          ).colorScheme.primaryContainer.withValues(alpha: 0.1),
           leading: CircleAvatar(
             backgroundColor: isSelected
                 ? Theme.of(context).colorScheme.primary
@@ -254,7 +258,7 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
             style: TextStyle(
               fontSize: 11,
               color: isSelected
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)
                   : Theme.of(context).colorScheme.inversePrimary,
             ),
           ),
@@ -375,7 +379,9 @@ class _PathManagerSheetState extends ConsumerState<PathManagerSheet> {
           Icon(
             Icons.folder_off_outlined,
             size: 48,
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+            color: Theme.of(
+              context,
+            ).colorScheme.outline.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(

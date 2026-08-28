@@ -44,6 +44,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   final _scrollController = ScrollController();
+  final Map<String, double> _scrollOffsets = {};
   late String _currentPath;
   bool _isChangingPath = false;
 
@@ -71,7 +72,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       if (!mounted) return;
       ref
           .read(cloudDriveBrowserControllerProvider(_args).notifier)
-          .loadInitial();
+          .loadIfNeeded();
     });
   }
 
@@ -119,23 +120,54 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     final nextPath = _normalizePath(path);
     if (nextPath == _currentPath) return;
 
+    final currentArgs = _args;
+    final currentState = ref.read(
+      cloudDriveBrowserControllerProvider(currentArgs),
+    );
+    if (currentState.isSearchMode) {
+      ref
+          .read(cloudDriveBrowserControllerProvider(currentArgs).notifier)
+          .exitSearch();
+    }
+    _rememberScrollOffset();
+
+    final nextArgs = (mode: widget.mode, path: nextPath);
+    final hasCachedState = ref
+        .read(cloudDriveBrowserControllerProvider(nextArgs))
+        .hasLoadedDirectory;
     _searchFocusNode.unfocus();
     _searchController.clear();
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
-    }
 
     setState(() {
       _currentPath = nextPath;
-      _isChangingPath = true;
+      _isChangingPath = !hasCachedState;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _currentPath != nextPath) return;
       await ref
-          .read(cloudDriveBrowserControllerProvider(_args).notifier)
-          .loadInitial();
+          .read(cloudDriveBrowserControllerProvider(nextArgs).notifier)
+          .loadIfNeeded();
       if (!mounted || _currentPath != nextPath) return;
-      setState(() => _isChangingPath = false);
+      if (_isChangingPath) setState(() => _isChangingPath = false);
+      _restoreScrollOffset(nextPath);
+    });
+  }
+
+  void _rememberScrollOffset() {
+    if (!_scrollController.hasClients) return;
+    _scrollOffsets[_currentPath] = _scrollController.offset;
+  }
+
+  void _restoreScrollOffset(String path) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _currentPath != path || !_scrollController.hasClients) {
+        return;
+      }
+      final position = _scrollController.position;
+      final savedOffset = _scrollOffsets[path] ?? position.minScrollExtent;
+      _scrollController.jumpTo(
+        savedOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
     });
   }
 
@@ -151,6 +183,10 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       next,
     ) {
       if (previous == null || identical(previous, next)) return;
+      _scrollOffsets.clear();
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref

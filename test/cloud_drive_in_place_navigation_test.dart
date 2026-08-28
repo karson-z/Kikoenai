@@ -55,7 +55,66 @@ void main() {
 
     expect(observer.pushCount, initialPushCount);
     expect(find.text('folder'), findsOneWidget);
+    expect(source.requestedPaths, ['/', '/folder']);
+
+    await tester.tap(find.byTooltip('刷新'));
+    await tester.pumpAndSettle();
     expect(source.requestedPaths, ['/', '/folder', '/']);
+  });
+
+  testWidgets('back restores the cached parent directory scroll position', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final source = _FakeCloudDriveSource(
+      rootItems: [
+        ...List.generate(30, (index) => _audio('/track-$index.mp3')),
+        _folder('/folder'),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: CloudDriveBrowserPage(
+              mode: CloudDriveMode.alistApi,
+              isRoot: true,
+              embedded: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollController = tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!;
+    for (var i = 0; i < 10 && find.text('folder').evaluate().isEmpty; i++) {
+      scrollController.jumpTo(
+        (scrollController.offset + 500).clamp(
+          scrollController.position.minScrollExtent,
+          scrollController.position.maxScrollExtent,
+        ),
+      );
+      await tester.pump();
+    }
+    expect(find.text('folder'), findsOneWidget);
+    final savedOffset = scrollController.offset;
+    expect(savedOffset, greaterThan(0));
+
+    await tester.tap(find.text('folder'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(scrollController.offset, closeTo(savedOffset, 1));
+    expect(source.requestedPaths, ['/', '/folder']);
   });
 }
 
@@ -70,6 +129,9 @@ class _PushCountingObserver extends NavigatorObserver {
 }
 
 class _FakeCloudDriveSource implements CloudDriveSource {
+  _FakeCloudDriveSource({this.rootItems});
+
+  final List<FileNode>? rootItems;
   final requestedPaths = <String>[];
 
   @override
@@ -95,7 +157,7 @@ class _FakeCloudDriveSource implements CloudDriveSource {
   }) async {
     requestedPaths.add(path);
     final items = path == '/'
-        ? [_folder('/folder')]
+        ? rootItems ?? [_folder('/folder')]
         : [_audio('/folder/track.mp3')];
     return CloudDrivePageResult(items: items, totalCount: items.length);
   }
@@ -123,7 +185,7 @@ FileNode _folder(String path) => FileNode(
 
 FileNode _audio(String path) => FileNode(
   type: NodeType.audio,
-  title: 'track.mp3',
+  title: NodeFolder(path).name,
   path: path,
   remoteId: path,
   source: NodeSource.cloudDrive,
