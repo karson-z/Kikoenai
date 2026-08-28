@@ -3,6 +3,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 
 void main() {
+  testWidgets('responds to vertical scrolling inside a tab bar view', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 300));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const scrollKey = ValueKey('tab-scroll-content');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DefaultTabController(
+          length: 1,
+          child: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: ScrollAwareToolbarLayout(
+                  notificationPredicate: (_) => true,
+                  toolbar: const SizedBox(height: 80),
+                  child: TabBarView(
+                    controller: DefaultTabController.of(context),
+                    children: const [
+                      CustomScrollView(
+                        key: scrollKey,
+                        slivers: [
+                          SliverToBoxAdapter(child: SizedBox(height: 1000)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final toolbarViewport = find.byKey(
+      const ValueKey('scroll-aware-toolbar-viewport'),
+    );
+    await tester.drag(find.byKey(scrollKey), const Offset(0, -160));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('responds to vertical scrolling inside a nested scroll view', (
     tester,
   ) async {

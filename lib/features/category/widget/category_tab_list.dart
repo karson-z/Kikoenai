@@ -11,13 +11,11 @@ import '../provider/category_keep_alive.dart';
 
 class CategoryListTab extends ConsumerStatefulWidget {
   final SortOrder sortOrder;
-  final double? pinnedHeaderHeight;
   final bool isFilterOpen;
 
   const CategoryListTab({
     Key? key,
     required this.sortOrder,
-    this.pinnedHeaderHeight,
     required this.isFilterOpen,
   }) : super(key: key);
 
@@ -26,7 +24,8 @@ class CategoryListTab extends ConsumerStatefulWidget {
 }
 
 class _CategoryListTabState extends ConsumerState<CategoryListTab>
-    with AutomaticKeepAliveClientMixin { // 1. 保持 AutomaticKeepAliveClientMixin
+    with AutomaticKeepAliveClientMixin {
+  // 1. 保持 AutomaticKeepAliveClientMixin
   /// 列表顶部的零高度标记，用于定位当前 tab 自己的 Scrollable
   final GlobalKey _topMarkerKey = GlobalKey();
 
@@ -47,9 +46,7 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
       _updateBackToTop(false);
     } else if (delta < 0) {
       // 滚动位置减少：内容向下走，且离开顶部足够远才显示
-      _updateBackToTop(
-        notification.metrics.pixels > _backToTopThreshold,
-      );
+      _updateBackToTop(notification.metrics.pixels > _backToTopThreshold);
     }
     return false;
   }
@@ -61,11 +58,11 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
 
   void _scrollToTop() {
     _updateBackToTop(false);
-    // 列表在 NestedScrollView 内部，不能直接挂 ScrollController，
-    // 通过顶部标记找到当前列表自己的 Scrollable 再滚回顶部
+    // 通过顶部标记找到当前 Tab 自己的 Scrollable。
     final markerContext = _topMarkerKey.currentContext;
-    final scrollable =
-        markerContext == null ? null : Scrollable.maybeOf(markerContext);
+    final scrollable = markerContext == null
+        ? null
+        : Scrollable.maybeOf(markerContext);
     scrollable?.position.animateTo(
       0,
       duration: const Duration(milliseconds: 300),
@@ -79,9 +76,12 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
     // 首次加载时，立即将自己注册为活跃
     // 使用 microtask 避免在构建过程中修改 Provider
     Future.microtask(() {
-      ref.read(keepAliveManagerProvider.notifier).markAsActive(widget.sortOrder);
+      ref
+          .read(keepAliveManagerProvider.notifier)
+          .markAsActive(widget.sortOrder);
     });
   }
+
   @override
   bool get wantKeepAlive {
     final activeList = ref.read(keepAliveManagerProvider);
@@ -110,7 +110,6 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
           children: [
             Positioned.fill(
               child: RefreshIndicator(
-                edgeOffset: widget.pinnedHeaderHeight ?? 0,
                 onRefresh: () async {
                   return ref.refresh(categoryProvider(widget.sortOrder).future);
                 },
@@ -120,10 +119,6 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
                       ? const NeverScrollableScrollPhysics()
                       : nonBouncingRefreshScrollPhysics,
                   slivers: [
-                    SliverOverlapInjector(
-                      handle:
-                          NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                    ),
                     // 顶部标记：回到顶部时用于定位当前列表的 Scrollable
                     SliverToBoxAdapter(
                       child: SizedBox.shrink(key: _topMarkerKey),
@@ -175,10 +170,11 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
     );
   }
 
-  List<Widget> _buildCommonContent(
-      WidgetRef ref) {
+  List<Widget> _buildCommonContent(WidgetRef ref) {
     final categoryWorks = ref.watch(categoryProvider(widget.sortOrder));
-    final categoryController = ref.read(categoryProvider(widget.sortOrder).notifier);
+    final categoryController = ref.read(
+      categoryProvider(widget.sortOrder).notifier,
+    );
     return [
       categoryWorks.when(
         skipLoadingOnRefresh: true,
@@ -209,10 +205,7 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
           child: SizedBox(
             height: 280,
             child: Center(
-              child: LottieLoadingIndicator(
-                size: 76,
-                message: '加载中...',
-              ),
+              child: LottieLoadingIndicator(size: 76, message: '加载中...'),
             ),
           ),
         ),
@@ -222,7 +215,8 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
             height: 120,
             child: Center(
               child: TextButton(
-                onPressed: () => ref.refresh(categoryProvider(widget.sortOrder)),
+                onPressed: () =>
+                    ref.refresh(categoryProvider(widget.sortOrder)),
                 child: Text('加载失败: $e\n点击重试', textAlign: TextAlign.center),
               ),
             ),

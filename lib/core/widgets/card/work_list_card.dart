@@ -74,7 +74,6 @@ class WorkListCard extends ConsumerWidget {
                       mainCoverUrl ?? '',
                       width: 88,
                       cacheWidth: 200,
-                      loadingPlaceholder: const _CoverPlaceholder(),
                     ),
                   ),
                 ),
@@ -205,19 +204,6 @@ class _MetaChip extends StatelessWidget {
           height: 1.2,
         ),
       ),
-    );
-  }
-}
-
-/// 封面加载中的轻量静态占位：跟随亮暗主题的灰底色块，无动画开销。
-class _CoverPlaceholder extends StatelessWidget {
-  const _CoverPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ColoredBox(
-      color: isDark ? const Color(0xFF242424) : const Color(0xFFF0F0F2),
     );
   }
 }
