@@ -110,8 +110,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.detail,
                 pageBuilder: (context, state) {
-                  final extra = state.extra as Map<String, dynamic>? ?? {};
-                  return MaterialPage(child: AlbumDetailPage(extra: extra));
+                  return MaterialPage(
+                    child: AlbumDetailPage(extra: state.extra),
+                  );
                 },
               ),
             ],

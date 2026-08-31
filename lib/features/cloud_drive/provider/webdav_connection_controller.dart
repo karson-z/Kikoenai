@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:kikoenai/core/service/player/media_http_headers_registry.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
@@ -8,6 +10,7 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:webdav_client/webdav_client.dart' as webdav;
 
 import '../data/webdav_credential_store.dart';
+import '../../dl_page/media/webdav_media_index.dart';
 
 const String webDavSiteId = 'webdav';
 
@@ -104,10 +107,15 @@ class WebDavController extends Notifier<WebDavSessionState> {
   Uri? _baseUri;
   void Function()? _unregisterPlaybackHeadersResolver;
   Future<bool>? _restoreFuture;
+  AppLifecycleListener? _lifecycleListener;
 
   @override
   WebDavSessionState build() {
+    _lifecycleListener = AppLifecycleListener(
+      onResume: _refreshMediaIndexIfNeeded,
+    );
     ref.onDispose(() {
+      _lifecycleListener?.dispose();
       _unregisterPlaybackHeadersResolver?.call();
       _client?.c.close(force: true);
     });
@@ -174,6 +182,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
         clearError: true,
         revision: state.revision + 1,
       );
+      _refreshMediaIndexIfNeeded();
       return true;
     } catch (error) {
       client.c.close(force: true);
@@ -246,6 +255,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
       });
 
   Future<void> disconnect() async {
+    WebDavMediaIndexService.instance.cancelActive();
     _unregisterPlaybackHeadersResolver?.call();
     _unregisterPlaybackHeadersResolver = null;
     _client?.c.close(force: true);
@@ -281,6 +291,22 @@ class WebDavController extends Notifier<WebDavSessionState> {
     } catch (error) {
       throw WebDavBrowseException(describeError(error), error);
     }
+  }
+
+  void _refreshMediaIndexIfNeeded() {
+    if (!state.isConnected) return;
+    final fingerprint = WebDavMediaIndexService.fingerprintFor(
+      serverUrl: state.serverUrl,
+      username: state.username,
+      rootPath: state.rootPath,
+    );
+    unawaited(
+      WebDavMediaIndexService.instance.ensureFresh(
+        fingerprint: fingerprint,
+        rootPath: state.rootPath,
+        loadDirectory: listDirectory,
+      ),
+    );
   }
 
   static String normalizeRemotePath(String input) {

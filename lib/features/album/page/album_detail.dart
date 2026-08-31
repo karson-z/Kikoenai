@@ -12,6 +12,7 @@ import 'package:kikoenai/core/widgets/drawer/kikoenai_inner_drawer.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai/features/album/provider/audio_file_provider.dart';
+import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/album/provider/work_provider.dart';
 import 'package:kikoenai/features/album/widget/album_file_section.dart';
 import 'package:kikoenai/features/album/widget/rating_menu.dart';
@@ -23,7 +24,7 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 
 class AlbumDetailPage extends StatefulWidget {
   const AlbumDetailPage({super.key, required this.extra});
-  final Map<String, dynamic> extra;
+  final Object? extra;
 
   @override
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
@@ -48,21 +49,16 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // 解析路由参数，取出 Work / workId
-    var workRaw = widget.extra['work'];
-    Work? work;
-    if (workRaw is Map) {
-      work = Work.fromJson(workRaw as Map<String, dynamic>);
-    } else if (workRaw is Work) {
-      work = workRaw;
-    }
-    final int workId = widget.extra['workId'] as int? ?? work?.id ?? 0;
+    final args = AlbumDetailArgs.fromExtra(widget.extra);
+    final work = args.work;
+    final workId = args.resolvedWorkId;
 
     final content = _AlbumDetailContent(
       controller: _drawerController,
       backgroundColor: isDark ? Colors.black : Colors.white,
       work: work,
       workId: workId,
+      mode: args.mode,
     );
     return content;
   }
@@ -74,18 +70,21 @@ class _AlbumDetailContent extends ConsumerWidget {
     required this.backgroundColor,
     required this.work,
     required this.workId,
+    required this.mode,
   });
 
   final KikoenaiInnerDrawerController controller;
   final Color backgroundColor;
   final Work? work;
   final int workId;
+  final AlbumDetailMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canShowSimilarWorks = ref.watch(
-      surfaceAvailableProvider(AppSurface.albumSimilarWorks),
-    );
+    final isDlLibrary = mode == AlbumDetailMode.dlLibrary;
+    final canShowSimilarWorks =
+        !isDlLibrary &&
+        ref.watch(surfaceAvailableProvider(AppSurface.albumSimilarWorks));
 
     return KikoenaiInnerDrawerScope(
       controller: controller,
@@ -101,7 +100,11 @@ class _AlbumDetailContent extends ConsumerWidget {
                 hasInitialWork: work != null,
               )
             : const SizedBox.shrink(),
-        child: AlbumDetailContainer(workId: workId, initialWork: work),
+        child: AlbumDetailContainer(
+          workId: workId,
+          initialWork: work,
+          mode: mode,
+        ),
       ),
     );
   }
@@ -188,13 +191,38 @@ class AlbumDetailContainer extends ConsumerWidget {
     super.key,
     required this.workId,
     this.initialWork,
+    this.mode = AlbumDetailMode.remote,
   });
 
   final int workId;
   final Work? initialWork;
+  final AlbumDetailMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (mode == AlbumDetailMode.dlLibrary) {
+      final work = initialWork;
+      if (work == null) return _AlbumDetailLoadingScaffold(workId: workId);
+      return AlbumDetailView(
+        heroTag: work.effectiveHeroTag,
+        thumbnailCoverUrl: work.thumbnailCoverUrl,
+        mainCoverUrl: work.mainCoverUrl,
+        workId: work.id,
+        title: work.title,
+        circleName: work.name,
+        price: work.price,
+        dlCount: work.dlCount,
+        rateAverage2dp: work.rateAverage2dp,
+        reviewCount: work.reviewCount,
+        duration: work.duration,
+        userRating: 0,
+        vas: work.vas,
+        tags: work.tags,
+        enableTagNavigation: false,
+        fileSection: DlAlbumMediaSourceSection(work: work),
+      );
+    }
+
     final availableSurfaces = ref.watch(availableSurfacesProvider);
     final primarySiteHasTracks = availableSurfaces.contains(
       AppSurface.albumTracksSection,
@@ -348,6 +376,7 @@ class AlbumDetailView extends StatelessWidget {
     // 交互回调
     this.onCircleTap,
     this.onRatingUpdate,
+    this.enableTagNavigation = true,
     // 文件区段（sliver）
     required this.fileSection,
     // 下拉刷新
@@ -387,6 +416,7 @@ class AlbumDetailView extends StatelessWidget {
   // --- 交互回调 ---
   final VoidCallback? onCircleTap;
   final ValueChanged<int>? onRatingUpdate;
+  final bool enableTagNavigation;
 
   // --- 文件区段 ---
   final Widget fileSection;
@@ -511,7 +541,12 @@ class AlbumDetailView extends StatelessWidget {
             style: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
         const SizedBox(height: 4),
-        if (vas != null) TagRow(tags: vas!, type: TagType.va),
+        if (vas != null)
+          TagRow(
+            tags: vas!,
+            type: TagType.va,
+            enableNavigation: enableTagNavigation,
+          ),
         const SizedBox(height: 4),
         Row(
           children: [
@@ -541,7 +576,8 @@ class AlbumDetailView extends StatelessWidget {
           onRatingUpdate: onRatingUpdate,
         ),
         const SizedBox(height: 12),
-        if (tags != null) TagRow(tags: tags!),
+        if (tags != null)
+          TagRow(tags: tags!, enableNavigation: enableTagNavigation),
       ],
     );
   }

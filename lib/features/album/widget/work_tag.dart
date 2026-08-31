@@ -11,8 +11,14 @@ import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 class TagRow extends ConsumerWidget {
   final List<dynamic> tags;
   final TagType type;
+  final bool enableNavigation;
 
-  const TagRow({super.key, required this.tags, this.type = TagType.tag});
+  const TagRow({
+    super.key,
+    required this.tags,
+    this.type = TagType.tag,
+    this.enableNavigation = true,
+  });
 
   // 常量定义
   static const double kTagFontSize = 10.0;
@@ -27,9 +33,9 @@ class TagRow extends ConsumerWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
 
     final isDark = ref.watch(explicitDarkModeProvider);
-    final canOpenCategory = ref.watch(
-      surfaceAvailableProvider(AppSurface.categoryPage),
-    );
+    final canOpenCategory =
+        enableNavigation &&
+        ref.watch(surfaceAvailableProvider(AppSurface.categoryPage));
 
     return SizedBox(
       height: kRowHeight,
@@ -102,7 +108,9 @@ class _TagItem extends StatelessWidget {
               // 仅刷新当前排序对应的 tab，避免全 family 失效触发所有存活 tab 请求
               ref.invalidate(
                 categoryProvider(
-                  ref.read(searchFilterProvider(FilterModule.category)).sortOption,
+                  ref
+                      .read(searchFilterProvider(FilterModule.category))
+                      .sortOption,
                 ),
               );
               context.go(AppRoutes.category);

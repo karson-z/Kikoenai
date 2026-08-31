@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../provider/webdav_connection_controller.dart';
+import '../../dl_page/media/webdav_media_index.dart';
 
 class WebDavConnectionForm extends ConsumerStatefulWidget {
   const WebDavConnectionForm({super.key, this.showDisconnectAction = false});
@@ -204,6 +205,10 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
                       ),
                     ),
                   ],
+                  if (state.isConnected) ...[
+                    const SizedBox(height: 22),
+                    _WebDavMediaIndexPanel(connection: state),
+                  ],
                 ],
               ),
             ),
@@ -211,5 +216,80 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
         ),
       ),
     );
+  }
+}
+
+class _WebDavMediaIndexPanel extends ConsumerWidget {
+  const _WebDavMediaIndexPanel({required this.connection});
+
+  final WebDavSessionState connection;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final service = WebDavMediaIndexService.instance;
+    return ValueListenableBuilder<WebDavMediaIndexState>(
+      valueListenable: service.state,
+      builder: (context, indexState, _) {
+        final isScanning = indexState.phase == WebDavMediaIndexPhase.scanning;
+        final subtitle = switch (indexState.phase) {
+          WebDavMediaIndexPhase.scanning =>
+            '已扫描 ${indexState.scannedDirectories} 个目录，识别 ${indexState.indexedWorks} 部作品',
+          WebDavMediaIndexPhase.ready =>
+            '已识别 ${indexState.indexedWorks} 部作品${_updatedAt(indexState.lastUpdatedAt)}',
+          WebDavMediaIndexPhase.error => indexState.message ?? '索引更新失败，仍保留上次结果',
+          WebDavMediaIndexPhase.idle => '为 DL 详情建立 RJ 目录索引',
+        };
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ListTile(
+            leading: isScanning
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.manage_search_outlined),
+            title: const Text('DL 媒体索引'),
+            subtitle: Text(subtitle),
+            trailing: IconButton(
+              tooltip: '更新索引',
+              onPressed: isScanning
+                  ? null
+                  : () {
+                      final controller = ref.read(
+                        webDavConnectionControllerProvider.notifier,
+                      );
+                      final fingerprint =
+                          WebDavMediaIndexService.fingerprintFor(
+                            serverUrl: connection.serverUrl,
+                            username: connection.username,
+                            rootPath: connection.rootPath,
+                          );
+                      service.ensureFresh(
+                        fingerprint: fingerprint,
+                        rootPath: connection.rootPath,
+                        loadDirectory: controller.listDirectory,
+                        force: true,
+                      );
+                    },
+              icon: const Icon(Icons.refresh),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _updatedAt(DateTime? value) {
+    if (value == null) return '';
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return ' · ${value.year}-$month-$day $hour:$minute';
   }
 }

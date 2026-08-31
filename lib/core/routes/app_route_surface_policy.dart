@@ -3,6 +3,7 @@ import 'package:kikoenai_sites/kikoenai_sites.dart';
 
 import '../service/site/site_availability.dart';
 import 'app_routes.dart';
+import '../../features/album/model/album_detail_args.dart';
 
 /// Central mapping from routes to application surfaces.
 class AppRouteSurfacePolicy {
@@ -18,7 +19,10 @@ class AppRouteSurfacePolicy {
       AppRoutes.search => AppSurface.searchPage,
       AppRoutes.login => AppSurface.authPage,
       AppRoutes.hotAndRecommend => _homeSectionSurface(extra),
-      AppRoutes.detail => AppSurface.remoteAlbumDetailPage,
+      AppRoutes.detail =>
+        AlbumDetailArgs.fromExtra(extra).mode == AlbumDetailMode.dlLibrary
+            ? null
+            : AppSurface.remoteAlbumDetailPage,
       _ => null,
     };
   }

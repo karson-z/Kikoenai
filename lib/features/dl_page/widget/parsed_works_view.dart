@@ -10,6 +10,7 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
+import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/category/widget/filter_row_panel.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
@@ -323,7 +324,10 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
       release: work.release,
       vas: work.vas,
       tags: work.tags,
-      onTap: () => context.push(AppRoutes.detail, extra: {'work': work}),
+      onTap: () => context.push(
+        AppRoutes.detail,
+        extra: AlbumDetailArgs(work: work, mode: AlbumDetailMode.dlLibrary),
+      ),
     );
   }
 
