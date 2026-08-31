@@ -1,6 +1,6 @@
 class VersionConfig{
   /// 当前版本
-  static const String version = '1.1.8';
+  static const String version = '1.1.9';
   /// app名称
   static const String appName = 'Kikoenai';
   /// Github 项目主页
