@@ -108,6 +108,7 @@ void main() {
 
     expect(tester.getSize(toolbarViewport).height, closeTo(0, 0.1));
 
+    final pixelsBeforeReveal = scrollable.position.pixels;
     final revealDrag = await tester.startGesture(
       tester.getCenter(find.byKey(innerScrollKey)),
     );
@@ -115,12 +116,18 @@ void main() {
     await tester.pump();
     expect(tester.getSize(toolbarViewport).height, greaterThan(40));
     expect(tester.getSize(toolbarViewport).height, lessThan(80));
+    expect(scrollable.position.pixels, closeTo(pixelsBeforeReveal, 0.1));
 
     await revealDrag.up();
     await tester.pumpAndSettle();
 
     expect(scrollable.position.pixels, greaterThan(200));
     expect(tester.getSize(toolbarViewport).height, closeTo(80, 0.1));
+
+    final pixelsBeforeContentDrag = scrollable.position.pixels;
+    await tester.drag(find.byKey(innerScrollKey), const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(scrollable.position.pixels, lessThan(pixelsBeforeContentDrag));
 
     final shortCollapse = await tester.startGesture(
       tester.getCenter(find.byKey(innerScrollKey)),

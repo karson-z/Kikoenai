@@ -147,6 +147,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         subTextColor: subTextColor,
         fillColor: fillColor,
         primaryColor: primaryColor,
+        horizontalPadding: 8,
       ),
     );
     final categoryContent = Column(
@@ -203,12 +204,16 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                         color: bgColor,
                         elevation: 8,
                         shadowColor: Colors.black.withValues(alpha: 0.2),
-                        child: FilterWidget(
-                          type: FilterModule.category,
-                          onComplete: () {
-                            queryNotifier.closeFilterDrawer();
-                            ref.invalidate(categoryProvider(query.sortOption));
-                          },
+                        child: NotificationListener<ScrollNotification>(
+                          // 抽屉内部滚动不应驱动外层 AppBar 的收起/展开。
+                          onNotification: (_) => true,
+                          child: FilterWidget(
+                            type: FilterModule.category,
+                            onComplete: () {
+                              queryNotifier.closeFilterDrawer();
+                              ref.invalidate(categoryProvider(query.sortOption));
+                            },
+                          ),
                         ),
                       ),
                     ),

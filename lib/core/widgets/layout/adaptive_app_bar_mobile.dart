@@ -25,8 +25,8 @@ class MobileSearchAppBar extends ConsumerWidget {
         return Padding(
           padding: EdgeInsets.only(
             top: topPadding + 8,
-            left: 16,
-            right: 16,
+            left: 8,
+            right: 8,
             bottom: 8,
           ),
           child: Row(

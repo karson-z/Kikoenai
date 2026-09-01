@@ -32,7 +32,6 @@ class _CloudDrivePageState extends ConsumerState<CloudDrivePage> {
               value: _mode,
               onChanged: (mode) => setState(() => _mode = mode),
             ),
-            const Divider(height: 1),
             Expanded(
               child: IndexedStack(
                 index: _mode.index,

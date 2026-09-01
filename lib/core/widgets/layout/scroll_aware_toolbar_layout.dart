@@ -34,6 +34,7 @@ class _ScrollAwareToolbarLayoutState extends State<ScrollAwareToolbarLayout>
   );
 
   late final AnimationController _visibilityController;
+  bool _isCompensatingScroll = false;
 
   @override
   void initState() {
@@ -57,6 +58,8 @@ class _ScrollAwareToolbarLayoutState extends State<ScrollAwareToolbarLayout>
   }
 
   bool _handleScrollNotification(ScrollNotification notification) {
+    if (_isCompensatingScroll) return false;
+
     if (widget.forceToolbarVisible ||
         notification.metrics.axis != Axis.vertical ||
         !widget.notificationPredicate(notification)) {
@@ -68,11 +71,11 @@ class _ScrollAwareToolbarLayoutState extends State<ScrollAwareToolbarLayout>
     } else if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta;
       if (delta != null && delta != 0) {
-        _updateVisibility(delta, notification.metrics);
+        _updateVisibility(delta, notification);
       }
     } else if (notification is OverscrollNotification) {
       if (notification.overscroll != 0) {
-        _updateVisibility(notification.overscroll, notification.metrics);
+        _updateVisibility(notification.overscroll, notification);
       }
     } else if (notification is ScrollEndNotification) {
       _settleVisibility();
@@ -81,18 +84,48 @@ class _ScrollAwareToolbarLayoutState extends State<ScrollAwareToolbarLayout>
     return false;
   }
 
-  void _updateVisibility(double scrollDelta, ScrollMetrics metrics) {
+  void _updateVisibility(double scrollDelta, ScrollNotification notification) {
     _visibilityController.stop();
 
-    if (scrollDelta < 0 && metrics.pixels <= metrics.minScrollExtent) {
-      _visibilityController.value = 1;
-      return;
-    }
+    final currentVisibility = _visibilityController.value;
+    final availableDistance = scrollDelta < 0
+        ? (1 - currentVisibility) * widget.scrollDistance
+        : currentVisibility * widget.scrollDistance;
+    final consumedDistance = scrollDelta.abs().clamp(0.0, availableDistance);
 
-    _visibilityController.value =
-        (_visibilityController.value - scrollDelta / widget.scrollDistance)
-            .clamp(0.0, 1.0)
-            .toDouble();
+    if (consumedDistance > 0) {
+      _visibilityController.value =
+          (currentVisibility - scrollDelta.sign * consumedDistance / widget.scrollDistance)
+              .clamp(0.0, 1.0)
+              .toDouble();
+      _compensateContentScroll(notification, scrollDelta.sign * consumedDistance);
+    }
+  }
+
+  void _compensateContentScroll(
+    ScrollNotification notification,
+    double consumedDelta,
+  ) {
+    final notificationContext = notification.context;
+    if (notificationContext == null) return;
+
+    final scrollable = Scrollable.maybeOf(notificationContext);
+    final position = scrollable?.position;
+    if (position == null || !position.hasPixels) return;
+
+    final target = (position.pixels - consumedDelta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if ((target - position.pixels).abs() < 0.001) return;
+
+    _isCompensatingScroll = true;
+    try {
+      // Correct only the portion consumed by the toolbar while preserving
+      // the active drag activity on the content scrollable.
+      position.setPixels(target);
+    } finally {
+      _isCompensatingScroll = false;
+    }
   }
 
   void _settleVisibility() {

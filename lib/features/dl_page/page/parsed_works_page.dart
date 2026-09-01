@@ -30,7 +30,6 @@ class ParsedWorksPage extends ConsumerWidget {
                 onOpenQueue: () => Scaffold.of(headerContext).openEndDrawer(),
               ),
             ),
-            const Divider(height: 1),
             Expanded(
               child: ValueListenableBuilder(
                 valueListenable: AppStorage.scraperWorkBox.listenable(),

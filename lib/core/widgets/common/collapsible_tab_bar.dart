@@ -41,8 +41,19 @@ class CollapsibleTabBar extends ConsumerWidget {
                 isScrollable: true,
                 dividerHeight: 0,
                 dragStartBehavior: DragStartBehavior.down,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-                tabs: filters.map((f) => Tab(text: f, height: 46)).toList(),
+                labelPadding: EdgeInsets.zero,
+                tabs: filters.asMap().entries.map((entry) {
+                  return Tab(
+                    height: 46,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: entry.key == 0 ? 4 : 12,
+                        right: 12,
+                      ),
+                      child: Text(entry.value),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
 
@@ -77,7 +88,7 @@ class CollapsibleTabBar extends ConsumerWidget {
 
             // 排序图标
             Padding(
-              padding: const EdgeInsets.only(left: 4, right: 12), // 调整左侧间距，让两个图标紧凑一点
+              padding: const EdgeInsets.only(left: 4, right: 4),
               child: _buildAnimatedSortIcon(sortDirection, onSortTap),
             ),
           ],

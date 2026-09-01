@@ -85,7 +85,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         child: Column(
           children: [
             LocalMediaHeader(value: currentMode, onChanged: _changeMode),
-            const Divider(height: 1),
             Expanded(
               child: scannerState.rootPath.isEmpty
                   ? _buildEmptyStateView(context, currentMode)
