@@ -1,19 +1,19 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../provider/player_controller_provider.dart';
+import '../../provider/video_brightness_provider.dart';
 
 enum GestureFeedbackType { none, seek, volume, brightness }
 
 class VideoGestureLayer extends ConsumerStatefulWidget {
   final Widget child;
 
-  const VideoGestureLayer({
-    super.key,
-    required this.child,
-  });
+  const VideoGestureLayer({super.key, required this.child});
 
   @override
   ConsumerState<VideoGestureLayer> createState() => _VideoGestureLayerState();
@@ -25,19 +25,95 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   int _seekOffsetSeconds = 0;
 
   double _currentBrightness = 0.5;
+  double _pendingBrightnessDelta = 0;
+  double? _pendingBrightnessWrite;
+  Future<void>? _brightnessWriter;
+  bool _brightnessReady = false;
+  bool _brightnessUnavailable = false;
+  bool _brightnessAdjusted = false;
+  GestureFeedbackType? _verticalDragType;
+  late final VideoBrightnessService _brightnessService;
 
   GestureFeedbackType _feedbackType = GestureFeedbackType.none;
   Timer? _feedbackTimer;
 
   bool get isDesktop =>
       defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.macOS ||
-          defaultTargetPlatform == TargetPlatform.linux;
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux;
+
+  @override
+  void initState() {
+    super.initState();
+    _brightnessService = ref.read(videoBrightnessServiceProvider);
+    unawaited(_loadBrightness());
+  }
 
   @override
   void dispose() {
     _feedbackTimer?.cancel();
+    if (_brightnessAdjusted) {
+      unawaited(_restoreBrightnessAfterPendingWrites());
+    }
     super.dispose();
+  }
+
+  Future<void> _loadBrightness() async {
+    try {
+      final brightness = await _brightnessService.applicationBrightness;
+      if (!mounted) return;
+      _currentBrightness = brightness.clamp(0.0, 1.0).toDouble();
+      _brightnessReady = true;
+      final pendingDelta = _pendingBrightnessDelta;
+      _pendingBrightnessDelta = 0;
+      if (pendingDelta != 0) _adjustBrightness(pendingDelta);
+    } catch (error) {
+      _brightnessUnavailable = true;
+      _pendingBrightnessDelta = 0;
+      debugPrint('视频亮度读取失败: $error');
+    }
+  }
+
+  void _adjustBrightness(double delta) {
+    if (_brightnessUnavailable) return;
+    if (!_brightnessReady) {
+      _pendingBrightnessDelta = (_pendingBrightnessDelta + delta)
+          .clamp(-1.0, 1.0)
+          .toDouble();
+      return;
+    }
+
+    final brightness = (_currentBrightness + delta).clamp(0.0, 1.0).toDouble();
+    if (brightness == _currentBrightness) return;
+    _currentBrightness = brightness;
+    _brightnessAdjusted = true;
+    _pendingBrightnessWrite = brightness;
+    _brightnessWriter ??= _drainBrightnessWrites();
+    _showFeedback(GestureFeedbackType.brightness);
+  }
+
+  Future<void> _drainBrightnessWrites() async {
+    while (_pendingBrightnessWrite != null && !_brightnessUnavailable) {
+      final brightness = _pendingBrightnessWrite!;
+      _pendingBrightnessWrite = null;
+      try {
+        await _brightnessService.setApplicationBrightness(brightness);
+      } catch (error) {
+        _brightnessUnavailable = true;
+        _pendingBrightnessWrite = null;
+        debugPrint('视频亮度设置失败: $error');
+      }
+    }
+    _brightnessWriter = null;
+  }
+
+  Future<void> _restoreBrightnessAfterPendingWrites() async {
+    try {
+      await _brightnessWriter;
+      await _brightnessService.resetApplicationBrightness();
+    } catch (error) {
+      debugPrint('视频亮度恢复失败: $error');
+    }
   }
 
   void _showFeedback(GestureFeedbackType type, {int? seekOffset}) {
@@ -67,8 +143,11 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
     if (event.scrollDelta.dx != 0) {
       final deltaSeconds = event.scrollDelta.dx > 0 ? 5 : -5;
       final target = state.progressBarState.current.inSeconds + deltaSeconds;
-      controller.seek(Duration(
-          seconds: target.clamp(0, state.progressBarState.total.inSeconds)));
+      controller.seek(
+        Duration(
+          seconds: target.clamp(0, state.progressBarState.total.inSeconds),
+        ),
+      );
       _showFeedback(GestureFeedbackType.seek, seekOffset: deltaSeconds);
     }
 
@@ -77,10 +156,9 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
       final delta = event.scrollDelta.dy < 0 ? 0.05 : -0.05;
 
       if (event.localPosition.dx < screenWidth / 2) {
-        _currentBrightness = (_currentBrightness + delta).clamp(0.0, 1.0);
-        _showFeedback(GestureFeedbackType.brightness);
+        _adjustBrightness(delta);
       } else {
-        double newVolume = (state.volume + delta).clamp(0.0, 1.0);
+        final newVolume = (state.volume + delta).clamp(0.0, 1.0);
         controller.setVolume(newVolume);
         _showFeedback(GestureFeedbackType.volume);
       }
@@ -123,63 +201,79 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                 onHorizontalDragStart: isDesktop
                     ? null
                     : (_) {
-                  _dragValue = state.progressBarState.current.inSeconds.toDouble();
-                  _initialDragSeconds = _dragValue;
-                  _showFeedback(GestureFeedbackType.seek, seekOffset: 0);
-                },
+                        _dragValue = state.progressBarState.current.inSeconds
+                            .toDouble();
+                        _initialDragSeconds = _dragValue;
+                        _showFeedback(GestureFeedbackType.seek, seekOffset: 0);
+                      },
                 onHorizontalDragUpdate: isDesktop
                     ? null
                     : (details) {
-                  final total = state.progressBarState.total.inSeconds;
-                  if (total <= 0) return;
-                  final deltaSeconds = details.primaryDelta! /
-                      (MediaQuery.sizeOf(context).width / total * 0.5);
-                  _dragValue += deltaSeconds;
-                  _dragValue = _dragValue.clamp(0, total.toDouble());
+                        final total = state.progressBarState.total.inSeconds;
+                        if (total <= 0) return;
+                        final deltaSeconds =
+                            details.primaryDelta! /
+                            (MediaQuery.sizeOf(context).width / total * 0.5);
+                        _dragValue += deltaSeconds;
+                        _dragValue = _dragValue.clamp(0, total.toDouble());
 
-                  final offset = (_dragValue - _initialDragSeconds).toInt();
-                  _showFeedback(GestureFeedbackType.seek, seekOffset: offset);
-                },
+                        final offset = (_dragValue - _initialDragSeconds)
+                            .toInt();
+                        _showFeedback(
+                          GestureFeedbackType.seek,
+                          seekOffset: offset,
+                        );
+                      },
                 onHorizontalDragEnd: isDesktop
                     ? null
                     : (_) {
-                  if (_feedbackType == GestureFeedbackType.seek) {
-                    controller.seek(Duration(seconds: _dragValue.toInt()));
-                  }
-                },
+                        if (_feedbackType == GestureFeedbackType.seek) {
+                          controller.seek(
+                            Duration(seconds: _dragValue.toInt()),
+                          );
+                        }
+                      },
 
                 // 3. 实际的业务逻辑：调节音量和亮度
                 onVerticalDragUpdate: isDesktop
                     ? null
                     : (details) {
-                  final screenWidth = MediaQuery.sizeOf(context).width;
-                  final localPosition = details.localPosition.dx;
-                  final delta = -(details.primaryDelta ?? 0) / 200;
+                        final delta = -(details.primaryDelta ?? 0) / 200;
 
-                  if (localPosition < screenWidth / 2) {
-                    _currentBrightness = (_currentBrightness + delta).clamp(0.0, 1.0);
-                    _showFeedback(GestureFeedbackType.brightness);
-                  } else {
-                    double newVolume = (state.volume + delta).clamp(0.0, 1.0);
-                    controller.setVolume(newVolume);
-                    _showFeedback(GestureFeedbackType.volume);
-                  }
-                },
-
-                // 4. 宣告对拖拽结束感兴趣 (拦截关键)
-                onVerticalDragEnd: isDesktop ? null : (_) {},
-
-                // 5. 宣告对拖拽取消感兴趣 (拦截关键)
-                onVerticalDragCancel: isDesktop ? null : () {},
+                        if (_verticalDragType ==
+                            GestureFeedbackType.brightness) {
+                          _adjustBrightness(delta);
+                        } else {
+                          final newVolume = (state.volume + delta).clamp(
+                            0.0,
+                            1.0,
+                          );
+                          controller.setVolume(newVolume);
+                          _showFeedback(GestureFeedbackType.volume);
+                        }
+                      },
+                onVerticalDragStart: isDesktop
+                    ? null
+                    : (details) {
+                        final screenWidth = MediaQuery.sizeOf(context).width;
+                        _verticalDragType =
+                            details.localPosition.dx < screenWidth / 2
+                            ? GestureFeedbackType.brightness
+                            : GestureFeedbackType.volume;
+                      },
+                onVerticalDragEnd: isDesktop
+                    ? null
+                    : (_) => _verticalDragType = null,
+                onVerticalDragCancel: isDesktop
+                    ? null
+                    : () => _verticalDragType = null,
 
                 child: widget.child,
               ),
             ),
           ),
           if (_feedbackType != GestureFeedbackType.none)
-            Center(
-              child: _buildFeedbackWidget(state.volume),
-            ),
+            Center(child: _buildFeedbackWidget(state.volume)),
         ],
       ),
     );

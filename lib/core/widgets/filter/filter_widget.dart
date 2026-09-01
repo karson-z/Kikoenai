@@ -9,13 +9,14 @@ import '../common/kikoenai_dialog.dart';
 import 'filter_bottom_panel.dart';
 import 'filter_grid_content.dart';
 import 'filter_silder_bar.dart';
+
 void showFilterBottomSheet(
-    BuildContext context,
-    WidgetRef ref,
-    FilterModule type, {
-      bool isShowAction = true,
-      VoidCallback? onComplete,
-    }) {
+  BuildContext context,
+  WidgetRef ref,
+  FilterModule type, {
+  bool isShowAction = true,
+  VoidCallback? onComplete,
+}) {
   KikoenaiDialog.showBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -24,7 +25,8 @@ void showFilterBottomSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
     ),
-    builder: (modalContext) { // 使用弹窗自身的 context
+    builder: (modalContext) {
+      // 使用弹窗自身的 context
       return FractionallySizedBox(
         heightFactor: 0.75, // 使用比例适配，比 MediaQuery 更简洁
         child: Column(
@@ -35,7 +37,9 @@ void showFilterBottomSheet(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Theme.of(modalContext).dividerColor.withOpacity(0.5),
+                color: Theme.of(
+                  modalContext,
+                ).dividerColor.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -59,16 +63,19 @@ void showFilterBottomSheet(
     },
   );
 }
+
 class FilterWidget extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
   final FilterModule type;
   final bool isShowAction;
+  final Map<CategoryType, List<SelectorItem>>? selectorItemsByCategory;
 
   const FilterWidget({
     super.key,
     this.isShowAction = true,
+    this.selectorItemsByCategory,
     required this.onComplete,
-    required this.type
+    required this.type,
   });
 
   @override
@@ -90,16 +97,30 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
     super.dispose();
   }
 
-  AsyncValue<List<SelectorItem>> _watchCurrentCategoryItems(CategoryType category) {
+  AsyncValue<List<SelectorItem>> _watchCurrentCategoryItems(
+    CategoryType category,
+  ) {
+    final selectorItems = widget.selectorItemsByCategory;
+    if (selectorItems != null) {
+      return AsyncData(selectorItems[category] ?? const <SelectorItem>[]);
+    }
     switch (category) {
       case CategoryType.tag:
-        return ref.watch(tagsProvider).whenData((tags) => tags.map((e) => e.toSelectorItem()).toList());
+        return ref
+            .watch(tagsProvider)
+            .whenData((tags) => tags.map((e) => e.toSelectorItem()).toList());
       case CategoryType.circle:
-        return ref.watch(circlesProvider).whenData((circles) => circles.map((e) => e.toSelectorItem()).toList());
+        return ref
+            .watch(circlesProvider)
+            .whenData(
+              (circles) => circles.map((e) => e.toSelectorItem()).toList(),
+            );
       case CategoryType.va:
-        return ref.watch(vasProvider).whenData((vas) => vas.map((e) => e.toSelectorItem()).toList());
+        return ref
+            .watch(vasProvider)
+            .whenData((vas) => vas.map((e) => e.toSelectorItem()).toList());
       default:
-        return AsyncData<List<SelectorItem>>([]);
+        return const AsyncData<List<SelectorItem>>([]);
     }
   }
 
@@ -117,7 +138,9 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
 
     if (state.localSearchKeyword.isNotEmpty) {
       currentItems = currentItems.where((item) {
-        return item.label.toLowerCase().contains(state.localSearchKeyword.toLowerCase());
+        return item.label.toLowerCase().contains(
+          state.localSearchKeyword.toLowerCase(),
+        );
       }).toList();
     }
 
@@ -132,18 +155,19 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             onToggleTag: (type, name) {
               controller.toggleTag(type, name);
             },
-            fillColor: isDark ? const Color(0xFF212529) : const Color(0xFFF9FAFB),
-            textColor: isDark ? const Color(0xFF8492A6) : const Color(0xFF4B5563),
+            fillColor: isDark
+                ? const Color(0xFF212529)
+                : const Color(0xFFF9FAFB),
+            textColor: isDark
+                ? const Color(0xFF8492A6)
+                : const Color(0xFF4B5563),
           ),
         ),
       );
     } else if (isLoading) {
       rightContent = const Expanded(
         child: Center(
-          child: LottieLoadingIndicator(
-            size: 76,
-            message: '加载中...',
-          ),
+          child: LottieLoadingIndicator(size: 76, message: '加载中...'),
         ),
       );
     } else {
@@ -178,14 +202,14 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             ],
           ),
         ),
-        if(widget.isShowAction)
-        BottomActionPanel(
-          onReset: () {
-            controller.resetSelected();
-          },
-          // 将内部逻辑替换为调用父组件传入的回调
-          onComplete: widget.onComplete,
-        ),
+        if (widget.isShowAction)
+          BottomActionPanel(
+            onReset: () {
+              controller.resetSelected();
+            },
+            // 将内部逻辑替换为调用父组件传入的回调
+            onComplete: widget.onComplete,
+          ),
       ],
     );
   }

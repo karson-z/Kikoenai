@@ -9,6 +9,8 @@ import 'package:kikoenai/core/widgets/card/work_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
+import 'package:kikoenai/core/widgets/filter/filter_silder_bar.dart';
+import 'package:kikoenai/core/widgets/filter/work_filter_selector_items.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/category/widget/filter_row_panel.dart';
@@ -32,12 +34,14 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
   final FocusNode _searchFocusNode = FocusNode();
 
   late List<Work> _localWorks;
+  late Map<CategoryType, List<SelectorItem>> _filterSelectorItemsByCategory;
   bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
     _localWorks = List<Work>.from(widget.work);
+    _filterSelectorItemsByCategory = buildWorkFilterSelectorItems(_localWorks);
 
     final filter = ref.read(searchFilterProvider(FilterModule.dl));
     _searchController.text = filter.keyword ?? '';
@@ -48,6 +52,9 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
     super.didUpdateWidget(oldWidget);
     if (widget.work != oldWidget.work) {
       _localWorks = List<Work>.from(widget.work);
+      _filterSelectorItemsByCategory = buildWorkFilterSelectorItems(
+        _localWorks,
+      );
       if (_localWorks.isEmpty) _isEditing = false;
     }
   }
@@ -246,6 +253,8 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
                         shadowColor: Colors.black.withValues(alpha: 0.2),
                         child: FilterWidget(
                           type: FilterModule.dl,
+                          selectorItemsByCategory:
+                              _filterSelectorItemsByCategory,
                           onComplete: filterNotifier.closeFilterDrawer,
                         ),
                       ),
@@ -361,6 +370,9 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
     ScraperStorage().deleteWork(work.id);
     setState(() {
       _localWorks.removeWhere((item) => item.id == work.id);
+      _filterSelectorItemsByCategory = buildWorkFilterSelectorItems(
+        _localWorks,
+      );
       if (_localWorks.isEmpty) _isEditing = false;
     });
 
@@ -400,6 +412,9 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
     setState(() {
       _localWorks.clear();
+      _filterSelectorItemsByCategory = buildWorkFilterSelectorItems(
+        _localWorks,
+      );
       _isEditing = false;
     });
     ScaffoldMessenger.of(
