@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/constants/app_player.dart';
+import 'package:kikoenai/core/service/audio/audio_service.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/theme/app_font_preset.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -33,7 +34,8 @@ final lyricsControllerProvider =
     });
 
 class LyricsController extends Notifier<LyricsState> {
-  StreamSubscription<Map<String, dynamic>>? _eventSubscription;
+  StreamSubscription<Map<String, dynamic>>? _overlayEventSubscription;
+  StreamSubscription<dynamic>? _audioControlSubscription;
   Box<dynamic> get setting => AppStorage.settingsBox;
   @override
   LyricsState build() {
@@ -41,9 +43,12 @@ class LyricsController extends Notifier<LyricsState> {
     final endpoint = ref.watch(subtitleEndpointProvider);
     if (endpoint == SubtitleEndpoint.overlay) {
       _listenToMessagesFromMain(manager);
+    } else if (ref.watch(overlayLyricsSupportedProvider)) {
+      _listenToAudioControlEvents();
     }
     ref.onDispose(() {
-      _eventSubscription?.cancel();
+      _overlayEventSubscription?.cancel();
+      _audioControlSubscription?.cancel();
     });
     final isDesktopModeEnabled = setting.get(
       StorageKeys.desktopLyricsEnabled,
@@ -66,6 +71,8 @@ class LyricsController extends Notifier<LyricsState> {
         await show();
         ref.read(overlayLyricSyncProvider).startSync();
       });
+    } else if (endpoint == SubtitleEndpoint.main) {
+      Future.microtask(_syncAudioControlState);
     }
     return LyricsState(
       isDesktopModeEnabled: isDesktopModeEnabled,
@@ -76,7 +83,7 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   void _listenToMessagesFromMain(SubtitleManager manager) {
-    _eventSubscription = manager.messagesFromMain.listen((event) {
+    _overlayEventSubscription = manager.messagesFromMain.listen((event) {
       final action = event['action'];
       final payload = event['payload'];
       switch (action) {
@@ -107,6 +114,40 @@ class LyricsController extends Notifier<LyricsState> {
     unawaited(manager.init());
   }
 
+  void _listenToAudioControlEvents() {
+    _audioControlSubscription = AudioServiceSingleton.instance.customEvent
+        .listen((event) {
+          if (event == OverlayLyricsMediaAction.toggleVisibility) {
+            unawaited(_toggleDesktopLyricsFromMediaControl());
+          } else if (event == OverlayLyricsMediaAction.toggleClickThrough) {
+            unawaited(setLockFromMain(!state.isLocked));
+          }
+        });
+  }
+
+  Future<void> _toggleDesktopLyricsFromMediaControl() async {
+    if (state.isDesktopModeEnabled) {
+      await hide(isUserAction: true);
+    } else {
+      await show();
+    }
+  }
+
+  void _syncAudioControlState() {
+    if (ref.read(subtitleEndpointProvider) != SubtitleEndpoint.main ||
+        !ref.read(overlayLyricsSupportedProvider)) {
+      return;
+    }
+    unawaited(
+      AudioServiceSingleton.instance
+          .customAction(OverlayLyricsMediaAction.syncControlState, {
+            OverlayLyricsMediaAction.desktopLyricsEnabledKey:
+                state.isDesktopModeEnabled,
+            OverlayLyricsMediaAction.clickThroughEnabledKey: state.isLocked,
+          }),
+    );
+  }
+
   SubtitleManager get _manager => ref.read(subtitleManagerProvider);
   void saveCurrentPositionToMain() async {
     final offset = await _manager.getOverlayPosition();
@@ -134,6 +175,7 @@ class LyricsController extends Notifier<LyricsState> {
     state = state.copyWith(isDesktopModeEnabled: true, isWindowVisible: true);
     await setting.put(StorageKeys.desktopLyricsEnabled, true);
     ref.read(overlayLyricSyncProvider).startSync();
+    _syncAudioControlState();
   }
 
   Future<void> hide({bool isUserAction = false}) async {
@@ -144,11 +186,13 @@ class LyricsController extends Notifier<LyricsState> {
     }
     state = state.copyWith(isWindowVisible: false);
     await _manager.hideOverlay();
+    _syncAudioControlState();
   }
 
   void updateLockState(bool isLocked) {
     state = state.copyWith(isLocked: isLocked);
     setting.put(StorageKeys.overlayLyricsIsLocked, isLocked);
+    _syncAudioControlState();
   }
 
   Future<void> resizeOverlayHeight(double height) async {

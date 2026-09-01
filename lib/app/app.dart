@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/config/app_version_config.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
-import 'package:kikoenai/core/storage/hive_key.dart';
-import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
@@ -18,13 +16,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(webDavAutoRestoreProvider);
     final overlayLyricsSupported = ref.watch(overlayLyricsSupportedProvider);
-    final overlayLyricsEnabled =
-        AppStorage.settingsBox.get(
-          StorageKeys.desktopLyricsEnabled,
-          defaultValue: false,
-        ) ==
-        true;
-    if (overlayLyricsSupported && overlayLyricsEnabled) {
+    if (overlayLyricsSupported) {
       ref.listen(lyricsControllerProvider, (_, __) {});
     }
     final themeState = ref.watch(themeNotifierProvider);

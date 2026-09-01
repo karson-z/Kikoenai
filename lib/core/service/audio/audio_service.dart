@@ -17,6 +17,44 @@ import 'package:kikoenai_core/kikoenai_core.dart' as core_models;
 // ignore: unused_import
 import 'package:kikoenai_core/core/utils/other.dart';
 
+abstract final class OverlayLyricsMediaAction {
+  static const String toggleVisibility = 'toggleDesktopLyrics';
+  static const String toggleClickThrough = 'toggleOverlayLyricsClickThrough';
+  static const String syncControlState = 'syncOverlayLyricsControls';
+
+  static const String desktopLyricsEnabledKey = 'desktopLyricsEnabled';
+  static const String clickThroughEnabledKey = 'clickThroughEnabled';
+}
+
+List<MediaControl> buildPlaybackControls({
+  required bool playing,
+  required bool desktopLyricsEnabled,
+  required bool clickThroughEnabled,
+  required bool includeOverlayLyricsControls,
+}) {
+  return [
+    MediaControl.skipToPrevious,
+    if (playing) MediaControl.pause else MediaControl.play,
+    if (includeOverlayLyricsControls)
+      MediaControl.custom(
+        androidIcon: desktopLyricsEnabled
+            ? 'drawable/ic_desktop_lyrics_visibility_off'
+            : 'drawable/ic_desktop_lyrics_visibility',
+        label: desktopLyricsEnabled ? '隐藏桌面歌词' : '显示桌面歌词',
+        name: OverlayLyricsMediaAction.toggleVisibility,
+      ),
+    MediaControl.skipToNext,
+    if (includeOverlayLyricsControls)
+      MediaControl.custom(
+        androidIcon: clickThroughEnabled
+            ? 'drawable/ic_desktop_lyrics_unlock'
+            : 'drawable/ic_desktop_lyrics_lock',
+        label: clickThroughEnabled ? '关闭歌词点击穿透' : '开启歌词点击穿透',
+        name: OverlayLyricsMediaAction.toggleClickThrough,
+      ),
+  ];
+}
+
 class AudioServiceSingleton {
   AudioServiceSingleton._();
 
@@ -58,6 +96,8 @@ class MyAudioHandler extends BaseAudioHandler {
   double _normalVolume = 100.0;
   bool _isInterrupted = false;
   bool _pausedByBackground = false;
+  late bool _desktopLyricsEnabled;
+  late bool _overlayLyricsClickThroughEnabled;
   late final AppLifecycleListener _lifecycleListener;
 
   bool get isIgnoreAudioFocus =>
@@ -65,6 +105,18 @@ class MyAudioHandler extends BaseAudioHandler {
           as bool;
 
   MyAudioHandler(this._player) {
+    _desktopLyricsEnabled =
+        _settingBox.get(
+          StorageKeys.desktopLyricsEnabled,
+          defaultValue: false,
+        ) ==
+        true;
+    _overlayLyricsClickThroughEnabled =
+        _settingBox.get(
+          StorageKeys.overlayLyricsIsLocked,
+          defaultValue: false,
+        ) ==
+        true;
     _lifecycleListener = AppLifecycleListener(
       onStateChange: _handleLifecycleState,
     );
@@ -436,18 +488,7 @@ class MyAudioHandler extends BaseAudioHandler {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
-      playbackState.add(
-        playbackState.value.copyWith(
-          playing: playing,
-          controls: [
-            MediaControl.skipToPrevious,
-            if (playing) MediaControl.pause else MediaControl.play,
-            MediaControl.skipToNext,
-          ],
-          systemActions: const {MediaAction.seek},
-          androidCompactActionIndices: const [0, 1, 3],
-        ),
-      );
+      _publishPlaybackControls(playing: playing);
     });
 
     _player.stream.buffering.listen((buffering) {
@@ -481,6 +522,25 @@ class MyAudioHandler extends BaseAudioHandler {
     });
   }
 
+  void _publishPlaybackControls({bool? playing}) {
+    final includeOverlayLyricsControls = Platform.isAndroid;
+    playbackState.add(
+      playbackState.value.copyWith(
+        playing: playing ?? playbackState.value.playing,
+        controls: buildPlaybackControls(
+          playing: playing ?? playbackState.value.playing,
+          desktopLyricsEnabled: _desktopLyricsEnabled,
+          clickThroughEnabled: _overlayLyricsClickThroughEnabled,
+          includeOverlayLyricsControls: includeOverlayLyricsControls,
+        ),
+        systemActions: const {MediaAction.seek},
+        androidCompactActionIndices: includeOverlayLyricsControls
+            ? const [0, 1, 3]
+            : const [0, 1, 2],
+      ),
+    );
+  }
+
   void _listenForPositionChanges() {
     _player.stream.position.listen((position) {
       playbackState.add(playbackState.value.copyWith(updatePosition: position));
@@ -508,6 +568,25 @@ class MyAudioHandler extends BaseAudioHandler {
     String name, [
     Map<String, dynamic>? extras,
   ]) async {
+    if (name == OverlayLyricsMediaAction.toggleVisibility ||
+        name == OverlayLyricsMediaAction.toggleClickThrough) {
+      customEvent.add(name);
+      return;
+    }
+    if (name == OverlayLyricsMediaAction.syncControlState) {
+      final desktopLyricsEnabled =
+          extras?[OverlayLyricsMediaAction.desktopLyricsEnabledKey];
+      final clickThroughEnabled =
+          extras?[OverlayLyricsMediaAction.clickThroughEnabledKey];
+      if (desktopLyricsEnabled is bool) {
+        _desktopLyricsEnabled = desktopLyricsEnabled;
+      }
+      if (clickThroughEnabled is bool) {
+        _overlayLyricsClickThroughEnabled = clickThroughEnabled;
+      }
+      _publishPlaybackControls();
+      return;
+    }
     if (name == 'toggleVideoDecoding') {
       final bool enable = extras?['enable'] ?? false;
       await PlayerService.instance.toggleVideoDecoding(enable);
