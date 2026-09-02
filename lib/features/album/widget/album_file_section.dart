@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/common/global_exception.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
@@ -64,8 +63,8 @@ class RemoteAlbumFileSection extends ConsumerWidget {
       error: (err, stack) => SliverFillRemaining(
         hasScrollBody: false,
         child: Center(
-          child: err is GlobalException
-              ? Text('GlobalException: ${err.message}\ncode=${err.code}')
+          child: err is SitesNetworkException
+              ? Text('SitesNetworkException: ${err.message}\ncode=${err.code}')
               : Text('Error: $err'),
         ),
       ),
