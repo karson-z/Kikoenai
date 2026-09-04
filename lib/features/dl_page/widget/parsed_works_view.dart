@@ -69,36 +69,34 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
   List<Work> _applyFilter(List<Work> works, SearchFilterState filter) {
     final keyword = filter.keyword?.trim().toLowerCase() ?? '';
-    final result = works
-        .where((work) {
-          if (keyword.isNotEmpty) {
-            final title = work.title?.toLowerCase() ?? '';
-            final name = work.name?.toLowerCase() ?? '';
-            final circle = work.circle?.name?.toLowerCase() ?? '';
-            final rjCode = 'rj${work.id}'.toLowerCase();
-            if (!title.contains(keyword) &&
-                !name.contains(keyword) &&
-                !circle.contains(keyword) &&
-                !rjCode.contains(keyword)) {
-              return false;
-            }
-          }
+    final result = works.where((work) {
+      if (keyword.isNotEmpty) {
+        final title = work.title?.toLowerCase() ?? '';
+        final name = work.name?.toLowerCase() ?? '';
+        final circle = work.circle?.name?.toLowerCase() ?? '';
+        final rjCode = 'rj${work.id}'.toLowerCase();
+        if (!title.contains(keyword) &&
+            !name.contains(keyword) &&
+            !circle.contains(keyword) &&
+            !rjCode.contains(keyword)) {
+          return false;
+        }
+      }
 
-          if (filter.subtitleFilter == 1 && !(work.hasSubtitle ?? false)) {
-            return false;
-          }
-          if (filter.subtitleFilter == 2 && (work.hasSubtitle ?? false)) {
-            return false;
-          }
+      if (filter.subtitleFilter == 1 && !(work.hasSubtitle ?? false)) {
+        return false;
+      }
+      if (filter.subtitleFilter == 2 && (work.hasSubtitle ?? false)) {
+        return false;
+      }
 
-          for (final tag in filter.selectedTags) {
-            final matched = _workMatchesTag(work, tag);
-            if (matched == null) continue;
-            if (tag.isExclude ? matched : !matched) return false;
-          }
-          return true;
-        })
-        .toList(growable: false);
+      for (final tag in filter.selectedTags) {
+        final matched = _workMatchesTag(work, tag);
+        if (matched == null) continue;
+        if (tag.isExclude ? matched : !matched) return false;
+      }
+      return true;
+    }).toList(growable: false);
 
     return result;
   }
@@ -153,9 +151,13 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
     final bgColor = isDark ? Colors.black : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black45;
     final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final fillColor = isDark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFF5F5F5);
+    final fillColor =
+        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
+
+    void completeFilter() {
+      if (!filter.isFilterOpen) return;
+      filterNotifier.closeFilterDrawer();
+    }
 
     ref.listen<String?>(
       searchFilterProvider(FilterModule.dl).select((state) => state.keyword),
@@ -198,7 +200,11 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
             totalCount: filteredWorks.length,
             onToggleFilter: () {
               _searchFocusNode.unfocus();
-              filterNotifier.toggleFilterDrawer();
+              if (filter.isFilterOpen) {
+                completeFilter();
+              } else {
+                filterNotifier.toggleFilterDrawer();
+              }
             },
             onClearKeyword: _clearKeyword,
             onRemoveTag: (tag) => filterNotifier.removeTag(tag.type, tag.name),
@@ -229,7 +235,7 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       _searchFocusNode.unfocus();
-                      filterNotifier.closeFilterDrawer();
+                      completeFilter();
                     },
                     child: Container(color: Colors.black12),
                   ),
@@ -255,7 +261,7 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
                           type: FilterModule.dl,
                           selectorItemsByCategory:
                               _filterSelectorItemsByCategory,
-                          onComplete: filterNotifier.closeFilterDrawer,
+                          onComplete: completeFilter,
                         ),
                       ),
                     ),
@@ -477,8 +483,8 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
         '已显示 $visibleCount / ${_localWorks.length} 部作品',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
       ),
     );
   }

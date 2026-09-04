@@ -17,6 +17,15 @@ void showFilterBottomSheet(
   bool isShowAction = true,
   VoidCallback? onComplete,
 }) {
+  // Dismissing a filter sheet is treated as confirming its current selection.
+  // Keep this guarded because pressing "完成" also dismisses the route.
+  var didComplete = false;
+  void complete() {
+    if (didComplete) return;
+    didComplete = true;
+    onComplete?.call();
+  }
+
   KikoenaiDialog.showBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -49,11 +58,11 @@ void showFilterBottomSheet(
                 type: type,
                 isShowAction: isShowAction,
                 onComplete: () {
-                  // 建议：先检查 context 是否挂载，避免异步操作导致的错误
+                  // 先关闭弹窗，再执行完成回调，避免回调触发页面重建时使用失效 context。
                   if (modalContext.mounted) {
                     Navigator.of(modalContext).pop();
                   }
-                  onComplete?.call();
+                  complete();
                 },
               ),
             ),
@@ -61,7 +70,7 @@ void showFilterBottomSheet(
         ),
       );
     },
-  );
+  ).then((_) => complete());
 }
 
 class FilterWidget extends ConsumerStatefulWidget {
@@ -110,9 +119,7 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             .watch(tagsProvider)
             .whenData((tags) => tags.map((e) => e.toSelectorItem()).toList());
       case CategoryType.circle:
-        return ref
-            .watch(circlesProvider)
-            .whenData(
+        return ref.watch(circlesProvider).whenData(
               (circles) => circles.map((e) => e.toSelectorItem()).toList(),
             );
       case CategoryType.va:
@@ -139,8 +146,8 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
     if (state.localSearchKeyword.isNotEmpty) {
       currentItems = currentItems.where((item) {
         return item.label.toLowerCase().contains(
-          state.localSearchKeyword.toLowerCase(),
-        );
+              state.localSearchKeyword.toLowerCase(),
+            );
       }).toList();
     }
 
@@ -155,12 +162,10 @@ class _FilterWidgetState extends ConsumerState<FilterWidget> {
             onToggleTag: (type, name) {
               controller.toggleTag(type, name);
             },
-            fillColor: isDark
-                ? const Color(0xFF212529)
-                : const Color(0xFFF9FAFB),
-            textColor: isDark
-                ? const Color(0xFF8492A6)
-                : const Color(0xFF4B5563),
+            fillColor:
+                isDark ? const Color(0xFF212529) : const Color(0xFFF9FAFB),
+            textColor:
+                isDark ? const Color(0xFF8492A6) : const Color(0xFF4B5563),
           ),
         ),
       );

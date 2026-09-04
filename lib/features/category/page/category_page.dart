@@ -30,9 +30,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
   @override
   void initState() {
     super.initState();
-    final currentSort = ref
-        .read(searchFilterProvider(FilterModule.category))
-        .sortOption;
+    final currentSort =
+        ref.read(searchFilterProvider(FilterModule.category)).sortOption;
     int initialIndex = sortOrders.indexOf(currentSort);
     if (initialIndex == -1) initialIndex = 0;
     _tabController = TabController(
@@ -50,10 +49,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
             .read(searchFilterProvider(FilterModule.category).notifier)
             .setSort(sortOption: order); // 惰性刷新：仅当该 tab 缓存数据的筛选指纹与当前筛选不一致时才重新请求
         final ui = ref.read(searchFilterProvider(FilterModule.category));
-        final lastFp = ref
-            .read(categoryProvider(order))
-            .value
-            ?.filterFingerprint;
+        final lastFp =
+            ref.read(categoryProvider(order)).value?.filterFingerprint;
         if (lastFp != null &&
             lastFp != CategoryDataNotifier.fingerprintOf(ui)) {
           ref.invalidate(categoryProvider(order));
@@ -86,10 +83,16 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final Color bgColor = isDark ? Colors.black : Colors.white;
     final Color textColor = isDark ? Colors.white : Colors.black45;
     final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final Color fillColor = isDark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFF5F5F5);
+    final Color fillColor =
+        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
     final Color primaryColor = theme.colorScheme.primary; // 监听选中标签数量，自动横向滚动筛选行
+
+    void completeFilter() {
+      if (!query.isFilterOpen) return;
+      queryNotifier.closeFilterDrawer();
+      ref.invalidate(categoryProvider(query.sortOption));
+    }
+
     ref.listen<SearchFilterState>(searchFilterProvider(FilterModule.category), (
       previous,
       next,
@@ -129,7 +132,11 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         totalCount: totalCount,
         onToggleFilter: () {
           _filterSearchFocusNode.unfocus();
-          queryNotifier.toggleFilterDrawer();
+          if (query.isFilterOpen) {
+            completeFilter();
+          } else {
+            queryNotifier.toggleFilterDrawer();
+          }
         },
         onClearKeyword: () {
           queryNotifier.updateKeyword(null);
@@ -182,7 +189,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       _filterSearchFocusNode.unfocus();
-                      queryNotifier.closeFilterDrawer();
+                      completeFilter();
                     },
                     child: Container(color: Colors.black12),
                   ),
@@ -209,10 +216,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
                           onNotification: (_) => true,
                           child: FilterWidget(
                             type: FilterModule.category,
-                            onComplete: () {
-                              queryNotifier.closeFilterDrawer();
-                              ref.invalidate(categoryProvider(query.sortOption));
-                            },
+                            onComplete: completeFilter,
                           ),
                         ),
                       ),
