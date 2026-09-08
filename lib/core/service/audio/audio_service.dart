@@ -96,6 +96,9 @@ class MyAudioHandler extends BaseAudioHandler {
   double _normalVolume = 100.0;
   bool _isInterrupted = false;
   bool _pausedByBackground = false;
+  int _mediaOpenRequestCount = 0;
+  bool _isRefreshingMediaHttpHeaders = false;
+  MediaHttpHeadersChanged? _pendingMediaHttpHeadersChange;
   late bool _desktopLyricsEnabled;
   late bool _overlayLyricsClickThroughEnabled;
   late final AppLifecycleListener _lifecycleListener;
@@ -127,6 +130,9 @@ class MyAudioHandler extends BaseAudioHandler {
     _listenForDurationChanges();
     _listenForPositionChanges();
     _listenErrorStream();
+    MediaHttpHeadersRegistry.instance.changes.listen(
+      _queueCurrentMediaHttpHeadersRefresh,
+    );
   }
 
   bool get playInBackground =>
@@ -275,39 +281,45 @@ class MyAudioHandler extends BaseAudioHandler {
   }) async {
     if (index < 0 || index >= _playlist.length) return;
 
-    _currentIndex = index;
-    final item = _playlist[index];
-
-    mediaItem.add(item);
-    playbackState.add(
-      playbackState.value.copyWith(
-        queueIndex: index,
-        processingState: AudioProcessingState.loading,
-        errorCode: null,
-        errorMessage: null,
-      ),
-    );
-
-    final media = _buildMedia(item, startPosition: position);
-    if (autoPlay && !isIgnoreAudioFocus) {
-      final success = await _audioSession.setActive(true);
-      if (!success) {
-        autoPlay = false;
-        KikoenaiLogger().w("获取音频焦点失败，已降级为只加载不播放");
-      }
-    }
-
+    _mediaOpenRequestCount++;
     try {
-      await _player.open(media, play: autoPlay);
-    } catch (error) {
+      _currentIndex = index;
+      final item = _playlist[index];
+
+      mediaItem.add(item);
       playbackState.add(
         playbackState.value.copyWith(
-          playing: false,
-          processingState: AudioProcessingState.error,
-          errorMessage: error.toString(),
+          queueIndex: index,
+          processingState: AudioProcessingState.loading,
+          errorCode: null,
+          errorMessage: null,
         ),
       );
-      rethrow;
+
+      final media = _buildMedia(item, startPosition: position);
+      if (autoPlay && !isIgnoreAudioFocus) {
+        final success = await _audioSession.setActive(true);
+        if (!success) {
+          autoPlay = false;
+          KikoenaiLogger().w("获取音频焦点失败，已降级为只加载不播放");
+        }
+      }
+
+      try {
+        await _player.open(media, play: autoPlay);
+      } catch (error) {
+        playbackState.add(
+          playbackState.value.copyWith(
+            playing: false,
+            processingState: AudioProcessingState.error,
+            errorMessage: error.toString(),
+          ),
+        );
+        rethrow;
+      }
+    } finally {
+      _mediaOpenRequestCount--;
+      _drainPendingMediaHttpHeadersRefresh();
     }
   }
 
@@ -371,6 +383,55 @@ class MyAudioHandler extends BaseAudioHandler {
       extras: {'id': item.id},
       start: startPosition,
     );
+  }
+
+  void _queueCurrentMediaHttpHeadersRefresh(MediaHttpHeadersChanged change) {
+    if (!_currentMediaMatches(change)) return;
+    _pendingMediaHttpHeadersChange = change;
+    _drainPendingMediaHttpHeadersRefresh();
+  }
+
+  bool _currentMediaMatches(MediaHttpHeadersChanged change) {
+    if (_currentIndex < 0 || _currentIndex >= _playlist.length) return false;
+    return change.matches(_playlist[_currentIndex].extras);
+  }
+
+  void _drainPendingMediaHttpHeadersRefresh() {
+    if (_mediaOpenRequestCount > 0 || _isRefreshingMediaHttpHeaders) return;
+    final change = _pendingMediaHttpHeadersChange;
+    if (change == null) return;
+    _pendingMediaHttpHeadersChange = null;
+    unawaited(_refreshCurrentMediaHttpHeaders(change));
+  }
+
+  Future<void> _refreshCurrentMediaHttpHeaders(
+    MediaHttpHeadersChanged change,
+  ) async {
+    _isRefreshingMediaHttpHeaders = true;
+    try {
+      if (!_currentMediaMatches(change)) return;
+
+      final index = _currentIndex;
+      final item = _playlist[index];
+      final position = _player.state.position;
+      final wasPlaying = _player.state.playing;
+      final media = _buildMedia(item, startPosition: position);
+
+      if (_currentIndex != index || _playlist[index].id != item.id) return;
+      await _player.open(media, play: wasPlaying);
+      KikoenaiLogger().i(
+        'WebDAV 播放认证已更新，当前媒体从 ${position.inMilliseconds} ms 重新加载',
+      );
+    } catch (error, stackTrace) {
+      KikoenaiLogger().e(
+        '更新当前媒体的 WebDAV 播放认证失败',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _isRefreshingMediaHttpHeaders = false;
+      _drainPendingMediaHttpHeadersRefresh();
+    }
   }
 
   @override

@@ -182,6 +182,10 @@ class WebDavController extends Notifier<WebDavSessionState> {
         clearError: true,
         revision: state.revision + 1,
       );
+      MediaHttpHeadersRegistry.instance.notifyChanged(
+        source: NodeSource.cloudDrive.name,
+        siteId: webDavSiteId,
+      );
       _refreshMediaIndexIfNeeded();
       return true;
     } catch (error) {

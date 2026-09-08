@@ -24,4 +24,27 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'publishes scoped header changes without exposing credentials',
+    () async {
+      final registry = MediaHttpHeadersRegistry();
+      final eventFuture = registry.changes.first;
+
+      registry.notifyChanged(source: 'cloudDrive', siteId: 'webdav');
+
+      final event = await eventFuture;
+      expect(event.source, 'cloudDrive');
+      expect(event.siteId, 'webdav');
+      expect(
+        event.matches(const {'source': 'cloudDrive', 'siteId': 'webdav'}),
+        isTrue,
+      );
+      expect(
+        event.matches(const {'source': 'cloudDrive', 'siteId': 'other'}),
+        isFalse,
+      );
+      expect(event.matches(const {'source': 'asmrServer'}), isFalse);
+    },
+  );
 }

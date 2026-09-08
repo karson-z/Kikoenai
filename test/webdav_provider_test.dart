@@ -275,6 +275,41 @@ void main() {
     expect(WebDavController.describeError(error), contains('认证失败'));
   });
 
+  test('successful connection publishes a scoped header change', () async {
+    final credentialStore = _MemoryWebDavCredentialStore();
+    final container = ProviderContainer(
+      overrides: [
+        webDavCredentialStoreProvider.overrideWithValue(credentialStore),
+        webDavConnectionControllerProvider.overrideWith(
+          _FakeConnectableWebDavController.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final eventFuture = MediaHttpHeadersRegistry.instance.changes.first;
+
+    final connected = await container
+        .read(webDavConnectionControllerProvider.notifier)
+        .connect(
+          const WebDavConnectionConfig(
+            serverUrl: 'https://cloud.example.com/dav/',
+            username: 'kiko',
+            password: 'secret',
+            rootPath: '/',
+          ),
+        );
+
+    expect(connected, isTrue);
+    final event = await eventFuture;
+    expect(event.source, NodeSource.cloudDrive.name);
+    expect(event.siteId, webDavSiteId);
+    expect(event.matches(_webDavPlaybackItem.toMediaItem().extras), isTrue);
+
+    await container
+        .read(webDavConnectionControllerProvider.notifier)
+        .disconnect();
+  });
+
   test('invalid reconnect keeps the active session state', () async {
     final container = ProviderContainer(
       overrides: [
