@@ -7,15 +7,12 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
+import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
-import 'package:kikoenai/core/widgets/filter/filter_silder_bar.dart';
 import 'package:kikoenai/core/widgets/filter/work_filter_selector_items.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 import 'package:kikoenai/features/album/model/album_detail_args.dart';
-import 'package:kikoenai/features/category/widget/filter_row_panel.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:scroll_to_index/scroll_to_index.dart';
 
 import 'dl_library_toolbar.dart';
 
@@ -29,7 +26,6 @@ class ParseWorksView extends ConsumerStatefulWidget {
 }
 
 class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
-  final AutoScrollController _chipsScrollController = AutoScrollController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -61,7 +57,6 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
   @override
   void dispose() {
-    _chipsScrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -69,34 +64,36 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
   List<Work> _applyFilter(List<Work> works, SearchFilterState filter) {
     final keyword = filter.keyword?.trim().toLowerCase() ?? '';
-    final result = works.where((work) {
-      if (keyword.isNotEmpty) {
-        final title = work.title?.toLowerCase() ?? '';
-        final name = work.name?.toLowerCase() ?? '';
-        final circle = work.circle?.name?.toLowerCase() ?? '';
-        final rjCode = 'rj${work.id}'.toLowerCase();
-        if (!title.contains(keyword) &&
-            !name.contains(keyword) &&
-            !circle.contains(keyword) &&
-            !rjCode.contains(keyword)) {
-          return false;
-        }
-      }
+    final result = works
+        .where((work) {
+          if (keyword.isNotEmpty) {
+            final title = work.title?.toLowerCase() ?? '';
+            final name = work.name?.toLowerCase() ?? '';
+            final circle = work.circle?.name?.toLowerCase() ?? '';
+            final rjCode = 'rj${work.id}'.toLowerCase();
+            if (!title.contains(keyword) &&
+                !name.contains(keyword) &&
+                !circle.contains(keyword) &&
+                !rjCode.contains(keyword)) {
+              return false;
+            }
+          }
 
-      if (filter.subtitleFilter == 1 && !(work.hasSubtitle ?? false)) {
-        return false;
-      }
-      if (filter.subtitleFilter == 2 && (work.hasSubtitle ?? false)) {
-        return false;
-      }
+          if (filter.subtitleFilter == 1 && !(work.hasSubtitle ?? false)) {
+            return false;
+          }
+          if (filter.subtitleFilter == 2 && (work.hasSubtitle ?? false)) {
+            return false;
+          }
 
-      for (final tag in filter.selectedTags) {
-        final matched = _workMatchesTag(work, tag);
-        if (matched == null) continue;
-        if (tag.isExclude ? matched : !matched) return false;
-      }
-      return true;
-    }).toList(growable: false);
+          for (final tag in filter.selectedTags) {
+            final matched = _workMatchesTag(work, tag);
+            if (matched == null) continue;
+            if (tag.isExclude ? matched : !matched) return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
 
     return result;
   }
@@ -145,19 +142,6 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
       searchFilterProvider(FilterModule.dl).notifier,
     );
     final filteredWorks = _applyFilter(_localWorks, filter);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final filterHeight = MediaQuery.sizeOf(context).height * 0.4;
-    final bgColor = isDark ? Colors.black : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black45;
-    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final fillColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
-
-    void completeFilter() {
-      if (!filter.isFilterOpen) return;
-      filterNotifier.closeFilterDrawer();
-    }
 
     ref.listen<String?>(
       searchFilterProvider(FilterModule.dl).select((state) => state.keyword),
@@ -170,107 +154,47 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
         );
       },
     );
-    ref.listen<SearchFilterState>(searchFilterProvider(FilterModule.dl), (
-      previous,
-      next,
-    ) {
-      if (previous == null ||
-          next.selectedTags.length <= previous.selectedTags.length) {
-        return;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_chipsScrollController.hasClients) return;
-        final keywordOffset = (next.keyword?.isNotEmpty ?? false) ? 1 : 0;
-        _chipsScrollController.scrollToIndex(
-          next.selectedTags.length - 1 + keywordOffset,
-          preferPosition: AutoScrollPosition.end,
-          duration: const Duration(milliseconds: 300),
-        );
-      });
-    });
 
-    final content = Column(
+    // 展开面板从搜索工具栏底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
+    // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
+    final content = Stack(
       children: [
-        SizedBox(
-          height: 44,
-          child: FilterRowPanel(
-            isFilterOpen: filter.isFilterOpen,
-            keyword: filter.keyword,
-            selectedTags: filter.selectedTags,
-            totalCount: filteredWorks.length,
-            onToggleFilter: () {
-              _searchFocusNode.unfocus();
-              if (filter.isFilterOpen) {
-                completeFilter();
-              } else {
-                filterNotifier.toggleFilterDrawer();
-              }
-            },
-            onClearKeyword: _clearKeyword,
-            onRemoveTag: (tag) => filterNotifier.removeTag(tag.type, tag.name),
-            scrollController: _chipsScrollController,
-            bgColor: bgColor,
-            textColor: textColor,
-            subTextColor: subTextColor,
-            fillColor: fillColor,
-            primaryColor: theme.colorScheme.primary,
-            horizontalPadding: 8,
-          ),
-        ),
-        Expanded(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: CustomScrollView(
-                  key: const PageStorageKey<String>('dl_library_content'),
-                  physics: filter.isFilterOpen
-                      ? const NeverScrollableScrollPhysics()
-                      : const ClampingScrollPhysics(),
-                  slivers: _buildContentSlivers(filteredWorks),
-                ),
+        Column(
+          children: [
+            InlineFilterBar(
+              module: FilterModule.dl,
+              totalCount: filteredWorks.length,
+              onClearKeyword: _clearKeyword,
+            ),
+            Expanded(
+              child: CustomScrollView(
+                key: const PageStorageKey<String>('dl_library_content'),
+                physics: const ClampingScrollPhysics(),
+                slivers: _buildContentSlivers(filteredWorks),
               ),
-              if (filter.isFilterOpen)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      _searchFocusNode.unfocus();
-                      completeFilter();
-                    },
-                    child: Container(color: Colors.black12),
-                  ),
-                ),
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                top: 0,
-                left: 0,
-                right: 0,
-                height: filter.isFilterOpen ? filterHeight : 0,
-                child: ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.topCenter,
-                    maxHeight: filterHeight,
-                    child: SizedBox(
-                      height: filterHeight,
-                      child: Material(
-                        color: bgColor,
-                        elevation: 8,
-                        shadowColor: Colors.black.withValues(alpha: 0.2),
-                        child: FilterWidget(
-                          type: FilterModule.dl,
-                          selectorItemsByCategory:
-                              _filterSelectorItemsByCategory,
-                          onComplete: completeFilter,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (filter.isFilterOpen) ...[
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: filterNotifier.closeFilterDrawer,
+              child: const ColoredBox(color: Colors.black26),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: FilterDropdownPanel(
+              module: FilterModule.dl,
+              totalCount: filteredWorks.length,
+              optionsOverride: _filterSelectorItemsByCategory,
+              onClearKeyword: _clearKeyword,
+            ),
+          ),
+        ],
       ],
     );
 
@@ -483,8 +407,8 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
         '已显示 $visibleCount / ${_localWorks.length} 部作品',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

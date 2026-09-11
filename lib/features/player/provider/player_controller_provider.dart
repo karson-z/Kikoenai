@@ -11,7 +11,6 @@ import 'package:kikoenai/features/history/provider/history_controller_provider.d
 import 'package:kikoenai/features/player/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/service/player/player_service.dart';
 import '../../../../core/storage/hive_key.dart';
 import '../../../../core/storage/hive_storage.dart';
@@ -35,8 +34,6 @@ class PlayerController extends Notifier<AppPlayerState> {
   AudioHandler get _handler => AudioServiceSingleton.instance;
 
   Player get _player => PlayerService.instance.player;
-
-  CacheService get _cacheService => CacheService.instance;
 
   Box<dynamic> get _settingsBox => AppStorage.settingsBox;
 
@@ -323,9 +320,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (_handler is MyAudioHandler) {
       (_handler as MyAudioHandler).volumeStream.listen((v) {
         state = state.copyWith(volume: v);
-        if (state.currentItem != null) {
-          _saveState();
-        }
       });
     }
     if (ref.read(overlayLyricsSupportedProvider)) {
@@ -350,11 +344,6 @@ class PlayerController extends Notifier<AppPlayerState> {
       isFirst: isLooping ? false : i <= 0,
       isLast: isLooping ? false : i >= playlist.length - 1,
     );
-  }
-
-  // 保存播放器状态 (队列、模式配置等)
-  void _saveState() {
-    _cacheService.savePlayerState(state);
   }
 
   void _saveCurrentHistory() {
@@ -456,7 +445,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     await _handler.customAction('toggleVideoDecoding', {
       'enable': !isAudioOnly,
     });
-    _saveState();
   }
 
   Future<void> toggleShuffle() async {
@@ -465,13 +453,11 @@ class PlayerController extends Notifier<AppPlayerState> {
     await _handler.setShuffleMode(
       enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
-    _saveState();
   }
 
   Future<void> setRepeat(AudioServiceRepeatMode mode) async {
     state = state.copyWith(repeatMode: mode);
     await _handler.setRepeatMode(mode);
-    _saveState();
   }
 
   void replacePlaylist(int oldIndex, int newIndex) async {
@@ -588,7 +574,6 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (willClearQueue) {
       state = const AppPlayerState();
     }
-    _saveState();
   }
 
   Future<void> addMultiInQueue(

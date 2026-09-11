@@ -10,7 +10,6 @@ class AppStorage {
   // 1. 定义强类型的 Box
   static late Box<AuthResponse> authBox; // 登录信息
   static late Box<HistoryEntry> historyBox; // 播放历史 (Key: WorkId)
-  static late Box<AppPlayerState> playerBox; // 播放器状态
   static late Box<dynamic> settingsBox; // 通用设置/缓存
   static late Box<FileNode> scannerBox; // 扫描结果
   static late Box<Work> scraperWorkBox; // 爬取作品元数据
@@ -28,7 +27,6 @@ class AppStorage {
     // 初始化
     await Hive.initFlutter(_hiveRootPath);
 
-    Hive.registerAdapter(ProgressBarStateAdapter());
     Hive.registerAdapter(UserAdapter());
     Hive.registerAdapter(LyricConfigModelAdapter());
     Hive.registerAdapter(AuthResponseAdapter());
@@ -38,7 +36,6 @@ class AppStorage {
     Hive.registerAdapter(FileNodeAdapter());
     Hive.registerAdapter(PlaybackItemAdapter());
     Hive.registerAdapter(PlaybackSessionAdapter());
-    Hive.registerAdapter(AppPlayerStateAdapter());
     Hive.registerAdapter(CircleAdapter());
     Hive.registerAdapter(RankAdapter());
     Hive.registerAdapter(TagAdapter());
@@ -56,9 +53,6 @@ class AppStorage {
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
       _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
-      _openBox<AppPlayerState>(
-        BoxNames.playerState,
-      ).then((val) => playerBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
@@ -80,6 +74,10 @@ class AppStorage {
       settingsBox.delete('background_scale'),
       settingsBox.delete('background_quality'),
     ]);
+
+    // 清理历史遗留：播放器状态 Box 已移除（冷启动恢复改由播放历史承担），
+    // 删除旧版残留的 player_state 数据文件。
+    await Hive.deleteBoxFromDisk('player_state');
   }
 
   /// 辅助方法：安全打开 Box
@@ -167,9 +165,6 @@ class AppStorage {
         break;
       case BoxNames.history:
         await historyBox.clear();
-        break;
-      case BoxNames.playerState:
-        await playerBox.clear();
         break;
       case BoxNames.settings:
         await settingsBox.clear();

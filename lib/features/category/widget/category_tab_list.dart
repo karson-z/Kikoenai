@@ -115,9 +115,8 @@ class _CategoryListTabState extends ConsumerState<CategoryListTab>
                 },
                 child: CustomScrollView(
                   key: PageStorageKey<String>(widget.sortOrder.label),
-                  physics: widget.isFilterOpen
-                      ? const NeverScrollableScrollPhysics()
-                      : nonBouncingRefreshScrollPhysics,
+                  // 筛选区为内联展开（非遮罩弹层），列表始终可滚动
+                  physics: nonBouncingRefreshScrollPhysics,
                   slivers: [
                     // 顶部标记：回到顶部时用于定位当前列表的 Scrollable
                     SliverToBoxAdapter(

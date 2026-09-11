@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
-import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
+import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
@@ -26,86 +26,151 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
 
     return Scaffold(
       appBar: _buildAppBar(),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildSectionCard(
-                    title: '标签',
-                    icon: Icons.local_offer,
-                    iconColor: const Color(0xFF6B72FF),
-                    subtitle: '通用标签',
-                    initiallyExpanded: true,
-                    content: _buildTagsContent(
-                      '标签',
-                      allTags
-                          .where((t) => t.type == TagType.tag.stringValue)
-                          .toList(),
-                          () => ref.read(searchFilterProvider(FilterModule.global).notifier)
-                          .resetTagsByType(TagType.tag.stringValue),
-                    ),
+      // 展开面板从 AppBar 底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
+      // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // 与分类页 / DL库一致的筛选横条：新建的全局筛选标签
+              // 点击即写入 Hive（global 模块自动持久化），并在下方卡片实时可见
+              InlineFilterBar(module: FilterModule.global),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
                   ),
-                  // 3. 【卡片间距】从 16 缩小到 12
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    title: '声优',
-                    icon: Icons.mic,
-                    iconColor: const Color(0xFFA584FF),
-                    subtitle: '声优相关标签',
-                    content: _buildTagsContent(
-                      '声优',
-                      allTags
-                          .where((t) => t.type == TagType.va.stringValue)
-                          .toList(),
-                          () => ref.read(searchFilterProvider(FilterModule.global).notifier)
-                          .resetTagsByType(TagType.va.stringValue),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            _buildSectionCard(
+                              title: '标签',
+                              icon: Icons.local_offer,
+                              iconColor: const Color(0xFF6B72FF),
+                              subtitle: '通用标签',
+                              initiallyExpanded: true,
+                              content: _buildTagsContent(
+                                '标签',
+                                allTags
+                                    .where(
+                                      (t) => t.type == TagType.tag.stringValue,
+                                    )
+                                    .toList(),
+                                () => ref
+                                    .read(
+                                      searchFilterProvider(
+                                        FilterModule.global,
+                                      ).notifier,
+                                    )
+                                    .resetTagsByType(TagType.tag.stringValue),
+                              ),
+                            ),
+                            // 3. 【卡片间距】从 16 缩小到 12
+                            const SizedBox(height: 12),
+                            _buildSectionCard(
+                              title: '声优',
+                              icon: Icons.mic,
+                              iconColor: const Color(0xFFA584FF),
+                              subtitle: '声优相关标签',
+                              content: _buildTagsContent(
+                                '声优',
+                                allTags
+                                    .where(
+                                      (t) => t.type == TagType.va.stringValue,
+                                    )
+                                    .toList(),
+                                () => ref
+                                    .read(
+                                      searchFilterProvider(
+                                        FilterModule.global,
+                                      ).notifier,
+                                    )
+                                    .resetTagsByType(TagType.va.stringValue),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildSectionCard(
+                              title: '社团',
+                              icon: Icons.domain,
+                              iconColor: const Color(0xFF5BA4D9),
+                              subtitle: '社团/品牌相关标签',
+                              content: _buildTagsContent(
+                                '社团',
+                                allTags
+                                    .where(
+                                      (t) =>
+                                          t.type == TagType.circle.stringValue,
+                                    )
+                                    .toList(),
+                                () => ref
+                                    .read(
+                                      searchFilterProvider(
+                                        FilterModule.global,
+                                      ).notifier,
+                                    )
+                                    .resetTagsByType(
+                                      TagType.circle.stringValue,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildSectionCard(
+                              title: '特殊',
+                              icon: Icons.star,
+                              iconColor: const Color(0xFFF5B642),
+                              subtitle: '特殊属性标签',
+                              content: _buildTagsContent(
+                                '特殊',
+                                allTags
+                                    .where((t) => !mainTypes.contains(t.type))
+                                    .toList(),
+                                () {
+                                  final notifier = ref.read(
+                                    searchFilterProvider(
+                                      FilterModule.global,
+                                    ).notifier,
+                                  );
+                                  final specialTags = allTags
+                                      .where((t) => !mainTypes.contains(t.type))
+                                      .toList();
+                                  for (var tag in specialTags) {
+                                    notifier.removeTag(tag.type, tag.name);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPageFooter(),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    title: '社团',
-                    icon: Icons.domain,
-                    iconColor: const Color(0xFF5BA4D9),
-                    subtitle: '社团/品牌相关标签',
-                    content: _buildTagsContent(
-                      '社团',
-                      allTags
-                          .where((t) => t.type == TagType.circle.stringValue)
-                          .toList(),
-                          () => ref.read(searchFilterProvider(FilterModule.global).notifier)
-                          .resetTagsByType(TagType.circle.stringValue),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionCard(
-                    title: '特殊',
-                    icon: Icons.star,
-                    iconColor: const Color(0xFFF5B642),
-                    subtitle: '特殊属性标签',
-                    content: _buildTagsContent(
-                      '特殊',
-                      allTags
-                          .where((t) => !mainTypes.contains(t.type))
-                          .toList(),
-                          () {
-                        final notifier = ref.read(searchFilterProvider(FilterModule.global).notifier);
-                        final specialTags = allTags.where((t) => !mainTypes.contains(t.type)).toList();
-                        for (var tag in specialTags) {
-                          notifier.removeTag(tag.type, tag.name);
-                        }
-                      },
-                    ),
-                  ),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (filterState.isFilterOpen) ...[
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => ref
+                    .read(searchFilterProvider(FilterModule.global).notifier)
+                    .closeFilterDrawer(),
+                child: const ColoredBox(color: Colors.black26),
               ),
             ),
-            _buildPageFooter(),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: FilterDropdownPanel(module: FilterModule.global),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -116,8 +181,7 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
     final colorScheme = theme.colorScheme;
 
     return AppBar(
-      backgroundColor:
-          theme.appBarTheme.backgroundColor ?? colorScheme.surface,
+      backgroundColor: theme.appBarTheme.backgroundColor ?? colorScheme.surface,
       foregroundColor:
           theme.appBarTheme.foregroundColor ?? colorScheme.onSurface,
       scrolledUnderElevation: 0,
@@ -133,7 +197,9 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
       actions: [
         OutlinedButton.icon(
           onPressed: () {
-            ref.read(searchFilterProvider(FilterModule.global).notifier).resetSelected();
+            ref
+                .read(searchFilterProvider(FilterModule.global).notifier)
+                .resetSelected();
           },
           icon: const Icon(Icons.refresh, size: 16), // 图标缩小
           label: const Text('重置', style: TextStyle(fontSize: 13)),
@@ -145,24 +211,6 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6),
             ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton.icon(
-          onPressed: () {
-            showFilterBottomSheet(context, ref, FilterModule.global, isShowAction: false);
-          },
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('新建', style: TextStyle(fontSize: 13)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            minimumSize: const Size(0, 32),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-            elevation: 0,
           ),
         ),
         const SizedBox(width: 16), // 右侧边距 32 -> 16
@@ -203,14 +251,20 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
             // 5. 【卡片头部紧凑】
             tilePadding: const EdgeInsets.symmetric(
               horizontal: 16.0, // 24 -> 16
-              vertical: 4.0,    // 12 -> 4
+              vertical: 4.0, // 12 -> 4
             ),
             leading: Icon(icon, color: iconColor, size: 24), // 图标 28 -> 24
             title: Text(
               title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // 字号 18 -> 16
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ), // 字号 18 -> 16
             ),
-            subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)), // 字号 13 -> 12
+            subtitle: Text(
+              subtitle,
+              style: const TextStyle(fontSize: 12),
+            ), // 字号 13 -> 12
             children: [
               Align(
                 alignment: Alignment.centerLeft,
@@ -231,11 +285,18 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
     );
   }
 
-  Widget _buildTagsContent(String type, List<SearchTag> tags, VoidCallback onReset) {
+  Widget _buildTagsContent(
+    String type,
+    List<SearchTag> tags,
+    VoidCallback onReset,
+  ) {
     if (tags.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
-        child: Text('暂无标签，请点击上方新建', style: TextStyle(color: Colors.grey, fontSize: 13)),
+        child: Text(
+          '暂无标签，请点击上方新建',
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
       );
     }
 
@@ -347,12 +408,20 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lightbulb_outline, size: 14, color: Colors.grey[500]), // 图标缩小
+            Icon(
+              Icons.lightbulb_outline,
+              size: 14,
+              color: Colors.grey[500],
+            ), // 图标缩小
             const SizedBox(width: 6),
-            Expanded( // 加 Expanded 防止小屏幕换行时文字溢出
+            Expanded(
+              // 加 Expanded 防止小屏幕换行时文字溢出
               child: Text(
                 '提示：点击标签切换包含/排除，点击图标删除', // 文案精简
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]), // 字号 13 -> 12
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ), // 字号 13 -> 12
                 overflow: TextOverflow.ellipsis,
               ),
             ),

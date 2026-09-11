@@ -7,7 +7,6 @@ import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/core/utils/other.dart';
 import 'package:kikoenai_core/core/model/user/auth_response.dart';
-import 'package:kikoenai_core/core/model/player/player_state.dart';
 import 'package:kikoenai_core/core/model/playlist/playlist.dart';
 import 'package:kikoenai_core/core/model/local_media/scan_mode.dart';
 import 'package:kikoenai_sites/api/server_info.dart';
@@ -218,18 +217,6 @@ class CacheService {
   Future<void> clearSearchHistory({String siteId = legacySiteId}) => AppStorage
       .settingsBox
       .delete(_siteKey(StorageKeys.searchHistory, siteId));
-
-  // ==================== 4. 播放器状�?====================
-
-  Future<void> savePlayerState(AppPlayerState state) async {
-    // [Refactored] 使用常量 key
-    await AppStorage.playerBox.put(StorageKeys.playerLastState, state);
-  }
-
-  AppPlayerState? getPlayerState() {
-    // [Refactored] 使用常量 key
-    return AppStorage.playerBox.get(StorageKeys.playerLastState);
-  }
 
   // ==================== 获取用户选择的扫描路�?====================
 

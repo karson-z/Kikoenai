@@ -152,6 +152,42 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
     }
     return null;
   }
+
+  /// 长按选项直达排除态（已存在时改写，不存在时新增）。
+  /// 与 [toggleTag] 的三态循环互不影响，global 模块同步 Hive。
+  void excludeTag(String type, String name) {
+    final tags = [...state.selectedTags];
+    final idx = tags.indexWhere((t) => t.type == type && t.name == name);
+
+    final SearchTag updated;
+    if (idx == -1) {
+      updated = SearchTag(type, name, true);
+      tags.add(updated);
+    } else {
+      if (tags[idx].isExclude) return;
+      updated = SearchTag(type, name, true);
+      tags[idx] = updated;
+    }
+
+    if (module == FilterModule.global) {
+      final key = _findBoxKey(type, name);
+      if (key != null) {
+        filterTagsBox.put(key, updated);
+      } else {
+        filterTagsBox.add(updated);
+      }
+    }
+    state = state.copyWith(selectedTags: tags);
+  }
+
+  /// 展开筛选区并跳到指定维度 Tab（一次调用，避免多次 state 写入）。
+  void openFilterAt(int index) {
+    state = state.copyWith(
+      isFilterOpen: true,
+      selectedFilterIndex: index,
+      localSearchKeyword: "",
+    );
+  }
 }
 
 final searchFilterProvider = NotifierProvider.family<SearchFilterNotifier, SearchFilterState, FilterModule>(

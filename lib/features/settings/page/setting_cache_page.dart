@@ -42,12 +42,6 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
       'dangerous': false,
     },
     {
-      'name': BoxNames.playerState,
-      'label': '播放器状态',
-      'desc': '退出应用时保存的音量、播放模式等临时状态。',
-      'dangerous': false,
-    },
-    {
       'name': BoxNames.auth,
       'label': '登录凭证 (敏感)',
       'desc': '用户登录状态与 Token 信息，清理后将导致账号强制登出。',

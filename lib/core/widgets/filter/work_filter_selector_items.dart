@@ -1,6 +1,5 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-import 'filter_silder_bar.dart';
 
 Map<CategoryType, List<SelectorItem>> buildWorkFilterSelectorItems(
   Iterable<Work> works,

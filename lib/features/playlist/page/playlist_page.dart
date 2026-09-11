@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,8 +7,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
-import 'package:kikoenai/core/widgets/filter/filter_widget.dart';
-import 'package:scroll_to_index/scroll_to_index.dart';
+import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 import '../../../../core/widgets/menu/float_menu_button.dart';
@@ -23,11 +24,6 @@ class PlaylistPage extends ConsumerStatefulWidget {
 }
 
 class _PlaylistPageState extends ConsumerState<PlaylistPage> {
-  // 筛选行的滚动控制器
-  late AutoScrollController _autoScrollController;
-
-  late FocusNode _filterSearchFocusNode;
-
   late bool isFabOpen = true;
   // AppBar 搜索框控制器
   final TextEditingController _appBarSearchController = TextEditingController();
@@ -35,18 +31,18 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   // 控制 AppBar 是否显示搜索输入框 (仅 UI 表现，数据在 Provider 中)
   bool _isAppBarSearching = false;
 
+  /// 筛选即点即生效，服务端列表刷新做防抖，避免连续点选时逐次请求
+  Timer? _filterRefreshDebounce;
+
   @override
   void initState() {
     super.initState();
-    _autoScrollController = AutoScrollController(axis: Axis.horizontal);
-    _filterSearchFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
-    _autoScrollController.dispose();
+    _filterRefreshDebounce?.cancel();
     _appBarSearchController.dispose();
-    _filterSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -87,80 +83,121 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     }
 
     final worksAsync = ref.watch(playlistWorksProvider(targetPlaylist.id));
+    final playlistFilter = ref.watch(
+      searchFilterProvider(FilterModule.playlist),
+    );
+    final playlistFilterNotifier = ref.read(
+      searchFilterProvider(FilterModule.playlist).notifier,
+    );
     // 主题色配置 (传给组件用)
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark ? Colors.black : Colors.white;
 
+    // 筛选即点即生效：已选标签变化后防抖刷新服务端列表（与旧"关闭弹窗后刷新"语义等价）
+    ref.listen(
+      searchFilterProvider(
+        FilterModule.playlist,
+      ).select((state) => state.selectedTags),
+      (previous, next) {
+        _filterRefreshDebounce?.cancel();
+        _filterRefreshDebounce = Timer(const Duration(milliseconds: 600), () {
+          if (!mounted) return;
+          ref.invalidate(playlistWorksProvider);
+        });
+      },
+    );
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: _buildSearchAppBar(context, targetPlaylist.name, ref, theme),
-      floatingActionButton: MorphingCapsuleFab(
-        isExpanded: isFabOpen,
-        fabSize: 52,
-        expandedHeight: 52,
-        direction: AxisDirection.left,
-        fabIcon: Icons.add,
-        actions: [
-          MorphingAction(
-            icon: Icons.tune,
-            label: '筛选',
-            onTap: () {
-              showFilterBottomSheet(
-                context,
-                ref,
-                FilterModule.playlist,
-                onComplete: () {
-                  ref.invalidate(playlistWorksProvider);
-                },
-              );
-            },
-          ),
-          MorphingAction(
-            icon: Icons.menu,
-            label: '播放列表',
-            onTap: () {
-              PlaylistSheet.show(context);
-            },
-          ),
-        ],
-      ),
-      body: SizedBox(
-        child: worksAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('加载失败: $err'),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.invalidate(playlistWorksProvider(targetPlaylist.id)),
-                  child: const Text('重试'),
+      // 筛选面板展开时隐藏 FAB，保证模态遮罩的全屏拦截
+      floatingActionButton: playlistFilter.isFilterOpen
+          ? null
+          : MorphingCapsuleFab(
+              isExpanded: isFabOpen,
+              fabSize: 52,
+              expandedHeight: 52,
+              direction: AxisDirection.left,
+              fabIcon: Icons.add,
+              actions: [
+                MorphingAction(
+                  icon: Icons.menu,
+                  label: '播放列表',
+                  onTap: () {
+                    PlaylistSheet.show(context);
+                  },
                 ),
               ],
             ),
-          ),
-          data: (pagingState) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                return ref.refresh(
-                  playlistWorksProvider(targetPlaylist.id).future,
-                );
-              },
-              child: PlaylistCardGridView(
-                pagingState: pagingState,
-                padding: const EdgeInsets.all(12),
-                fetchNextPage: () {
-                  ref
-                      .read(playlistWorksProvider(targetPlaylist.id).notifier)
-                      .fetchNextPage();
-                },
+      // 展开面板从 AppBar 底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
+      // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              InlineFilterBar(module: FilterModule.playlist),
+              Expanded(
+                child: worksAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('加载失败: $err'),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () => ref.invalidate(
+                            playlistWorksProvider(targetPlaylist.id),
+                          ),
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  data: (pagingState) {
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        return ref.refresh(
+                          playlistWorksProvider(targetPlaylist.id).future,
+                        );
+                      },
+                      child: PlaylistCardGridView(
+                        pagingState: pagingState,
+                        padding: const EdgeInsets.all(12),
+                        fetchNextPage: () {
+                          ref
+                              .read(
+                                playlistWorksProvider(
+                                  targetPlaylist.id,
+                                ).notifier,
+                              )
+                              .fetchNextPage();
+                        },
+                      ),
+                    );
+                  },
+                ),
               ),
-            );
-          },
-        ),
+            ],
+          ),
+          if (playlistFilter.isFilterOpen) ...[
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: playlistFilterNotifier.closeFilterDrawer,
+                child: const ColoredBox(color: Colors.black26),
+              ),
+            ),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: FilterDropdownPanel(module: FilterModule.playlist),
+            ),
+          ],
+        ],
       ),
     );
   }

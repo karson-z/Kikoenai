@@ -39,12 +39,6 @@ class StorageKeys {
   /// 通常存储 User 对象的序列化 JSON
   static const String currentUser = 'current_user';
 
-  // ==================== Player Box Keys (播放器状态) ====================
-
-  /// 播放器最后的状态
-  /// 用于应用重启后恢复播放进度、当前歌曲、播放列表等
-  static const String playerLastState = 'last_state';
-
   // ==================== Scanner Box Keys & Prefixes (扫描相关) ====================
 
   /// 扫描路径的前缀 Key

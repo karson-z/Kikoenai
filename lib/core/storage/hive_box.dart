@@ -10,8 +10,6 @@ class BoxNames {
   static const String logs = 'logs';
   /// 观看记录
   static const String history = 'history';
-  /// 播放状态
-  static const String playerState = 'player_state';
   /// 抓取的作品元数据
   static const String scraper = 'scraper_work';
   /// 抓取的作品元数据
@@ -25,7 +23,6 @@ class BoxNames {
     settings,
     logs,
     history,
-    playerState,
     auth,
     scanner,
     scraper,

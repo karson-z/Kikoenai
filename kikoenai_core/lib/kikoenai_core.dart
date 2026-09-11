@@ -74,6 +74,7 @@ export 'core/model/marked/review_data.dart';
 export 'core/model/marked/review_query_params.dart';
 
 // ---- Models: category ----
+export 'core/model/category/category_type.dart';
 export 'core/model/category/selector_item.dart';
 
 // ---- Models: player ----

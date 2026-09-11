@@ -1,17 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
-import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../../../core/widgets/layout/adaptive_app_bar_mobile.dart';
 import '../widget/category_tab_list.dart';
 import '../widget/filter_header.dart';
-import '../widget/filter_row_panel.dart';
-import '../../../../core/widgets/filter/filter_widget.dart';
 import '../provider/category_data_provider.dart';
 
 class CategoryPage extends ConsumerStatefulWidget {
@@ -23,15 +23,16 @@ class CategoryPage extends ConsumerStatefulWidget {
 class _CategoryPageState extends ConsumerState<CategoryPage>
     with SingleTickerProviderStateMixin {
   final List<SortOrder> sortOrders = SortOrder.values;
-  late AutoScrollController _autoScrollController;
   late TabController _tabController;
-  late FocusNode _filterSearchFocusNode;
-  static const double _filterHeaderHeight = 90;
+
+  /// 筛选即点即生效，但服务端筛选的重刷做防抖，避免连续点击选项时逐次请求
+  Timer? _filterRefreshDebounce;
   @override
   void initState() {
     super.initState();
-    final currentSort =
-        ref.read(searchFilterProvider(FilterModule.category)).sortOption;
+    final currentSort = ref
+        .read(searchFilterProvider(FilterModule.category))
+        .sortOption;
     int initialIndex = sortOrders.indexOf(currentSort);
     if (initialIndex == -1) initialIndex = 0;
     _tabController = TabController(
@@ -39,8 +40,6 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
       vsync: this,
       initialIndex: initialIndex,
     );
-    _autoScrollController = AutoScrollController(axis: Axis.horizontal);
-    _filterSearchFocusNode = FocusNode();
     _tabController.addListener(() {
       if (!mounted) return;
       if (!_tabController.indexIsChanging) {
@@ -49,8 +48,10 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
             .read(searchFilterProvider(FilterModule.category).notifier)
             .setSort(sortOption: order); // 惰性刷新：仅当该 tab 缓存数据的筛选指纹与当前筛选不一致时才重新请求
         final ui = ref.read(searchFilterProvider(FilterModule.category));
-        final lastFp =
-            ref.read(categoryProvider(order)).value?.filterFingerprint;
+        final lastFp = ref
+            .read(categoryProvider(order))
+            .value
+            ?.filterFingerprint;
         if (lastFp != null &&
             lastFp != CategoryDataNotifier.fingerprintOf(ui)) {
           ref.invalidate(categoryProvider(order));
@@ -61,9 +62,8 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
 
   @override
   void dispose() {
+    _filterRefreshDebounce?.cancel();
     _tabController.dispose();
-    _autoScrollController.dispose();
-    _filterSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -79,36 +79,28 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     final isMobile = context.isMobile;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final filterHeight = MediaQuery.sizeOf(context).height * 0.4; // 4. 定义主题色
     final Color bgColor = isDark ? Colors.black : Colors.white;
-    final Color textColor = isDark ? Colors.white : Colors.black45;
-    final Color subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
-    final Color fillColor =
-        isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5);
-    final Color primaryColor = theme.colorScheme.primary; // 监听选中标签数量，自动横向滚动筛选行
 
-    void completeFilter() {
-      if (!query.isFilterOpen) return;
-      queryNotifier.closeFilterDrawer();
-      ref.invalidate(categoryProvider(query.sortOption));
-    }
-
+    // 筛选即点即生效：任一筛选状态变化后，若与缓存数据的指纹不一致则惰性刷新当前 tab
     ref.listen<SearchFilterState>(searchFilterProvider(FilterModule.category), (
       previous,
       next,
     ) {
-      if (previous != null &&
-          next.selectedTags.length > previous.selectedTags.length) {
-        final targetIndex = next.selectedTags.length - 1;
-        _autoScrollController.scrollToIndex(
-          targetIndex,
-          preferPosition: AutoScrollPosition.end,
-          duration: const Duration(milliseconds: 300),
-        );
+      if (previous == null) return;
+      final cached = ref.read(categoryProvider(next.sortOption));
+      final lastFp = cached.value?.filterFingerprint;
+      if (lastFp != null &&
+          lastFp != CategoryDataNotifier.fingerprintOf(next)) {
+        _filterRefreshDebounce?.cancel();
+        _filterRefreshDebounce = Timer(const Duration(milliseconds: 600), () {
+          if (!mounted) return;
+          final latest = ref.read(searchFilterProvider(FilterModule.category));
+          ref.invalidate(categoryProvider(latest.sortOption));
+        });
       }
     });
+
     final filterHeader = FilterHeader(
-      height: _filterHeaderHeight,
       tabController: _tabController,
       sortOrders: sortOrders,
       sortDirection: query.sortDirection,
@@ -125,108 +117,72 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         queryNotifier.setSubtitleFilter(nextSubtitle);
         ref.invalidate(categoryProvider(query.sortOption));
       },
-      filterRow: FilterRowPanel(
-        isFilterOpen: query.isFilterOpen,
-        keyword: query.keyword ?? '',
-        selectedTags: query.selectedTags,
+      filterRow: InlineFilterBar(
+        module: FilterModule.category,
         totalCount: totalCount,
-        onToggleFilter: () {
-          _filterSearchFocusNode.unfocus();
-          if (query.isFilterOpen) {
-            completeFilter();
-          } else {
-            queryNotifier.toggleFilterDrawer();
-          }
-        },
         onClearKeyword: () {
           queryNotifier.updateKeyword(null);
           ref.invalidate(categoryProvider(query.sortOption));
         },
-        onRemoveTag: (tag) {
-          queryNotifier.removeTag(tag.type, tag.name);
-          if (!query.isFilterOpen) {
-            ref.invalidate(categoryProvider(query.sortOption));
-          }
-        },
-        scrollController: _autoScrollController,
-        bgColor: bgColor,
-        textColor: textColor,
-        subTextColor: subTextColor,
-        fillColor: fillColor,
-        primaryColor: primaryColor,
-        horizontalPadding: 8,
       ),
     );
-    final categoryContent = Column(
+    // 展开面板从 AppBar 底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
+    // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
+    final categoryContent = Stack(
       children: [
-        filterHeader,
-        Expanded(
-          child: Stack(
-            children: [
-              TabBarView(
-                controller: _tabController,
-                children: sortOrders.map((sortOrder) {
-                  return CategoryListTab(
-                    key: PageStorageKey<String>(sortOrder.label),
-                    sortOrder: sortOrder,
-                    isFilterOpen: query.isFilterOpen,
-                  );
-                }).toList(),
-              ),
-              if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
-                const Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(
-                    minHeight: 3,
-                    backgroundColor: Colors.transparent,
+        Column(
+          children: [
+            filterHeader,
+            Expanded(
+              child: Stack(
+                children: [
+                  TabBarView(
+                    controller: _tabController,
+                    children: sortOrders.map((sortOrder) {
+                      return CategoryListTab(
+                        key: PageStorageKey<String>(sortOrder.label),
+                        sortOrder: sortOrder,
+                        isFilterOpen: query.isFilterOpen,
+                      );
+                    }).toList(),
                   ),
-                ),
-              if (query.isFilterOpen)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      _filterSearchFocusNode.unfocus();
-                      completeFilter();
-                    },
-                    child: Container(color: Colors.black12),
-                  ),
-                ),
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                top: 0,
-                left: 0,
-                right: 0,
-                height: query.isFilterOpen ? filterHeight : 0,
-                child: ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.topCenter,
-                    maxHeight: filterHeight,
-                    child: SizedBox(
-                      height: filterHeight,
-                      child: Material(
-                        color: bgColor,
-                        elevation: 8,
-                        shadowColor: Colors.black.withValues(alpha: 0.2),
-                        child: NotificationListener<ScrollNotification>(
-                          // 抽屉内部滚动不应驱动外层 AppBar 的收起/展开。
-                          onNotification: (_) => true,
-                          child: FilterWidget(
-                            type: FilterModule.category,
-                            onComplete: completeFilter,
-                          ),
-                        ),
+                  if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(
+                        minHeight: 3,
+                        backgroundColor: Colors.transparent,
                       ),
                     ),
-                  ),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (query.isFilterOpen) ...[
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: queryNotifier.closeFilterDrawer,
+              child: const ColoredBox(color: Colors.black26),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: FilterDropdownPanel(
+              module: FilterModule.category,
+              totalCount: totalCount,
+              onClearKeyword: () {
+                queryNotifier.updateKeyword(null);
+                ref.invalidate(categoryProvider(query.sortOption));
+              },
+            ),
+          ),
+        ],
       ],
     );
     final body = isMobile
