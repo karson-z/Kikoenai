@@ -126,63 +126,35 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         },
       ),
     );
-    // 展开面板从 AppBar 底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
-    // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
-    final categoryContent = Stack(
+    final categoryContent = Column(
       children: [
-        Column(
-          children: [
-            filterHeader,
-            Expanded(
-              child: Stack(
-                children: [
-                  TabBarView(
-                    controller: _tabController,
-                    children: sortOrders.map((sortOrder) {
-                      return CategoryListTab(
-                        key: PageStorageKey<String>(sortOrder.label),
-                        sortOrder: sortOrder,
-                        isFilterOpen: query.isFilterOpen,
-                      );
-                    }).toList(),
-                  ),
-                  if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
-                    const Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: LinearProgressIndicator(
-                        minHeight: 3,
-                        backgroundColor: Colors.transparent,
-                      ),
-                    ),
-                ],
+        filterHeader,
+        Expanded(
+          child: Stack(
+            children: [
+              TabBarView(
+                controller: _tabController,
+                children: sortOrders.map((sortOrder) {
+                  return CategoryListTab(
+                    key: PageStorageKey<String>(sortOrder.label),
+                    sortOrder: sortOrder,
+                    isFilterOpen: query.isFilterOpen,
+                  );
+                }).toList(),
               ),
-            ),
-          ],
+              if (currentTabAsync.isRefreshing || currentTabAsync.isLoading)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    backgroundColor: Colors.transparent,
+                  ),
+                ),
+            ],
+          ),
         ),
-        if (query.isFilterOpen) ...[
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: queryNotifier.closeFilterDrawer,
-              child: const ColoredBox(color: Colors.black26),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: FilterDropdownPanel(
-              module: FilterModule.category,
-              totalCount: totalCount,
-              onClearKeyword: () {
-                queryNotifier.updateKeyword(null);
-                ref.invalidate(categoryProvider(query.sortOption));
-              },
-            ),
-          ),
-        ],
       ],
     );
     final body = isMobile

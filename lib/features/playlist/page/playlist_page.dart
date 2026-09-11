@@ -86,9 +86,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
     final playlistFilter = ref.watch(
       searchFilterProvider(FilterModule.playlist),
     );
-    final playlistFilterNotifier = ref.read(
-      searchFilterProvider(FilterModule.playlist).notifier,
-    );
     // 主题色配置 (传给组件用)
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -130,73 +127,49 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 ),
               ],
             ),
-      // 展开面板从 AppBar 底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
-      // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
-      body: Stack(
+      body: Column(
         children: [
-          Column(
-            children: [
-              InlineFilterBar(module: FilterModule.playlist),
-              Expanded(
-                child: worksAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('加载失败: $err'),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () => ref.invalidate(
-                            playlistWorksProvider(targetPlaylist.id),
-                          ),
-                          child: const Text('重试'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  data: (pagingState) {
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        return ref.refresh(
-                          playlistWorksProvider(targetPlaylist.id).future,
-                        );
-                      },
-                      child: PlaylistCardGridView(
-                        pagingState: pagingState,
-                        padding: const EdgeInsets.all(12),
-                        fetchNextPage: () {
-                          ref
-                              .read(
-                                playlistWorksProvider(
-                                  targetPlaylist.id,
-                                ).notifier,
-                              )
-                              .fetchNextPage();
-                        },
+          InlineFilterBar(module: FilterModule.playlist),
+          Expanded(
+            child: worksAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('加载失败: $err'),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(
+                        playlistWorksProvider(targetPlaylist.id),
                       ),
-                    );
-                  },
+                      child: const Text('重试'),
+                    ),
+                  ],
                 ),
               ),
-            ],
+              data: (pagingState) {
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    return ref.refresh(
+                      playlistWorksProvider(targetPlaylist.id).future,
+                    );
+                  },
+                  child: PlaylistCardGridView(
+                    pagingState: pagingState,
+                    padding: const EdgeInsets.all(12),
+                    fetchNextPage: () {
+                      ref
+                          .read(
+                            playlistWorksProvider(targetPlaylist.id).notifier,
+                          )
+                          .fetchNextPage();
+                    },
+                  ),
+                );
+              },
+            ),
           ),
-          if (playlistFilter.isFilterOpen) ...[
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: playlistFilterNotifier.closeFilterDrawer,
-                child: const ColoredBox(color: Colors.black26),
-              ),
-            ),
-            const Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: FilterDropdownPanel(module: FilterModule.playlist),
-            ),
-          ],
         ],
       ),
     );

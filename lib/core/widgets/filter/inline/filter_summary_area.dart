@@ -116,13 +116,18 @@ class FilterSummaryArea extends StatelessWidget {
                 onTap: hasSelection ? onReset : null,
                 borderRadius: BorderRadius.circular(6),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   child: Text(
                     '重置',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: hasSelection
                           ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                          : theme.colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.4,
+                            ),
                     ),
                   ),
                 ),
@@ -170,9 +175,19 @@ class FilterSummaryArea extends StatelessWidget {
 
   /// 收起态：单行横向 chips（无已选时显示维度快捷入口），右缘淡出
   Widget _buildCollapsibleChips(BuildContext context) {
-
-    final List<Widget> chips;
-    chips = _buildSelectedChips(context);
+    final selectedChips = _buildSelectedChips(context);
+    final chips = selectedChips.isNotEmpty
+        ? selectedChips
+        : quickEntries
+              .map(
+                (type) => InlineFilterChip(
+                  label: type.label,
+                  style: FilterChipStyle.ghost,
+                  height: _chipHeight.toDouble(),
+                  onTap: () => onQuickEntryTap(type),
+                ),
+              )
+              .toList(growable: false);
 
     return ShaderMask(
       shaderCallback: (bounds) {

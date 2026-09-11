@@ -62,11 +62,16 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
   }
 
   bool _isSelected(String label) {
-    return widget.selectedTags.any((t) => t.name == label && !t.isExclude);
+    return widget.selectedTags.any(
+      (t) =>
+          t.type == widget.activeType.name && t.name == label && !t.isExclude,
+    );
   }
 
   bool _isExcluded(String label) {
-    return widget.selectedTags.any((t) => t.name == label && t.isExclude);
+    return widget.selectedTags.any(
+      (t) => t.type == widget.activeType.name && t.name == label && t.isExclude,
+    );
   }
 
   @override
@@ -106,9 +111,7 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
       padding: const EdgeInsets.fromLTRB(14, 10, 12, 0),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.35),
-          ),
+          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35)),
         ),
       ),
       child: Row(
@@ -173,9 +176,7 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
               height: 3,
               width: 16,
               decoration: BoxDecoration(
-                color: active
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
+                color: active ? theme.colorScheme.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -218,8 +219,8 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
             final style = _isExcluded(item.label)
                 ? FilterChipStyle.exclude
                 : _isSelected(item.label)
-                    ? FilterChipStyle.include
-                    : null;
+                ? FilterChipStyle.include
+                : null;
             return InlineFilterChip(
               label: item.label,
               style: style ?? FilterChipStyle.ghost,
@@ -237,8 +238,8 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
         child: Text(
           '加载失败，请重试',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -249,8 +250,8 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

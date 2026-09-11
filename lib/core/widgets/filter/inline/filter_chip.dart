@@ -39,7 +39,7 @@ class InlineFilterChip extends StatelessWidget {
   /// 长按（选项网格中用于直达排除态）
   final VoidCallback? onLongPress;
 
-  /// 仅 [FilterChipStyle.selected] 生效：× 的点击回调
+  /// 已选或排除态的 × 点击回调
   final VoidCallback? onRemove;
 
   final double height;
@@ -74,7 +74,9 @@ class InlineFilterChip extends StatelessWidget {
         bgColor = excludeColor.withValues(alpha: 0.08);
         decoration = TextDecoration.lineThrough;
       case FilterChipStyle.ghost:
-        borderColor = isDark ? const Color(0xFF3A4048) : const Color(0xFFD8DCE2);
+        borderColor = isDark
+            ? const Color(0xFF3A4048)
+            : const Color(0xFFD8DCE2);
         textColor = isDark ? const Color(0xFF8A919C) : const Color(0xFFA6ADB8);
     }
 
@@ -86,8 +88,9 @@ class InlineFilterChip extends StatelessWidget {
         fontSize: 12,
         height: 1.2,
         color: textColor,
-        fontWeight:
-            style == FilterChipStyle.ghost ? FontWeight.normal : FontWeight.w600,
+        fontWeight: style == FilterChipStyle.ghost
+            ? FontWeight.normal
+            : FontWeight.w600,
         decoration: decoration,
         decorationColor: excludeColor,
       ),
@@ -101,10 +104,10 @@ class InlineFilterChip extends StatelessWidget {
           Icon(Icons.search, size: 12, color: textColor),
           const SizedBox(width: 3),
         ],
-        Flexible(
-          child: labelWidget,
-        ),
-        if (style == FilterChipStyle.selected && onRemove != null) ...[
+        Flexible(child: labelWidget),
+        if ((style == FilterChipStyle.selected ||
+                style == FilterChipStyle.exclude) &&
+            onRemove != null) ...[
           const SizedBox(width: 4),
           GestureDetector(
             behavior: HitTestBehavior.opaque,

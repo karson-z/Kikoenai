@@ -155,46 +155,21 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
       },
     );
 
-    // 展开面板从搜索工具栏底部向下覆盖（盖住收起横条与内容），不压缩页面布局，
-    // 内容区以全局模态遮罩拦截交互，点击遮罩收起。
-    final content = Stack(
+    final content = Column(
       children: [
-        Column(
-          children: [
-            InlineFilterBar(
-              module: FilterModule.dl,
-              totalCount: filteredWorks.length,
-              onClearKeyword: _clearKeyword,
-            ),
-            Expanded(
-              child: CustomScrollView(
-                key: const PageStorageKey<String>('dl_library_content'),
-                physics: const ClampingScrollPhysics(),
-                slivers: _buildContentSlivers(filteredWorks),
-              ),
-            ),
-          ],
+        InlineFilterBar(
+          module: FilterModule.dl,
+          totalCount: filteredWorks.length,
+          optionsOverride: _filterSelectorItemsByCategory,
+          onClearKeyword: _clearKeyword,
         ),
-        if (filter.isFilterOpen) ...[
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: filterNotifier.closeFilterDrawer,
-              child: const ColoredBox(color: Colors.black26),
-            ),
+        Expanded(
+          child: CustomScrollView(
+            key: const PageStorageKey<String>('dl_library_content'),
+            physics: const ClampingScrollPhysics(),
+            slivers: _buildContentSlivers(filteredWorks),
           ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: FilterDropdownPanel(
-              module: FilterModule.dl,
-              totalCount: filteredWorks.length,
-              optionsOverride: _filterSelectorItemsByCategory,
-              onClearKeyword: _clearKeyword,
-            ),
-          ),
-        ],
+        ),
       ],
     );
 
