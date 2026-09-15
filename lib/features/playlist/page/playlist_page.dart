@@ -7,7 +7,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/guest_placeholder_view.dart';
-import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
+import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 import '../../../../core/widgets/menu/float_menu_button.dart';

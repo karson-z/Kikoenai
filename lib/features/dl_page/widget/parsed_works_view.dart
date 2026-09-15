@@ -7,7 +7,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
-import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
+import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/filter/work_filter_selector_items.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';

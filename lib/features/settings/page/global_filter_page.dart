@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
-import 'package:kikoenai/core/widgets/filter/inline/inline_filter.dart';
+import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 

@@ -11,17 +11,27 @@ const double _kMinFlingVelocity = 700.0;
 /// 松手时低于该进度则收拢，高于则回弹展开。
 const double _kCloseProgressThreshold = 0.5;
 
+/// 拖拽手把默认尺寸，对齐 BottomSheet 手把规范。
+const Size _kTopSheetDragHandleSize = Size(32, 4);
+
 /// 从锚点向下延伸的模态面板。
 ///
 /// 与 [showModalBottomSheet] 那种「贴在屏幕边缘的弹层」不同，它贴着调用方
 /// [context] 所在控件（通常是筛选横条）向下展开，视觉上是横条自身「长出来」
 /// 的一块内容，而不是从屏幕顶部盖下来。
 ///
-/// * 面板顶边默认取 [context] 对应控件的全局顶边，也可用 [anchorTop] 显式指定；
-/// * 遮罩只绘制在面板下方的区域（含底部导航栏），锚点以上保持原样不被压暗；
-/// * [enableDrag] 开启时（默认），从面板的非滚动区域（摘要标题行、选项卡栏、
-///   间距）上滑可收拢面板，上抛惯性关闭；面板内部的竖向滚动组件优先消费
-///   滚动手势，与标准 [BottomSheet] 行为一致。
+/// 面板的**形状与高度全部由本组件管控**，内容（[builder]）只是纯内容：
+///
+/// * 形状：背景色、海拔、阴影、圆角（默认底部圆角）、裁剪由
+///   [backgroundColor]/[elevation]/[shadowColor]/[shape]/[clipBehavior]
+///   配置，内容被统一包进 [Material]，不能自带表面；
+/// * 高度：面板实际高度 = 「锚点以下可用高度」与「[maxHeightFactor] × 屏高」
+///   取小，内容在此高度内用 [Expanded] 自行分配，永不溢出；
+/// * 拖拽手把：[showDragHandle] 开启时在面板底缘显示（方向与底部弹层相反），
+///   颜色/尺寸可配；
+/// * 遮罩只绘制在面板下方（含底部导航栏），锚点以上保持原样；
+/// * [enableDrag] 开启时（默认），从面板的非滚动区域上滑可收拢面板，
+///   上抛惯性关闭；面板内部的竖向滚动组件优先消费滚动手势。
 ///
 /// 路由挂在根 Navigator 上，因此：能盖住底部导航栏；返回键、点击遮罩
 /// 都能关闭面板。
@@ -34,6 +44,15 @@ Future<T?> showTopSheet<T>({
   String barrierLabel = '关闭',
   Duration transitionDuration = _kTopSheetDuration,
   bool enableDrag = true,
+  Color? backgroundColor,
+  double? elevation,
+  Color? shadowColor,
+  ShapeBorder? shape,
+  Clip? clipBehavior,
+  bool showDragHandle = false,
+  Color? dragHandleColor,
+  Size? dragHandleSize,
+  double maxHeightFactor = 1.0,
   bool useRootNavigator = true,
   RouteSettings? routeSettings,
 }) {
@@ -51,6 +70,15 @@ Future<T?> showTopSheet<T>({
       barrierLabel: barrierLabel,
       sheetDuration: transitionDuration,
       enableDrag: enableDrag,
+      backgroundColor: backgroundColor,
+      elevation: elevation,
+      shadowColor: shadowColor,
+      shape: shape,
+      clipBehavior: clipBehavior,
+      showDragHandle: showDragHandle,
+      dragHandleColor: dragHandleColor,
+      dragHandleSize: dragHandleSize,
+      maxHeightFactor: maxHeightFactor,
       capturedThemes: InheritedTheme.capture(
         from: context,
         to: navigator.context,
@@ -91,11 +119,21 @@ class ModalTopSheetRoute<T> extends PopupRoute<T> {
     this.barrierLabel = '关闭',
     this.sheetDuration = _kTopSheetDuration,
     this.enableDrag = true,
+    this.backgroundColor,
+    this.elevation,
+    this.shadowColor,
+    this.shape,
+    this.clipBehavior,
+    this.showDragHandle = false,
+    this.dragHandleColor,
+    this.dragHandleSize,
+    this.maxHeightFactor = 1.0,
     super.settings,
   }) : dimColor = barrierColor,
-       assert(anchorTop >= 0);
+       assert(anchorTop >= 0),
+       assert(maxHeightFactor > 0);
 
-  /// 面板内容构建器。
+  /// 面板内容构建器：只负责内容，表面/高度/手把均由路由管控。
   final WidgetBuilder builder;
 
   /// 面板顶边的全局 Y 坐标；面板从这里向下展开。
@@ -112,6 +150,33 @@ class ModalTopSheetRoute<T> extends PopupRoute<T> {
 
   /// 是否允许上滑收拢/关闭面板。
   final bool enableDrag;
+
+  /// 面板表面背景色；null 时回退主题 [ColorScheme.surface]。
+  final Color? backgroundColor;
+
+  /// 面板海拔（阴影大小）；null 时默认 0。
+  final double? elevation;
+
+  /// 面板阴影色。
+  final Color? shadowColor;
+
+  /// 面板形状；null 时默认底部圆角 16。
+  final ShapeBorder? shape;
+
+  /// 内容裁剪行为；null 时默认 [Clip.none]。
+  final Clip? clipBehavior;
+
+  /// 是否在面板底缘显示拖拽手把。
+  final bool showDragHandle;
+
+  /// 手把颜色；null 时回退 [ColorScheme.onSurfaceVariant] 40% 透明度。
+  final Color? dragHandleColor;
+
+  /// 手把尺寸；null 时默认 `Size(32, 4)`。
+  final Size? dragHandleSize;
+
+  /// 面板高度上限占屏高比例（与锚点以下可用高度取小）。
+  final double maxHeightFactor;
 
   /// 遮罩语义标签。
   @override
@@ -212,8 +277,8 @@ class _SheetPanelState<T> extends State<_SheetPanel<T>> {
     super.dispose();
   }
 
-  /// 面板内容的全高。面板始终按全高布局、只是被裁剪露出上半部分，
-  /// 因此拖拽进度按全高换算即可与手指 1:1 对应。
+  /// 面板的固定高度（由本组件的高度策略决定）。拖拽进度按它换算，
+  /// 即可与手指 1:1 对应。
   double get _panelHeight {
     final RenderBox renderBox =
         _panelKey.currentContext!.findRenderObject()! as RenderBox;
@@ -289,25 +354,77 @@ class _SheetPanelState<T> extends State<_SheetPanel<T>> {
         final double progress = _sheetAnimation.value.clamp(0.0, 1.0);
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+            final theme = Theme.of(context);
             final double anchor = widget.route.anchorTop.clamp(
               0.0,
               constraints.maxHeight,
             );
             final double available = constraints.maxHeight - anchor;
 
-            Widget panel = ConstrainedBox(
+            // 高度策略归本组件：实际高度 = 可用高度与 maxHeightFactor×屏高取小，
+            // 内容在该高度内自行分配（Expanded），任何内容都不会溢出到遮罩之外。
+            final double sheetHeight =
+                (constraints.maxHeight * widget.route.maxHeightFactor).clamp(
+                  0.0,
+                  available,
+                );
+
+            // 形状策略归本组件：内容统一包进 Material，不允许自带表面。
+            final ShapeBorder shape =
+                widget.route.shape ??
+                const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                );
+
+            Widget panel = SizedBox(
+              key: _panelKey,
+              width: double.infinity,
+              height: sheetHeight,
+              child: Material(
+                color:
+                    widget.route.backgroundColor ?? theme.colorScheme.surface,
+                elevation: widget.route.elevation ?? 0,
+                shadowColor: widget.route.shadowColor,
+                shape: shape,
+                clipBehavior: widget.route.clipBehavior ?? Clip.none,
+                child: Column(
+                  children: <Widget>[
+                    Expanded(child: Builder(builder: widget.route.builder)),
+                    if (widget.route.showDragHandle)
+                      SizedBox(
+                        height: kMinInteractiveDimension,
+                        child: Center(
+                          child: _TopSheetDragHandle(
+                            color:
+                                widget.route.dragHandleColor ??
+                                theme.colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.4,
+                                ),
+                            size:
+                                widget.route.dragHandleSize ??
+                                _kTopSheetDragHandleSize,
+                            onDismiss: () {
+                              if (widget.route.isCurrent) {
+                                Navigator.pop(context);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+
+            panel = ConstrainedBox(
               constraints: BoxConstraints(maxHeight: available),
               child: ClipRect(
                 child: Align(
                   alignment: Alignment.topCenter,
                   heightFactor: progress,
-                  // Align 给子节点的是松约束：宽度需显式撑满；高度保持全高
-                  // 布局、仅被上方 ClipRect 裁剪，进度才能映射为露出的高度。
-                  child: SizedBox(
-                    key: _panelKey,
-                    width: double.infinity,
-                    child: Builder(builder: widget.route.builder),
-                  ),
+                  child: panel,
                 ),
               ),
             );
@@ -328,15 +445,23 @@ class _SheetPanelState<T> extends State<_SheetPanel<T>> {
               children: <Widget>[
                 // 锚点以上：不加遮罩，让工具栏/状态栏保持原样。
                 SizedBox(height: anchor),
-                panel,
-                // 面板以下：压暗，覆盖页面内容与底部导航栏。
                 Expanded(
-                  child: IgnorePointer(
-                    child: ColoredBox(
-                      color: widget.route.dimColor.withValues(
-                        alpha: widget.route.dimColor.a * progress,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      // 遮罩铺满锚点以下的整片区域（含底部导航栏），
+                      // 面板浮在其上：面板圆角缺口露出的也是遮罩本身，
+                      // 圆角边缘与面板下方因此是同一种压暗效果，不会
+                      // 出现「圆角处露出未压暗页面」的亮斑。
+                      IgnorePointer(
+                        child: ColoredBox(
+                          color: widget.route.dimColor.withValues(
+                            alpha: widget.route.dimColor.a * progress,
+                          ),
+                        ),
                       ),
-                    ),
+                      Align(alignment: Alignment.topCenter, child: panel),
+                    ],
                   ),
                 ),
               ],
@@ -385,6 +510,38 @@ class _TopSheetGestureDetector extends StatelessWidget {
             ),
       },
       child: child,
+    );
+  }
+}
+
+/// 面板底缘的拖拽手把（方向与底部弹层相反），语义上可点按关闭。
+/// 手把区域的外层面板已挂拖拽识别器，无需重复识别。
+class _TopSheetDragHandle extends StatelessWidget {
+  const _TopSheetDragHandle({
+    required this.color,
+    required this.size,
+    required this.onDismiss,
+  });
+
+  final Color color;
+  final Size size;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      container: true,
+      button: true,
+      onTap: onDismiss,
+      child: Container(
+        width: size.width,
+        height: size.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size.height / 2),
+          color: color,
+        ),
+      ),
     );
   }
 }

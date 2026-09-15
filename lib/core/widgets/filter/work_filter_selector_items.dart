@@ -1,6 +1,5 @@
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-
 Map<CategoryType, List<SelectorItem>> buildWorkFilterSelectorItems(
   Iterable<Work> works,
 ) {

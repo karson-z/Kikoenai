@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-import '../../enums/age_rating.dart';
-import '../../enums/duration_enum.dart';
-import '../../enums/lang_enum.dart';
-import '../../enums/price_enum.dart';
-import '../../enums/rate_enum.dart';
-import '../../enums/sell_enum.dart';
-import '../../enums/tag_enum.dart';
+import '../../../enums/age_rating.dart';
+import '../../../enums/duration_enum.dart';
+import '../../../enums/lang_enum.dart';
+import '../../../enums/price_enum.dart';
+import '../../../enums/rate_enum.dart';
+import '../../../enums/sell_enum.dart';
+import '../../../enums/tag_enum.dart';
 
+/// 「特殊」维度的静态选项面板：分级/语言/时长/评分/销量/价格分组。
+/// 纯展示组件，选项来自枚举，选择状态由 [selectedTags] 注入。
 class AdvancedFilterPanel extends StatelessWidget {
   final List<SearchTag> selectedTags;
   final Function(String type, String name) onToggleTag;
@@ -18,12 +20,12 @@ class AdvancedFilterPanel extends StatelessWidget {
   final Color textColor;
 
   const AdvancedFilterPanel({
-    Key? key,
+    super.key,
     required this.selectedTags,
     required this.onToggleTag,
     required this.fillColor,
     required this.textColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +57,10 @@ class AdvancedFilterPanel extends StatelessWidget {
 
   /// 构建单个分组
   Widget _buildSectionGroup(
-      BuildContext context, {
-        required TagType type,
-        required List<FilterOptionItem> options,
-      }) {
+    BuildContext context, {
+    required TagType type,
+    required List<FilterOptionItem> options,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -90,10 +92,11 @@ class AdvancedFilterPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16), // 组间距
         Divider(
-            height: 1,
-            color: Colors.grey.withOpacity(0.1),
-            indent: 16,
-            endIndent: 16),
+          height: 1,
+          color: Colors.grey.withValues(alpha: 0.1),
+          indent: 16,
+          endIndent: 16,
+        ),
         const SizedBox(height: 16),
       ],
     );
@@ -103,7 +106,7 @@ class AdvancedFilterPanel extends StatelessWidget {
   Widget _buildSingleTag(TagType type, FilterOptionItem option) {
     // --- 改动 3: 使用 selectedTags 判断选中状态 ---
     final tagIndex = selectedTags.indexWhere(
-          (t) => t.type == type.stringValue && t.name == option.value,
+      (t) => t.type == type.stringValue && t.name == option.value,
     );
     final isSelected = tagIndex != -1;
     final isExclude = isSelected ? selectedTags[tagIndex].isExclude : false;
@@ -120,11 +123,11 @@ class AdvancedFilterPanel extends StatelessWidget {
       fg = textColor;
       border = Border.all(color: Colors.transparent);
     } else if (isExclude) {
-      bg = errorColor.withOpacity(0.1);
+      bg = errorColor.withValues(alpha: 0.1);
       fg = errorColor;
       border = Border.all(color: errorColor);
     } else {
-      bg = activeColor.withOpacity(0.1);
+      bg = activeColor.withValues(alpha: 0.1);
       fg = activeColor;
       border = Border.all(color: activeColor);
     }
@@ -155,25 +158,39 @@ class AdvancedFilterPanel extends StatelessWidget {
 
   IconData _getIconForType(TagType type) {
     switch (type) {
-      case TagType.age: return Icons.explicit;
-      case TagType.lang: return Icons.language;
-      case TagType.duration: return Icons.schedule;
-      case TagType.rate: return Icons.star_border;
-      case TagType.price: return Icons.attach_money;
-      case TagType.sell: return Icons.local_fire_department;
-      default: return Icons.label_outline;
+      case TagType.age:
+        return Icons.explicit;
+      case TagType.lang:
+        return Icons.language;
+      case TagType.duration:
+        return Icons.schedule;
+      case TagType.rate:
+        return Icons.star_border;
+      case TagType.price:
+        return Icons.attach_money;
+      case TagType.sell:
+        return Icons.local_fire_department;
+      default:
+        return Icons.label_outline;
     }
   }
 
   String _getTitleForType(TagType type) {
     switch (type) {
-      case TagType.age: return "分级";
-      case TagType.lang: return "语言";
-      case TagType.duration: return "时长";
-      case TagType.rate: return "评分";
-      case TagType.price: return "价格";
-      case TagType.sell: return "销量";
-      default: return "其他";
+      case TagType.age:
+        return "分级";
+      case TagType.lang:
+        return "语言";
+      case TagType.duration:
+        return "时长";
+      case TagType.rate:
+        return "评分";
+      case TagType.price:
+        return "价格";
+      case TagType.sell:
+        return "销量";
+      default:
+        return "其他";
     }
   }
 }

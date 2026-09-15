@@ -1,5 +1,3 @@
-
-
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai_core/core/model/shared/search_tag.dart';
 
@@ -54,6 +52,7 @@ class FilterTagRepository {
       await _box.delete(key);
     }
   }
+
   Future<void> resetTagsByType(String type) async {
     final keysToDelete = [];
     final map = _box.toMap();
@@ -66,6 +65,7 @@ class FilterTagRepository {
       await _box.deleteAll(keysToDelete);
     }
   }
+
   // 清除全部记录
   Future<void> clearAll() async {
     await _box.clear();

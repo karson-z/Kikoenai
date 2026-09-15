@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
-import '../../../../../core/service/cache/cache_service.dart';
-import '../../../../../core/service/site/site_api_provider.dart';
+import '../../../service/cache/cache_service.dart';
+import '../../../service/site/site_api_provider.dart';
 
+/// 站点维度的选项数据源（社团/声优/标签），供筛选面板与分类页共用。
+///
+/// 统一走「缓存优先 → API → 按热度排序 → 回写缓存」，
+/// [SiteFeature] 不支持的站点返回空列表。
 final circlesProvider = FutureProvider.autoDispose<List<Circle>>((ref) {
   final siteId = ref.watch(activeSiteIdProvider);
   return _fetchAndCache<Circle>(

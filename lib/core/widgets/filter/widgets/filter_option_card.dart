@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
+
 import '../../common/global_search_input.dart';
 import '../../loading/lottie_loading.dart';
 import 'filter_chip.dart';
@@ -132,17 +133,17 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
           ),
           if (!isSpecial) ...[
             const SizedBox(width: 10),
-            SizedBox(
-              width: 116,
-              child: GlobalSearchInput(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                hintText: '搜索${widget.activeType.label}',
-                onChanged: widget.onSearchChanged,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                contentPadding: const EdgeInsets.symmetric(vertical: 7),
-                borderRadius: 14,
-              ),
+            GlobalSearchInput(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              hintText: '搜索${widget.activeType.label}',
+              onChanged: widget.onSearchChanged,
+              width: 115,
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              borderRadius: 24,
+              iconSize: 16,
+              fontSize: 12,
             ),
           ],
         ],

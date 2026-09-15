@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai_core/core/enums/sort_options.dart';
 import 'package:kikoenai_core/core/model/shared/search_tag.dart';
@@ -6,10 +6,10 @@ import '../../../storage/hive_storage.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 enum FilterModule {
-  category,   // 分类主页
-  playlist,   // 播放列表
-  global,     // 全局筛选
-  dl,         // DL库（本地已解析作品，仅当前页面使用）
+  category, // 分类主页
+  playlist, // 播放列表
+  global, // 全局筛选
+  dl, // DL库（本地已解析作品，仅当前页面使用）
 }
 
 class SearchFilterNotifier extends Notifier<SearchFilterState> {
@@ -59,6 +59,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
     }
     state = state.copyWith(selectedTags: []);
   }
+
   void resetTagsByType(String type) {
     final tags = [...state.selectedTags];
     tags.removeWhere((t) => t.type == type);
@@ -81,8 +82,8 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
   void setSort({SortOrder? sortOption, SortDirection? sortDec}) {
     state = state.copyWith(
-        sortOption: sortOption ?? state.sortOption,
-        sortDirection: sortDec ?? state.sortDirection
+      sortOption: sortOption ?? state.sortOption,
+      sortDirection: sortDec ?? state.sortDirection,
     );
   }
 
@@ -190,6 +191,9 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
   }
 }
 
-final searchFilterProvider = NotifierProvider.family<SearchFilterNotifier, SearchFilterState, FilterModule>(
-  SearchFilterNotifier.new,
-);
+final searchFilterProvider =
+    NotifierProvider.family<
+      SearchFilterNotifier,
+      SearchFilterState,
+      FilterModule
+    >(SearchFilterNotifier.new);

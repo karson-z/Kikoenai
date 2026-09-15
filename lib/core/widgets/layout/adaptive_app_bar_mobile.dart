@@ -34,6 +34,7 @@ class MobileSearchAppBar extends ConsumerWidget {
               Expanded(
                 child: GlobalSearchInput(
                   hintText: hintText,
+                  height: 56,
                   onTap: onSearchTap,
                 ),
               ),
