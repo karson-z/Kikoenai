@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -46,20 +48,65 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  /// 搜索框展开态：聚焦后向左扩展，Tab 区只保留当前激活维度。
+  bool _isSearchExpanded = false;
+
+  /// 收起态搜索框宽度。
+  static const double _collapsedSearchWidth = 115;
+
+  /// 展开动画时长。
+  static const Duration _expandDuration = Duration(milliseconds: 200);
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(_handleSearchFocusChanged);
+  }
+
+  void _handleSearchFocusChanged() {
+    final bool expanded = _searchFocusNode.hasFocus;
+    if (expanded == _isSearchExpanded) return;
+    setState(() => _isSearchExpanded = expanded);
+  }
+
   @override
   void didUpdateWidget(covariant FilterOptionCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     // 切换 Tab 时同步清空搜索框（notifier 已清 localSearchKeyword）
     if (oldWidget.activeType != widget.activeType) {
       _searchController.clear();
+      // 「特殊」维度没有搜索框，切过去时收起展开态，避免下次回来状态错乱
+      if (widget.activeType == CategoryType.special && _isSearchExpanded) {
+        _searchFocusNode.unfocus();
+        _isSearchExpanded = false;
+      }
     }
   }
 
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_handleSearchFocusChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// 量出单个 Tab 的固有宽度（文字与指示条取较宽者），
+  /// 供展开态为其预留位置、把剩余宽度让给搜索框（即向左侧展开）。
+  double _measureTabWidth(BuildContext context, CategoryType type) {
+    final style =
+        Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600) ??
+        const TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+    final textPainter = TextPainter(
+      text: TextSpan(text: type.label, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    // Tab 内容 = max(文字宽, 指示条 16)；留 4px 余量避免边缘裁切
+    return math.max(textPainter.width, 16) + 4;
   }
 
   bool _isSelected(String label) {
@@ -108,6 +155,9 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
 
   Widget _buildHeader(BuildContext context, bool isSpecial) {
     final theme = Theme.of(context);
+    // 展开态：Tab 区只留当前激活维度，其余宽度让给搜索框（视觉上向左扩展）
+    final bool expanded = _isSearchExpanded && !isSpecial;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 12, 0),
       decoration: BoxDecoration(
@@ -115,38 +165,58 @@ class _FilterOptionCardState extends State<FilterOptionCard> {
           bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35)),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const ClampingScrollPhysics(),
-              child: Row(
-                children: [
-                  for (var i = 0; i < widget.tabs.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 18),
-                    _buildTab(context, widget.tabs[i]),
-                  ],
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 展开后搜索框吃掉激活 Tab 之外的全部宽度；窄屏兜底不低于收起宽度
+          final double expandedSearchWidth =
+              (constraints.maxWidth -
+                      _measureTabWidth(context, widget.activeType) -
+                      10)
+                  .clamp(_collapsedSearchWidth, constraints.maxWidth);
+
+          return Row(
+            children: [
+              Expanded(
+                child: expanded
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildTab(context, widget.activeType),
+                      )
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            for (var i = 0; i < widget.tabs.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 18),
+                              _buildTab(context, widget.tabs[i]),
+                            ],
+                          ],
+                        ),
+                      ),
               ),
-            ),
-          ),
-          if (!isSpecial) ...[
-            const SizedBox(width: 10),
-            GlobalSearchInput(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              hintText: '搜索${widget.activeType.label}',
-              onChanged: widget.onSearchChanged,
-              width: 115,
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              borderRadius: 24,
-              iconSize: 16,
-              fontSize: 12,
-            ),
-          ],
-        ],
+              if (!isSpecial) ...[
+                const SizedBox(width: 10),
+                AnimatedContainer(
+                  duration: _expandDuration,
+                  curve: Curves.easeOutCubic,
+                  width: expanded ? expandedSearchWidth : _collapsedSearchWidth,
+                  child: GlobalSearchInput(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    hintText: '搜索${widget.activeType.label}',
+                    onChanged: widget.onSearchChanged,
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    borderRadius: 24,
+                    iconSize: 16,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

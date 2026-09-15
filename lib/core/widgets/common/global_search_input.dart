@@ -129,11 +129,20 @@ class GlobalSearchInput extends ConsumerWidget {
         ),
         child: Row(
           children: <Widget>[
-            Padding(
-              padding: leadingPadding,
-              child:
-                  leading ??
-                  Icon(Icons.search, size: iconSize, color: effectiveIconColor),
+            GestureDetector(
+              // 编辑态下点图标即聚焦输入框（按钮态交给外层 onTap）
+              onTap: _isButtonMode ? null : () => focusNode?.requestFocus(),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: leadingPadding,
+                child:
+                    leading ??
+                    Icon(
+                      Icons.search,
+                      size: iconSize,
+                      color: effectiveIconColor,
+                    ),
+              ),
             ),
             Expanded(
               child: IgnorePointer(
