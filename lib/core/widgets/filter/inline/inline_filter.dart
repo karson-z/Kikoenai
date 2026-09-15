@@ -12,8 +12,9 @@ import 'filter_summary_area.dart';
 ///
 /// 点击横条或箭头展开 [FilterDropdownPanel]。
 ///
-/// 面板通过根 Navigator 的 [TopSheetRoute] 展示，因此遮罩覆盖整个主壳，
-/// 不会被页面内部的 body 或底部导航栏裁剪。
+/// 面板通过根 Navigator 的 [ModalTopSheetRoute] 展示，顶边与本横条对齐并
+/// 向下延伸；遮罩挂在根 Navigator 上，能盖住底部导航栏，但只压暗横条以下
+/// 的区域，横条上方的工具栏保持原样。
 class InlineFilterBar extends ConsumerWidget {
   const InlineFilterBar({
     super.key,
@@ -75,11 +76,12 @@ class InlineFilterBar extends ConsumerWidget {
   }
 }
 
-/// 展开态筛选面板：从根视图顶部向下展开的覆盖层。
+/// 展开态筛选面板：从常驻 [InlineFilterBar] 的位置向下延伸出来。
 ///
-/// 盖住常驻的 [InlineFilterBar] 与页面内容，不压缩布局；
+/// 顶边与横条对齐，因此看起来是横条本身长出的内容，而非从屏幕顶部盖下；
+/// 面板以下的页面内容与底部导航栏被遮罩压暗，横条上方不变。
 /// 内容 = 灰底「筛选内容」摘要（两行封顶）+ 维度选项卡片。
-/// 遮罩与进出场动画由 [TopSheetRoute] 统一管理。
+/// 展开动画与遮罩由 [ModalTopSheetRoute] 统一管理。
 class FilterDropdownPanel extends ConsumerWidget {
   const FilterDropdownPanel({
     super.key,
@@ -96,7 +98,8 @@ class FilterDropdownPanel extends ConsumerWidget {
   /// 「共 N 条」命中计数，由宿主页面传入（null 不显示）
   final int? totalCount;
 
-  /// 选项来源覆盖（DL库传本地聚合结果）；null 时走远端 tags/circles/vas providers
+  /// 选项来源覆盖（DL库传本地聚合结果）；某维度聚合为空时该维度回退
+  /// 远端 tags/circles/vas providers；null 时全部走远端
   final Map<CategoryType, List<SelectorItem>>? optionsOverride;
 
   final bool showSpecialTab;
@@ -122,67 +125,79 @@ class FilterDropdownPanel extends ConsumerWidget {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardHeight = MediaQuery.sizeOf(context).height * 0.5;
+    final screenHeight = MediaQuery.sizeOf(context).height;
 
-    return Material(
-      color: isDark ? Colors.black : Colors.white,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.25),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FilterSummaryArea(
-            isExpanded: true,
-            selectedTags: state.selectedTags,
-            keyword: state.keyword,
-            totalCount: totalCount,
-            quickEntries: tabs,
-            onToggleExpand: onClose ?? notifier.closeFilterDrawer,
-            onRemoveTag: (tag) => notifier.removeTag(tag.type, tag.name),
-            onClearKeyword: onClearKeyword,
-            onReset: notifier.resetSelected,
-            onQuickEntryTap: (type) =>
-                notifier.openFilterAt(tabs.indexOf(type)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 摘要区与上下间距的固定占位；卡片取剩余可用高度，并保留原先
+        // 「不超过半屏」的上限，避免面板总高溢出遮罩。
+        const double summaryReserve = 136;
+        final double available = constraints.maxHeight.isFinite
+            ? constraints.maxHeight - summaryReserve
+            : screenHeight;
+        final double cardHeight = available.clamp(120.0, screenHeight * 0.5);
+
+        return Material(
+          color: isDark ? Colors.black : Colors.white,
+          elevation: 8,
+          shadowColor: Colors.black.withValues(alpha: 0.25),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: SizedBox(
-              height: cardHeight,
-              child: FilterOptionCard(
-                tabs: tabs,
-                activeType: activeType,
-                items: items,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilterSummaryArea(
+                isExpanded: true,
                 selectedTags: state.selectedTags,
-                specialPanel: activeType == CategoryType.special
-                    ? AdvancedFilterPanel(
-                        selectedTags: state.selectedTags,
-                        onToggleTag: notifier.toggleTag,
-                        fillColor: isDark
-                            ? const Color(0xFF212529)
-                            : const Color(0xFFF9FAFB),
-                        textColor: isDark
-                            ? const Color(0xFF8492A6)
-                            : const Color(0xFF4B5563),
-                      )
-                    : null,
-                onTabChanged: (type) =>
-                    notifier.setFilterIndex(tabs.indexOf(type)),
-                onSearchChanged: notifier.setLocalSearchKeyword,
-                onOptionTap: (item) =>
-                    notifier.toggleTag(item.type, item.label),
-                onOptionLongPress: (item) =>
-                    notifier.excludeTag(item.type, item.label),
+                keyword: state.keyword,
+                totalCount: totalCount,
+                quickEntries: tabs,
+                onToggleExpand: onClose ?? notifier.closeFilterDrawer,
+                onRemoveTag: (tag) => notifier.removeTag(tag.type, tag.name),
+                onClearKeyword: onClearKeyword,
+                onReset: notifier.resetSelected,
+                onQuickEntryTap: (type) =>
+                    notifier.openFilterAt(tabs.indexOf(type)),
               ),
-            ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  height: cardHeight,
+                  child: FilterOptionCard(
+                    tabs: tabs,
+                    activeType: activeType,
+                    items: items,
+                    selectedTags: state.selectedTags,
+                    specialPanel: activeType == CategoryType.special
+                        ? AdvancedFilterPanel(
+                            selectedTags: state.selectedTags,
+                            onToggleTag: notifier.toggleTag,
+                            fillColor: isDark
+                                ? const Color(0xFF212529)
+                                : const Color(0xFFF9FAFB),
+                            textColor: isDark
+                                ? const Color(0xFF8492A6)
+                                : const Color(0xFF4B5563),
+                          )
+                        : null,
+                    onTabChanged: (type) =>
+                        notifier.setFilterIndex(tabs.indexOf(type)),
+                    onSearchChanged: notifier.setLocalSearchKeyword,
+                    onOptionTap: (item) =>
+                        notifier.toggleTag(item.type, item.label),
+                    onOptionLongPress: (item) =>
+                        notifier.excludeTag(item.type, item.label),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -198,8 +213,12 @@ AsyncValue<List<SelectorItem>> _resolveItems(
   required CategoryType type,
   required Map<CategoryType, List<SelectorItem>>? override,
 }) {
-  if (override != null) {
-    return AsyncData(override[type] ?? const <SelectorItem>[]);
+  // 宿主（DL库）提供的本地聚合选项：有数据时优先使用，聚合出的选项
+  // 与本地过滤逻辑严格对应；本地库暂无作品导致聚合为空时，回退到
+  // 远端 tags/circles/vas 选项，保证面板各维度不出现空态。
+  final List<SelectorItem>? local = override?[type];
+  if (local != null && local.isNotEmpty) {
+    return AsyncData(local);
   }
   switch (type) {
     case CategoryType.tag:
