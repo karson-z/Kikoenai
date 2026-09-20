@@ -8,6 +8,7 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
+import 'package:kikoenai/features/history/provider/work_progress_repository.dart';
 import 'package:kikoenai/features/player/provider/player_feedback_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -39,6 +40,9 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   HistoryController get historyController =>
       ref.read(historyControllerProvider.notifier);
+
+  WorkProgressRepository get _workProgressRepository =>
+      WorkProgressRepository.instance;
 
   @override
   AppPlayerState build() {
@@ -129,6 +133,9 @@ class PlayerController extends Notifier<AppPlayerState> {
       final progress = previousState.lastProgressMs ?? 0;
 
       if (session.queue.isNotEmpty) {
+        // 先种下旧会话，队列流回调才能复用同一 session.id，
+        // 冷启动续听不会在时间线里产生新条目。
+        state = state.copyWith(session: session);
         await (_handler as MyAudioHandler).initPlayback(
           initialPlaylist: session.mediaItems,
           initialIndex: session.currentIndex,
@@ -354,16 +361,27 @@ class PlayerController extends Notifier<AppPlayerState> {
     final currentProgressMs = state.progressBarState.current.inMilliseconds;
 
     try {
+      final now = DateTime.now().millisecondsSinceEpoch;
       final history = HistoryEntry(
         session: session,
         lastItemId: currentItem.id,
         lastProgressMs: currentProgressMs,
-        lastPlayTime: DateTime.now().millisecondsSinceEpoch,
+        lastPlayTime: now,
       );
 
       historyController.upsert(history);
 
-      // debugPrint('历史记录持久化完成: [${currentItem.title}] -> $currentProgressMs ms');
+      // 同步维护作品维度的断点索引：与会话历史互相独立，
+      // 删除会话不影响其他会话内同一作品的续播进度。
+      _workProgressRepository.save(
+        WorkProgressPoint(
+          scopeKey: currentItem.scopeKey,
+          itemId: currentItem.id,
+          progressMs: currentProgressMs,
+          updatedAt: now,
+          sessionId: session.id,
+        ),
+      );
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }
@@ -495,7 +513,6 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> handleFileTap(
     FileNode node,
     List<FileNode> currentNodes, {
-    HistoryEntry? history,
     Work? work,
     NodeSource? source,
   }) async {
@@ -511,11 +528,19 @@ class PlayerController extends Notifier<AppPlayerState> {
       // 2. 计算目标索引
       final audioTapIndex = audioFiles.indexOf(node);
 
-      // 3. 计算目标进度
+      // 3. 计算目标进度：同一曲目命中断点索引则原地续播
       Duration startPosition = Duration.zero;
-      if (history != null && history.lastProgressMs != null) {
-        startPosition = Duration(milliseconds: history.lastProgressMs!);
+      final tappedItem = playbackItems[audioTapIndex];
+      final progressPoint = _workProgressRepository.getByScope(
+        tappedItem.scopeKey,
+      );
+      if (progressPoint != null && progressPoint.itemId == tappedItem.id) {
+        startPosition = Duration(milliseconds: progressPoint.progressMs);
       }
+
+      // 4. 文件点击属于新会话：清空种子让队列流生成全新 session.id
+      state = state.copyWith(session: null);
+
       if (_handler is MyAudioHandler) {
         await (_handler as MyAudioHandler).loadPlaylist(
           mediaList,
@@ -535,35 +560,38 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   Future<void> restoreHistory(HistoryEntry history) async {
-    final savedSession = history.restoreSession;
-    if (savedSession.queue.isNotEmpty) {
-      final mediaItems = savedSession.mediaItems;
-      final initialIndex = savedSession.queue.indexWhere(
-        (item) => item.id == history.lastItemId,
-      );
-      final safeIndex = initialIndex < 0 ? 0 : initialIndex;
-      final startPosition = history.lastProgressMs == null
-          ? Duration.zero
-          : Duration(milliseconds: history.lastProgressMs!);
+    final savedSession = history.session;
+    if (savedSession.queue.isEmpty) return;
 
-      if (_handler is MyAudioHandler) {
-        await (_handler as MyAudioHandler).loadPlaylist(
-          mediaItems,
-          initialIndex: safeIndex,
-          initialPosition: startPosition,
-          autoPlay: true,
-        );
-      } else {
-        await clear();
-        await addAll(mediaItems);
-        await skipTo(safeIndex);
-        if (startPosition > Duration.zero) {
-          await seek(startPosition);
-        }
+    final mediaItems = savedSession.mediaItems;
+    final initialIndex = savedSession.queue.indexWhere(
+      (item) => item.id == history.lastItemId,
+    );
+    final safeIndex = initialIndex < 0 ? 0 : initialIndex;
+    final startPosition = history.lastProgressMs == null
+        ? Duration.zero
+        : Duration(milliseconds: history.lastProgressMs!);
+
+    // 恢复的是同一个会话：先种下原 session.id，队列流回调沿用该 id，
+    // 时间线里对应条目原地置顶更新而不是新增。
+    state = state.copyWith(session: savedSession);
+
+    if (_handler is MyAudioHandler) {
+      await (_handler as MyAudioHandler).loadPlaylist(
+        mediaItems,
+        initialIndex: safeIndex,
+        initialPosition: startPosition,
+        autoPlay: true,
+      );
+    } else {
+      await clear();
+      await addAll(mediaItems);
+      await skipTo(safeIndex);
+      if (startPosition > Duration.zero) {
+        await seek(startPosition);
       }
-      state = state.copyWith(session: savedSession.withCurrentIndex(safeIndex));
-      return;
     }
+    state = state.copyWith(session: savedSession.withCurrentIndex(safeIndex));
   }
 
   Future<void> removeMediaItemInQueue(int index) async {

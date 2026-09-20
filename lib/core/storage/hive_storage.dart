@@ -4,16 +4,19 @@ import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/api/server_info.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
+import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:path_provider/path_provider.dart';
 
 class AppStorage {
   // 1. 定义强类型的 Box
   static late Box<AuthResponse> authBox; // 登录信息
-  static late Box<HistoryEntry> historyBox; // 播放历史 (Key: WorkId)
+  static late Box<HistoryEntry> historyBox; // 播放历史 (Key: session.id)
+  static late Box<WorkProgressPoint> workProgressBox; // 作品断点进度 (Key: scopeKey)
   static late Box<dynamic> settingsBox; // 通用设置/缓存
   static late Box<FileNode> scannerBox; // 扫描结果
   static late Box<Work> scraperWorkBox; // 爬取作品元数据
-  static late Box<FileNode> lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
+  static late Box<FileNode>
+  lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
   static late Box<SearchTag> filterTagsBox; // 全局筛选
   static late Box<ScanTarget> scanTargetBox; // 扫描目标
 
@@ -44,6 +47,7 @@ class AppStorage {
     Hive.registerAdapter(OtherLanguageEditionAdapter());
     Hive.registerAdapter(WorkAdapter());
     Hive.registerAdapter(HistoryEntryAdapter());
+    Hive.registerAdapter(WorkProgressPointAdapter());
     Hive.registerAdapter(NodeSourceAdapter());
     Hive.registerAdapter(SearchTagAdapter());
     Hive.registerAdapter(ScanModeAdapter());
@@ -53,6 +57,9 @@ class AppStorage {
     await Future.wait([
       _openBox<AuthResponse>(BoxNames.auth).then((val) => authBox = val),
       _openBox<HistoryEntry>(BoxNames.history).then((val) => historyBox = val),
+      _openBox<WorkProgressPoint>(
+        BoxNames.workProgress,
+      ).then((val) => workProgressBox = val),
       _openBox<dynamic>(BoxNames.settings).then((val) => settingsBox = val),
       _openBox<FileNode>(BoxNames.scanner).then((val) => scannerBox = val),
       _openBox<Work>(BoxNames.scraper).then((val) => scraperWorkBox = val),
@@ -78,6 +85,39 @@ class AppStorage {
     // 清理历史遗留：播放器状态 Box 已移除（冷启动恢复改由播放历史承担），
     // 删除旧版残留的 player_state 数据文件。
     await Hive.deleteBoxFromDisk('player_state');
+
+    // 一次性迁移：历史记录从"按作品作用域"改写为"按播放会话"，
+    // 并推导出作品断点进度索引。
+    await _migrateHistoryToSessions();
+  }
+
+  /// 把旧版按 primaryKey 存储的历史改写为按 session.id 存储。
+  ///
+  /// 迁移前先在 Hive 目录内落一份文件备份（history.hive.pre_session.bak），
+  /// 成功写入后打 [StorageKeys.historySessionMigrated] 标记；失败不打标记，
+  /// 下次启动自动重试（重复执行按 session.id 去重，天然幂等）。
+  static Future<void> _migrateHistoryToSessions() async {
+    if (settingsBox.get(StorageKeys.historySessionMigrated) == true) return;
+
+    try {
+      // 迁移前备份，仅保留最近一份。
+      final boxFile = File('$_hiveRootPath/${BoxNames.history}.hive');
+      if (await boxFile.exists()) {
+        final backup = File('$boxFile.pre_session.bak');
+        await boxFile.copy(backup.path);
+      }
+
+      final result = HistoryMigration.buildSessionMaps(
+        historyBox.values.toList(),
+      );
+
+      await historyBox.clear();
+      await historyBox.putAll(result.sessions);
+      await workProgressBox.putAll(result.progress);
+      await settingsBox.put(StorageKeys.historySessionMigrated, true);
+    } catch (e) {
+      debugPrint('历史记录会话化迁移失败，将在下次启动重试: $e');
+    }
   }
 
   /// 辅助方法：安全打开 Box
@@ -165,6 +205,9 @@ class AppStorage {
         break;
       case BoxNames.history:
         await historyBox.clear();
+        break;
+      case BoxNames.workProgress:
+        await workProgressBox.clear();
         break;
       case BoxNames.settings:
         await settingsBox.clear();

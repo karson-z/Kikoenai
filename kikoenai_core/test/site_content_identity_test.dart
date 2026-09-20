@@ -70,7 +70,7 @@ void main() {
       lastPlayTime: now,
     );
 
-    expect(legacy.primaryKey, 'work_42');
-    expect(siteAware.primaryKey, 'work_site.example:42');
+    expect(legacy.lastItem!.scopeKey, 'work_42');
+    expect(siteAware.lastItem!.scopeKey, 'work_site.example:42');
   });
 }

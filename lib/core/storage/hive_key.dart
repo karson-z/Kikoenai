@@ -155,4 +155,7 @@ class StorageKeys {
 
   /// 文件树排序是否倒序
   static const String fileSortDescending = 'file_sort_descending';
+
+  /// 历史记录已从"按作品作用域"迁移到"按播放会话"（一次性标记）
+  static const String historySessionMigrated = 'history_session_migrated';
 }

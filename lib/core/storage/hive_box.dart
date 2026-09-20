@@ -2,20 +2,31 @@
 class BoxNames {
   /// 用户信息及登录Token数据
   static const String auth = 'auth';
+
   /// 缓存数据
   static const String settings = 'settings';
+
   /// 扫描路径
   static const String scanner = 'scanner';
+
   /// 日志数据
   static const String logs = 'logs';
+
   /// 观看记录
   static const String history = 'history';
+
+  /// 作品断点续播进度 (Key: scopeKey)
+  static const String workProgress = 'work_progress';
+
   /// 抓取的作品元数据
   static const String scraper = 'scraper_work';
+
   /// 抓取的作品元数据
   static const String lyricsMatch = 'lyrics_match';
+
   /// 筛选盒子
   static const String globalFilterTags = 'global_filter_tags';
+
   /// 扫描目标
   static const String scanTarget = 'scan_target';
 
@@ -23,10 +34,11 @@ class BoxNames {
     settings,
     logs,
     history,
+    workProgress,
     auth,
     scanner,
     scraper,
     lyricsMatch,
-    globalFilterTags
+    globalFilterTags,
   ];
 }

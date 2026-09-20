@@ -22,7 +22,7 @@ class UserPage extends ConsumerWidget {
     final canOpenAuth = availableSurfaces.contains(AppSurface.authPage);
     final canLogin = availableSurfaces.contains(AppSurface.loginAction);
     final tabs = <({String label, Widget page})>[
-      (label: '观看历史', page: const HistoryPage()),
+      (label: '播放历史', page: const HistoryPage()),
       if (availableSurfaces.contains(AppSurface.userReviewsTab))
         (label: '我的收藏', page: const ReviewPage()),
       if (availableSurfaces.contains(AppSurface.userPlaylistsTab))

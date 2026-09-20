@@ -38,8 +38,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
     {
       'name': BoxNames.history,
       'label': '播放历史记录',
-      'desc': '音频进度断点、最近播放列表等记录信息。',
+      'desc': '播放会话时间线与作品断点进度，清理后历史记录与续播进度将全部重置。',
       'dangerous': false,
+      'extraBoxes': [BoxNames.workProgress],
     },
     {
       'name': BoxNames.auth,
@@ -75,18 +76,25 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
       _deviceTotalSpace = storageResults[0];
       _deviceFreeSpace = storageResults[1];
 
-      // 2. 遍历获取各个 Box 的体积
+      // 2. 遍历获取各个 Box 的体积（关联 Box 合并统计）
       final List<_CacheItem> items = [];
       for (var def in _boxDefinitions) {
         final boxName = def['name'] as String;
-        final size = await AppStorage.getBoxSize(boxName);
-        items.add(_CacheItem(
-          boxName: boxName,
-          label: def['label'] as String,
-          description: def['desc'] as String,
-          isDangerous: def['dangerous'] as bool,
-          sizeBytes: size,
-        ));
+        final extraBoxes = (def['extraBoxes'] as List<String>?) ?? [];
+        var size = await AppStorage.getBoxSize(boxName);
+        for (final extra in extraBoxes) {
+          size += await AppStorage.getBoxSize(extra);
+        }
+        items.add(
+          _CacheItem(
+            boxName: boxName,
+            label: def['label'] as String,
+            description: def['desc'] as String,
+            isDangerous: def['dangerous'] as bool,
+            sizeBytes: size,
+            extraBoxes: extraBoxes,
+          ),
+        );
       }
 
       if (mounted) {
@@ -114,6 +122,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
       onConfirm: () async {
         try {
           await AppStorage.clearBox(item.boxName);
+          for (final extra in item.extraBoxes) {
+            await AppStorage.clearBox(extra);
+          }
           if (!mounted) return;
           KikoenaiToast.success("${item.label} 已清理", context: context);
           _loadCacheSizes(showLoading: false);
@@ -149,7 +160,12 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
               Text(
                 content,
@@ -166,7 +182,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('取消'),
                     ),
@@ -182,7 +200,9 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                         backgroundColor: theme.colorScheme.error,
                         foregroundColor: theme.colorScheme.onError,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('确认清理'),
                     ),
@@ -199,7 +219,10 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final appTotalBytes = _cacheItems.fold<int>(0, (sum, item) => sum + item.sizeBytes);
+    final appTotalBytes = _cacheItems.fold<int>(
+      0,
+      (sum, item) => sum + item.sizeBytes,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -211,39 +234,43 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. 顶部总容量与进度条
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: _buildStorageHeader(context, appTotalBytes),
-            ),
-          ),
-
-          // 2. 缓存项列表 (放置在同一张大卡片内)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                  child: Column(
-                    children: _cacheItems.asMap().entries.map((entry) {
-                      final int idx = entry.key;
-                      final _CacheItem item = entry.value;
-                      final bool isLast = idx == _cacheItems.length - 1;
-                      return _buildCacheItemCard(context, item, isLast);
-                    }).toList(),
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // 1. 顶部总容量与进度条
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
+                    child: _buildStorageHeader(context, appTotalBytes),
                   ),
                 ),
-              ),
+
+                // 2. 缓存项列表 (放置在同一张大卡片内)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withOpacity(0.4),
+                        child: Column(
+                          children: _cacheItems.asMap().entries.map((entry) {
+                            final int idx = entry.key;
+                            final _CacheItem item = entry.value;
+                            final bool isLast = idx == _cacheItems.length - 1;
+                            return _buildCacheItemCard(context, item, isLast);
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              ],
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
-      ),
     );
   }
 
@@ -306,11 +333,26 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
             child: Row(
               children: [
                 if (appFlex > 0)
-                  Expanded(flex: appFlex, child: Container(color: theme.colorScheme.error)),
+                  Expanded(
+                    flex: appFlex,
+                    child: Container(color: theme.colorScheme.error),
+                  ),
                 if (otherFlex > 0)
-                  Expanded(flex: otherFlex, child: Container(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5))),
+                  Expanded(
+                    flex: otherFlex,
+                    child: Container(
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.5,
+                      ),
+                    ),
+                  ),
                 if (freeFlex > 0)
-                  Expanded(flex: freeFlex, child: Container(color: theme.colorScheme.surfaceContainerHighest)),
+                  Expanded(
+                    flex: freeFlex,
+                    child: Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -320,11 +362,23 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
         // 图例还原：采用全平台通用文案
         Row(
           children: [
-            _buildLegendItem(context, theme.colorScheme.error, isAppTiny ? '应用占用不足 1%' : '应用占用'),
+            _buildLegendItem(
+              context,
+              theme.colorScheme.error,
+              isAppTiny ? '应用占用不足 1%' : '应用占用',
+            ),
             const SizedBox(width: 16),
-            _buildLegendItem(context, theme.colorScheme.onSurfaceVariant.withOpacity(0.5), '设备已用'),
+            _buildLegendItem(
+              context,
+              theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              '设备已用',
+            ),
             const SizedBox(width: 16),
-            _buildLegendItem(context, theme.colorScheme.surfaceContainerHighest, '设备可用'),
+            _buildLegendItem(
+              context,
+              theme.colorScheme.surfaceContainerHighest,
+              '设备可用',
+            ),
           ],
         ),
       ],
@@ -344,14 +398,20 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
         const SizedBox(width: 6),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
   }
 
   /// 缓存列表单项 (还原图片下半部分的每一行)
-  Widget _buildCacheItemCard(BuildContext context, _CacheItem item, bool isLast) {
+  Widget _buildCacheItemCard(
+    BuildContext context,
+    _CacheItem item,
+    bool isLast,
+  ) {
     final theme = Theme.of(context);
     final bool hasData = item.sizeBytes > 0;
 
@@ -401,27 +461,52 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                     height: 32,
                     child: item.isDangerous
                         ? OutlinedButton(
-                      onPressed: hasData ? () => _clearCache(item) : null,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.error,
-                        side: BorderSide(
-                          color: hasData ? theme.colorScheme.error : theme.colorScheme.outline.withOpacity(0.3),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Text('管理', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                    )
+                            onPressed: hasData ? () => _clearCache(item) : null,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: theme.colorScheme.error,
+                              side: BorderSide(
+                                color: hasData
+                                    ? theme.colorScheme.error
+                                    : theme.colorScheme.outline.withOpacity(
+                                        0.3,
+                                      ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              '管理',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
                         : FilledButton(
-                      onPressed: hasData ? () => _clearCache(item) : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.error,
-                        disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Text('清理', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                    ),
+                            onPressed: hasData ? () => _clearCache(item) : null,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: theme.colorScheme.error,
+                              disabledBackgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              '清理',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -460,11 +545,15 @@ class _CacheItem {
   final bool isDangerous;
   final int sizeBytes;
 
+  /// 与主 Box 一起统计/清理的关联 Box（如播放历史与断点进度索引）
+  final List<String> extraBoxes;
+
   _CacheItem({
     required this.boxName,
     required this.label,
     required this.description,
     required this.isDangerous,
     required this.sizeBytes,
+    this.extraBoxes = const [],
   });
 }

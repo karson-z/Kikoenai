@@ -5,6 +5,10 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 part 'history_entry.freezed.dart';
 part 'history_entry.g.dart';
 
+/// 一次播放会话的历史记录（Box key: session.id）。
+///
+/// 恢复时原样还原整个队列，不按作用域裁剪；作品维度的断点续播
+/// 由 [WorkProgressPoint] 索引承担。
 @freezed
 @HiveType(typeId: TypeIds.historyEntry, adapterName: 'HistoryEntryAdapter')
 abstract class HistoryEntry with _$HistoryEntry {
@@ -44,56 +48,4 @@ abstract class HistoryEntry with _$HistoryEntry {
   bool get isLocalWork => source == NodeSource.localWork;
 
   bool get isLocalSingle => source == NodeSource.localSingle;
-
-  /// Session used when the user resumes this history entry.
-  ///
-  /// A history entry may be saved from a mixed playback queue, but the resume
-  /// action should only restore the queue that belongs to this entry's
-  /// aggregation scope.
-  PlaybackSession get restoreSession {
-    final anchor = lastItem;
-    if (anchor == null) return session;
-
-    final scopedQueue = session.queue
-        .where((item) => _isSameHistoryScope(anchor, item))
-        .toList(growable: false);
-    if (scopedQueue.isEmpty) return session;
-
-    final scopedIndex = scopedQueue.indexWhere((item) => item.id == lastItemId);
-    return session.copyWith(
-      queue: scopedQueue,
-      currentIndex: scopedIndex < 0 ? 0 : scopedIndex,
-    );
-  }
-
-  String get primaryKey {
-    final item = lastItem;
-    if (item == null) return 'unknown_$lastItemId';
-
-    return switch (item.source) {
-      NodeSource.asmrServer =>
-        item.siteId == null
-            ? 'work_${item.scopeId}'
-            : 'work_${item.contentId!.storageKey}',
-      NodeSource.asmrGay =>
-        item.siteId == null
-            ? 'work_${item.scopeId}'
-            : 'work_${item.contentId!.storageKey}',
-      NodeSource.localWork => 'local_work_${item.scopeId}',
-      NodeSource.localSingle => 'single_${item.id}',
-      NodeSource.cloudDrive => 'cloud_${item.scopeId}',
-    };
-  }
-
-  bool _isSameHistoryScope(PlaybackItem anchor, PlaybackItem item) {
-    if (anchor.source != item.source) return false;
-    if (anchor.contentId?.siteId != item.contentId?.siteId) return false;
-    return switch (anchor.source) {
-      NodeSource.localSingle => item.id == anchor.id,
-      NodeSource.asmrServer ||
-      NodeSource.asmrGay ||
-      NodeSource.localWork ||
-      NodeSource.cloudDrive => item.scopeId == anchor.scopeId,
-    };
-  }
 }

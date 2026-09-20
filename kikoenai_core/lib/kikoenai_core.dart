@@ -96,3 +96,5 @@ export 'core/model/lyrics/lyrics_state.dart';
 
 // ---- Models: history ----
 export 'core/model/history/history_entry.dart';
+export 'core/model/history/history_migration.dart';
+export 'core/model/history/work_progress_point.dart';

@@ -158,6 +158,20 @@ abstract class PlaybackItem with _$PlaybackItem {
 
   String? get displayCoverUrl => coverUrl ?? smallCoverUrl;
 
+  /// 按播放作用域聚合的断点续播键（每个作品/单曲/云盘目录唯一）。
+  ///
+  /// 同一网络作品或本地作品的曲目共享一个键；本地单曲以自身曲目 id
+  /// 独立成键。多站点身份通过 [SiteContentId.storageKey] 隔离。
+  String get scopeKey {
+    return switch (source) {
+      NodeSource.asmrServer || NodeSource.asmrGay =>
+        siteId == null ? 'work_$scopeId' : 'work_${contentId!.storageKey}',
+      NodeSource.localWork => 'local_work_$scopeId',
+      NodeSource.localSingle => 'single_$id',
+      NodeSource.cloudDrive => 'cloud_$scopeId',
+    };
+  }
+
   bool get isLocal =>
       source == NodeSource.localWork || source == NodeSource.localSingle;
 
@@ -201,8 +215,7 @@ abstract class PlaybackItem with _$PlaybackItem {
     return switch (source) {
       NodeSource.asmrServer =>
         workId?.toString() ?? node.workTitle ?? node.keyId,
-      NodeSource.asmrGay =>
-        node.remoteId ?? node.folderPath ?? node.keyId,
+      NodeSource.asmrGay => node.remoteId ?? node.folderPath ?? node.keyId,
       NodeSource.localWork =>
         node.rootPath ?? node.folderPath ?? workId?.toString() ?? node.keyId,
       NodeSource.localSingle => node.keyId,
