@@ -44,9 +44,21 @@ android {
     }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("release")
+            // 有 key.properties 时用正式签名；缺失（如本地验证构建）时回退 debug
+            // 签名，避免 storeFile 为空直接构建失败。注意：切换签名后覆盖安装会因
+            // 签名不一致失败，需先卸载旧包。
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+        // Flutter 插件创建的 profile 类型默认 initWith(debug)，会带上
+        // android:debuggable="true"。可调试应用会被 ColorOS 等 ROM 豁免后台
+        // 冻结/查杀，使 profile 包无法复现 release 的后台行为。显式关闭后，
+        // profile 与 release 的差异只剩 R8 混淆，是可靠的后台行为测试载体。
+        getByName("profile") {
+            isDebuggable = false
         }
     }
 }

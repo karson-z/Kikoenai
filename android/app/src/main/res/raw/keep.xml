@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  release 构建默认开启资源压缩（shrinkResources），它只能识别 XML 与 R 类引用，
+  看不到「字符串形式」的动态引用（getIdentifier），会把下列 drawable 当无用资源裁掉：
+
+    1. 本应用：桌面歌词开关的媒体按钮图标
+       （audio_service.dart 以 'drawable/ic_desktop_lyrics_*' 字符串传入 MediaControl.custom）
+    2. audio_service 插件：通知栏播放/暂停/上一首/下一首等按钮图标
+       （插件的 Java 代码不引用 R.drawable，全部由 Dart 传字符串）
+
+  图标被裁后 getIdentifier() 返回 0，原生层构建 CustomAction 时抛出
+  "You must specify an icon resource id to build a CustomAction"，
+  该异常发生在 AudioService.setState() 内部、早于 mediaSession.setPlaybackState()
+  与 enterPlayingState()，导致 MediaSession 永远无法激活
+  —— 表现为 release 包退后台后系统媒体控制中心不显示本应用。
+
+  注意：profile/debug 不启用资源压缩，因此不会复现此问题。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_desktop_lyrics_visibility,
+                @drawable/ic_desktop_lyrics_visibility_off,
+                @drawable/ic_desktop_lyrics_lock,
+                @drawable/ic_desktop_lyrics_unlock,
+                @drawable/audio_service_*" />

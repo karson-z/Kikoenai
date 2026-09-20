@@ -78,7 +78,10 @@ class AudioServiceSingleton {
     );
     // configure 握手（含原生 MediaBrowser 绑定）到这里才算完成；
     // 之后挂上诊断：吞错的平台异常流 + 注册状态基线。
-    KikoenaiLogger().i('【媒体中心】AudioService.init 完成，原生服务已连接');
+    KikoenaiLogger().i(
+      '【媒体中心】AudioService.init 完成，原生服务已连接',
+      forceLog: true,
+    );
     MediaCenterDiagnostics.attach();
   }
 }
@@ -207,7 +210,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _audioSession = await AudioSession.instance;
     await _audioSession.configure(const AudioSessionConfiguration.music());
     _audioSessionReady = true;
-    KikoenaiLogger().d('【媒体中心】AudioSession 初始化完成');
+    KikoenaiLogger().d('【媒体中心】AudioSession 初始化完成', forceLog: true);
 
     _audioSession.interruptionEventStream.listen((event) {
       if (isIgnoreAudioFocus) return;
@@ -313,6 +316,7 @@ class MyAudioHandler extends BaseAudioHandler {
           // _audioSession 会抛 LateInitializationError 并被上层静默吞掉。
           KikoenaiLogger().w(
             '【媒体中心】AudioSession 尚未就绪（启动竞态），本次跳过焦点申请',
+            forceLog: true,
           );
         } else {
           final success = await _audioSession.setActive(true);
@@ -321,6 +325,7 @@ class MyAudioHandler extends BaseAudioHandler {
             KikoenaiLogger().w(
               '【媒体中心】获取音频焦点失败 → 降级为只加载不播放，'
               '不会产生 playing 边沿，媒体中心不会注册',
+              forceLog: true,
             );
           }
         }
@@ -329,9 +334,13 @@ class MyAudioHandler extends BaseAudioHandler {
       try {
         KikoenaiLogger().i(
           '【媒体中心】open 开始: ${item.title} (autoPlay=$autoPlay)',
+          forceLog: true,
         );
         await _player.open(media, play: autoPlay);
-        KikoenaiLogger().d('【媒体中心】open 完成，等待 mpv playing 流边沿');
+        KikoenaiLogger().d(
+          '【媒体中心】open 完成，等待 mpv playing 流边沿',
+          forceLog: true,
+        );
       } catch (error) {
         playbackState.add(
           playbackState.value.copyWith(
@@ -396,6 +405,7 @@ class MyAudioHandler extends BaseAudioHandler {
         '【媒体中心】加载播放列表失败（播放与注册链路中断）',
         error: e,
         stackTrace: stackTrace,
+        forceLog: true,
       );
     }
   }
@@ -583,6 +593,7 @@ class MyAudioHandler extends BaseAudioHandler {
       KikoenaiLogger().i(
         '【媒体中心】mpv playing 流发出: $playing → 已广播给原生层'
         '${playing ? '（触发注册）' : ''}',
+        forceLog: true,
       );
       _publishPlaybackControls(playing: playing);
       if (playing) {

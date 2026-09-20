@@ -50,13 +50,13 @@ class MainActivity : AudioServiceActivity() {
                         }
                         val notificationManager = getSystemService(NotificationManager::class.java)
                         val mediaNotification = notificationManager?.activeNotifications?.firstOrNull { sbn ->
-                            sbn.notification?.channel == MEDIA_CHANNEL_ID || sbn.id == MEDIA_NOTIFICATION_ID
+                            channelIdOf(sbn.notification) == MEDIA_CHANNEL_ID || sbn.id == MEDIA_NOTIFICATION_ID
                         }
                         val audioManager = getSystemService(AudioManager::class.java)
                         val response = mapOf(
                             "notificationPosted" to (mediaNotification != null),
                             "notificationId" to mediaNotification?.id,
-                            "channel" to mediaNotification?.notification?.channel,
+                            "channel" to channelIdOf(mediaNotification?.notification),
                             "ongoing" to mediaNotification?.isOngoing,
                             "postTime" to mediaNotification?.postTime,
                             "musicActive" to audioManager?.isMusicActive
@@ -69,5 +69,11 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    // 通知渠道 ID 仅存在于 API 26+，低版本直接返回 null 避免 NoSuchMethodError。
+    private fun channelIdOf(notification: android.app.Notification?): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || notification == null) return null
+        return notification.channelId
     }
 }
