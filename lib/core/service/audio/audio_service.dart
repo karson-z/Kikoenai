@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/service/audio/media_center_diagnostics.dart';
 import 'package:kikoenai/core/service/player/media_http_headers_registry.dart';
 import 'package:kikoenai/core/service/player/player_service.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
@@ -75,6 +76,10 @@ class AudioServiceSingleton {
         androidShowNotificationBadge: true,
       ),
     );
+    // configure 握手（含原生 MediaBrowser 绑定）到这里才算完成；
+    // 之后挂上诊断：吞错的平台异常流 + 注册状态基线。
+    KikoenaiLogger().i('【媒体中心】AudioService.init 完成，原生服务已连接');
+    MediaCenterDiagnostics.attach();
   }
 }
 
@@ -88,6 +93,7 @@ class MyAudioHandler extends BaseAudioHandler {
   final Player _player;
 
   late final AudioSession _audioSession;
+  bool _audioSessionReady = false;
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
   final List<MediaItem> _playlist = [];
   int _currentIndex = -1;
@@ -142,6 +148,7 @@ class MyAudioHandler extends BaseAudioHandler {
   void _handleLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      MediaCenterDiagnostics.verifyAfterBackgrounded();
       if (!playInBackground && _player.state.playing) {
         _pausedByBackground = true;
         _player.pause();
@@ -199,6 +206,8 @@ class MyAudioHandler extends BaseAudioHandler {
   Future<void> _setupAudioSession() async {
     _audioSession = await AudioSession.instance;
     await _audioSession.configure(const AudioSessionConfiguration.music());
+    _audioSessionReady = true;
+    KikoenaiLogger().d('【媒体中心】AudioSession 初始化完成');
 
     _audioSession.interruptionEventStream.listen((event) {
       if (isIgnoreAudioFocus) return;
@@ -298,15 +307,31 @@ class MyAudioHandler extends BaseAudioHandler {
 
       final media = _buildMedia(item, startPosition: position);
       if (autoPlay && !isIgnoreAudioFocus) {
-        final success = await _audioSession.setActive(true);
-        if (!success) {
-          autoPlay = false;
-          KikoenaiLogger().w("获取音频焦点失败，已降级为只加载不播放");
+        if (!_audioSessionReady) {
+          // _setupAudioSession 是不等待的 async（AudioSession.instance 走平台
+          // 通道往返）。启动后立刻点播放会撞上这个窗口，此时访问
+          // _audioSession 会抛 LateInitializationError 并被上层静默吞掉。
+          KikoenaiLogger().w(
+            '【媒体中心】AudioSession 尚未就绪（启动竞态），本次跳过焦点申请',
+          );
+        } else {
+          final success = await _audioSession.setActive(true);
+          if (!success) {
+            autoPlay = false;
+            KikoenaiLogger().w(
+              '【媒体中心】获取音频焦点失败 → 降级为只加载不播放，'
+              '不会产生 playing 边沿，媒体中心不会注册',
+            );
+          }
         }
       }
 
       try {
+        KikoenaiLogger().i(
+          '【媒体中心】open 开始: ${item.title} (autoPlay=$autoPlay)',
+        );
         await _player.open(media, play: autoPlay);
+        KikoenaiLogger().d('【媒体中心】open 完成，等待 mpv playing 流边沿');
       } catch (error) {
         playbackState.add(
           playbackState.value.copyWith(
@@ -366,8 +391,12 @@ class MyAudioHandler extends BaseAudioHandler {
         position: initialPosition,
         autoPlay: autoPlay,
       );
-    } catch (e) {
-      debugPrint("Error loading playlist: $e");
+    } catch (e, stackTrace) {
+      KikoenaiLogger().e(
+        '【媒体中心】加载播放列表失败（播放与注册链路中断）',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -549,7 +578,16 @@ class MyAudioHandler extends BaseAudioHandler {
 
   void _notifyAudioHandlerAboutPlaybackEvents() {
     _player.stream.playing.listen((playing) {
+      // 原生层凭这个 false→true 边沿触发 startForeground +
+      // setActive(true)，即“注册媒体中心”的唯一入口。
+      KikoenaiLogger().i(
+        '【媒体中心】mpv playing 流发出: $playing → 已广播给原生层'
+        '${playing ? '（触发注册）' : ''}',
+      );
       _publishPlaybackControls(playing: playing);
+      if (playing) {
+        MediaCenterDiagnostics.verifyAfterPlayEdge();
+      }
     });
 
     _player.stream.buffering.listen((buffering) {
