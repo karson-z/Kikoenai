@@ -12,6 +12,7 @@ class PlayerInfoWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           TextScroll(
             track?.title ?? "没有播放的曲目",
@@ -24,6 +25,7 @@ class PlayerInfoWidget extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
+              height: 1.3,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
@@ -34,7 +36,11 @@ class PlayerInfoWidget extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              height: 1.3,
+            ),
           ),
         ],
       ),

@@ -1,165 +1,129 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-enum PlayerLayoutId {
-  background,
-  videoContainer,
-  minibar,
-  coverHero,
-  bodyLyrics,
-  topBar,
-  playerInfo,
-  progressBar,
-  playerControls,
-  volumeSlider,
-}
-
-class PlayerLayoutDelegate extends MultiChildLayoutDelegate {
-  final double expandProgress;
-  final double lyricsProgress;
-  final double minHeight;
-  final EdgeInsets padding;
-  final bool isWideScreen;
-
-  PlayerLayoutDelegate({
-    required this.expandProgress,
-    required this.lyricsProgress,
-    required this.minHeight,
-    required this.padding,
-    required this.isWideScreen,
-  });
-
-  @override
-  void performLayout(Size size) {
-    final double smallSize = minHeight - 10;
-    final collapsedRect = Rect.fromLTWH(
-        12.0,
-        (minHeight - smallSize) / 2,
-        smallSize,
-        smallSize
+/// Geometry shared by the actual pages and their floating cover.
+/// All rectangles except the playback slots are in PlayerView coordinates.
+class PlayerLayoutMetrics {
+  PlayerLayoutMetrics({
+    required this.size,
+    required EdgeInsets padding,
+    required TextScaler textScaler,
+    required double minHeight,
+  }) {
+    isWideScreen = size.width >= wideBreakpoint;
+    final safeWidth = math.max(0.0, size.width - padding.horizontal);
+    topBar = Rect.fromLTWH(padding.left, padding.top + 8, safeWidth, 60);
+    content = Rect.fromLTWH(
+      padding.left,
+      topBar.bottom + 8,
+      safeWidth,
+      math.max(0.0, size.height - topBar.bottom - 20 - padding.bottom),
     );
+    final columnWidth = isWideScreen ? content.width / 2 : content.width;
+    playbackSize = Size(columnWidth, content.height);
 
-    Rect expandedTargetRect;
-    double controlsBaseY = 0.0;
-
-    if (isWideScreen) {
-      final double leftColumnWidth = size.width / 2;
-      final double bigWidth = (leftColumnWidth * 0.6).clamp(250.0, 350.0);
-      expandedTargetRect = Rect.fromLTWH(
-        (leftColumnWidth - bigWidth) / 2,
-        padding.top + 100.0,
-        bigWidth,
-        bigWidth,
-      );
-      controlsBaseY = expandedTargetRect.bottom;
-    } else {
-      final double bigWidth = (size.width * 0.75).clamp(300.0, 450.0);
-      final Rect albumModeRect = Rect.fromLTWH(
-          (size.width - bigWidth) / 2,
-          padding.top + 80.0,
-          bigWidth,
-          bigWidth
-      );
-      controlsBaseY = albumModeRect.bottom;
-
-      const double lyricsHeaderSize = 50.0;
-      final Rect lyricsModeRect = Rect.fromLTWH(
-          24.0,
-          padding.top + 70 + (60 - lyricsHeaderSize) / 2,
-          lyricsHeaderSize,
-          lyricsHeaderSize
-      );
-      expandedTargetRect = Rect.lerp(albumModeRect, lyricsModeRect, lyricsProgress)!;
+    // Start with proportions of the whole page. Reserve readable text and
+    // usable controls before giving the remaining space back to the cover.
+    final heights = _allocateHeights(content.height, [
+      0,
+      (textScaler.scale(22) + textScaler.scale(16)) * 1.3 + 12,
+      math.max(48, textScaler.scale(12) * 1.3 + 24),
+      70,
+      48,
+    ]);
+    var y = 0.0;
+    Rect slot(double height) {
+      final rect = Rect.fromLTWH(0, y, columnWidth, height);
+      y += height;
+      return rect;
     }
 
-    final Rect currentCoverRect = Rect.lerp(collapsedRect, expandedTargetRect, expandProgress)!;
+    coverSlot = slot(heights[0]);
+    infoSlot = slot(heights[1]);
+    progressSlot = slot(heights[2]);
+    controlsSlot = slot(heights[3]);
+    volumeSlot = slot(heights[4]);
 
-    if (hasChild(PlayerLayoutId.background)) {
-      layoutChild(PlayerLayoutId.background, BoxConstraints.tight(size));
-      positionChild(PlayerLayoutId.background, Offset.zero);
-    }
-
-    if (hasChild(PlayerLayoutId.videoContainer)) {
-      layoutChild(PlayerLayoutId.videoContainer, BoxConstraints.tight(size));
-      positionChild(PlayerLayoutId.videoContainer, Offset.zero);
-    }
-
-    if (hasChild(PlayerLayoutId.minibar)) {
-      layoutChild(PlayerLayoutId.minibar, BoxConstraints.tightFor(width: size.width, height: minHeight));
-      positionChild(PlayerLayoutId.minibar, Offset.zero);
-    }
-
-    _layoutIndependentControls(size, controlsBaseY);
-
-    if (hasChild(PlayerLayoutId.bodyLyrics)) {
-      if (isWideScreen) {
-        layoutChild(PlayerLayoutId.bodyLyrics, BoxConstraints(
-          minWidth: size.width / 2, maxWidth: size.width / 2,
-          minHeight: size.height, maxHeight: size.height,
-        ));
-        positionChild(PlayerLayoutId.bodyLyrics, Offset(size.width / 2, (1 - expandProgress) * 100));
-      } else {
-        layoutChild(PlayerLayoutId.bodyLyrics, BoxConstraints.tight(size));
-        positionChild(PlayerLayoutId.bodyLyrics, Offset(0, (1 - lyricsProgress) * 50));
-      }
-    }
-
-    if (hasChild(PlayerLayoutId.topBar)) {
-      layoutChild(PlayerLayoutId.topBar, BoxConstraints.tightFor(width: size.width, height: 60));
-      positionChild(PlayerLayoutId.topBar, Offset(0, padding.top + 10));
-    }
-
-    if (hasChild(PlayerLayoutId.coverHero)) {
-      layoutChild(PlayerLayoutId.coverHero, BoxConstraints.tight(currentCoverRect.size));
-      positionChild(PlayerLayoutId.coverHero, currentCoverRect.topLeft);
-    }
+    final coverSize = math.max(
+      0.0,
+      math.min(
+        math.min(columnWidth * 0.82, isWideScreen ? 350.0 : 450.0),
+        coverSlot.height - 12,
+      ),
+    );
+    albumCover = Rect.fromCenter(
+      center: coverSlot.center + content.topLeft,
+      width: coverSize,
+      height: coverSize,
+    );
+    lyricsHeaderHeight = math.max(
+      60,
+      (textScaler.scale(16) + textScaler.scale(12)) * 1.3 + 12,
+    );
+    lyricsCover = Rect.fromLTWH(
+      content.left + lyricsCoverLeft,
+      content.top + (lyricsHeaderHeight - lyricsCoverSize) / 2,
+      lyricsCoverSize,
+      lyricsCoverSize,
+    );
+    final miniCoverSize = math.max(0.0, minHeight - 10);
+    collapsedCover = Rect.fromLTWH(12, 5, miniCoverSize, miniCoverSize);
   }
 
-  void _layoutIndependentControls(Size size, double baseY) {
-    final double columnWidth = isWideScreen ? size.width / 2 : size.width;
-    final BoxConstraints constraints = BoxConstraints(maxWidth: columnWidth);
+  static const wideBreakpoint = 800.0;
+  static const lyricsCoverLeft = 24.0;
+  static const lyricsCoverSize = 50.0;
+  static const _weights = [0.50, 0.14, 0.10, 0.16, 0.10];
 
-    final Size infoSize = hasChild(PlayerLayoutId.playerInfo)
-        ? layoutChild(PlayerLayoutId.playerInfo, constraints) : Size.zero;
-    final Size progressSize = hasChild(PlayerLayoutId.progressBar)
-        ? layoutChild(PlayerLayoutId.progressBar, constraints) : Size.zero;
-    final Size controlsSize = hasChild(PlayerLayoutId.playerControls)
-        ? layoutChild(PlayerLayoutId.playerControls, constraints) : Size.zero;
-    final Size volumeSize = hasChild(PlayerLayoutId.volumeSlider)
-        ? layoutChild(PlayerLayoutId.volumeSlider, constraints) : Size.zero;
+  final Size size;
+  late final bool isWideScreen;
+  late final Rect topBar;
+  late final Rect content;
+  late final Size playbackSize;
+  late final Rect coverSlot;
+  late final Rect infoSlot;
+  late final Rect progressSlot;
+  late final Rect controlsSlot;
+  late final Rect volumeSlot;
+  late final Rect albumCover;
+  late final Rect lyricsCover;
+  late final Rect collapsedCover;
+  late final double lyricsHeaderHeight;
 
-    final double totalHeight = infoSize.height + progressSize.height + controlsSize.height + volumeSize.height;
-    final double availableSpace = size.height - baseY;
-
-    int activeCount = 0;
-    if (infoSize != Size.zero) activeCount++;
-    if (progressSize != Size.zero) activeCount++;
-    if (controlsSize != Size.zero) activeCount++;
-    if (volumeSize != Size.zero) activeCount++;
-
-    final double gap = (activeCount > 0 && availableSpace > totalHeight)
-        ? (availableSpace - totalHeight) / (activeCount + 1)
-        : 0.0;
-
-    double currentY = baseY + gap + ((1 - expandProgress) * 100);
-
-    void positionComponent(PlayerLayoutId id, Size componentSize) {
-      if (hasChild(id) && componentSize != Size.zero) {
-        final double dx = (columnWidth - componentSize.width) / 2;
-        positionChild(id, Offset(dx, currentY));
-        currentY += componentSize.height + gap;
-      }
-    }
-
-    positionComponent(PlayerLayoutId.playerInfo, infoSize);
-    positionComponent(PlayerLayoutId.progressBar, progressSize);
-    positionComponent(PlayerLayoutId.playerControls, controlsSize);
-    positionComponent(PlayerLayoutId.volumeSlider, volumeSize);
+  Rect coverRect({required double expansion, required double page}) {
+    final expanded = isWideScreen
+        ? albumCover
+        : Rect.lerp(albumCover, lyricsCover, page.clamp(0.0, 1.0))!;
+    return Rect.lerp(collapsedCover, expanded, expansion.clamp(0.0, 1.0))!;
   }
 
-  @override
-  bool shouldRelayout(PlayerLayoutDelegate oldDelegate) {
-    return expandProgress != oldDelegate.expandProgress ||
-        lyricsProgress != oldDelegate.lyricsProgress ||
-        isWideScreen != oldDelegate.isWideScreen;
+  static List<double> _allocateHeights(double height, List<double> minimums) {
+    final result = List<double>.filled(_weights.length, 0);
+    final pending = {for (var i = 0; i < _weights.length; i++) i};
+    final minimumTotal = minimums.fold<double>(0, (sum, value) => sum + value);
+    // Only reached for extreme window heights: keep every region in bounds.
+    if (minimumTotal > height) {
+      return minimums.map((value) => value * height / minimumTotal).toList();
+    }
+    var remaining = height;
+    while (pending.isNotEmpty) {
+      final weight = pending.fold<double>(0, (sum, i) => sum + _weights[i]);
+      final constrained = pending
+          .where((i) => remaining * _weights[i] / weight < minimums[i])
+          .toList();
+      if (constrained.isEmpty) {
+        for (final i in pending) {
+          result[i] = remaining * _weights[i] / weight;
+        }
+        break;
+      }
+      for (final i in constrained) {
+        result[i] = minimums[i];
+        remaining -= result[i];
+        pending.remove(i);
+      }
+    }
+    return result;
   }
 }

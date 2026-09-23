@@ -1,82 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai/features/player/widget/audio/player_controls.dart';
-import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_panel.dart';
 
-class MobileLyricsContent extends ConsumerWidget {
-  final PlaybackItem? track;
-  final VoidCallback? onTapHeader;
-  final EdgeInsets padding;
-  final bool isWideScreen;
+import '../audio/player_controls.dart';
+import '../player_layout.dart';
+import 'player_lyrics_panel.dart';
 
-  const MobileLyricsContent({
+class PlayerLyricsContent extends StatelessWidget {
+  const PlayerLyricsContent({
     super.key,
     required this.track,
-    this.onTapHeader,
     required this.isWideScreen,
-    required this.padding,
+    required this.headerHeight,
   });
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final double headerTopMargin = padding.top + 70;
+  final PlaybackItem? track;
+  final bool isWideScreen;
+  final double headerHeight;
 
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        SizedBox(height: headerTopMargin),
-
         if (!isWideScreen)
-          GestureDetector(
-            onTap: onTapHeader,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              height: 60, // 固定高度
-              child: Row(
-                children: [
-                  // 1. 左侧占位符：给浮动小封面留位置
-                  // expandedLyricsRect 的 left 是 24.0，width 是 50.0
-                  const SizedBox(width: 86),
-
-                  // 2. 标题信息
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track?.title ?? "未播放",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+          SizedBox(
+            key: const ValueKey('player-lyrics-header'),
+            height: headerHeight,
+            child: Row(
+              children: [
+                // The shared cover lands here; the header itself is not a toggle.
+                const SizedBox(
+                  width:
+                      PlayerLayoutMetrics.lyricsCoverLeft +
+                      PlayerLayoutMetrics.lyricsCoverSize +
+                      12,
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track?.title ?? '未播放',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          height: 1.3,
                         ),
-                        Text(
-                          track?.artist ?? "未知艺人",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
+                      ),
+                      Text(
+                        track?.artist ?? '未知艺人',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          height: 1.3,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
-                  // 3. 右侧迷你播放按钮
-                  const MiniPlayButton(),
-                  const SizedBox(width: 24),
-                ],
-              ),
+                ),
+                const MiniPlayButton(),
+                const SizedBox(width: 24),
+              ],
             ),
           ),
-
-        // 歌词面板
-        const Expanded(child: LyricsPanel()),
+        // A stable key preserves the lyric controller when the header appears.
+        const Expanded(
+          key: ValueKey('player-lyrics-panel'),
+          child: LyricsPanel(),
+        ),
       ],
     );
   }
