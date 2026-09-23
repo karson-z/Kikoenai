@@ -49,7 +49,7 @@ class PlayerViewController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Used while the PageView is absent (wide layout or video playback).
+  /// Used while the PageView is absent in a simultaneous playback/lyrics layout.
   double get restingPage => _selectedPage.toDouble();
 
   @override

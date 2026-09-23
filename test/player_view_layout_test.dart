@@ -20,6 +20,7 @@ import 'package:kikoenai/features/player/widget/audio/player_info.dart';
 import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_panel.dart';
 import 'package:kikoenai/features/player/widget/other/player_progress_bar.dart';
 import 'package:kikoenai/features/player/widget/other/player_top_bar.dart';
+import 'package:kikoenai/features/player/widget/player_layout.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 const _track = PlaybackItem(
@@ -351,8 +352,12 @@ void main() {
         tester.widget<LyricView>(find.byType(LyricView)).controller,
         same(lyrics.controller),
       );
-      expect(tester.getRect(_cover).right, lessThan(550));
-      expect(tester.getRect(find.byType(LyricsPanel)).left, 550);
+      final lyricBounds = tester.getRect(find.byType(LyricsPanel));
+      expect(tester.getRect(_cover).right, lessThan(lyricBounds.left));
+      expect(
+        tester.getRect(find.byType(PlayerControls)).right,
+        lessThan(lyricBounds.left),
+      );
       expect(find.byType(PlayerControls).hitTestable(), findsOneWidget);
       await _capture(tester, 'desktop-split');
 
@@ -495,6 +500,282 @@ void main() {
     },
   );
 
+  test('layout policy accounts for shape, safe area and readable content', () {
+    for (final scenario in [
+      (size: const Size(390, 844), mode: PlayerLayoutMode.paged),
+      (size: const Size(700, 1980), mode: PlayerLayoutMode.paged),
+      (size: const Size(768, 1024), mode: PlayerLayoutMode.stacked),
+      (size: const Size(1000, 1980), mode: PlayerLayoutMode.stacked),
+      (size: const Size(1440, 1980), mode: PlayerLayoutMode.stacked),
+      (size: const Size(1024, 768), mode: PlayerLayoutMode.sideBySide),
+      (size: const Size(1920, 1080), mode: PlayerLayoutMode.sideBySide),
+      (size: const Size(2560, 1980), mode: PlayerLayoutMode.sideBySide),
+    ]) {
+      final metrics = PlayerLayoutMetrics(
+        size: scenario.size,
+        padding: EdgeInsets.zero,
+        textScaler: TextScaler.noScaling,
+        minHeight: 75,
+      );
+      expect(metrics.mode, scenario.mode, reason: '${scenario.size}');
+    }
+
+    PlayerLayoutMetrics constrained({
+      Size size = const Size(1000, 500),
+      EdgeInsets padding = EdgeInsets.zero,
+      double scale = 2,
+    }) => PlayerLayoutMetrics(
+      size: size,
+      padding: padding,
+      textScaler: TextScaler.linear(scale),
+      minHeight: 75,
+    );
+    // Two columns no longer leave room for a cover with enlarged text.
+    expect(constrained().mode, PlayerLayoutMode.paged);
+    expect(
+      constrained(
+        size: const Size(820, 1200),
+        padding: const EdgeInsets.symmetric(horizontal: 60),
+        scale: 1,
+      ).mode,
+      PlayerLayoutMode.paged,
+    );
+    // Tall enough for stacking, but too narrow for readable large text.
+    expect(
+      constrained(size: const Size(720, 1980), scale: 3).mode,
+      PlayerLayoutMode.paged,
+    );
+    expect(
+      constrained(size: const Size(2560, 1980), scale: 2.9).mode,
+      PlayerLayoutMode.paged,
+    );
+    expect(
+      constrained(size: const Size(1000, 1980), scale: 3).mode,
+      PlayerLayoutMode.paged,
+    );
+  });
+
+  test('bounded playback regions stay centered with enlarged text', () {
+    for (final width in [320.0, 390.0, 600.0]) {
+      for (final height in [568.0, 844.0, 1980.0]) {
+        for (final scale in [1.0, 2.0]) {
+          final metrics = PlayerLayoutMetrics(
+            size: Size(width, height),
+            padding: const EdgeInsets.only(top: 20),
+            textScaler: TextScaler.linear(scale),
+            minHeight: 75,
+          );
+          final slots = [
+            metrics.coverSlot,
+            metrics.infoSlot,
+            metrics.progressSlot,
+            metrics.controlsSlot,
+            metrics.volumeSlot,
+          ];
+          expect(
+            slots.first.top + slots.last.bottom,
+            closeTo(metrics.playbackViewport.height, 0.001),
+          );
+          for (var i = 1; i < slots.length; i++) {
+            expect(slots[i].top, closeTo(slots[i - 1].bottom, 0.001));
+          }
+          expect(metrics.controlsSlot.height, inInclusiveRange(70, 88));
+          expect(metrics.volumeSlot.height, inInclusiveRange(48, 64));
+        }
+      }
+    }
+  });
+
+  testWidgets('all three modes preserve lyrics and the selected mobile page', (
+    tester,
+  ) async {
+    await _mount(tester);
+    await tester.dragFrom(tester.getCenter(_cover), const Offset(-340, 0));
+    await tester.pumpAndSettle();
+    final lyricController = tester
+        .widget<LyricView>(find.byType(LyricView))
+        .controller;
+    await tester.drag(find.byType(LyricView), const Offset(0, -120));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(lyricController.isSelectingNotifier.value, isTrue);
+
+    for (final scenario in [
+      (size: const Size(1000, 1980), key: 'player-stacked-view'),
+      (size: const Size(1440, 900), key: 'player-split-view'),
+      (size: const Size(768, 1024), key: 'player-stacked-view'),
+      (size: const Size(390, 844), key: 'player-page-view'),
+    ]) {
+      tester.view.physicalSize = scenario.size;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(ValueKey(scenario.key)), findsOneWidget);
+      expect(
+        tester.widget<LyricView>(find.byType(LyricView)).controller,
+        same(lyricController),
+      );
+      expect(lyricController.isSelectingNotifier.value, isTrue);
+      if (scenario.key != 'player-page-view') {
+        expect(find.byType(PageView), findsNothing);
+        expect(
+          find.byKey(const ValueKey('player-lyrics-header')),
+          findsNothing,
+        );
+        expect(find.byType(PlayerControls).hitTestable(), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    }
+    expect(_pageController(tester).page, 1);
+    expect(tester.getSize(_cover), const Size(50, 50));
+    await _unmount(tester);
+  });
+
+  for (final scenario in [
+    (name: 'portrait-tablet', size: const Size(768, 1024), scale: 1.0),
+    (name: 'tall-desktop', size: const Size(1000, 1980), scale: 1.0),
+    (name: 'wide-portrait', size: const Size(1440, 1980), scale: 1.0),
+    (name: 'tall-large-text', size: const Size(1000, 1980), scale: 2.0),
+    (name: 'tablet-large-text', size: const Size(768, 1024), scale: 2.0),
+  ]) {
+    testWidgets('compact playback and lyrics fit ${scenario.name}', (
+      tester,
+    ) async {
+      await _mount(tester, size: scenario.size, scale: scenario.scale);
+      expect(find.byKey(const ValueKey('player-stacked-view')), findsOneWidget);
+      expect(find.byType(PageView), findsNothing);
+      final cover = tester.getRect(_cover);
+      final lyrics = tester.getRect(find.byType(LyricsPanel));
+      expect(cover.width, closeTo(cover.height, 0.01));
+      expect(cover.width, inInclusiveRange(180, 280));
+      expect(lyrics.width, lessThanOrEqualTo(760));
+      expect(lyrics.height, inInclusiveRange(360, 900));
+      expect(cover.bottom, lessThan(lyrics.top));
+      expect(lyrics.bottom, lessThanOrEqualTo(scenario.size.height - 34));
+
+      var previousBottom = 0.0;
+      for (final type in [
+        PlayerInfoWidget,
+        PlayerProgressBar,
+        PlayerControls,
+        PlayerVolumeSlider,
+      ]) {
+        final bounds = tester.getRect(find.byType(type));
+        expect(bounds.left, greaterThan(cover.right));
+        expect(bounds.right, lessThanOrEqualTo(scenario.size.width - 24));
+        expect(bounds.top, greaterThanOrEqualTo(previousBottom));
+        expect(bounds.bottom, lessThan(lyrics.top));
+        previousBottom = bounds.bottom;
+      }
+      final play = find.descendant(
+        of: find.byType(PlayerControls),
+        matching: find.byTooltip('播放'),
+      );
+      expect(tester.getSize(play).width, greaterThanOrEqualTo(44));
+      expect(tester.getSize(play).height, greaterThanOrEqualTo(44));
+      await _capture(tester, scenario.name);
+      await tester.tap(play);
+      await tester.pump();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(PlayerView)),
+      );
+      expect(container.read(playerControllerProvider).playing, isTrue);
+      expect(tester.takeException(), isNull);
+      await _unmount(tester);
+    });
+  }
+
+  testWidgets('huge landscape keeps playback and reading regions bounded', (
+    tester,
+  ) async {
+    await _mount(tester, size: const Size(2560, 1980));
+    expect(find.byKey(const ValueKey('player-split-view')), findsOneWidget);
+    final cover = tester.getRect(_cover);
+    final lyrics = tester.getRect(find.byType(LyricsPanel));
+    final info = tester.getRect(find.byType(PlayerInfoWidget));
+    final controls = tester.getRect(find.byType(PlayerControls));
+    final volume = tester.getRect(find.byType(PlayerVolumeSlider));
+    expect(cover.width, lessThanOrEqualTo(350));
+    expect(lyrics.size, const Size(760, 900));
+    expect(controls.right, lessThan(lyrics.left));
+    expect(info.top - cover.bottom, lessThan(100));
+    expect(volume.bottom - cover.top, lessThan(800));
+    await _capture(tester, 'huge-landscape');
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets(
+    'tall narrow pages center bounded content and share cover anchors',
+    (tester) async {
+      await _mount(tester, size: const Size(600, 1980));
+      expect(find.byType(PageView), findsOneWidget);
+      final cover = tester.getRect(_cover);
+      final volume = tester.getRect(find.byType(PlayerVolumeSlider));
+      expect(cover.width, lessThanOrEqualTo(450));
+      expect(volume.bottom - cover.top, lessThan(850));
+      await _capture(tester, 'tall-narrow-playback');
+      await tester.dragFrom(cover.center, const Offset(-520, 0));
+      await tester.pumpAndSettle();
+      final header = tester.getRect(
+        find.byKey(const ValueKey('player-lyrics-header')),
+      );
+      expect(header.contains(tester.getCenter(_cover)), isTrue);
+      expect(tester.getSize(_cover), const Size(50, 50));
+      await _capture(tester, 'tall-narrow-lyrics');
+      expect(tester.takeException(), isNull);
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('stacked lyrics scroll independently and survive panel reopen', (
+    tester,
+  ) async {
+    final panel = PanelController();
+    await _mount(tester, size: const Size(1000, 1980), panel: panel);
+    final controller = tester
+        .widget<LyricView>(find.byType(LyricView))
+        .controller;
+    final albumRect = tester.getRect(_cover);
+    await tester.drag(find.byType(LyricView), const Offset(0, -160));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(panel.isPanelOpen, isTrue);
+    expect(controller.isSelectingNotifier.value, isTrue);
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
+    await tester.pumpAndSettle();
+    expect(panel.isPanelClosed, isTrue);
+    expect(tester.getSize(_cover), const Size(65, 65));
+    await tester.tapAt(tester.getCenter(_cover));
+    await tester.pumpAndSettle();
+    expect(panel.isPanelOpen, isTrue);
+    expect(tester.getRect(_cover), albumRect);
+    expect(
+      tester.widget<LyricView>(find.byType(LyricView)).controller,
+      same(controller),
+    );
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets('stacked no-subtitle state keeps playback controls usable', (
+    tester,
+  ) async {
+    await _mount(tester, size: const Size(1000, 1980), noLyrics: true);
+    expect(find.byKey(const ValueKey('player-stacked-view')), findsOneWidget);
+    expect(find.text('暂无字幕').hitTestable(), findsOneWidget);
+    expect(find.byType(PlayerControls).hitTestable(), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PlayerView)),
+    );
+    final slider = find.descendant(
+      of: find.byType(PlayerVolumeSlider),
+      matching: find.byType(Slider),
+    );
+    await tester.drag(slider, const Offset(80, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(playerControllerProvider).volume, greaterThan(0.4));
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
   for (final scenario in [
     (
       name: 'small-phone',
@@ -563,7 +844,7 @@ void main() {
       expect(tester.getSize(play).width, greaterThanOrEqualTo(44));
       expect(tester.takeException(), isNull);
       await _capture(tester, scenario.name);
-      if (scenario.size.width < 800) {
+      if (find.byType(PageView).evaluate().isNotEmpty) {
         await tester.dragFrom(
           tester.getCenter(_cover),
           Offset(-scenario.size.width * 0.85, 0),

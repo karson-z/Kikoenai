@@ -41,33 +41,47 @@ class _PlayerAudioContentState extends State<PlayerAudioContent> {
       key: _lyricsKey,
       child: PlayerLyricsContent(
         track: widget.track,
-        isWideScreen: metrics.isWideScreen,
+        showHeader: metrics.isPaged,
         headerHeight: metrics.lyricsHeaderHeight,
+        contentSize: metrics.lyricsFrame.size,
       ),
     );
 
     return Stack(
       children: [
-        Positioned.fromRect(
-          rect: metrics.content,
-          child: metrics.isWideScreen
-              ? Row(
-                  key: const ValueKey('player-split-view'),
-                  children: [
-                    Expanded(child: playback),
-                    Expanded(child: lyrics),
-                  ],
-                )
-              : PageView(
-                  key: const ValueKey('player-page-view'),
-                  controller: widget.controller.pageController,
-                  onPageChanged: widget.controller.rememberPage,
-                  // Also keeps the adjacent page mounted for same-frame
-                  // reparenting when switching between PageView and Row.
-                  allowImplicitScrolling: true,
-                  children: [playback, lyrics],
+        if (metrics.isPaged)
+          Positioned.fromRect(
+            rect: metrics.content,
+            child: PageView(
+              key: const ValueKey('player-page-view'),
+              controller: widget.controller.pageController,
+              onPageChanged: widget.controller.rememberPage,
+              // Also keeps the adjacent page mounted for same-frame
+              // reparenting when switching between layout modes.
+              allowImplicitScrolling: true,
+              children: [playback, lyrics],
+            ),
+          )
+        else
+          Positioned.fill(
+            child: Stack(
+              key: ValueKey(
+                metrics.mode == PlayerLayoutMode.sideBySide
+                    ? 'player-split-view'
+                    : 'player-stacked-view',
+              ),
+              children: [
+                Positioned.fromRect(
+                  rect: metrics.playbackViewport,
+                  child: playback,
                 ),
-        ),
+                Positioned.fromRect(
+                  rect: metrics.lyricsViewport,
+                  child: lyrics,
+                ),
+              ],
+            ),
+          ),
         Positioned.fromRect(
           rect: metrics.topBar,
           child: RepaintBoundary(child: TopBar(onClose: widget.onClose)),

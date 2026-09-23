@@ -30,7 +30,7 @@ class PlayerCoverOverlay extends StatelessWidget {
           child: SimpleExtendedImage(
             coverUrl,
             borderRadius: BorderRadius.circular(
-              lerpDouble(8, 4, metrics.isWideScreen ? 0 : page * expansion)!,
+              lerpDouble(8, 4, metrics.isPaged ? page * expansion : 0)!,
             ),
             fit: BoxFit.cover,
             loadingSize: 20,

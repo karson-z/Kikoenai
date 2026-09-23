@@ -55,7 +55,9 @@ class PlayerPlaybackPage extends StatelessWidget {
       child: Center(
         key: ValueKey(key),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(
+            maxWidth: PlayerLayoutMetrics.maxPlaybackWidth,
+          ),
           child: RepaintBoundary(child: child),
         ),
       ),
