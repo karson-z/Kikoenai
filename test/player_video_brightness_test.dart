@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,11 +32,38 @@ class _FakeBrightnessService implements VideoBrightnessService {
 
 class _TestPlayerController extends PlayerController {
   @override
-  AppPlayerState build() => const AppPlayerState(volume: 0.4);
+  AppPlayerState build() =>
+      const AppPlayerState(volume: 0.4, screenBrightness: 0.4);
 
   @override
   Future<void> setVolume(double value) async {
-    state = state.copyWith(volume: value);
+    state = state.copyWith(volume: value.clamp(0.0, 1.0).toDouble());
+  }
+
+  @override
+  Future<bool> loadScreenBrightness() async {
+    final brightness = await ref
+        .read(videoBrightnessServiceProvider)
+        .applicationBrightness;
+    state = state.copyWith(
+      screenBrightness: brightness.clamp(0.0, 1.0).toDouble(),
+    );
+    return true;
+  }
+
+  @override
+  Future<bool> setScreenBrightness(double value) async {
+    final brightness = value.clamp(0.0, 1.0).toDouble();
+    state = state.copyWith(screenBrightness: brightness);
+    await ref
+        .read(videoBrightnessServiceProvider)
+        .setApplicationBrightness(brightness);
+    return true;
+  }
+
+  @override
+  Future<void> resetScreenBrightness() async {
+    await ref.read(videoBrightnessServiceProvider).resetApplicationBrightness();
   }
 }
 
@@ -94,6 +122,49 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     expect(brightness.resetCount, 1);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('volume gesture accumulates across drag updates', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerControllerProvider.overrideWith(_TestPlayerController.new),
+          videoBrightnessServiceProvider.overrideWithValue(
+            _FakeBrightnessService(0.4),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: VideoGestureLayer(child: ColoredBox(color: Colors.black)),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(const Offset(740, 300));
+    await gesture.moveBy(const Offset(0, -80));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump(kDoubleTapTimeout);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(VideoGestureLayer)),
+    );
+    // The drag covers 80px from the pointer-down position. Each 200px
+    // changes volume by 1, so 0.4 becomes 0.8. Reusing the volume read
+    // at drag start for every update would stay at 0.6.
+    expect(container.read(playerControllerProvider).volume, closeTo(0.8, 0.001));
+    expect(find.text('音量：80%'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 }

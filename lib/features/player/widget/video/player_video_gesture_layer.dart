@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../provider/player_controller_provider.dart';
-import '../../provider/video_brightness_provider.dart';
 
 enum GestureFeedbackType { none, seek, volume, brightness }
 
@@ -24,15 +23,12 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   double _initialDragSeconds = 0;
   int _seekOffsetSeconds = 0;
 
-  double _currentBrightness = 0.5;
   double _pendingBrightnessDelta = 0;
-  double? _pendingBrightnessWrite;
-  Future<void>? _brightnessWriter;
   bool _brightnessReady = false;
   bool _brightnessUnavailable = false;
   bool _brightnessAdjusted = false;
   GestureFeedbackType? _verticalDragType;
-  late final VideoBrightnessService _brightnessService;
+  late final PlayerController _playerController;
 
   GestureFeedbackType _feedbackType = GestureFeedbackType.none;
   Timer? _feedbackTimer;
@@ -45,7 +41,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   @override
   void initState() {
     super.initState();
-    _brightnessService = ref.read(videoBrightnessServiceProvider);
+    _playerController = ref.read(playerControllerProvider.notifier);
     unawaited(_loadBrightness());
   }
 
@@ -53,25 +49,29 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   void dispose() {
     _feedbackTimer?.cancel();
     if (_brightnessAdjusted) {
-      unawaited(_restoreBrightnessAfterPendingWrites());
+      unawaited(_playerController.resetScreenBrightness());
     }
     super.dispose();
   }
 
   Future<void> _loadBrightness() async {
-    try {
-      final brightness = await _brightnessService.applicationBrightness;
-      if (!mounted) return;
-      _currentBrightness = brightness.clamp(0.0, 1.0).toDouble();
-      _brightnessReady = true;
-      final pendingDelta = _pendingBrightnessDelta;
-      _pendingBrightnessDelta = 0;
-      if (pendingDelta != 0) _adjustBrightness(pendingDelta);
-    } catch (error) {
+    final loaded = await _playerController.loadScreenBrightness();
+    if (!mounted) return;
+    if (!loaded) {
       _brightnessUnavailable = true;
       _pendingBrightnessDelta = 0;
-      debugPrint('视频亮度读取失败: $error');
+      return;
     }
+    _brightnessReady = true;
+    final pendingDelta = _pendingBrightnessDelta;
+    _pendingBrightnessDelta = 0;
+    if (pendingDelta != 0) _adjustBrightness(pendingDelta);
+  }
+
+  void _adjustVolume(double delta) {
+    final volume = ref.read(playerControllerProvider).volume;
+    _playerController.setVolume(volume + delta);
+    _showFeedback(GestureFeedbackType.volume);
   }
 
   void _adjustBrightness(double delta) {
@@ -83,37 +83,12 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
       return;
     }
 
-    final brightness = (_currentBrightness + delta).clamp(0.0, 1.0).toDouble();
-    if (brightness == _currentBrightness) return;
-    _currentBrightness = brightness;
+    final brightness = ref.read(playerControllerProvider).screenBrightness;
+    final next = (brightness + delta).clamp(0.0, 1.0).toDouble();
+    if (next == brightness) return;
     _brightnessAdjusted = true;
-    _pendingBrightnessWrite = brightness;
-    _brightnessWriter ??= _drainBrightnessWrites();
+    unawaited(_playerController.setScreenBrightness(next));
     _showFeedback(GestureFeedbackType.brightness);
-  }
-
-  Future<void> _drainBrightnessWrites() async {
-    while (_pendingBrightnessWrite != null && !_brightnessUnavailable) {
-      final brightness = _pendingBrightnessWrite!;
-      _pendingBrightnessWrite = null;
-      try {
-        await _brightnessService.setApplicationBrightness(brightness);
-      } catch (error) {
-        _brightnessUnavailable = true;
-        _pendingBrightnessWrite = null;
-        debugPrint('视频亮度设置失败: $error');
-      }
-    }
-    _brightnessWriter = null;
-  }
-
-  Future<void> _restoreBrightnessAfterPendingWrites() async {
-    try {
-      await _brightnessWriter;
-      await _brightnessService.resetApplicationBrightness();
-    } catch (error) {
-      debugPrint('视频亮度恢复失败: $error');
-    }
   }
 
   void _showFeedback(GestureFeedbackType type, {int? seekOffset}) {
@@ -158,9 +133,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
       if (event.localPosition.dx < screenWidth / 2) {
         _adjustBrightness(delta);
       } else {
-        final newVolume = (state.volume + delta).clamp(0.0, 1.0);
-        controller.setVolume(newVolume);
-        _showFeedback(GestureFeedbackType.volume);
+        _adjustVolume(delta);
       }
     }
   }
@@ -235,6 +208,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                       },
 
                 // 3. 实际的业务逻辑：调节音量和亮度
+                dragStartBehavior: DragStartBehavior.down,
                 onVerticalDragUpdate: isDesktop
                     ? null
                     : (details) {
@@ -244,20 +218,16 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                             GestureFeedbackType.brightness) {
                           _adjustBrightness(delta);
                         } else {
-                          final newVolume = (state.volume + delta).clamp(
-                            0.0,
-                            1.0,
-                          );
-                          controller.setVolume(newVolume);
-                          _showFeedback(GestureFeedbackType.volume);
+                          _adjustVolume(delta);
                         }
                       },
                 onVerticalDragStart: isDesktop
                     ? null
                     : (details) {
                         final screenWidth = MediaQuery.sizeOf(context).width;
-                        _verticalDragType =
-                            details.localPosition.dx < screenWidth / 2
+                        final isBrightness =
+                            details.localPosition.dx < screenWidth / 2;
+                        _verticalDragType = isBrightness
                             ? GestureFeedbackType.brightness
                             : GestureFeedbackType.volume;
                       },
@@ -273,13 +243,18 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
             ),
           ),
           if (_feedbackType != GestureFeedbackType.none)
-            Center(child: _buildFeedbackWidget(state.volume)),
+            Center(
+              child: _buildFeedbackWidget(
+                state.volume,
+                state.screenBrightness,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildFeedbackWidget(double volume) {
+  Widget _buildFeedbackWidget(double volume, double brightness) {
     String text = '';
 
     switch (_feedbackType) {
@@ -291,7 +266,7 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
         text = "音量：${(volume * 100).toInt()}%";
         break;
       case GestureFeedbackType.brightness:
-        text = "亮度：${(_currentBrightness * 100).toInt()}%";
+        text = "亮度：${(brightness * 100).toInt()}%";
         break;
       case GestureFeedbackType.none:
         return const SizedBox.shrink();

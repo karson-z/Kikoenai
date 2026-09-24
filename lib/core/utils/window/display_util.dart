@@ -8,9 +8,12 @@ import 'package:device_info_plus/device_info_plus.dart';
 class DisplayUtils {
   DisplayUtils._();
 
+  /// Orientations allowed before the current fullscreen session locked them.
+  static List<DeviceOrientation>? _orientationsBeforeFullscreen;
+
   /// 进入全屏显示
   /// [isPortraitUp] 是否竖屏
-  /// [lockOrientation] 移动端是否强制横屏
+  /// [lockOrientation] 移动端是否按视频方向锁定
   static Future<void> enterFullScreen(bool isPortraitUp,{bool lockOrientation = true}) async {
     try {
       // 1. 桌面端处理
@@ -24,6 +27,9 @@ class DisplayUtils {
         SystemUiMode.immersiveSticky,
       );
       if (!lockOrientation) return;
+      _orientationsBeforeFullscreen ??= List<DeviceOrientation>.from(
+        preferredOrientationsBeforeLock,
+      );
       // 当前视频比例是否是9：16 且rotate 90° 是就是竖屏不是就是横屏
       isPortraitUp ? await setVertical() : await setLandscape();
     } catch (e) {
@@ -31,9 +37,8 @@ class DisplayUtils {
     }
   }
 
-  /// 退出全屏显示
-  /// [lockOrientation] 移动端是否恢复竖屏
-  static Future<void> exitFullScreen({bool lockOrientation = true}) async {
+  /// 退出全屏显示，并把方向恢复到进入全屏之前。
+  static Future<void> exitFullScreen() async {
     try {
       // 1. 桌面端处理
       if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
@@ -54,10 +59,52 @@ class DisplayUtils {
           mode,
           overlays: SystemUiOverlay.values,
         );
-        await setVertical();
+        final previous = _orientationsBeforeFullscreen;
+        _orientationsBeforeFullscreen = null;
+        await restoreOrientations(previous ?? preferredOrientationsBeforeLock);
       }
     } catch (e) {
       debugPrint('DisplayUtils: failed to exit full screen. Error: $e');
+    }
+  }
+
+  /// App-wide orientations used when nothing has locked the screen yet.
+  static const List<DeviceOrientation> preferredOrientationsBeforeLock = [
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ];
+
+  @visibleForTesting
+  static List<DeviceOrientation>? get orientationsBeforeFullscreen =>
+      _orientationsBeforeFullscreen == null
+      ? null
+      : List<DeviceOrientation>.unmodifiable(_orientationsBeforeFullscreen!);
+
+  @visibleForTesting
+  static void debugResetOrientationMemory() {
+    _orientationsBeforeFullscreen = null;
+  }
+
+  /// Remember the orientations to restore, without touching the platform.
+  @visibleForTesting
+  static void rememberOrientationsForFullscreen(
+    List<DeviceOrientation> orientations,
+  ) {
+    _orientationsBeforeFullscreen ??= List<DeviceOrientation>.from(
+      orientations,
+    );
+  }
+
+  static Future<void> restoreOrientations(
+    List<DeviceOrientation> orientations,
+  ) async {
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        await SystemChrome.setPreferredOrientations(orientations);
+      }
+    } catch (e) {
+      debugPrint('DisplayUtils: failed to restore orientation. Error: $e');
     }
   }
 

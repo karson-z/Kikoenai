@@ -33,6 +33,9 @@ abstract class AppPlayerState with _$AppPlayerState {
     @Default(AudioServiceRepeatMode.none)
     AudioServiceRepeatMode repeatMode,
     @HiveField(9) @Default(1.0) double volume,
+    /// Current video-playback screen brightness, 0 to 1.
+    /// Kept in memory only: leaving the video view restores the system value.
+    @Default(1.0) double screenBrightness,
     @HiveField(12) @Default(false) bool isAudioOnly,
     @HiveField(13) PlaybackSession? session,
     @Default(true) bool isVideoControlsVisible,

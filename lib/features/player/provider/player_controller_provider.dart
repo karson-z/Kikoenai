@@ -10,6 +10,7 @@ import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_control
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/history/provider/work_progress_repository.dart';
 import 'package:kikoenai/features/player/provider/player_feedback_provider.dart';
+import 'package:kikoenai/features/player/provider/video_brightness_provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/service/player/player_service.dart';
@@ -400,8 +401,53 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> previous() async => _handler.skipToPrevious();
 
   Future<void> setVolume(double v) async {
+    final volume = v.clamp(0.0, 1.0).toDouble();
+    state = state.copyWith(volume: volume);
     if (_handler is MyAudioHandler) {
-      await (_handler as MyAudioHandler).setVolume(v);
+      await (_handler as MyAudioHandler).setVolume(volume);
+    }
+  }
+
+  /// Loads the current application brightness into player state.
+  /// Returns false when the platform cannot provide it.
+  Future<bool> loadScreenBrightness() async {
+    try {
+      final brightness = await ref
+          .read(videoBrightnessServiceProvider)
+          .applicationBrightness;
+      state = state.copyWith(
+        screenBrightness: brightness.clamp(0.0, 1.0).toDouble(),
+      );
+      return true;
+    } catch (error) {
+      debugPrint('视频亮度读取失败: $error');
+      return false;
+    }
+  }
+
+  /// Applies [value] to both player state and the application brightness.
+  /// Returns false when the platform rejects the change.
+  Future<bool> setScreenBrightness(double value) async {
+    final brightness = value.clamp(0.0, 1.0).toDouble();
+    state = state.copyWith(screenBrightness: brightness);
+    try {
+      await ref
+          .read(videoBrightnessServiceProvider)
+          .setApplicationBrightness(brightness);
+      return true;
+    } catch (error) {
+      debugPrint('视频亮度设置失败: $error');
+      return false;
+    }
+  }
+
+  Future<void> resetScreenBrightness() async {
+    try {
+      await ref
+          .read(videoBrightnessServiceProvider)
+          .resetApplicationBrightness();
+    } catch (error) {
+      debugPrint('视频亮度恢复失败: $error');
     }
   }
 
