@@ -10,7 +10,9 @@ import '../other/player_more_options_sheet.dart';
 import '../other/player_progress_bar.dart';
 
 class PlayerVideoControlsOverlay extends ConsumerWidget {
-  const PlayerVideoControlsOverlay({super.key});
+  const PlayerVideoControlsOverlay({super.key, this.onCollapse});
+
+  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +38,7 @@ class PlayerVideoControlsOverlay extends ConsumerWidget {
                   child: AnimatedOpacity(
                     opacity: isVisible ? 1.0 : 0.0,
                     duration: duration,
-                    child: const VideoTopBar(),
+                    child: VideoTopBar(onCollapse: onCollapse),
                   ),
                 ),
                 AnimatedSlide(
@@ -59,7 +61,9 @@ class PlayerVideoControlsOverlay extends ConsumerWidget {
 }
 
 class VideoTopBar extends ConsumerWidget {
-  const VideoTopBar({super.key});
+  const VideoTopBar({super.key, this.onCollapse});
+
+  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,40 +75,54 @@ class VideoTopBar extends ConsumerWidget {
     return MouseRegion(
       onEnter: (_) => controller.cancelControlsHideTimer(),
       onExit: (_) => controller.startControlsHideTimer(),
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.black87, Colors.transparent],
+      child: GestureDetector(
+        onVerticalDragEnd: onCollapse == null
+            ? null
+            : (details) {
+                if (details.velocity.pixelsPerSecond.dy > 365) {
+                  onCollapse!();
+                }
+              },
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black87, Colors.transparent],
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white,
-                  size: 32,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  onPressed: () {
+                    if (onCollapse != null) {
+                      onCollapse!();
+                    } else {
+                      ref.read(panelControllerProvider).close();
+                    }
+                  },
                 ),
-                onPressed: () {
-                  ref.read(panelControllerProvider).close();
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.more_horiz,
-                  color: Colors.white,
-                  size: 28,
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_horiz,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    showMoreOptions(context, ref, currentItem);
+                  },
                 ),
-                onPressed: () {
-                  showMoreOptions(context, ref, currentItem);
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -205,8 +223,8 @@ class VideoBottomBar extends ConsumerWidget {
                         state.volume == 0
                             ? Icons.volume_off_rounded
                             : (state.volume < 0.5
-                                  ? Icons.volume_down_rounded
-                                  : Icons.volume_up_rounded),
+                                ? Icons.volume_down_rounded
+                                : Icons.volume_up_rounded),
                         color: Colors.white,
                         size: 20,
                       ),

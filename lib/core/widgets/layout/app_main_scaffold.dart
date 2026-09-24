@@ -10,6 +10,8 @@ import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/layout/navigation_rail.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
+import 'package:kikoenai/features/player/provider/video_presentation_controller.dart';
+import 'package:kikoenai/features/player/widget/video/video_floating_overlay.dart';
 import '../../../features/player/page/player_view.dart';
 import '../common/back_button_interceptor.dart';
 import '../slider/player_sheet_panel.dart';
@@ -25,11 +27,21 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
+class _MainScaffoldState extends ConsumerState<MainScaffold>
+    with SingleTickerProviderStateMixin {
+  late final VideoPresentationController _videoPresentationController;
+  bool _lastIsVideo = false;
+
   @override
   void initState() {
     super.initState();
-    debugPrint("init");
+    _videoPresentationController = VideoPresentationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _videoPresentationController.dispose();
+    super.dispose();
   }
 
   void _navigateTo(int branchIndex) {
@@ -56,8 +68,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     // NavigationBar owns a SafeArea. Reserve both its content height and the
     // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
-    final bottomNavBarHeight =
-        AppConstants.kAppBottomNavHeight +
+    final bottomNavBarHeight = AppConstants.kAppBottomNavHeight +
         MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.watch(mainScaffoldProvider.notifier);
@@ -68,6 +79,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         (state) => state.playbackQueue.isNotEmpty,
       ),
     );
+    final isCurrentVideoView = ref.watch(
+      playerControllerProvider.select((state) => state.isCurrentVideoView),
+    );
+    if (isCurrentVideoView != _lastIsVideo) {
+      _lastIsVideo = isCurrentVideoView;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _videoPresentationController.reset(expanded: false);
+      });
+    }
 
     Widget bodyContent;
     if (isMobile) {
@@ -103,48 +124,61 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         zIndex: 10,
         name: 'MainSlidingPlayer',
         onBack: () {
+          if (isCurrentVideoView &&
+              _videoPresentationController.progress > 0.02) {
+            _videoPresentationController.collapse();
+            return true;
+          }
           if (mainState.isPlayerExpanded) {
             panelController.close();
             return true;
           }
           return false;
         },
-        child: PlayerSheetPanel(
-          controller: panelController,
-          minHeight: AppConstants.kMiniPlayerHeight,
-          maxHeight: MediaQuery.sizeOf(context).height,
-          showPanel: hasPlaybackItems,
-          fadeCollapsed: false,
-          panelBuilder: (ScrollController sc, AnimationController controller) {
-            return PlayerView(
-              dragProgressNotifier: controller,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            PlayerSheetPanel(
+              controller: panelController,
               minHeight: AppConstants.kMiniPlayerHeight,
-            );
-          },
-          body: bodyContent,
-          showBottomNavBar: isMobile ? showBottomNav : false,
-          bottomNavBarHeight: bottomNavBarHeight,
-          bottomNavBar: isMobile
-              ? RepaintBoundary(
-                  child: NavigationBar(
-                    height: AppConstants.kAppBottomNavHeight,
-                    maintainBottomViewPadding: true,
-                    selectedIndex: selectedIndex,
-                    onDestinationSelected: (index) =>
-                        _navigateTo(destinations[index].branchIndex),
-                    destinations: destinations
-                        .map(
-                          (item) => NavigationDestination(
-                            icon: item.icon,
-                            label: item.label,
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-              : null,
-          onPanelOpened: () => mainController.handlePanelStateChange(true),
-          onPanelClosed: () => mainController.handlePanelStateChange(false),
+              maxHeight: MediaQuery.sizeOf(context).height,
+              showPanel: hasPlaybackItems && !isCurrentVideoView,
+              fadeCollapsed: false,
+              panelBuilder:
+                  (ScrollController sc, AnimationController controller) {
+                return PlayerView(
+                  dragProgressNotifier: controller,
+                  minHeight: AppConstants.kMiniPlayerHeight,
+                );
+              },
+              body: bodyContent,
+              showBottomNavBar: isMobile ? showBottomNav : false,
+              bottomNavBarHeight: bottomNavBarHeight,
+              bottomNavBar: isMobile
+                  ? RepaintBoundary(
+                      child: NavigationBar(
+                        height: AppConstants.kAppBottomNavHeight,
+                        maintainBottomViewPadding: true,
+                        selectedIndex: selectedIndex,
+                        onDestinationSelected: (index) =>
+                            _navigateTo(destinations[index].branchIndex),
+                        destinations: destinations
+                            .map(
+                              (item) => NavigationDestination(
+                                icon: item.icon,
+                                label: item.label,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    )
+                  : null,
+              onPanelOpened: () => mainController.handlePanelStateChange(true),
+              onPanelClosed: () => mainController.handlePanelStateChange(false),
+            ),
+            if (isCurrentVideoView)
+              VideoFloatingOverlay(controller: _videoPresentationController),
+          ],
         ),
       ),
     );

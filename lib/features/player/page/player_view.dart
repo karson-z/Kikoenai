@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +9,6 @@ import '../widget/audio/player_background.dart';
 import '../widget/audio/player_cover_overlay.dart';
 import '../widget/audio/player_mini_bar.dart';
 import '../widget/player_layout.dart';
-import '../widget/video/player_video_content.dart';
 
 class PlayerView extends ConsumerStatefulWidget {
   const PlayerView({
@@ -55,10 +53,6 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     final currentItem = ref.watch(
       playerControllerProvider.select((state) => state.currentItem),
     );
-    final shouldRenderVideo = ref.watch(
-      playerControllerProvider.select((state) => state.isCurrentVideoView),
-    );
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final metrics = PlayerLayoutMetrics(
@@ -89,31 +83,18 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
               fit: StackFit.expand,
               clipBehavior: Clip.hardEdge,
               children: [
-                if (!shouldRenderVideo)
-                  RepaintBoundary(
-                    child: PlayerBackground(expVal: expandedOpacity),
-                  ),
-                // Keep the audio pages mounted while video is active, so changing
-                // media type doesn't discard the reading position or selected page.
+                RepaintBoundary(
+                    child: PlayerBackground(expVal: expandedOpacity)),
                 Offstage(
                   key: const ValueKey('player-audio-content'),
-                  offstage: shouldRenderVideo,
                   child: TickerMode(
-                    enabled: !shouldRenderVideo && expansion > 0,
+                    enabled: expansion > 0,
                     child: IgnorePointer(
                       ignoring: expansion < 0.95,
                       child: Opacity(opacity: expandedOpacity, child: child),
                     ),
                   ),
                 ),
-                if (shouldRenderVideo && expansion > 0.02)
-                  Opacity(
-                    opacity: expansion,
-                    child: IgnorePointer(
-                      ignoring: expansion < 0.5,
-                      child: const RepaintBoundary(child: PlayerVideoContent()),
-                    ),
-                  ),
                 Positioned(
                   top: 0,
                   left: 0,
@@ -130,20 +111,12 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                     ),
                   ),
                 ),
-                if (!shouldRenderVideo)
-                  PlayerCoverOverlay(
-                    metrics: metrics,
-                    expansion: expansion,
-                    page: page,
-                    coverUrl: currentItem?.displayCoverUrl,
-                  ),
-                if (shouldRenderVideo && expansion <= 0.02)
-                  Positioned.fromRect(
-                    rect: metrics.collapsedCover,
-                    child: const IgnorePointer(
-                      child: PlayerVideoContent(isMini: true),
-                    ),
-                  ),
+                PlayerCoverOverlay(
+                  metrics: metrics,
+                  expansion: expansion,
+                  page: page,
+                  coverUrl: currentItem?.displayCoverUrl,
+                ),
               ],
             );
           },

@@ -9,16 +9,38 @@ import '../../../../../core/storage/hive_storage.dart';
 import '../../provider/player_controller_provider.dart';
 import '../../../../../core/service/player/player_service.dart';
 
-class PlayerVideoContent extends ConsumerStatefulWidget {
+class PlayerVideoContent extends StatelessWidget {
   final bool isMini;
+  final VoidCallback? onCollapse;
 
-  const PlayerVideoContent({super.key, this.isMini = false});
+  const PlayerVideoContent({super.key, this.isMini = false, this.onCollapse});
 
   @override
-  ConsumerState<PlayerVideoContent> createState() => _PlayerVideoContentState();
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: isMini ? Colors.transparent : Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const VideoSurface(),
+          if (!isMini) ...[
+            const VideoGestureLayer(child: SizedBox.expand()),
+            PlayerVideoControlsOverlay(onCollapse: onCollapse),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
-class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
+class VideoSurface extends ConsumerStatefulWidget {
+  const VideoSurface({super.key});
+
+  @override
+  ConsumerState<VideoSurface> createState() => _VideoSurfaceState();
+}
+
+class _VideoSurfaceState extends ConsumerState<VideoSurface> {
   late final VideoController _videoController;
 
   @override
@@ -34,30 +56,16 @@ class _PlayerVideoContentState extends ConsumerState<PlayerVideoContent> {
         keys: [StorageKeys.playerPlayInBackground],
       ),
       builder: (context, box, child) {
-        final playInBackground =
-            box.get(StorageKeys.playerPlayInBackground, defaultValue: true)
-                as bool;
+        final playInBackground = box.get(StorageKeys.playerPlayInBackground,
+            defaultValue: true) as bool;
 
-        return Container(
-          color: widget.isMini ? Colors.transparent : Colors.black,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Video(
-                controller: _videoController,
-                controls: NoVideoControls,
-                pauseUponEnteringBackgroundMode: !playInBackground,
-                resumeUponEnteringForegroundMode: false,
-                fit: widget.isMini ? BoxFit.contain : BoxFit.contain,
-                fill: Colors.transparent,
-              ),
-
-              if (!widget.isMini) ...[
-                const VideoGestureLayer(child: SizedBox.expand()),
-                const PlayerVideoControlsOverlay(),
-              ],
-            ],
-          ),
+        return Video(
+          controller: _videoController,
+          controls: NoVideoControls,
+          pauseUponEnteringBackgroundMode: !playInBackground,
+          resumeUponEnteringForegroundMode: false,
+          fit: BoxFit.contain,
+          fill: Colors.transparent,
         );
       },
     );
