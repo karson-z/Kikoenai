@@ -85,15 +85,14 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
               clipBehavior: Clip.hardEdge,
               children: [
                 RepaintBoundary(
-                    child: PlayerBackground(expVal: expandedOpacity)),
-                Offstage(
+                  child: PlayerBackground(expVal: expandedOpacity),
+                ),
+                TickerMode(
                   key: const ValueKey('player-audio-content'),
-                  child: TickerMode(
-                    enabled: expansion > 0,
-                    child: IgnorePointer(
-                      ignoring: expansion < 0.95,
-                      child: Opacity(opacity: expandedOpacity, child: child),
-                    ),
+                  enabled: expansion > 0,
+                  child: IgnorePointer(
+                    ignoring: expansion < 0.95,
+                    child: Opacity(opacity: expandedOpacity, child: child),
                   ),
                 ),
                 Positioned(
