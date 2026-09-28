@@ -20,8 +20,7 @@ class VideoGestureLayer extends ConsumerStatefulWidget {
 
 class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   double _dragValue = 0;
-  double _initialDragSeconds = 0;
-  int _seekOffsetSeconds = 0;
+  int _seekPositionSeconds = 0;
 
   double _pendingBrightnessDelta = 0;
   bool _brightnessReady = false;
@@ -91,11 +90,11 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
     _showFeedback(GestureFeedbackType.brightness);
   }
 
-  void _showFeedback(GestureFeedbackType type, {int? seekOffset}) {
+  void _showFeedback(GestureFeedbackType type, {int? seekPosition}) {
     setState(() {
       _feedbackType = type;
-      if (seekOffset != null) {
-        _seekOffsetSeconds = seekOffset;
+      if (seekPosition != null) {
+        _seekPositionSeconds = seekPosition;
       }
     });
 
@@ -117,13 +116,11 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
 
     if (event.scrollDelta.dx != 0) {
       final deltaSeconds = event.scrollDelta.dx > 0 ? 5 : -5;
-      final target = state.progressBarState.current.inSeconds + deltaSeconds;
-      controller.seek(
-        Duration(
-          seconds: target.clamp(0, state.progressBarState.total.inSeconds),
-        ),
-      );
-      _showFeedback(GestureFeedbackType.seek, seekOffset: deltaSeconds);
+      final total = state.progressBarState.total.inSeconds;
+      final target = (state.progressBarState.current.inSeconds + deltaSeconds)
+          .clamp(0, total);
+      controller.seek(Duration(seconds: target));
+      _showFeedback(GestureFeedbackType.seek, seekPosition: target);
     }
 
     if (event.scrollDelta.dy != 0) {
@@ -176,25 +173,24 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                     : (_) {
                         _dragValue = state.progressBarState.current.inSeconds
                             .toDouble();
-                        _initialDragSeconds = _dragValue;
-                        _showFeedback(GestureFeedbackType.seek, seekOffset: 0);
+                        _showFeedback(
+                          GestureFeedbackType.seek,
+                          seekPosition: _dragValue.toInt(),
+                        );
                       },
                 onHorizontalDragUpdate: isDesktop
                     ? null
                     : (details) {
                         final total = state.progressBarState.total.inSeconds;
                         if (total <= 0) return;
-                        final deltaSeconds =
-                            details.primaryDelta! /
-                            (MediaQuery.sizeOf(context).width / total * 0.5);
-                        _dragValue += deltaSeconds;
+                        // Dragging the full width covers the whole duration.
+                        final width = MediaQuery.sizeOf(context).width;
+                        if (width <= 0) return;
+                        _dragValue += details.primaryDelta! / width * total;
                         _dragValue = _dragValue.clamp(0, total.toDouble());
-
-                        final offset = (_dragValue - _initialDragSeconds)
-                            .toInt();
                         _showFeedback(
                           GestureFeedbackType.seek,
-                          seekOffset: offset,
+                          seekPosition: _dragValue.toInt(),
                         );
                       },
                 onHorizontalDragEnd: isDesktop
@@ -254,13 +250,23 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
     );
   }
 
+  String _formatPlaybackPosition(int totalSeconds) {
+    final duration = Duration(seconds: totalSeconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(
+      hours > 0 ? 2 : 1,
+      '0',
+    );
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+  }
+
   Widget _buildFeedbackWidget(double volume, double brightness) {
     String text = '';
 
     switch (_feedbackType) {
       case GestureFeedbackType.seek:
-        if (_seekOffsetSeconds == 0) return const SizedBox.shrink();
-        text = "${_seekOffsetSeconds > 0 ? '+' : ''}$_seekOffsetSeconds 秒";
+        text = _formatPlaybackPosition(_seekPositionSeconds);
         break;
       case GestureFeedbackType.volume:
         text = "音量：${(volume * 100).toInt()}%";
