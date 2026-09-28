@@ -254,6 +254,12 @@ public class OverlayService extends Service implements View.OnTouchListener {
             if (keepTop && params.height > 0 && nextHeight > 0) {
                 int heightDelta = nextHeight - params.height;
                 int verticalGravity = params.gravity & Gravity.VERTICAL_GRAVITY_MASK;
+                // Center gravity keeps the window center fixed, so every
+                // height change moves the top by half the delta. Compensate
+                // in both directions and the top stays put: growth extends
+                // downward, and shrinking pulls the bottom edge up. Bottom
+                // gravity anchors the bottom edge, so y moves by the full
+                // delta in both directions.
                 if (verticalGravity == Gravity.CENTER_VERTICAL) {
                     params.y += heightDelta / 2;
                 } else if (verticalGravity == Gravity.BOTTOM) {

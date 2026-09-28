@@ -28,14 +28,23 @@ class MainScaffold extends ConsumerStatefulWidget {
 }
 
 class _MainScaffoldState extends ConsumerState<MainScaffold>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final VideoPresentationController _videoPresentationController;
   bool _lastIsVideo = false;
 
   @override
   void initState() {
     super.initState();
-    _videoPresentationController = VideoPresentationController(vsync: this);
+    _videoPresentationController = VideoPresentationController(
+      vsync: this,
+      beforeCollapse: () async {
+        if (ref.read(mainScaffoldProvider).isFullScreen) {
+          await ref
+              .read(playerControllerProvider.notifier)
+              .toggleVideoFullScreen();
+        }
+      },
+    );
   }
 
   @override
@@ -68,7 +77,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     // NavigationBar owns a SafeArea. Reserve both its content height and the
     // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
-    final bottomNavBarHeight = AppConstants.kAppBottomNavHeight +
+    final bottomNavBarHeight =
+        AppConstants.kAppBottomNavHeight +
         MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.watch(mainScaffoldProvider.notifier);
@@ -125,7 +135,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
         name: 'MainSlidingPlayer',
         onBack: () {
           if (isCurrentVideoView &&
-              _videoPresentationController.progress > 0.02) {
+              (mainState.isFullScreen ||
+                  _videoPresentationController.progress > 0.02)) {
             _videoPresentationController.collapse();
             return true;
           }
@@ -146,11 +157,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
               fadeCollapsed: false,
               panelBuilder:
                   (ScrollController sc, AnimationController controller) {
-                return PlayerView(
-                  dragProgressNotifier: controller,
-                  minHeight: AppConstants.kMiniPlayerHeight,
-                );
-              },
+                    return PlayerView(
+                      dragProgressNotifier: controller,
+                      minHeight: AppConstants.kMiniPlayerHeight,
+                    );
+                  },
               body: bodyContent,
               showBottomNavBar: isMobile ? showBottomNav : false,
               bottomNavBarHeight: bottomNavBarHeight,

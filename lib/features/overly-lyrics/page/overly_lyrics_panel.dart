@@ -17,7 +17,7 @@ class LyricsOverlayContent extends ConsumerStatefulWidget {
 }
 
 class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
-  static const _resizeAnimationDuration = Duration(milliseconds: 300);
+  static const _settingsAnimationDuration = Duration(milliseconds: 300);
   static const double _settingsPanelHeight = 60;
   static const double _settingsHeight =
       SubtitleManager.defaultOverlayHeight + _settingsPanelHeight;
@@ -44,36 +44,26 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
       }
     });
     if (!willShowControls && wasShowingSettings) {
-      _requestOverlayHeight(
-        SubtitleManager.defaultOverlayHeight,
-        afterAnimation: true,
-      );
+      _requestOverlayHeight(SubtitleManager.defaultOverlayHeight);
     }
   }
 
   void _toggleSettings() {
     final willShowSettings = !_showSettings;
-    if (willShowSettings) {
-      _requestOverlayHeight(_settingsHeight);
-    }
     setState(() {
       _showSettings = willShowSettings;
     });
-    if (!willShowSettings) {
-      _requestOverlayHeight(
-        SubtitleManager.defaultOverlayHeight,
-        afterAnimation: true,
-      );
-    }
+    _requestOverlayHeight(
+      willShowSettings
+          ? _settingsHeight
+          : SubtitleManager.defaultOverlayHeight,
+    );
   }
 
-  void _requestOverlayHeight(double height, {bool afterAnimation = false}) {
+  void _requestOverlayHeight(double height) {
     final revision = ++_resizeRevision;
     unawaited(
       Future<void>(() async {
-        if (afterAnimation) {
-          await Future<void>.delayed(_resizeAnimationDuration);
-        }
         if (!mounted || revision != _resizeRevision) return;
         await ref
             .read(lyricsControllerProvider.notifier)
@@ -276,7 +266,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
           ),
         ),
         AnimatedSize(
-          duration: _resizeAnimationDuration,
+          duration: _settingsAnimationDuration,
           curve: Curves.easeInOut,
           alignment: Alignment.topCenter,
           child: _showSettings

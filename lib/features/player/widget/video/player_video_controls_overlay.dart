@@ -92,8 +92,10 @@ class VideoTopBar extends ConsumerWidget {
             ),
           ),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -147,6 +149,143 @@ class VideoBottomBar extends ConsumerWidget {
     final state = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final isFullScreen = ref.watch(mainScaffoldProvider).isFullScreen;
+    final isDesktop =
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux;
+
+    final transportControls = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.skip_previous_rounded),
+        color: Colors.white,
+        disabledColor: Colors.white30,
+        onPressed: state.isFirst
+            ? null
+            : () {
+                controller.startControlsHideTimer();
+                controller.previous();
+              },
+      ),
+      IconButton(
+        icon: Icon(
+          state.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        ),
+        color: Colors.white,
+        iconSize: 28,
+        onPressed: () {
+          controller.startControlsHideTimer();
+          state.playing ? controller.pause() : controller.play();
+        },
+      ),
+      IconButton(
+        icon: const Icon(Icons.skip_next_rounded),
+        color: Colors.white,
+        disabledColor: Colors.white30,
+        onPressed: state.isLast
+            ? null
+            : () {
+                controller.startControlsHideTimer();
+                controller.next();
+              },
+      ),
+    ];
+    final volumeControls = <Widget>[
+      if (isDesktop) ...[
+        IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          icon: Icon(
+            state.volume == 0
+                ? Icons.volume_off_rounded
+                : (state.volume < 0.5
+                      ? Icons.volume_down_rounded
+                      : Icons.volume_up_rounded),
+            color: Colors.white,
+            size: 20,
+          ),
+          onPressed: () {
+            controller.startControlsHideTimer();
+            controller.setVolume(state.volume == 0 ? 1.0 : 0.0);
+          },
+        ),
+        SizedBox(
+          width: 80,
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+            ),
+            child: Slider(
+              value: state.volume,
+              min: 0,
+              max: 1,
+              activeColor: Colors.white,
+              inactiveColor: Colors.white30,
+              onChanged: (val) {
+                controller.startControlsHideTimer();
+                controller.setVolume(val);
+              },
+            ),
+          ),
+        ),
+      ],
+    ];
+    final timeLabel = Text(
+      '${_formatDuration(state.progressBarState.current)} / ${_formatDuration(state.progressBarState.total)}',
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+    );
+    final actionControls = <Widget>[
+      IconButton(
+        icon: const Icon(
+          Icons.format_list_bulleted_rounded,
+          color: Colors.white,
+        ),
+        onPressed: () {
+          controller.startControlsHideTimer();
+          PlayerPlaylistSheet.show(context);
+        },
+      ),
+      IconButton(
+        onPressed: () {
+          controller.startControlsHideTimer();
+          controller.toggleVideoFullScreen();
+        },
+        icon: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              isFullScreen
+                  ? Icons.fullscreen_exit_rounded
+                  : Icons.fullscreen_rounded,
+              color: Colors.white,
+            ),
+            Positioned(
+              right: -6,
+              bottom: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: isFullScreen
+                    ? null
+                    : Text(
+                        state.isVideoPortrait ? '竖' : '横',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
 
     return MouseRegion(
       onEnter: (_) => controller.cancelControlsHideTimer(),
@@ -170,155 +309,49 @@ class VideoBottomBar extends ConsumerWidget {
               onPointerCancel: (_) => controller.startControlsHideTimer(),
               child: const PlayerProgressBar(showTimeLabel: false),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous_rounded),
-                    color: Colors.white,
-                    disabledColor: Colors.white30,
-                    onPressed: state.isFirst
-                        ? null
-                        : () {
-                            controller.startControlsHideTimer();
-                            controller.previous();
-                          },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      state.playing
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                    ),
-                    color: Colors.white,
-                    iconSize: 28,
-                    onPressed: () {
-                      controller.startControlsHideTimer();
-                      state.playing ? controller.pause() : controller.play();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_next_rounded),
-                    color: Colors.white,
-                    disabledColor: Colors.white30,
-                    onPressed: state.isLast
-                        ? null
-                        : () {
-                            controller.startControlsHideTimer();
-                            controller.next();
-                          },
-                  ),
-                  const SizedBox(width: 8),
-                  if (defaultTargetPlatform == TargetPlatform.windows ||
-                      defaultTargetPlatform == TargetPlatform.macOS ||
-                      defaultTargetPlatform == TargetPlatform.linux) ...[
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 36,
-                        minHeight: 36,
-                      ),
-                      icon: Icon(
-                        state.volume == 0
-                            ? Icons.volume_off_rounded
-                            : (state.volume < 0.5
-                                ? Icons.volume_down_rounded
-                                : Icons.volume_up_rounded),
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        controller.startControlsHideTimer();
-                        controller.setVolume(state.volume == 0 ? 1.0 : 0.0);
-                      },
-                    ),
-                    SizedBox(
-                      width: 80,
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 2,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 5,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 10,
-                          ),
-                        ),
-                        child: Slider(
-                          value: state.volume,
-                          min: 0,
-                          max: 1,
-                          activeColor: Colors.white,
-                          inactiveColor: Colors.white30,
-                          onChanged: (val) {
-                            controller.startControlsHideTimer();
-                            controller.setVolume(val);
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    '${_formatDuration(state.progressBarState.current)} / ${_formatDuration(state.progressBarState.total)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.format_list_bulleted_rounded,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      controller.startControlsHideTimer();
-                      PlayerPlaylistSheet.show(context);
-                    },
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      controller.startControlsHideTimer();
-                      controller.toggleVideoFullScreen();
-                    },
-                    icon: Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          isFullScreen
-                              ? Icons.fullscreen_exit_rounded
-                              : Icons.fullscreen_rounded,
-                          color: Colors.white,
-                        ),
-                        Positioned(
-                          right: -6,
-                          bottom: -4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 3,
-                              vertical: 1,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < (isDesktop ? 620 : 420);
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+                  child: compact
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                timeLabel,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: actionControls,
+                                ),
+                              ],
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.black54, // 半透明背景以适应不同视频画面
-                              borderRadius: BorderRadius.circular(4),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                ...transportControls,
+                                ...volumeControls,
+                              ],
                             ),
-                            child: isFullScreen
-                                ? null
-                                : Text(
-                                    state.isVideoPortrait ? '竖' : '横',
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white,
-                                      height: 1.1,
-                                    ),
-                                  ),
-                          ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            ...transportControls,
+                            const SizedBox(width: 8),
+                            ...volumeControls,
+                            if (isDesktop) const SizedBox(width: 8),
+                            timeLabel,
+                            const Spacer(),
+                            ...actionControls,
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ],
         ),
