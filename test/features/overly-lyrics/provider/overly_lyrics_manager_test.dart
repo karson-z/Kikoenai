@@ -45,22 +45,15 @@ void main() {
     expect(await manager.getOverlayPosition(), Offset.zero);
   }, skip: Platform.isAndroid);
 
-  test(
-    'keeps the subtitle manager provider readable outside Android',
-    () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+  test('keeps the subtitle manager provider readable outside Android', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
 
-      expect(container.read(overlayLyricsSupportedProvider), isFalse);
-      expect(
-        container.read(subtitleManagerProvider),
-        isA<NoopSubtitleManager>(),
-      );
-    },
-    skip: Platform.isAndroid,
-  );
+    expect(container.read(overlayLyricsSupportedProvider), isFalse);
+    expect(container.read(subtitleManagerProvider), isA<NoopSubtitleManager>());
+  }, skip: Platform.isAndroid);
 
-  test('uses the shared 120dp overlay height by default', () async {
+  test('keeps the 190dp window on older Android versions', () async {
     MethodCall? showOverlayCall;
     messenger.setMockMethodCallHandler(controlChannel, (call) async {
       if (call.method == 'checkPermission') return true;
@@ -71,10 +64,36 @@ void main() {
     final manager = AndroidSubtitleManager(SubtitleEndpoint.main);
     await manager.showOverlay();
 
-    expect(SubtitleManager.defaultOverlayHeight, 120);
+    expect(SubtitleManager.defaultOverlayHeight, 190);
     expect(
       showOverlayCall?.arguments,
       containsPair('height', SubtitleManager.defaultOverlayHeight),
     );
   });
+
+  test(
+    'reserves settings space with stable position coordinates on Android 13+',
+    () async {
+      MethodCall? showOverlayCall;
+      messenger.setMockMethodCallHandler(controlChannel, (call) async {
+        if (call.method == 'checkPermission' ||
+            call.method == 'supportsPartialTouchRegion') {
+          return true;
+        }
+        if (call.method == 'showOverlay') showOverlayCall = call;
+        return null;
+      });
+
+      await AndroidSubtitleManager(
+        SubtitleEndpoint.main,
+      ).showOverlay(posX: 10, posY: 75, isLocked: true);
+      final args = showOverlayCall!.arguments as Map;
+      expect(args['height'], 250);
+      expect(args['touchableHeight'], 190);
+      expect(args['positionAnchorHeight'], 190);
+      expect(args['startPosition'], {'x': 10, 'y': 75});
+      expect(args['flag'], 'clickThrough');
+      expect(args['enableDrag'], isTrue);
+    },
+  );
 }

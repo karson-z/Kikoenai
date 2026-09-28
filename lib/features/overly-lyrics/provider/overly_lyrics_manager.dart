@@ -8,6 +8,9 @@ enum SubtitleEndpoint { main, overlay }
 
 abstract class SubtitleManager {
   static const double defaultOverlayHeight = 190;
+  static const double settingsPanelHeight = 60;
+  static const double expandedOverlayHeight =
+      defaultOverlayHeight + settingsPanelHeight;
 
   factory SubtitleManager(SubtitleEndpoint endpoint) {
     if (Platform.isAndroid) {
@@ -37,6 +40,12 @@ abstract class SubtitleManager {
   Future<void> hideOverlay();
 
   Future<void> resizeOverlay(double width, double height);
+
+  Future<bool> supportsPartialTouchRegion();
+
+  Stream<void> get windowShown;
+
+  Future<void> setOverlayTouchableHeight(double height);
 
   /// Changes the interaction flag on the overlay window itself.
   Future<void> setOverlayInteractionLocked(bool isLocked);
@@ -126,13 +135,18 @@ class AndroidSubtitleManager implements SubtitleManager {
     }
 
     final flag = isLocked ? OverlayFlag.clickThrough : OverlayFlag.defaultFlag;
+    final reservesSettings = height > 0 && await supportsPartialTouchRegion();
     await FlutterOverlayWindow.showOverlay(
       enableDrag: true,
       flag: flag,
       alignment: OverlayAlignment.center,
       visibility: NotificationVisibility.visibilityPublic,
       width: width.toInt(),
-      height: height.toInt(),
+      height: reservesSettings
+          ? (height + SubtitleManager.settingsPanelHeight).toInt()
+          : height.toInt(),
+      touchableHeight: reservesSettings ? height.toInt() : null,
+      positionAnchorHeight: height > 0 ? height.toInt() : null,
       positionGravity: PositionGravity.auto,
       startPosition: OverlayPosition(posX, posY),
     );
@@ -151,6 +165,19 @@ class AndroidSubtitleManager implements SubtitleManager {
       true,
       keepTop: true,
     );
+  }
+
+  @override
+  Future<bool> supportsPartialTouchRegion() =>
+      FlutterOverlayWindow.supportsPartialTouchRegion();
+
+  @override
+  Stream<void> get windowShown => FlutterOverlayWindow.windowShown;
+
+  @override
+  Future<void> setOverlayTouchableHeight(double height) async {
+    _requireEndpoint(SubtitleEndpoint.overlay, 'setOverlayTouchableHeight');
+    await FlutterOverlayWindow.updateTouchableHeight(height.toInt());
   }
 
   @override
@@ -255,6 +282,15 @@ class NoopSubtitleManager implements SubtitleManager {
 
   @override
   Future<void> resizeOverlay(double width, double height) async {}
+
+  @override
+  Future<bool> supportsPartialTouchRegion() async => false;
+
+  @override
+  Stream<void> get windowShown => const Stream<void>.empty();
+
+  @override
+  Future<void> setOverlayTouchableHeight(double height) async {}
 
   @override
   Future<void> setOverlayInteractionLocked(bool isLocked) async {}

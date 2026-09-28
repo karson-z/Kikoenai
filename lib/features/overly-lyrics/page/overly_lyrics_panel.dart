@@ -16,15 +16,20 @@ class LyricsOverlayContent extends ConsumerStatefulWidget {
       _LyricsOverlayContentState();
 }
 
-class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
+class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent>
+    with SingleTickerProviderStateMixin {
   static const _settingsAnimationDuration = Duration(milliseconds: 300);
-  static const double _settingsPanelHeight = 60;
-  static const double _settingsHeight =
-      SubtitleManager.defaultOverlayHeight + _settingsPanelHeight;
 
   bool _showControls = false;
   bool _showSettings = false;
-  int _resizeRevision = 0;
+  bool _settingsOpening = false;
+  bool? _supportsPartialTouchRegion;
+  int _nativeRevision = 0;
+  int _settingsRevision = 0;
+  late final AnimationController _settingsAnimation;
+  late final CurvedAnimation _settingsProgress;
+  StreamSubscription<void>? _windowShownSubscription;
+  Future<void> _nativeChange = Future<void>.value();
 
   final List<Color> _presetColors = [
     Colors.white,
@@ -34,47 +39,127 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
     Colors.amber,
   ];
 
-  void _toggleControls() {
-    final willShowControls = !_showControls;
-    final wasShowingSettings = _showSettings;
-    setState(() {
-      _showControls = willShowControls;
-      if (!_showControls) {
-        _showSettings = false;
+  @override
+  void initState() {
+    super.initState();
+    _settingsAnimation = AnimationController(
+      vsync: this,
+      duration: _settingsAnimationDuration,
+    );
+    _settingsProgress = CurvedAnimation(
+      parent: _settingsAnimation,
+      curve: Curves.easeInOut,
+    )..addListener(_syncAnimatedTouchArea);
+    _settingsAnimation.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed &&
+          _supportsPartialTouchRegion == false) {
+        unawaited(_setWindowHeight(SubtitleManager.defaultOverlayHeight));
       }
     });
-    if (!willShowControls && wasShowingSettings) {
-      _requestOverlayHeight(SubtitleManager.defaultOverlayHeight);
+    _windowShownSubscription = ref
+        .read(subtitleManagerProvider)
+        .windowShown
+        .listen((_) {
+          if (!mounted) return;
+          _nativeRevision++;
+          _settingsRevision++;
+          setState(() {
+            _showControls = false;
+            _showSettings = false;
+          });
+          _settingsAnimation.reset();
+        });
+    unawaited(_loadTouchRegionSupport());
+  }
+
+  Future<void> _loadTouchRegionSupport() async {
+    try {
+      final supported = await ref
+          .read(subtitleManagerProvider)
+          .supportsPartialTouchRegion();
+      if (mounted) setState(() => _supportsPartialTouchRegion = supported);
+    } catch (error) {
+      debugPrint('Failed to query subtitle overlay touch support: $error');
+      if (mounted) setState(() => _supportsPartialTouchRegion = false);
     }
   }
 
-  void _toggleSettings() {
-    final willShowSettings = !_showSettings;
-    setState(() {
-      _showSettings = willShowSettings;
-    });
-    _requestOverlayHeight(
-      willShowSettings
-          ? _settingsHeight
-          : SubtitleManager.defaultOverlayHeight,
-    );
+  void _syncAnimatedTouchArea() {
+    if (_supportsPartialTouchRegion != true) return;
+    // Keep only the currently revealed area touchable, including mid-animation.
+    final height =
+        SubtitleManager.defaultOverlayHeight +
+        SubtitleManager.settingsPanelHeight * _settingsProgress.value;
+    unawaited(_setWindowHeight(height.roundToDouble()));
   }
 
-  void _requestOverlayHeight(double height) {
-    final revision = ++_resizeRevision;
-    unawaited(
-      Future<void>(() async {
-        if (!mounted || revision != _resizeRevision) return;
-        await ref
-            .read(lyricsControllerProvider.notifier)
-            .resizeOverlayHeight(height);
-      }),
-    );
+  void _toggleControls() {
+    setState(() {
+      _showControls = !_showControls;
+      if (!_showControls) {
+        _showSettings = false;
+        _settingsRevision++;
+      }
+    });
+    if (!_showControls) _settingsAnimation.reverse();
+  }
+
+  Future<void> _toggleSettings() async {
+    if (_settingsOpening || _supportsPartialTouchRegion == null) return;
+    final revision = ++_settingsRevision;
+    if (_showSettings) {
+      setState(() => _showSettings = false);
+      _settingsAnimation.reverse();
+      return;
+    }
+
+    // Older Android versions need room before the Flutter reveal starts.
+    if (_supportsPartialTouchRegion == false) {
+      _settingsOpening = true;
+      // An unfinished close must not queue a shrink while reopening awaits
+      // the native window update.
+      _settingsAnimation.stop();
+      await _setWindowHeight(SubtitleManager.expandedOverlayHeight);
+      _settingsOpening = false;
+    }
+    if (!mounted || !_showControls || revision != _settingsRevision) {
+      if (mounted) {
+        unawaited(_setWindowHeight(SubtitleManager.defaultOverlayHeight));
+      }
+      return;
+    }
+    setState(() => _showSettings = true);
+    _settingsAnimation.forward();
+  }
+
+  Future<void> _setWindowHeight(double height) {
+    final revision = ++_nativeRevision;
+    // Serialize native updates and discard obsolete requests after quick toggles.
+    _nativeChange = _nativeChange
+        .then((_) async {
+          if (!mounted || revision != _nativeRevision) return;
+          if (_supportsPartialTouchRegion == true) {
+            await ref
+                .read(subtitleManagerProvider)
+                .setOverlayTouchableHeight(height);
+          } else {
+            await ref
+                .read(lyricsControllerProvider.notifier)
+                .resizeOverlayHeight(height);
+          }
+        })
+        .catchError((Object error) {
+          debugPrint('Failed to update subtitle overlay touch area: $error');
+        });
+    return _nativeChange;
   }
 
   @override
   void dispose() {
-    _resizeRevision++;
+    _nativeRevision++;
+    unawaited(_windowShownSubscription?.cancel());
+    _settingsProgress.dispose();
+    _settingsAnimation.dispose();
     super.dispose();
   }
 
@@ -152,13 +237,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   ),
                 ),
                 if (_showControls)
-                  _buildBottomBar(
-                    lyricsCtrl,
-                    isLocked,
-                    isPlaying,
-                    fontSize,
-                    textColor,
-                  ),
+                  _buildBottomBar(lyricsCtrl, isLocked, isPlaying),
               ],
             ),
           ),
@@ -166,14 +245,39 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
       ),
     );
 
+    final overlay = SizedBox.expand(
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          SizedBox(
+            height: SubtitleManager.defaultOverlayHeight,
+            width: double.infinity,
+            child: contentBox,
+          ),
+          Positioned(
+            top: SubtitleManager.defaultOverlayHeight,
+            left: 0,
+            right: 0,
+            child: SizeTransition(
+              sizeFactor: _settingsProgress,
+              alignment: Alignment.topCenter,
+              child: IgnorePointer(
+                ignoring: !_showSettings,
+                child: _buildSettingsPanel(lyricsCtrl, fontSize, textColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
     if (Platform.isWindows || Platform.isLinux) {
-      return !isLocked ? DragToMoveArea(child: contentBox) : contentBox;
-    } else {
-      return contentBox;
+      return !isLocked ? DragToMoveArea(child: overlay) : overlay;
     }
+    return overlay;
   }
 
-  Widget _buildHeaderBar(dynamic lyricsCtrl) {
+  Widget _buildHeaderBar(LyricsController lyricsCtrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -192,11 +296,9 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
   }
 
   Widget _buildBottomBar(
-    dynamic lyricsCtrl,
+    LyricsController lyricsCtrl,
     bool isLocked,
     bool isPlaying,
-    double fontSize,
-    Color textColor,
   ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -260,84 +362,83 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent> {
                   color: _showSettings ? Colors.blueAccent : Colors.white,
                   size: 24,
                 ),
-                onPressed: _toggleSettings,
+                onPressed: _supportsPartialTouchRegion == null
+                    ? null
+                    : _toggleSettings,
               ),
             ],
           ),
         ),
-        AnimatedSize(
-          duration: _settingsAnimationDuration,
-          curve: Curves.easeInOut,
-          alignment: Alignment.topCenter,
-          child: _showSettings
-              ? GestureDetector(
-                  onTap: () {},
+      ],
+    );
+  }
+
+  Widget _buildSettingsPanel(
+    LyricsController lyricsCtrl,
+    double fontSize,
+    Color textColor,
+  ) {
+    return SizedBox(
+      height: SubtitleManager.settingsPanelHeight,
+      width: double.infinity,
+      child: GestureDetector(
+        onTap: () {},
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          color: Colors.black87,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              GestureDetector(
+                onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
+                  (fontSize - 2).clamp(16.0, 24.0),
+                ),
+                child: const Text(
+                  'A-',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
+                  (fontSize + 2).clamp(16.0, 24.0),
+                ),
+                child: const Text(
+                  'A+',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 20, color: Colors.white38),
+              ..._presetColors.map((color) {
+                final isSelected = color.toARGB32() == textColor.toARGB32();
+                return GestureDetector(
+                  onTap: () => lyricsCtrl.setTextColorAndSendToMain(color),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 12.0,
-                    ),
-                    color: Colors.black87,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        GestureDetector(
-                          onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
-                            (fontSize - 2).clamp(16.0, 24.0),
-                          ),
-                          child: const Text(
-                            'A-',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => lyricsCtrl.updateFontSizeAndSendToMain(
-                            (fontSize + 2).clamp(16.0, 24.0),
-                          ),
-                          child: const Text(
-                            'A+',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Container(width: 1, height: 20, color: Colors.white38),
-                        ..._presetColors.map((color) {
-                          final isSelected =
-                              color.toARGB32() == textColor.toARGB32();
-                          return GestureDetector(
-                            onTap: () =>
-                                lyricsCtrl.setTextColorAndSendToMain(color),
-                            child: Container(
-                              width: 24,
-                              height: 24,
-                              margin: const EdgeInsets.all(4.0),
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
+                    width: 24,
+                    height: 24,
+                    margin: const EdgeInsets.all(4.0),
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
                   ),
-                )
-              : const SizedBox(width: double.infinity, height: 0),
+                );
+              }),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }

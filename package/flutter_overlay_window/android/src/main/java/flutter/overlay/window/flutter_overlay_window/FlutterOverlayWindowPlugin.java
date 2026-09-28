@@ -70,6 +70,8 @@ public class FlutterOverlayWindowPlugin implements
         pendingResult = result;
         if (call.method.equals("checkPermission")) {
             result.success(checkOverlayPermission());
+        } else if (call.method.equals("supportsPartialTouchRegion")) {
+            result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU);
         } else if (call.method.equals("requestPermission")) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
@@ -93,12 +95,16 @@ public class FlutterOverlayWindowPlugin implements
             boolean enableDrag = call.argument("enableDrag");
             String positionGravity = call.argument("positionGravity");
             Map<String, Integer> startPosition = call.argument("startPosition");
+            Integer touchableHeight = call.argument("touchableHeight");
+            Integer positionAnchorHeight = call.argument("positionAnchorHeight");
             int startX = startPosition != null ? startPosition.getOrDefault("x", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
             int startY = startPosition != null ? startPosition.getOrDefault("y", OverlayConstants.DEFAULT_XY) : OverlayConstants.DEFAULT_XY;
 
 
             WindowSetup.width = width != null ? width : -1;
             WindowSetup.height = height != null ? height : -1;
+            WindowSetup.touchableHeight = touchableHeight != null ? touchableHeight : -1;
+            WindowSetup.positionAnchorHeight = positionAnchorHeight != null ? positionAnchorHeight : -1;
             WindowSetup.enableDrag = enableDrag;
             WindowSetup.setGravityFromAlignment(alignment != null ? alignment : "center");
             WindowSetup.setFlag(flag != null ? flag : "flagNotFocusable");

@@ -12,6 +12,8 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.app.PendingIntent;
 import android.graphics.Point;
+import android.graphics.Region;
+import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -19,6 +21,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Display;
+import android.view.AttachedSurfaceControl;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -150,6 +153,18 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 boolean enableDrag = call.argument("enableDrag");
                 boolean keepTop = Boolean.TRUE.equals(call.argument("keepTop"));
                 resizeOverlay(width, height, enableDrag, keepTop, result);
+            } else if (call.method.equals("updateTouchableHeight")) {
+                Integer height = call.argument("height");
+                if (height == null || height < -1) {
+                    result.error("INVALID_HEIGHT", "height must be -1 or non-negative", null);
+                } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    result.success(false);
+                } else {
+                    WindowSetup.touchableHeight = height;
+                    result.success(applyTouchableRegion());
+                }
+            } else {
+                result.notImplemented();
             }
         });
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -177,13 +192,22 @@ public class OverlayService extends Service implements View.OnTouchListener {
                         | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT
         );
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WindowSetup.flag == clickableFlag) {
-            params.alpha = MAXIMUM_OPACITY_ALLOWED_FOR_S_AND_HIGHER;
-        }
+        params.alpha = overlayAlpha();
         params.gravity = WindowSetup.gravity;
         flutterView.setOnTouchListener(this);
+        // The surface is only available after attachment; reapply after layout
+        // so a rotation or a new FlutterView also gets the current touch region.
+        flutterView.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                applyTouchableRegion();
+            }
+        });
         windowManager.addView(flutterView, params);
         moveOverlay(dx, dy, null);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            flutterView.post(this::applyTouchableRegion);
+        }
+        flutterChannel.invokeMethod("windowShown", null);
         return START_STICKY;
     }
 
@@ -235,16 +259,44 @@ public class OverlayService extends Service implements View.OnTouchListener {
             params.flags = WindowSetup.flag | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS |
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
                     WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WindowSetup.flag == clickableFlag) {
-                params.alpha = MAXIMUM_OPACITY_ALLOWED_FOR_S_AND_HIGHER;
-            } else {
-                params.alpha = 1;
-            }
+            params.alpha = overlayAlpha();
             windowManager.updateViewLayout(flutterView, params);
             result.success(true);
         } else {
             result.success(false);
         }
+    }
+
+    private float overlayAlpha() {
+        boolean partialTouch = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && WindowSetup.touchableHeight >= 0;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && (WindowSetup.flag == clickableFlag || partialTouch)) {
+            // Android checks the native window alpha, not transparent Flutter
+            // pixels, before delivering a touch to another application's UID.
+            InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
+            return Math.min(MAXIMUM_OPACITY_ALLOWED_FOR_S_AND_HIGHER,
+                    inputManager.getMaximumObscuringOpacityForTouch());
+        }
+        return 1f;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
+    private boolean applyTouchableRegion() {
+        if (flutterView == null || windowManager == null) return false;
+        AttachedSurfaceControl surface = flutterView.getRootSurfaceControl();
+        if (surface == null) return false;
+        Region region = WindowSetup.touchableHeight < 0 ? null : new Region(
+                0, 0, flutterView.getWidth(),
+                Math.min(flutterView.getHeight(), dpToPx(WindowSetup.touchableHeight)));
+        surface.setTouchableRegion(region);
+        WindowManager.LayoutParams params = (WindowManager.LayoutParams) flutterView.getLayoutParams();
+        float alpha = overlayAlpha();
+        if (params.alpha != alpha) {
+            params.alpha = alpha;
+            windowManager.updateViewLayout(flutterView, params);
+        }
+        return true;
     }
 
     private void resizeOverlay(int width, int height, boolean enableDrag, boolean keepTop, MethodChannel.Result result) {
@@ -300,7 +352,18 @@ public class OverlayService extends Service implements View.OnTouchListener {
         if (windowManager != null) {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) flutterView.getLayoutParams();
             params.x = (x == -1999 || x == -1) ? -1 : dpToPx(x);
-            params.y = dpToPx(y);
+            int nextY = dpToPx(y) + positionOffsetY(params);
+            if (WindowSetup.touchableHeight >= 0 && "auto".equals(WindowSetup.positionGravity)
+                    && params.height > 0) {
+                // A saved position from the shorter window may leave the
+                // reserved settings panel below the screen after reopening.
+                int availableDistance = Math.max(0, szWindow.y - params.height);
+                int gravity = params.gravity & Gravity.VERTICAL_GRAVITY_MASK;
+                int minY = gravity == Gravity.CENTER_VERTICAL ? -(availableDistance / 2) : 0;
+                int maxY = gravity == Gravity.CENTER_VERTICAL ? availableDistance / 2 : availableDistance;
+                nextY = Math.max(minY, Math.min(nextY, maxY));
+            }
+            params.y = nextY;
             windowManager.updateViewLayout(flutterView, params);
             if (result != null)
                 result.success(true);
@@ -316,7 +379,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) instance.flutterView.getLayoutParams();
             Map<String, Double> position = new HashMap<>();
             position.put("x", instance.pxToDp(params.x));
-            position.put("y", instance.pxToDp(params.y));
+            position.put("y", instance.pxToDp(params.y - instance.positionOffsetY(params)));
             return position;
         }
         return null;
@@ -327,7 +390,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             if (instance.windowManager != null) {
                 WindowManager.LayoutParams params = (WindowManager.LayoutParams) instance.flutterView.getLayoutParams();
                 params.x = (x == -1999 || x == -1) ? -1 : instance.dpToPx(x);
-                params.y = instance.dpToPx(y);
+                params.y = instance.dpToPx(y) + instance.positionOffsetY(params);
                 instance.windowManager.updateViewLayout(instance.flutterView, params);
                 return true;
             } else {
@@ -336,6 +399,15 @@ public class OverlayService extends Service implements View.OnTouchListener {
         } else {
             return false;
         }
+    }
+
+    private int positionOffsetY(WindowManager.LayoutParams params) {
+        if (WindowSetup.positionAnchorHeight <= 0 || params.height <= 0) return 0;
+        int delta = params.height - dpToPx(WindowSetup.positionAnchorHeight);
+        int gravity = params.gravity & Gravity.VERTICAL_GRAVITY_MASK;
+        if (gravity == Gravity.CENTER_VERTICAL) return delta / 2;
+        if (gravity == Gravity.BOTTOM) return -delta;
+        return 0;
     }
 
 

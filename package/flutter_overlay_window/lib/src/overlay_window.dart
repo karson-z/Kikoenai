@@ -13,6 +13,8 @@ class FlutterOverlayWindow {
       StreamController<dynamic>.broadcast();
   static final StreamController<dynamic> _messagesFromOverlayController =
       StreamController<dynamic>.broadcast();
+  static final StreamController<void> _windowShownController =
+      StreamController<void>.broadcast();
   static const MethodChannel _channel = MethodChannel(
     "x-slayer/overlay_channel",
   );
@@ -57,6 +59,12 @@ class FlutterOverlayWindow {
   /// `positionGravity`：悬浮窗拖动后的吸附方式，默认为 [PositionGravity.none]。
   ///
   /// `startPosition`：悬浮窗的初始位置，默认为 `null`。
+  ///
+  /// `touchableHeight`：Android 13+ 仅让顶部指定 dp 高度接收触摸。
+  /// 设置后窗口遵守系统的穿透透明度上限；不影响整窗锁定。
+  ///
+  /// `positionAnchorHeight`：位置坐标按此高度计算，预留底部空间时
+  /// 可保持原有窗口顶部和保存的坐标不变。默认使用实际窗口高度。
   static Future<void> showOverlay({
     int height = WindowSize.fullCover,
     int width = WindowSize.matchParent,
@@ -68,6 +76,8 @@ class FlutterOverlayWindow {
     bool enableDrag = false,
     PositionGravity positionGravity = PositionGravity.none,
     OverlayPosition? startPosition,
+    int? touchableHeight,
+    int? positionAnchorHeight,
   }) async {
     await _channel.invokeMethod('showOverlay', {
       "height": height,
@@ -80,7 +90,23 @@ class FlutterOverlayWindow {
       "notificationVisibility": visibility.name,
       "positionGravity": positionGravity.name,
       "startPosition": startPosition?.toMap(),
+      "touchableHeight": touchableHeight,
+      "positionAnchorHeight": positionAnchorHeight,
     });
+  }
+
+  /// Whether Android can restrict an overlay's touchable area without resizing it.
+  static Future<bool> supportsPartialTouchRegion() async {
+    return await _channel.invokeMethod<bool>('supportsPartialTouchRegion') ??
+        false;
+  }
+
+  /// Emitted when a native window attaches to the cached overlay engine.
+  static Stream<void> get windowShown {
+    _overlayChannel.setMethodCallHandler((call) async {
+      if (call.method == 'windowShown') _windowShownController.add(null);
+    });
+    return _windowShownController.stream;
   }
 
   /// 检查是否已授予悬浮窗权限。
@@ -165,6 +191,14 @@ class FlutterOverlayWindow {
       {'flag': flag.name},
     );
     return result;
+  }
+
+  /// Limit touches to the top [height] dp of the overlay window.
+  /// Pass -1 to restore the entire window.
+  static Future<bool?> updateTouchableHeight(int height) async {
+    return _overlayChannel.invokeMethod<bool?>('updateTouchableHeight', {
+      'height': height,
+    });
   }
 
   /// 更新悬浮窗在屏幕中的尺寸。
