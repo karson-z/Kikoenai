@@ -60,7 +60,9 @@ class FileTreeWoltSheet {
       backgroundColor: theme.scaffoldBackgroundColor,
       surfaceTintColor: Colors.transparent,
       navBarHeight: 110,
-      isTopBarLayerAlwaysVisible: true,
+      // 自定义顶栏已经自带底色。默认顶栏会在滚动时盖上来，把文字挡住。
+      hasTopBarLayer: false,
+      isTopBarLayerAlwaysVisible: false,
       hasSabGradient: false,
       leadingNavBarWidget: FileTreeStickyHeader(index: index, work: work),
       stickyActionBar: _buildInternalActionBar(work, isFirstPage),
@@ -393,7 +395,7 @@ class FileTreeStickyHeader extends ConsumerWidget {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          const Divider(height: 1, thickness: 1),
+          const Divider(height: 0, thickness: 1),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
+import 'package:kikoenai/core/service/file/audio_folder_preference.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import '../../../../config/app_version_config.dart';
 import '../../../../core/routes/app_routes.dart';
@@ -17,6 +18,7 @@ import '../../auth/provider/auth_provider.dart';
 import '../../cloud_drive/provider/alist_server_provider.dart';
 import '../../cloud_drive/provider/webdav_connection_controller.dart';
 import '../../overly-lyrics/widget/overly_setting_panel.dart';
+import '../widget/audio_folder_preference_sheet.dart';
 import '../widget/default_playlist_setting_tile.dart';
 import '../widget/hive_switch_tile.dart';
 import '../widget/service_selection.dart';
@@ -133,13 +135,7 @@ class SettingsPage extends ConsumerWidget {
                     );
                   },
                 ),
-              _ChevronTile(
-                title: '音频类型偏好',
-                trailingText: 'wav > mp3...',
-                onTap: () {
-                  // TODO: 弹出选择逻辑
-                },
-              ),
+              _AudioFolderPreferenceTile(settingsBox: settingsBox),
               const HiveSwitchTile(
                 title: '是否SFW',
                 storageKey: StorageKeys.nsfwKey,
@@ -340,6 +336,42 @@ class _ChevronTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AudioFolderPreferenceTile extends StatelessWidget {
+  const _AudioFolderPreferenceTile({required this.settingsBox});
+
+  final Box<dynamic> settingsBox;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: settingsBox.listenable(
+        keys: [
+          StorageKeys.audioFormatPreference,
+          StorageKeys.audioEffectPreference,
+        ],
+      ),
+      builder: (context, box, child) {
+        final preference = AudioFolderPreference.fromStorage(box);
+        return _ChevronTile(
+          title: '音频类型偏好',
+          trailingText: preference.summary,
+          onTap: () {
+            showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              builder: (context) => AudioFolderPreferenceSheet(
+                settingsBox: settingsBox,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -156,6 +156,14 @@ class StorageKeys {
   /// 文件树排序是否倒序
   static const String fileSortDescending = 'file_sort_descending';
 
+  /// 详情页文件区的音频格式优先级。
+  /// 类型: List<String>，不带点的小写扩展名，越靠前越优先。
+  static const String audioFormatPreference = 'audio_format_preference';
+
+  /// 详情页文件区的音效优先级。
+  /// 类型: List<String>，取值见 [AudioEffectPreference.storageValue]。
+  static const String audioEffectPreference = 'audio_effect_preference';
+
   /// 历史记录已从"按作品作用域"迁移到"按播放会话"（一次性标记）
   static const String historySessionMigrated = 'history_session_migrated';
 }

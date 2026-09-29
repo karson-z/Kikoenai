@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
+import 'package:kikoenai/core/service/file/audio_folder_preference.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/file_sort/provider/file_sort_option.dart';
 
@@ -54,10 +53,11 @@ class FileNodeLibraryIndex {
     String? rootPath,
     NodeSource fallbackFolderSource = NodeSource.localWork,
   }) {
-
     // 计算 effectiveRoot
-    final effectiveRoot = rootPath ??
-        roots.map((n) => n.rootPath)
+    final effectiveRoot =
+        rootPath ??
+        roots
+            .map((n) => n.rootPath)
             .firstWhere((p) => p != null && p.isNotEmpty, orElse: () => null) ??
         'tree://root';
 
@@ -170,6 +170,22 @@ class FileNodeLibraryIndex {
   void goHome() {
     _currentNode = rootNode;
     _currentFolder = null;
+  }
+
+  /// 按格式表和音效表，从根目录落到对应文件夹。
+  ///
+  /// 找不到匹配时保持当前位置。返回是否发生了跳转。
+  bool jumpToPreferredAudioFolder(AudioFolderPreference preference) {
+    final target = pickPreferredAudioFolder(
+      rootFolders: rootNode.foldersList,
+      childrenOf: (folder) =>
+          rootNode.children[folder]?.foldersList ?? const [],
+      preference: preference,
+    );
+    if (target == null) return false;
+    final before = _currentFolder;
+    jumpTo(target.normalized);
+    return _currentFolder != before;
   }
 
   void jumpTo(String targetFolderPath) {

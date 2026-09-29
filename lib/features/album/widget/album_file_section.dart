@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/service/file/audio_folder_preference.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
@@ -117,7 +119,17 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
     super.didUpdateWidget(oldWidget);
     if (!identical(widget.index, oldWidget.index)) {
       _index = widget.index;
+      _openPreferredAudioFolder();
     }
+  }
+
+  /// 索引刚建立、位置还在根目录时，按设置里的两张表跳一次。
+  /// 用户之后手动回根不会再被拉回去；刷新会换新索引，因此会再跳一次。
+  void _openPreferredAudioFolder() {
+    if (!_index.isHome) return;
+    _index.jumpToPreferredAudioFolder(
+      AudioFolderPreference.fromStorage(AppStorage.settingsBox),
+    );
   }
 
   void _enterFolder(FileNode node) {
@@ -136,8 +148,9 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
   @override
   Widget build(BuildContext context) {
     final sortOption = ref.watch(fileSortProvider);
-    // 排序配置变更时重新应用排序
+    // 排序配置变更时重新应用排序。首次构建仍在根目录时，再按偏好跳一次。
     _index.applySort(sortOption);
+    _openPreferredAudioFolder();
 
     final breadcrumb = _index.breadcrumbPath;
     final isRoot = _index.isHome;
