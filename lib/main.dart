@@ -103,6 +103,6 @@ void main() async {
     ),
   );
   //  Failed to update ui::AXTree, error: 342 will not be in the tree and is not the new root
-  // ExcludeSemantics 会禁用整个 app 的无障碍功能，避免这个bug
+  // ExcludeSemantics 会禁用整个 app 的无障碍功能，避免调试的时候频繁出现这个bug ，真正投入生产需要删除。
   runApp(const ProviderScope(child: ExcludeSemantics(child: MyApp())));
 }
