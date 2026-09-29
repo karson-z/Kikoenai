@@ -1,8 +1,9 @@
 import 'dart:io';
 
-import 'package:test/test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/service/file/audio_folder_preference.dart';
+import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai_core/core/model/local_media/file_node.dart';
@@ -15,22 +16,29 @@ AudioFolderPreference _preference({
 }
 
 NodeFolder? _pick(List<String> paths, AudioFolderPreference preference) {
-  final children = <String, List<NodeFolder>>{};
-  for (final path in paths) {
-    var folder = NodeFolder(path).parent;
-    while (folder != null && folder.normalized != 'work') {
-      final parent = folder.parent?.normalized ?? 'work';
-      final siblings = children.putIfAbsent(parent, () => []);
-      if (!siblings.any((item) => item.key == folder!.key)) {
-        siblings.add(folder);
-      }
-      folder = folder.parent;
-    }
-  }
+  final index = _index(paths);
   return pickPreferredAudioFolder(
-    rootFolders: children['work'] ?? const [],
-    childrenOf: (folder) => children[folder.normalized] ?? const [],
+    rootFolders: index.rootNode.foldersList,
+    childrenOf: (folder) => folder == null
+        ? index.rootNode.foldersList
+        : index.rootNode.lookup(folder, stopAtRootPath: 'work')?.foldersList ??
+              const [],
     preference: preference,
+  );
+}
+
+FileNodeLibraryIndex _index(List<String> paths) {
+  return FileNodeLibraryIndex(
+    rootPath: 'work',
+    flatNodes: [
+      for (final path in paths)
+        FileNode(
+          type: NodeType.audio,
+          title: path.split('/').last,
+          path: path,
+          folderPath: NodeFolder(path).parent?.normalized ?? 'work',
+        ),
+    ],
   );
 }
 
@@ -162,6 +170,28 @@ void main() {
         ], _preference()),
         isNull,
       );
+    });
+
+    test('enters a format three levels below the root', () {
+      final selected = _pick([
+        'work/本体/SEなし/mp3/a.mp3',
+        'work/本体/SEあり/wav/a.wav',
+      ], _preference());
+      expect(selected?.normalized, 'work/本体/SEなし/mp3');
+    });
+
+    test('does not jump again after the user returns home', () {
+      final index = _index(['work/mp3/a.mp3', 'work/wav/a.wav']);
+
+      expect(index.jumpToPreferredAudioFolder(_preference()), isTrue);
+      expect(index.currentFolder?.name, 'mp3');
+
+      index.goHome();
+      expect(index.isHome, isTrue);
+      expect(index.jumpToPreferredAudioFolder(_preference()), isTrue);
+
+      index.stepOut();
+      expect(index.isHome, isTrue);
     });
   });
 

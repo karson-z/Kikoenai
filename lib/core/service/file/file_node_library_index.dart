@@ -178,8 +178,10 @@ class FileNodeLibraryIndex {
   bool jumpToPreferredAudioFolder(AudioFolderPreference preference) {
     final target = pickPreferredAudioFolder(
       rootFolders: rootNode.foldersList,
-      childrenOf: (folder) =>
-          rootNode.children[folder]?.foldersList ?? const [],
+      childrenOf: (folder) => folder == null
+          ? rootNode.foldersList
+          : rootNode.lookup(folder, stopAtRootPath: rootPath)?.foldersList ??
+                const [],
       preference: preference,
     );
     if (target == null) return false;

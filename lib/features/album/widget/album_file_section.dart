@@ -107,26 +107,28 @@ class _AlbumFileSectionBody extends ConsumerStatefulWidget {
 
 class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
   late FileNodeLibraryIndex _index;
+  FileNodeLibraryIndex? _preferredFolderOpenedFor;
 
   @override
   void initState() {
     super.initState();
     _index = widget.index;
+    _openPreferredAudioFolder();
   }
 
   @override
   void didUpdateWidget(covariant _AlbumFileSectionBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(widget.index, oldWidget.index)) {
-      _index = widget.index;
-      _openPreferredAudioFolder();
-    }
+    if (identical(widget.index, oldWidget.index)) return;
+    _index = widget.index;
+    _openPreferredAudioFolder();
   }
 
-  /// 索引刚建立、位置还在根目录时，按设置里的两张表跳一次。
-  /// 用户之后手动回根不会再被拉回去；刷新会换新索引，因此会再跳一次。
+  /// 每个索引只在首次进入根目录时跳一次。
+  /// 用户之后返回根目录或上一级时保持原位；刷新会换新索引，因此再跳一次。
   void _openPreferredAudioFolder() {
-    if (!_index.isHome) return;
+    if (identical(_preferredFolderOpenedFor, _index) || !_index.isHome) return;
+    _preferredFolderOpenedFor = _index;
     _index.jumpToPreferredAudioFolder(
       AudioFolderPreference.fromStorage(AppStorage.settingsBox),
     );
@@ -148,9 +150,7 @@ class _AlbumFileSectionBodyState extends ConsumerState<_AlbumFileSectionBody> {
   @override
   Widget build(BuildContext context) {
     final sortOption = ref.watch(fileSortProvider);
-    // 排序配置变更时重新应用排序。首次构建仍在根目录时，再按偏好跳一次。
     _index.applySort(sortOption);
-    _openPreferredAudioFolder();
 
     final breadcrumb = _index.breadcrumbPath;
     final isRoot = _index.isHome;

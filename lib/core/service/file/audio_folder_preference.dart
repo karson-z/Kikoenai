@@ -119,7 +119,7 @@ class FolderAudioIdentity {
   bool get hasFormat => format != null;
 }
 
-/// 根目录或根目录下一层里，可以按两张表比较的候选文件夹。
+/// 从根目录往下最多三层里，可以按两张表比较的候选文件夹。
 class AudioFolderCandidate {
   const AudioFolderCandidate({
     required this.folder,
@@ -227,35 +227,43 @@ FolderAudioIdentity readFolderAudioIdentity(String folderName) {
   );
 }
 
-/// 在根目录和根目录下一层里，按格式表、音效表挑一个文件夹。
+/// 从根目录往下最多三层，按格式表、音效表挑一个文件夹。
 ///
-/// 只接受能读出格式的位置。根上只有音效、下一层才是格式时，落到下一层；
-/// 根上有格式但没写音效、下一层写了音效时，也落到下一层。找不到返回 null。
+/// [childrenOf] 必须返回索引里真实的子文件夹，不能只按路径临时生成。
+/// 只接受能读出格式的位置。格式和音效可以分别写在相邻的两层里，
+/// 中间隔着 `本体` 这类不写格式也不写音效的文件夹时也能落到第三层。
+/// 找不到返回 null。
 NodeFolder? pickPreferredAudioFolder({
   required List<NodeFolder> rootFolders,
-  required List<NodeFolder> Function(NodeFolder folder) childrenOf,
+  required List<NodeFolder> Function(NodeFolder? folder) childrenOf,
   required AudioFolderPreference preference,
 }) {
   final candidates = <AudioFolderCandidate>[];
-  for (final folder in rootFolders) {
-    final identity = readFolderAudioIdentity(folder.name);
-    if (identity.hasFormat) {
-      candidates.add(
-        AudioFolderCandidate(folder: folder, depth: 1, identity: identity),
+  void visit(
+    List<NodeFolder> folders,
+    int depth,
+    FolderAudioIdentity inherited,
+  ) {
+    if (depth > 3) return;
+    for (final folder in folders) {
+      final resolved = _resolveIdentity(
+        inherited: inherited,
+        own: readFolderAudioIdentity(folder.name),
       );
-    }
-
-    for (final nested in childrenOf(folder)) {
-      final resolved = _resolveNestedIdentity(
-        parent: identity,
-        child: readFolderAudioIdentity(nested.name),
-      );
-      if (resolved == null) continue;
-      candidates.add(
-        AudioFolderCandidate(folder: nested, depth: 2, identity: resolved),
-      );
+      if (resolved.hasFormat) {
+        candidates.add(
+          AudioFolderCandidate(
+            folder: folder,
+            depth: depth,
+            identity: resolved,
+          ),
+        );
+      }
+      visit(childrenOf(folder), depth + 1, resolved);
     }
   }
+
+  visit(rootFolders, 1, const FolderAudioIdentity());
   if (candidates.isEmpty) return null;
 
   candidates.sort((a, b) {
@@ -278,24 +286,14 @@ NodeFolder? pickPreferredAudioFolder({
   return candidates.first.folder;
 }
 
-/// 下一层只有在补上另一张表缺的信息时才成为候选。
-///
-/// 根上是格式、下一层是章节时不下降。根上没写格式也没写音效时，
-/// 不把 `本体/mp3` 这类下一层当成格式文件夹。
-FolderAudioIdentity? _resolveNestedIdentity({
-  required FolderAudioIdentity parent,
-  required FolderAudioIdentity child,
+/// 当前层写了的信息覆盖上层继承来的信息，没写的继续沿用上层。
+FolderAudioIdentity _resolveIdentity({
+  required FolderAudioIdentity inherited,
+  required FolderAudioIdentity own,
 }) {
-  if (parent.hasFormat) {
-    if (parent.effect != null || child.effect == null || child.hasFormat) {
-      return null;
-    }
-    return FolderAudioIdentity(format: parent.format, effect: child.effect);
-  }
-  if (!child.hasFormat || parent.effect == null) return null;
   return FolderAudioIdentity(
-    format: child.format,
-    effect: child.effect ?? parent.effect,
+    format: own.format ?? inherited.format,
+    effect: own.effect ?? inherited.effect,
   );
 }
 
