@@ -175,24 +175,70 @@ void main() {
     await controller.refresh();
     expect(source.listCallCount, 2);
   });
+
+  test('bulk selection loads all directory pages', () async {
+    final source = _FakeCloudDriveSource(
+      supportsRemoteSearch: true,
+      supportsPagination: true,
+      pages: {
+        1: [_folder('/RJ01234567')],
+        2: [_audio('/RJ07654321.mp3')],
+      },
+      totalCount: 2,
+    );
+    final container = ProviderContainer(overrides: [
+      cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+    ]);
+    addTearDown(container.dispose);
+    const args = (mode: CloudDriveMode.alistApi, path: '/');
+    final controller =
+        container.read(cloudDriveBrowserControllerProvider(args).notifier);
+    expect(await controller.loadAllDirectoryPages(), isTrue);
+    expect(
+        container.read(cloudDriveBrowserControllerProvider(args)).nodes.length,
+        2);
+  });
+
+  test('bulk selection reports incomplete directory when a page is empty',
+      () async {
+    final source = _FakeCloudDriveSource(
+      supportsRemoteSearch: true,
+      supportsPagination: true,
+      pages: {
+        1: [_folder('/RJ01234567')]
+      },
+      totalCount: 2,
+    );
+    final container = ProviderContainer(overrides: [
+      cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+    ]);
+    addTearDown(container.dispose);
+    const args = (mode: CloudDriveMode.alistApi, path: '/');
+    final controller =
+        container.read(cloudDriveBrowserControllerProvider(args).notifier);
+    expect(await controller.loadAllDirectoryPages(), isFalse);
+    expect(
+        container.read(cloudDriveBrowserControllerProvider(args)).nodes.length,
+        1);
+  });
 }
 
 FileNode _folder(String path) => FileNode(
-  type: NodeType.folder,
-  title: NodeFolder(path).name,
-  path: path,
-  remoteId: path,
-  source: NodeSource.cloudDrive,
-);
+      type: NodeType.folder,
+      title: NodeFolder(path).name,
+      path: path,
+      remoteId: path,
+      source: NodeSource.cloudDrive,
+    );
 
 FileNode _audio(String path, {int size = 0}) => FileNode(
-  type: NodeType.audio,
-  title: NodeFolder(path).name,
-  path: path,
-  remoteId: path,
-  size: size,
-  source: NodeSource.cloudDrive,
-);
+      type: NodeType.audio,
+      title: NodeFolder(path).name,
+      path: path,
+      remoteId: path,
+      size: size,
+      source: NodeSource.cloudDrive,
+    );
 
 class _FakeCloudDriveSource implements CloudDriveSource {
   _FakeCloudDriveSource({

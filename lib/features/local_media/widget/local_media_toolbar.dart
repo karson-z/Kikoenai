@@ -14,6 +14,8 @@ class LocalMediaToolbar extends StatelessWidget {
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onSort,
+    this.isEditing = false,
+    this.onToggleEdit,
   });
 
   final bool isRoot;
@@ -26,6 +28,8 @@ class LocalMediaToolbar extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onSort;
+  final bool isEditing;
+  final VoidCallback? onToggleEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +63,12 @@ class LocalMediaToolbar extends StatelessWidget {
             ),
           ),
           if (manage != null) manage,
+          if (onToggleEdit != null)
+            _buildIconButton(
+              icon: isEditing ? Icons.close : Icons.edit_outlined,
+              tooltip: isEditing ? '完成编辑' : '编辑文件',
+              onPressed: onToggleEdit,
+            ),
           _buildSyncButton(),
           _buildIconButton(icon: Icons.sort, tooltip: '排序', onPressed: onSort),
         ],

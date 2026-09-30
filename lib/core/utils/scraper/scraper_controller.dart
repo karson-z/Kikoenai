@@ -9,15 +9,14 @@ import 'package:kikoenai/core/utils/scraper/scraper_http_client.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-typedef ScraperWorkLoader =
-    Future<Work> Function(
-      int workId,
-      ScraperCancellationToken cancellationToken,
-    );
+typedef ScraperWorkLoader = Future<Work> Function(
+  int workId,
+  ScraperCancellationToken cancellationToken,
+);
 typedef ScraperWorkExists = bool Function(int workId);
 typedef ScraperWorkSaver = Future<void> Function(int workId, Work work);
-typedef ScraperStatusUpdater =
-    Future<void> Function(int workId, NodeStatus status);
+typedef ScraperStatusUpdater = Future<void> Function(
+    int workId, NodeStatus status);
 
 final scraperWorkLoaderProvider = Provider<ScraperWorkLoader>((ref) {
   return (workId, cancellationToken) async {
@@ -99,8 +98,7 @@ class ScraperQueueState {
 
   /// 快捷属性：当前队列的总进度 (0.0 ~ 1.0)
   double get progress {
-    final total =
-        pending.length +
+    final total = pending.length +
         processing.length +
         paused.length +
         completed.length +
@@ -123,20 +121,38 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
   /// 外部接口：由弹窗“确认加入队列”后调用，提交新任务
   Future<void> addTasks(List<FileNode> nodes) async {
-    // 过滤掉无效节点或已经在内存队列中的节点
+    final busyWorkIds = <int>{
+      for (final node in [
+        ...state.pending,
+        ...state.processing,
+        ...state.paused
+      ])
+        if (node.workId != null) node.workId!,
+    };
+    final seenWorkIds = <int>{};
     final validNodes = nodes.where((n) {
       if (n.workId == null) return false;
-      final inQueue =
-          state.pending.any((p) => p.keyId == n.keyId) ||
+      final inQueue = state.pending.any((p) => p.keyId == n.keyId) ||
           state.processing.any((p) => p.keyId == n.keyId) ||
           state.paused.any((p) => p.keyId == n.keyId);
-      return !inQueue;
+      return !inQueue &&
+          !busyWorkIds.contains(n.workId) &&
+          seenWorkIds.add(n.workId!);
     }).toList();
 
     if (validNodes.isEmpty) return;
 
     // 因为取消了 queued 状态，节点原本就是 pending，不需要再写入数据库修改状态
-    state = state.copyWith(pending: [...state.pending, ...validNodes]);
+    final incomingIds = validNodes.map((node) => node.workId).toSet();
+    state = state.copyWith(
+      pending: [...state.pending, ...validNodes],
+      completed: state.completed
+          .where((node) => !incomingIds.contains(node.workId))
+          .toList(),
+      failed: state.failed
+          .where((node) => !incomingIds.contains(node.workId))
+          .toList(),
+    );
 
     // 如果当前处于运行状态，则直接开始消费
     if (state.isRunning) {
@@ -190,12 +206,10 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     if (node == null) return;
 
     _pauseRequested.add(taskId);
-    final pending = state.pending
-        .where((item) => item.keyId != taskId)
-        .toList();
-    final processing = state.processing
-        .where((item) => item.keyId != taskId)
-        .toList();
+    final pending =
+        state.pending.where((item) => item.keyId != taskId).toList();
+    final processing =
+        state.processing.where((item) => item.keyId != taskId).toList();
     final stillRunning =
         state.isRunning && (pending.isNotEmpty || processing.isNotEmpty);
     state = state.copyWith(
@@ -367,9 +381,8 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     final pending = state.pending.any((item) => item.keyId == taskId);
 
     state = state.copyWith(
-      processing: state.processing
-          .where((item) => item.keyId != taskId)
-          .toList(),
+      processing:
+          state.processing.where((item) => item.keyId != taskId).toList(),
       paused: shouldDiscard || pending || !shouldPause
           ? state.paused.where((item) => item.keyId != taskId).toList()
           : _appendUnique(state.paused, [node]),
@@ -415,5 +428,5 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
 final scraperQueueProvider =
     NotifierProvider<ScraperQueueNotifier, ScraperQueueState>(() {
-      return ScraperQueueNotifier();
-    });
+  return ScraperQueueNotifier();
+});

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import '../provider/file_scanner_notifier.dart';
+import 'package:kikoenai/core/service/file/local_batch_rename.dart';
 
 class RenameFileDialog extends ConsumerStatefulWidget {
   final FileNode node;
@@ -54,8 +55,9 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
   void initState() {
     super.initState();
     final fullName = widget.node.title;
-    _ext = p.extension(fullName); // 获取后缀 .mp3
-    _nameWithoutExt = p.basenameWithoutExtension(fullName); // 获取文件名 song
+    _ext = widget.node.isFolder ? '' : p.extension(fullName);
+    _nameWithoutExt =
+        widget.node.isFolder ? fullName : p.basenameWithoutExtension(fullName);
     _controller = TextEditingController(text: _nameWithoutExt);
   }
 
@@ -71,22 +73,21 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
       Navigator.of(context).pop();
       return;
     }
-    Navigator.of(context).pop();
-
-    final path = widget.node.mediaStreamUrl; // 这是绝对路径
-    final notifier = ref.read(fileScannerProvider.notifier);
-
     try {
-      // TODO 重命名文件夹
-      //  直接调用 renamePath，不再需要先去 rawItems 里查找对象
-      // 这样就支持了 rawItems 里不存在的“压缩包本身”或“文件夹”
-      // final success = await notifier.renamePath(path ?? "", newNamePart);
-
-      // if (success && mounted) {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(content: Text("重命名成功")),
-      //   );
-      // }
+      const service = LocalBatchRename();
+      final proposal = RenameProposal(widget.node, '$newNamePart$_ext');
+      final errors = service.validate([proposal]);
+      if (errors.isNotEmpty) throw StateError(errors.values.first);
+      final result = await service.execute([proposal]);
+      if (result.failed.isNotEmpty) {
+        throw StateError(result.failed.values.first);
+      }
+      if (!mounted) return;
+      final notifier = ref.read(fileScannerProvider.notifier);
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.of(context).pop();
+      await notifier.refreshCurrentTarget();
+      messenger.showSnackBar(const SnackBar(content: Text('重命名成功')));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +112,8 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
               suffixText: _ext, // 智能显示后缀
               hintText: "请输入新文件名",
               border: const OutlineInputBorder(),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
             onSubmitted: (_) => _handleRename(), // 允许回车提交
           ),
@@ -119,9 +121,9 @@ class _RenameFileDialogState extends ConsumerState<RenameFileDialog> {
           Text(
             "原路径: ${widget.node.mediaStreamUrl}",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey,
-              fontSize: 10,
-            ),
+                  color: Colors.grey,
+                  fontSize: 10,
+                ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

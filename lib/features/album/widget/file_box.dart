@@ -14,6 +14,7 @@ import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/features/local_media/widget/file_operation_sheet.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_selection.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 
@@ -87,6 +88,8 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
     this.workResolver,
     this.sourceResolver,
     this.onOpenFile,
+    this.selectedKeys,
+    this.onSelectionChanged,
   });
 
   /// 当前层级的直接子节点（由调用方从 `FileNodeLibraryIndex.currentChildren` 取）。
@@ -111,7 +114,12 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
   final NodeSource Function(FileNode node)? sourceResolver;
 
   /// Overrides the default preview/play behavior for non-folder entries.
-  final FutureOr<void> Function(FileNode node, List<FileNode> siblings)? onOpenFile;
+  final FutureOr<void> Function(FileNode node, List<FileNode> siblings)?
+      onOpenFile;
+
+  /// Optional selection mode controlled by the containing browser page.
+  final Set<String>? selectedKeys;
+  final ValueChanged<FileNode>? onSelectionChanged;
 
   @override
   ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
@@ -183,8 +191,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
       itemCount: widget.currentNodes.length,
       itemBuilder: (_, index) {
         final node = widget.currentNodes[index];
-        final bool isDownloaded =
-            widget.config.showDownloadBadge &&
+        final bool isDownloaded = widget.config.showDownloadBadge &&
             downloadedTaskMap.containsKey(node.hash);
         return _buildTile(
           context,
@@ -205,14 +212,22 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     Map<String, TaskRecord> downloadedTaskMap,
   ) {
     final tile = ListTile(
-      leading: _buildLeading(node),
+      leading: widget.selectedKeys == null
+          ? _buildLeading(node)
+          : Checkbox(
+              value: widget.selectedKeys!.contains(browserSelectionKey(node)),
+              onChanged: (_) => widget.onSelectionChanged?.call(node),
+            ),
       title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: _buildSubtitle(node),
       trailing: _buildTrailing(node, isDownloaded),
-      onTap: () => _handleTap(context, node, contextNodes, downloadedTaskMap),
-      onLongPress: widget.config.enableFolderLongPress
-          ? () => FolderActionBottomSheet.show(context, node)
-          : null,
+      onTap: widget.selectedKeys == null
+          ? () => _handleTap(context, node, contextNodes, downloadedTaskMap)
+          : () => widget.onSelectionChanged?.call(node),
+      onLongPress:
+          widget.selectedKeys == null && widget.config.enableFolderLongPress
+              ? () => FolderActionBottomSheet.show(context, node)
+              : null,
     );
 
     if (node.isAudio && widget.config.enableAudioContextMenu) {
@@ -239,9 +254,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 nodeToAdd = node.copyWith(localMediaUrl: localPath);
               }
             }
-            ref
-                .read(playerControllerProvider.notifier)
-                .addSingleInQueue(
+            ref.read(playerControllerProvider.notifier).addSingleInQueue(
                   nodeToAdd,
                   _resolveWork(node),
                   source: _resolveSource(node),
@@ -295,9 +308,8 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     }
     if (widget.config.showFileMetaInfo && !node.isFolder) {
       final sizeText = _formatFileSize(node.size ?? 0);
-      final modifiedText = node.lastModified > 0
-          ? _formatDateTime(node.lastModified)
-          : '-';
+      final modifiedText =
+          node.lastModified > 0 ? _formatDateTime(node.lastModified) : '-';
       return Text(
         '$sizeText  •  $modifiedText',
         style: TextStyle(

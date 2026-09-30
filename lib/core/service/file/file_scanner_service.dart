@@ -5,8 +5,8 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../storage/hive_key.dart';
 import '../../storage/hive_storage.dart';
 import 'file_scan_sync_engine.dart';
+import 'local_scan_exclusions.dart';
 import 'file_scanner_storage.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 
 export 'package:kikoenai_core/kikoenai_core.dart' show ScanMode;
 
@@ -95,12 +95,20 @@ class FileScannerService {
 
   /// 初始化并加载本地缓存
   Future<bool> _initAndLoadCache(ScanTarget scanTarget) async {
+    final rules = const LocalScanExclusions().getRules(
+      scanTarget.scanMode,
+      scanTarget.path,
+    );
     _flatFiles
       ..clear()
       ..addAll(
         _storage
             .getNodesByRootPath(scanTarget.scanMode, scanTarget.path)
-            .where((node) => !node.isFolder),
+            .where((node) =>
+                !node.isFolder &&
+                !rules.any(
+                  (rule) => LocalScanExclusions.containsPath(rule, node.keyId),
+                )),
       );
 
     return _flatFiles.isNotEmpty;
@@ -109,20 +117,16 @@ class FileScannerService {
   bool _shouldSilentSync(ScanTarget scanTarget, {required bool hasCache}) {
     if (!hasCache) return true;
 
-    final autoSyncEnabled =
-        AppStorage.settingsBox.get(
-              StorageKeys.localMediaAutoSyncEnabled,
-              defaultValue: true,
-            )
-            as bool;
+    final autoSyncEnabled = AppStorage.settingsBox.get(
+      StorageKeys.localMediaAutoSyncEnabled,
+      defaultValue: true,
+    ) as bool;
     if (!autoSyncEnabled) return false;
 
-    final thresholdHours =
-        AppStorage.settingsBox.get(
-              StorageKeys.localMediaAutoSyncThresholdHours,
-              defaultValue: 24,
-            )
-            as int;
+    final thresholdHours = AppStorage.settingsBox.get(
+      StorageKeys.localMediaAutoSyncThresholdHours,
+      defaultValue: 24,
+    ) as int;
     final threshold = Duration(hours: thresholdHours.clamp(1, 168));
     final lastScannedAt = scanTarget.lastScannedAt;
 

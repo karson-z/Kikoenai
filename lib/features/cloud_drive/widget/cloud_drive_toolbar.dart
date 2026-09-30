@@ -20,6 +20,8 @@ class CloudDriveToolbar extends StatelessWidget {
     required this.onClearSearch,
     required this.onScopeChanged,
     required this.onSortChanged,
+    this.isEditing = false,
+    this.onToggleEdit,
     this.onManageSource,
     this.manageTooltip = '来源设置',
   });
@@ -38,6 +40,8 @@ class CloudDriveToolbar extends StatelessWidget {
   final VoidCallback onClearSearch;
   final ValueChanged<CloudDriveScope> onScopeChanged;
   final ValueChanged<CloudDriveSort> onSortChanged;
+  final bool isEditing;
+  final VoidCallback? onToggleEdit;
   final VoidCallback? onManageSource;
   final String manageTooltip;
 
@@ -77,6 +81,12 @@ class CloudDriveToolbar extends StatelessWidget {
             ),
           ),
           if (manage != null) manage,
+          if (onToggleEdit != null)
+            _buildIconButton(
+              icon: isEditing ? Icons.close : Icons.edit_outlined,
+              tooltip: isEditing ? '完成编辑' : '编辑文件',
+              onPressed: onToggleEdit,
+            ),
           _buildIconButton(
             icon: Icons.refresh,
             tooltip: '刷新',

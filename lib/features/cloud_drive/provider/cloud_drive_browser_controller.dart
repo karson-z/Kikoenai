@@ -223,6 +223,32 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
     await loadInitial();
   }
 
+  /// Load every page in the current directory before a bulk selection.
+  Future<bool> loadAllDirectoryPages() async {
+    if (!state.hasLoadedDirectory) await loadInitial();
+    if (!state.hasLoadedDirectory) return false;
+    while (state.supportsPagination && state.nodes.length < state.totalCount) {
+      final nextPage = state.currentPage + 1;
+      try {
+        final result = await _source.list(
+          path: args.path,
+          page: nextPage,
+          pageSize: _browsePageSize,
+        );
+        if (!ref.mounted || result.items.isEmpty) return false;
+        state = state.copyWith(
+          nodes: _appendUnique(state.nodes, result.items),
+          currentPage: nextPage,
+          totalCount: result.totalCount,
+        );
+      } catch (error) {
+        debugPrint('云盘全选加载失败: $error');
+        return false;
+      }
+    }
+    return true;
+  }
+
   static List<FileNode> _appendUnique(
     List<FileNode> current,
     List<FileNode> incoming,
@@ -235,9 +261,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       node.remoteId ?? node.path ?? node.mediaStreamUrl ?? node.title;
 }
 
-final cloudDriveBrowserControllerProvider =
-    NotifierProvider.family<
-      CloudDriveBrowserController,
-      CloudDriveBrowserState,
-      CloudDriveBrowserArgs
-    >(CloudDriveBrowserController.new);
+final cloudDriveBrowserControllerProvider = NotifierProvider.family<
+    CloudDriveBrowserController,
+    CloudDriveBrowserState,
+    CloudDriveBrowserArgs>(CloudDriveBrowserController.new);

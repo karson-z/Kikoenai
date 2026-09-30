@@ -7,8 +7,7 @@ import '../../utils/scraper/scraper_storage.dart';
 import 'file_node_library_index.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
+import 'local_scan_exclusions.dart';
 
 class FileSyncProgress {
   final ScanTarget target;
@@ -46,8 +45,8 @@ typedef FileSyncProgressCallback = void Function(FileSyncProgress progress);
 
 class FileScanSyncEngine {
   FileScanSyncEngine({FileScanWorker? worker, FileScannerStorage? storage})
-    : _worker = worker ?? FileScanWorker(),
-      _storage = storage ?? FileScannerStorage();
+      : _worker = worker ?? FileScanWorker(),
+        _storage = storage ?? FileScannerStorage();
 
   final FileScanWorker _worker;
   final FileScannerStorage _storage;
@@ -57,8 +56,7 @@ class FileScanSyncEngine {
     List<FileNode>? inMemoryNodes,
     FileSyncProgressCallback? onProgress,
   }) async {
-    final nodes =
-        inMemoryNodes ??
+    final nodes = inMemoryNodes ??
         _storage
             .getNodesByRootPath(target.scanMode, target.path)
             .where((node) => !node.isFolder)
@@ -75,10 +73,12 @@ class FileScanSyncEngine {
         if (node.keyId.isNotEmpty) _normalizeKey(node.keyId): node,
     };
 
-    final parsedWorkIds = ScraperStorage()
-        .getAllWorks()
-        .map((work) => work.id)
-        .toSet();
+    final parsedWorkIds =
+        ScraperStorage().getAllWorks().map((work) => work.id).toSet();
+    final excludedPaths = const LocalScanExclusions().getRules(
+      target.scanMode,
+      target.path,
+    );
 
     var discoveredNodeCount = 0;
     var scannedFileCount = 0;
@@ -88,6 +88,7 @@ class FileScanSyncEngine {
       path: target.path,
       extensions: _extensionsFor(target),
       parsedWorkIds: parsedWorkIds,
+      excludedPaths: excludedPaths,
       scanArchives: _shouldScanArchives(target),
     )) {
       discoveredNodeCount += batch.nodes.length;
@@ -136,19 +137,29 @@ class FileScanSyncEngine {
       );
     }
 
-    final keysToDelete = <String>[];
+    final keysToDelete = <String>[
+      for (final cached
+          in _storage.getNodesByRootPath(target.scanMode, target.path))
+        if (excludedPaths.any(
+          (rule) => LocalScanExclusions.containsPath(rule, cached.keyId),
+        ))
+          cached.keyId,
+    ];
 
     for (final cached in nodes) {
       final key = cached.keyId;
       if (key.isEmpty) continue;
 
-      if (!visitedKeys.contains(_normalizeKey(key))) {
+      if (!visitedKeys.contains(_normalizeKey(key)) ||
+          excludedPaths
+              .any((rule) => LocalScanExclusions.containsPath(rule, key))) {
         keysToDelete.add(key);
       }
     }
 
     if (keysToDelete.isNotEmpty) {
-      await _storage.deleteNodes(target.scanMode, keysToDelete);
+      await _storage.deleteNodes(
+          target.scanMode, keysToDelete.toSet().toList());
       final normalizedKeysToDelete = keysToDelete.map(_normalizeKey).toSet();
       nodes.removeWhere((node) {
         final key = node.keyId;

@@ -7,6 +7,7 @@ import 'package:kikoenai_core/core/model/local_media/file_node.dart';
 import 'package:path/path.dart' as p;
 
 import 'archive_service.dart';
+import 'local_scan_exclusions.dart';
 
 enum WorkerState { idle, scanning, done, error }
 
@@ -24,6 +25,7 @@ class FileScanWorker {
     required String path,
     required Set<String> extensions,
     required Set<int> parsedWorkIds,
+    List<String> excludedPaths = const [],
     bool scanArchives = false,
     int batchSize = 1000,
   }) async {
@@ -33,6 +35,7 @@ class FileScanWorker {
       path: path,
       extensions: extensions,
       parsedWorkIds: parsedWorkIds,
+      excludedPaths: excludedPaths,
       scanArchives: scanArchives,
       batchSize: batchSize,
     )) {
@@ -46,6 +49,7 @@ class FileScanWorker {
     required String path,
     required Set<String> extensions,
     required Set<int> parsedWorkIds,
+    List<String> excludedPaths = const [],
     bool scanArchives = false,
     int batchSize = 1000,
   }) async* {
@@ -55,6 +59,7 @@ class FileScanWorker {
       rootPath: _normalize(path),
       extensions: extensions,
       parsedWorkIds: parsedWorkIds,
+      excludedPaths: excludedPaths,
       scanArchives: scanArchives,
       batchSize: batchSize <= 0 ? 1000 : batchSize,
     );
@@ -113,56 +118,72 @@ class FileScanWorker {
         return;
       }
 
-      await for (final entity in dir.list(
-        recursive: true,
-        followLinks: false,
-      )) {
-        if (entity is! File) continue;
+      final directories = <Directory>[dir];
+      while (directories.isNotEmpty) {
+        final current = directories.removeLast();
+        await for (final entity in current.list(followLinks: false)) {
+          final entityPath = _normalize(entity.path);
+          if (request.excludedPaths.any(
+            (rule) => LocalScanExclusions.containsPath(rule, entityPath),
+          )) {
+            continue;
+          }
+          if (entity is Directory) {
+            directories.add(entity);
+            continue;
+          }
+          if (entity is! File) continue;
 
-        scannedFileCount++;
+          scannedFileCount++;
 
-        final filePath = _normalize(entity.path);
-        final ext = _extension(filePath);
-        if (ext == null) continue;
+          final filePath = _normalize(entity.path);
+          final ext = _extension(filePath);
+          if (ext == null) continue;
 
-        if (request.extensions.contains(ext)) {
-          addNode(
-            _buildNode(
-              filePath: filePath,
-              rootPath: request.rootPath,
-              ext: ext,
-              lastModified: _modified(entity),
-              parsedWorkIds: request.parsedWorkIds,
-            ),
-          );
-          continue;
-        }
-
-        if (request.scanArchives && ArchiveService.isArchive(filePath)) {
-          final archiveModified = _modified(entity);
-          final entries = await ArchiveService.scanZip(
-            entity,
-            allowedExts: request.extensions,
-          );
-
-          for (final entry in entries) {
-            final virtualPath = _normalize(entry.virtualPath);
-            final virtualExt = _extension(virtualPath);
-            if (virtualExt == null ||
-                !request.extensions.contains(virtualExt)) {
-              continue;
-            }
-
+          if (request.extensions.contains(ext)) {
             addNode(
               _buildNode(
-                filePath: virtualPath,
+                filePath: filePath,
                 rootPath: request.rootPath,
-                ext: virtualExt,
-                lastModified: archiveModified,
-                size: entry.size,
+                ext: ext,
+                lastModified: _modified(entity),
                 parsedWorkIds: request.parsedWorkIds,
               ),
             );
+            continue;
+          }
+
+          if (request.scanArchives && ArchiveService.isArchive(filePath)) {
+            final archiveModified = _modified(entity);
+            final entries = await ArchiveService.scanZip(
+              entity,
+              allowedExts: request.extensions,
+            );
+
+            for (final entry in entries) {
+              final virtualPath = _normalize(entry.virtualPath);
+              if (request.excludedPaths.any(
+                (rule) => LocalScanExclusions.containsPath(rule, virtualPath),
+              )) {
+                continue;
+              }
+              final virtualExt = _extension(virtualPath);
+              if (virtualExt == null ||
+                  !request.extensions.contains(virtualExt)) {
+                continue;
+              }
+
+              addNode(
+                _buildNode(
+                  filePath: virtualPath,
+                  rootPath: request.rootPath,
+                  ext: virtualExt,
+                  lastModified: archiveModified,
+                  size: entry.size,
+                  parsedWorkIds: request.parsedWorkIds,
+                ),
+              );
+            }
           }
         }
       }
@@ -190,8 +211,8 @@ class FileScanWorker {
     final (source, workId) = _resolveSourceAndWorkId(filePath);
     final status = source == NodeSource.localWork && workId != null
         ? parsedWorkIds.contains(workId)
-              ? NodeStatus.parsed
-              : NodeStatus.pending
+            ? NodeStatus.parsed
+            : NodeStatus.pending
         : NodeStatus.normal;
 
     return FileNode(
@@ -255,6 +276,7 @@ class _FileScanRequest {
   final String rootPath;
   final Set<String> extensions;
   final Set<int> parsedWorkIds;
+  final List<String> excludedPaths;
   final bool scanArchives;
   final int batchSize;
 
@@ -263,6 +285,7 @@ class _FileScanRequest {
     required this.rootPath,
     required this.extensions,
     required this.parsedWorkIds,
+    required this.excludedPaths,
     required this.scanArchives,
     required this.batchSize,
   });

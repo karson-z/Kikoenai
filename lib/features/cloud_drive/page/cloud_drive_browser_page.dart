@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
+import 'package:kikoenai/features/album/widget/file_browser_edit_bar.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_selection.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 import '../data/cloud_drive_source.dart';
@@ -47,6 +50,9 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   final Map<String, double> _scrollOffsets = {};
   late String _currentPath;
   bool _isChangingPath = false;
+  bool _isEditing = false;
+  bool _isSelectingAll = false;
+  final Set<String> _selectedKeys = {};
 
   static const double _loadMoreThreshold = 240;
 
@@ -141,6 +147,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     setState(() {
       _currentPath = nextPath;
       _isChangingPath = !hasCachedState;
+      _selectedKeys.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _currentPath != nextPath) return;
@@ -221,7 +228,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     CloudDriveBrowserState state,
     NodeSource nodeSource,
   ) {
-    final nodes = state.visibleNodes;
+    final nodes = _isEditing ? state.nodes : state.visibleNodes;
     final error = state.activeError;
     final showLoading = (_isChangingPath || state.isBusy) && nodes.isEmpty;
     final showError = error != null && nodes.isEmpty;
@@ -230,102 +237,170 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       cloudDriveBrowserControllerProvider(_args).notifier,
     );
 
-    return CloudDriveScrollAwareLayout(
-      toolbar: CloudDriveToolbar(
-        isRoot: _isAtRoot,
-        isLoading: state.isBusy,
-        usesRemoteSearch: state.usesRemoteSearch,
-        searchController: _searchController,
-        searchFocusNode: _searchFocusNode,
-        scope: state.scope,
-        sort: state.sort,
-        onBack: _navigateBack,
-        onManageSource: widget.onManageSource,
-        manageTooltip: widget.manageTooltip,
-        onRefresh: controller.refresh,
-        onSearchChanged: (query) {
-          controller.updateLocalSearch(query);
-        },
-        onSearchSubmitted: (query) {
-          _searchFocusNode.unfocus();
-          controller.search(query);
-        },
-        onClearSearch: _clearSearch,
-        onScopeChanged: controller.setScope,
-        onSortChanged: controller.setSort,
-      ),
-      child: RefreshIndicator(
-        onRefresh: controller.refresh,
-        child: CustomScrollView(
-          key: ValueKey('cloud_drive_${widget.mode.name}_$_currentPath'),
-          controller: _scrollController,
-          physics: nonBouncingRefreshScrollPhysics,
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: CloudDriveBreadcrumbHeaderDelegate(
-                segments: _pathSegments,
-                onHomeTap: () => _jumpToSegment(-1),
-                onSegmentTap: _jumpToSegment,
-              ),
-            ),
-            if (showLoading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (showError)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: CloudDriveErrorContent(
-                  message: error,
-                  isRoot: _isAtRoot,
-                  isSearch: state.isSearchMode,
-                  onRetry: controller.refresh,
-                  onBack: _navigateBack,
-                ),
-              )
-            else if (showEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: CloudDriveEmptyContent(
-                  isSearch: state.isSearchMode,
-                  isDirectoryEmpty: state.nodes.isEmpty,
-                  onRefresh: controller.refresh,
-                ),
-              )
-            else ...[
-              FileNodeBrowser(
-                currentNodes: nodes,
-                work: null,
-                source: nodeSource,
-                config: FileBrowserConfig(
-                  showDownloadBadge: false,
-                  showFolderStatus: false,
-                  subtitlesCopyMode: false,
-                  enableFolderLongPress: false,
-                  enableImagePreview: widget.mode == CloudDriveMode.alistApi,
-                  enableTextPreview: widget.mode == CloudDriveMode.alistApi,
-                  enableAudioContextMenu: false,
-                  showFolderEnterIcon: false,
-                  showFileMetaInfo: true,
-                ),
-                onEnterFolder: _enterFolder,
-                onOpenFile: null,
-              ),
-              SliverToBoxAdapter(
-                child: CloudDriveFooter(
-                  isLoadingMore: state.isLoadingActivePage,
-                  hasMore: state.hasMore,
-                  loadedCount: nodes.length,
-                  totalCount: state.activeTotalCount,
-                  onLoadMore: controller.loadMore,
-                ),
-              ),
-            ],
-          ],
+    return Column(children: [
+      if (_isEditing)
+        FileBrowserEditBar(
+          selectedCount: _selectedKeys.length,
+          isLoading: _isSelectingAll,
+          onSelectAll: () => _selectDirectory(eligibleOnly: false),
+          onSelectEligible: () => _selectDirectory(eligibleOnly: true),
+          onEnqueue: () => _enqueueSelected(state.nodes),
         ),
-      ),
+      Expanded(
+          child: CloudDriveScrollAwareLayout(
+        toolbar: CloudDriveToolbar(
+          isRoot: _isAtRoot,
+          isLoading: state.isBusy,
+          usesRemoteSearch: state.usesRemoteSearch,
+          searchController: _searchController,
+          searchFocusNode: _searchFocusNode,
+          scope: state.scope,
+          sort: state.sort,
+          onBack: _navigateBack,
+          onManageSource: widget.onManageSource,
+          manageTooltip: widget.manageTooltip,
+          onRefresh: controller.refresh,
+          onSearchChanged: (query) {
+            controller.updateLocalSearch(query);
+          },
+          onSearchSubmitted: (query) {
+            _searchFocusNode.unfocus();
+            controller.search(query);
+          },
+          onClearSearch: _clearSearch,
+          onScopeChanged: controller.setScope,
+          onSortChanged: controller.setSort,
+          isEditing: _isEditing,
+          onToggleEdit: () {
+            if (!_isEditing) _clearSearch();
+            setState(() {
+              _isEditing = !_isEditing;
+              _selectedKeys.clear();
+            });
+          },
+        ),
+        child: RefreshIndicator(
+          onRefresh: controller.refresh,
+          child: CustomScrollView(
+            key: ValueKey('cloud_drive_${widget.mode.name}_$_currentPath'),
+            controller: _scrollController,
+            physics: nonBouncingRefreshScrollPhysics,
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: CloudDriveBreadcrumbHeaderDelegate(
+                  segments: _pathSegments,
+                  onHomeTap: () => _jumpToSegment(-1),
+                  onSegmentTap: _jumpToSegment,
+                ),
+              ),
+              if (showLoading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (showError)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: CloudDriveErrorContent(
+                    message: error,
+                    isRoot: _isAtRoot,
+                    isSearch: state.isSearchMode,
+                    onRetry: controller.refresh,
+                    onBack: _navigateBack,
+                  ),
+                )
+              else if (showEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: CloudDriveEmptyContent(
+                    isSearch: state.isSearchMode,
+                    isDirectoryEmpty: state.nodes.isEmpty,
+                    onRefresh: controller.refresh,
+                  ),
+                )
+              else ...[
+                FileNodeBrowser(
+                  currentNodes: nodes,
+                  selectedKeys: _isEditing ? _selectedKeys : null,
+                  onSelectionChanged: _toggleSelection,
+                  work: null,
+                  source: nodeSource,
+                  config: FileBrowserConfig(
+                    showDownloadBadge: false,
+                    showFolderStatus: false,
+                    subtitlesCopyMode: false,
+                    enableFolderLongPress: false,
+                    enableImagePreview: widget.mode == CloudDriveMode.alistApi,
+                    enableTextPreview: widget.mode == CloudDriveMode.alistApi,
+                    enableAudioContextMenu: false,
+                    showFolderEnterIcon: false,
+                    showFileMetaInfo: true,
+                  ),
+                  onEnterFolder: _enterFolder,
+                  onOpenFile: null,
+                ),
+                SliverToBoxAdapter(
+                  child: CloudDriveFooter(
+                    isLoadingMore: state.isLoadingActivePage,
+                    hasMore: state.hasMore,
+                    loadedCount: nodes.length,
+                    totalCount: state.activeTotalCount,
+                    onLoadMore: controller.loadMore,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      )),
+    ]);
+  }
+
+  void _toggleSelection(FileNode node) => setState(() {
+        final key = browserSelectionKey(node);
+        if (!_selectedKeys.add(key)) _selectedKeys.remove(key);
+      });
+
+  Future<void> _selectDirectory({required bool eligibleOnly}) async {
+    if (_isSelectingAll) return;
+    setState(() => _isSelectingAll = true);
+    final path = _currentPath;
+    final args = _args;
+    final loaded = await ref
+        .read(cloudDriveBrowserControllerProvider(args).notifier)
+        .loadAllDirectoryPages();
+    if (!mounted) return;
+    setState(() => _isSelectingAll = false);
+    if (!loaded || path != _currentPath || !_isEditing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('目录未加载完整，请重试')),
+      );
+      return;
+    }
+    final nodes = ref.read(cloudDriveBrowserControllerProvider(args)).nodes;
+    final selected = eligibleOnly
+        ? eligibleScraperNodes(nodes, ref.read(scraperQueueProvider))
+        : nodes;
+    setState(() {
+      _selectedKeys
+        ..clear()
+        ..addAll(selected.map(browserSelectionKey));
+    });
+  }
+
+  void _enqueueSelected(List<FileNode> nodes) {
+    final selected = nodes
+        .where((node) => _selectedKeys.contains(browserSelectionKey(node)));
+    final tasks =
+        eligibleScraperNodes(selected, ref.read(scraperQueueProvider));
+    if (tasks.isNotEmpty) {
+      final notifier = ref.read(scraperQueueProvider.notifier);
+      notifier.addTasks(tasks);
+      notifier.start();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已加入 ${tasks.length} 个待解析作品')),
     );
   }
 
@@ -333,8 +408,8 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       WebDavController.normalizeRemotePath(input);
 
   static List<String> _pathParts(String input) => _normalizePath(
-    input,
-  ).split('/').where((part) => part.isNotEmpty).toList(growable: false);
+        input,
+      ).split('/').where((part) => part.isNotEmpty).toList(growable: false);
 
   static bool _startsWith(List<String> value, List<String> prefix) {
     if (prefix.length > value.length) return false;
