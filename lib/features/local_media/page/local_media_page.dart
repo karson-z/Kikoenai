@@ -165,7 +165,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
                     showFolderStatus: true,
                     subtitlesCopyMode:
                         scannerState.scanMode == ScanMode.subtitles,
-                    enableFolderLongPress: true,
                   ),
                   onEnterFolder: (node) {
                     if (node.path == null) return;

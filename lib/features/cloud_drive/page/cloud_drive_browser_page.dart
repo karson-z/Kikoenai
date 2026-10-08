@@ -303,7 +303,6 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
                   showDownloadBadge: false,
                   showFolderStatus: true,
                   subtitlesCopyMode: false,
-                  enableFolderLongPress: false,
                   enableImagePreview: widget.mode == CloudDriveMode.alistApi,
                   enableTextPreview: widget.mode == CloudDriveMode.alistApi,
                   enableAudioContextMenu: false,

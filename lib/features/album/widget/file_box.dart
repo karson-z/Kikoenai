@@ -16,7 +16,6 @@ import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
-import 'package:kikoenai/features/local_media/widget/file_operation_sheet.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 
@@ -43,9 +42,6 @@ class FileBrowserConfig {
   /// 字幕模式：点击文件复制路径而非播放（本地媒体-字幕扫描用）。
   final bool subtitlesCopyMode;
 
-  /// 启用文件夹/文件长按操作面板（本地媒体用）。
-  final bool enableFolderLongPress;
-
   /// 启用图片预览（专辑详情用）。
   final bool enableImagePreview;
 
@@ -71,7 +67,6 @@ class FileBrowserConfig {
     this.showDownloadBadge = false,
     this.showFolderStatus = false,
     this.subtitlesCopyMode = false,
-    this.enableFolderLongPress = false,
     this.enableImagePreview = false,
     this.enableTextPreview = false,
     this.enableAudioContextMenu = false,
@@ -228,9 +223,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
       subtitle: _buildSubtitle(node),
       trailing: _buildTrailing(node, isDownloaded),
       onTap: () => _handleTap(context, node, contextNodes, downloadedTaskMap),
-      onLongPress: widget.config.enableFolderLongPress
-          ? () => FolderActionBottomSheet.show(context, node)
-          : null,
     );
 
     if (node.isAudio && widget.config.enableAudioContextMenu) {
