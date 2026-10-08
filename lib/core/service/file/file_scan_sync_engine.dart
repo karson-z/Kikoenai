@@ -3,11 +3,9 @@ import 'package:kikoenai_core/core/constants/file_extensions.dart';
 import 'package:kikoenai_core/core/model/local_media/file_node.dart';
 import 'package:kikoenai_core/core/model/local_media/file_scanner_state.dart';
 
-import '../../utils/scraper/scraper_storage.dart';
 import 'file_node_library_index.dart';
 import 'file_scanner_storage.dart';
 import 'file_scanner_worker.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 
 class FileSyncProgress {
@@ -75,11 +73,6 @@ class FileScanSyncEngine {
         if (node.keyId.isNotEmpty) _normalizeKey(node.keyId): node,
     };
 
-    final parsedWorkIds = ScraperStorage()
-        .getAllWorks()
-        .map((work) => work.id)
-        .toSet();
-
     var discoveredNodeCount = 0;
     var scannedFileCount = 0;
     var savedNodeCount = 0;
@@ -87,7 +80,6 @@ class FileScanSyncEngine {
     await for (final batch in _worker.startStream(
       path: target.path,
       extensions: _extensionsFor(target),
-      parsedWorkIds: parsedWorkIds,
       scanArchives: _shouldScanArchives(target),
     )) {
       discoveredNodeCount += batch.nodes.length;
@@ -178,9 +170,7 @@ class FileScanSyncEngine {
   bool _shouldSave(FileNode? cached, FileNode next) {
     return cached == null ||
         cached.lastModified != next.lastModified ||
-        cached.nodeStatus != next.nodeStatus ||
         cached.source != next.source ||
-        cached.workId != next.workId ||
         cached.path != next.path ||
         cached.folderPath != next.folderPath ||
         cached.rootPath != next.rootPath;

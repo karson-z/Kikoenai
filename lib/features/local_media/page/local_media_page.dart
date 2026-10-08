@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_breadcrumb_header.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
-import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
@@ -39,7 +37,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
   Widget build(BuildContext context) {
     // 1. 订阅最新的由对象驱动的单层切片文件树状态
     final scannerState = ref.watch(fileScannerProvider);
-    final scannerNotifier = ref.read(fileScannerProvider.notifier);
 
     final currentMode = scannerState.scanMode;
     // 面包屑链统一经由 FileNodeLibraryIndex 驱动的 BreadcrumbNotifier 提供。
@@ -53,7 +50,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         .map((node) => node.title)
         .toList();
 
-    // 3. 监听扫描流异步完成的副作用（仅在扫描状态由 true 变为 false 且存在有效节点时触发弹窗）
+    // 切换目录时清掉当前搜索，避免上一层的关键字继续过滤新目录。
     ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
       if (previous != null &&
           previous.currentFolderPath != next.currentFolderPath &&
@@ -61,19 +58,6 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _clearSearch();
         });
-      }
-
-      final wasScanning = previous?.isScanning ?? false;
-      final isNowDone = !next.isScanning;
-
-      if (wasScanning &&
-          isNowDone &&
-          scannerNotifier.didLastResultCompleteSync &&
-          next.rootPath.isNotEmpty) {
-        final pendingNodes = scannerNotifier.getPendingWorkNodesInActiveRoot();
-        if (pendingNodes.isNotEmpty && next.scanMode != ScanMode.subtitles) {
-          _showScanCompleteDialog(context, ref, pendingNodes);
-        }
       }
     });
 
@@ -297,26 +281,5 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
     if (_searchQuery.isNotEmpty && mounted) {
       setState(() => _searchQuery = '');
     }
-  }
-
-  Future<void> _showScanCompleteDialog(
-    BuildContext context,
-    WidgetRef ref,
-    List<FileNode> pendingNodes,
-  ) async {
-    final confirmed = await KikoenaiAlertDialog.confirm(
-      context,
-      title: '扫描完成',
-      content: '一共扫描到待解析作品共 ${pendingNodes.length} 个，是否全部加入解析队列并开始解析？',
-      cancelLabel: '暂不',
-      confirmLabel: '一键加入并开始',
-    );
-    if (!confirmed) return;
-    ref.read(scraperQueueProvider.notifier).addTasks(pendingNodes);
-    ref.read(scraperQueueProvider.notifier).start();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('已全部加入后台队列并开始解析')));
   }
 }

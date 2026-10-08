@@ -320,7 +320,8 @@ class AsmrGaySiteApi extends AlistSiteApi {
   FileNode toFileNode(FsEntry entry, {String parentPath = ''}) {
     final effectiveParent = entry.parent.isNotEmpty ? entry.parent : parentPath;
     final fullPath = NodeFolder.joinPath(effectiveParent, entry.name);
-    final isDir = entry.isDir;
+    // Alist 目录可能只返回 type=1，不一定带 is_dir。
+    final isDir = entry.isDir || entry.type == 1;
 
     final downloadUrl = isDir ? null : _buildDownloadUrl(fullPath, entry.sign);
 
@@ -330,6 +331,7 @@ class AsmrGaySiteApi extends AlistSiteApi {
       size: entry.size,
       lastModified: entry.modified?.millisecondsSinceEpoch ?? 0,
       source: fileNodeSource,
+      workId: isDir ? RjCode.parse(entry.name) : null,
       siteId: siteInfo.id,
       remoteId: fullPath,
       path: fullPath,
@@ -421,9 +423,9 @@ class AsmrGaySiteApi extends AlistSiteApi {
     return FsBrowseResult.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 依据 [FsEntry.isDir] 与文件扩展名推断 [NodeType]。
+  /// 依据目录标记与文件扩展名推断 [NodeType]。
   NodeType _resolveNodeType(FsEntry entry) {
-    if (entry.isDir) return NodeType.folder;
+    if (entry.isDir || entry.type == 1) return NodeType.folder;
     final name = entry.name;
     if (FileExtensions.isAudio(name)) return NodeType.audio;
     if (FileExtensions.isVideo(name)) return NodeType.video;

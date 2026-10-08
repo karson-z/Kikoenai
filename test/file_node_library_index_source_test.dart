@@ -90,5 +90,31 @@ void main() {
       expect(index.isLocalContent, isFalse);
       expect(index.hasRemoteContent, isTrue);
     });
+
+    test('reads the RJ code from the folder name only', () {
+      final index = FileNodeLibraryIndex(
+        flatNodes: [
+          FileNode(
+            type: NodeType.audio,
+            title: 'RJ09999999.mp3',
+            hash: 'track',
+            path: '/media/[RJ01231231]/RJ09999999.mp3',
+            folderPath: '/media/[RJ01231231]',
+            rootPath: '/media',
+            source: NodeSource.localSingle,
+            workId: 9999999,
+            nodeStatus: NodeStatus.parsed,
+          ),
+        ],
+        rootPath: '/media',
+        fallbackFolderSource: NodeSource.localWork,
+      );
+
+      final folder = index.currentChildren.singleWhere((node) => node.isFolder);
+
+      expect(folder.title, '[RJ01231231]');
+      expect(folder.workId, 1231231);
+      expect(folder.nodeStatus, NodeStatus.normal);
+    });
   });
 }

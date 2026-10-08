@@ -14,7 +14,6 @@ enum FileScannerResultPhase {
   cacheLoaded,
   syncSkipped,
   syncCompleted,
-  statusUpdated,
 }
 
 class FileScannerResult {
@@ -73,26 +72,6 @@ class FileScannerService {
     return true;
   }
 
-  void updateWorkStatusInCurrentResult({
-    required int workId,
-    required NodeStatus status,
-  }) {
-    var changed = false;
-
-    for (var index = 0; index < _flatFiles.length; index++) {
-      final node = _flatFiles[index];
-      if (node.workId != workId || node.nodeStatus == status) continue;
-
-      _flatFiles[index] = node.copyWith(nodeStatus: status);
-      changed = true;
-    }
-
-    if (changed) {
-      final rootPath = _flatFiles.firstOrNull?.rootPath ?? '';
-      _emitStatusUpdatedResult(rootPath);
-    }
-  }
-
   /// 初始化并加载本地缓存
   Future<bool> _initAndLoadCache(ScanTarget scanTarget) async {
     _flatFiles
@@ -140,10 +119,6 @@ class FileScannerService {
       scanTarget.path,
       phase: FileScannerResultPhase.syncCompleted,
     );
-  }
-
-  void _emitStatusUpdatedResult(String rootPath) {
-    _emitCurrentResult(rootPath, phase: FileScannerResultPhase.statusUpdated);
   }
 
   void _emitCurrentResult(

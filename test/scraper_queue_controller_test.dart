@@ -22,7 +22,6 @@ ProviderContainer _container(ScraperWorkLoader loader) {
       scraperWorkLoaderProvider.overrideWithValue(loader),
       scraperWorkExistsProvider.overrideWithValue((_) => false),
       scraperWorkSaverProvider.overrideWithValue((_, _) async {}),
-      scraperStatusUpdaterProvider.overrideWithValue((_, _) async {}),
       scraperQueueDelayProvider.overrideWithValue(Duration.zero),
       scraperQueueConcurrencyProvider.overrideWithValue(1),
     ],

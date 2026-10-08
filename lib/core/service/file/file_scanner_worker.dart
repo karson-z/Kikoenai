@@ -18,12 +18,9 @@ class FileScanBatch {
 }
 
 class FileScanWorker {
-  static final RegExp _rjRegex = RegExp(r'RJ0?(\d{7,9})', caseSensitive: false);
-
   Future<List<FileNode>> start({
     required String path,
     required Set<String> extensions,
-    required Set<int> parsedWorkIds,
     bool scanArchives = false,
     int batchSize = 1000,
   }) async {
@@ -32,7 +29,6 @@ class FileScanWorker {
     await for (final batch in startStream(
       path: path,
       extensions: extensions,
-      parsedWorkIds: parsedWorkIds,
       scanArchives: scanArchives,
       batchSize: batchSize,
     )) {
@@ -45,7 +41,6 @@ class FileScanWorker {
   Stream<FileScanBatch> startStream({
     required String path,
     required Set<String> extensions,
-    required Set<int> parsedWorkIds,
     bool scanArchives = false,
     int batchSize = 1000,
   }) async* {
@@ -54,7 +49,6 @@ class FileScanWorker {
       sendPort: receivePort.sendPort,
       rootPath: _normalize(path),
       extensions: extensions,
-      parsedWorkIds: parsedWorkIds,
       scanArchives: scanArchives,
       batchSize: batchSize <= 0 ? 1000 : batchSize,
     );
@@ -132,7 +126,6 @@ class FileScanWorker {
               rootPath: request.rootPath,
               ext: ext,
               lastModified: _modified(entity),
-              parsedWorkIds: request.parsedWorkIds,
             ),
           );
           continue;
@@ -160,7 +153,6 @@ class FileScanWorker {
                 ext: virtualExt,
                 lastModified: archiveModified,
                 size: entry.size,
-                parsedWorkIds: request.parsedWorkIds,
               ),
             );
           }
@@ -184,16 +176,8 @@ class FileScanWorker {
     required String rootPath,
     required String ext,
     required int lastModified,
-    required Set<int> parsedWorkIds,
     int? size,
   }) {
-    final (source, workId) = _resolveSourceAndWorkId(filePath);
-    final status = source == NodeSource.localWork && workId != null
-        ? parsedWorkIds.contains(workId)
-              ? NodeStatus.parsed
-              : NodeStatus.pending
-        : NodeStatus.normal;
-
     return FileNode(
       type: _determineNodeType(ext),
       title: filePath.split('/').last,
@@ -203,19 +187,9 @@ class FileScanWorker {
       folderPath: _dirname(filePath),
       rootPath: rootPath,
       lastModified: lastModified,
-      nodeStatus: status,
-      workId: workId,
       size: size,
-      source: source,
+      source: NodeSource.localSingle,
     );
-  }
-
-  static (NodeSource, int?) _resolveSourceAndWorkId(String path) {
-    final match = _rjRegex.firstMatch(path);
-    final id = match == null ? null : int.tryParse(match.group(1) ?? '');
-    return id == null
-        ? (NodeSource.localSingle, null)
-        : (NodeSource.localWork, id);
   }
 
   static NodeType _determineNodeType(String ext) {
@@ -254,7 +228,6 @@ class _FileScanRequest {
   final SendPort sendPort;
   final String rootPath;
   final Set<String> extensions;
-  final Set<int> parsedWorkIds;
   final bool scanArchives;
   final int batchSize;
 
@@ -262,7 +235,6 @@ class _FileScanRequest {
     required this.sendPort,
     required this.rootPath,
     required this.extensions,
-    required this.parsedWorkIds,
     required this.scanArchives,
     required this.batchSize,
   });

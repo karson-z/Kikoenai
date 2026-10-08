@@ -54,6 +54,26 @@ void main() {
             .mediaStreamUrl,
         'https://alist-backup.example/root/d/ASMR/track.mp3',
       );
+      expect(
+        api
+            .toFileNode(const FsEntry(name: '[RJ01231231]', isDir: true))
+            .workId,
+        1231231,
+      );
+      expect(
+        api
+            .toFileNode(
+              const FsEntry(name: 'RJ01231231.mp3'),
+              parentPath: '/[RJ01231231]',
+            )
+            .workId,
+        isNull,
+      );
+      final typeOnlyFolder = api.toFileNode(
+        const FsEntry(name: '[RJ01231231]', type: 1),
+      );
+      expect(typeOnlyFolder.type, NodeType.folder);
+      expect(typeOnlyFolder.workId, 1231231);
     },
   );
 

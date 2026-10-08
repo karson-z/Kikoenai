@@ -89,10 +89,6 @@ class WebDavMediaIndexService {
   static final WebDavMediaIndexService instance = WebDavMediaIndexService._();
   static const Duration maxAge = Duration(hours: 24);
   static const String _storagePrefix = 'dl_webdav_media_index.';
-  static final RegExp _rjPattern = RegExp(
-    r'(?:^|[^A-Za-z0-9])RJ0?(\d{7,9})(?!\d)',
-    caseSensitive: false,
-  );
 
   final ValueNotifier<WebDavMediaIndexState> state = ValueNotifier(
     const WebDavMediaIndexState(),
@@ -191,19 +187,12 @@ class WebDavMediaIndexService {
           final nodePath = _normalize(
             node.path ?? NodeFolder.joinPath(current, node.title),
           );
-          final workIds = extractWorkIds(node.title);
-          if (workIds.isNotEmpty) {
-            final candidatePath = node.isFolder
-                ? nodePath
-                : _normalize(node.folderPath ?? current);
-            for (final workId in workIds) {
-              candidates
-                  .putIfAbsent(workId, () => <String>{})
-                  .add(candidatePath);
+          if (node.isFolder) {
+            for (final workId in RjCode.parseAll(node.title)) {
+              candidates.putIfAbsent(workId, () => <String>{}).add(nodePath);
             }
-            if (node.isFolder) continue;
+            queue.add(nodePath);
           }
-          if (node.isFolder) queue.add(nodePath);
         }
 
         state.value = WebDavMediaIndexState(
@@ -249,13 +238,7 @@ class WebDavMediaIndexService {
     }
   }
 
-  static Set<int> extractWorkIds(String value) {
-    return _rjPattern
-        .allMatches(value)
-        .map((match) => int.tryParse(match.group(1) ?? ''))
-        .whereType<int>()
-        .toSet();
-  }
+  static Set<int> extractWorkIds(String value) => RjCode.parseAll(value);
 
   static List<String> _removeNestedPaths(Iterable<String> paths) {
     final sorted = paths.toSet().toList()

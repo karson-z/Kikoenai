@@ -35,7 +35,7 @@ void main() {
       12345678,
     });
     expect(WebDavMediaIndexService.extractWorkIds('XRJ01234567'), isEmpty);
-    expect(WebDavMediaIndexService.extractWorkIds('RJ01234567890'), isEmpty);
+    expect(WebDavMediaIndexService.extractWorkIds('RJ12345678901'), isEmpty);
   });
 
   test('index freshness expires after 24 hours', () {
@@ -74,6 +74,12 @@ void main() {
         _folder('Library', '/Library'),
         _folder('RJ01234567 first', '/RJ01234567 first'),
         _folder('XRJ07654321 ignored', '/XRJ07654321 ignored'),
+        FileNode(
+          type: NodeType.audio,
+          title: 'RJ09999999.mp3',
+          path: '/RJ09999999.mp3',
+          source: NodeSource.cloudDrive,
+        ),
       ],
       '/Library': [_folder('RJ07654321 second', '/Library/RJ07654321 second')],
     };
@@ -87,6 +93,7 @@ void main() {
 
     expect(snapshot?.pathsFor(1234567), ['/RJ01234567 first']);
     expect(snapshot?.pathsFor(7654321), ['/Library/RJ07654321 second']);
+    expect(snapshot?.pathsFor(9999999), isEmpty);
     expect(snapshot?.pathsByWorkId, hasLength(2));
     expect(service.state.value.phase, WebDavMediaIndexPhase.ready);
   });

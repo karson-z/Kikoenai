@@ -180,36 +180,6 @@ class FileScannerStorage {
     );
   }
 
-  Future<void> updateNodeStatusByKeyGlobally(
-    String nodeKey,
-    NodeStatus newStatus,
-  ) async {
-    final updates = <String, FileNode>{};
-
-    for (final mode in ScanMode.values) {
-      final key = _keyFor(mode, nodeKey);
-      final node = _box.get(key);
-      if (node != null) updates[key] = node.copyWith(nodeStatus: newStatus);
-    }
-
-    if (updates.isNotEmpty) await _box.putAll(updates);
-  }
-
-  Future<void> updateNodeStatusByWorkIdGlobally(
-    int workId,
-    NodeStatus newStatus,
-  ) async {
-    final updates = <dynamic, FileNode>{};
-
-    for (final entry in _box.toMap().entries) {
-      final node = entry.value;
-      if (node.workId != workId || node.nodeStatus == newStatus) continue;
-      updates[entry.key] = node.copyWith(nodeStatus: newStatus);
-    }
-
-    if (updates.isNotEmpty) await _box.putAll(updates);
-  }
-
   String? _commonFolderRoot(List<FileNode> nodes) {
     String? root;
 

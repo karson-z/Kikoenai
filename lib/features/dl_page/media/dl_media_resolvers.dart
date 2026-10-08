@@ -140,9 +140,7 @@ class AlistDlMediaResolver implements DlMediaResolver {
         );
         for (final node in result.items) {
           final identityText = '${node.title} ${node.path ?? ''}';
-          if (!WebDavMediaIndexService.extractWorkIds(
-            identityText,
-          ).contains(workId)) {
+          if (!RjCode.parseAll(identityText).contains(workId)) {
             continue;
           }
           final path = node.isFolder

@@ -454,6 +454,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
       size: file.size,
       lastModified: file.mTime?.millisecondsSinceEpoch ?? 0,
       source: NodeSource.cloudDrive,
+      workId: isFolder ? RjCode.parse(title) : null,
       path: fullPath,
       folderPath: parentPath,
       rootPath: state.rootPath,

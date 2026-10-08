@@ -19,10 +19,6 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   late FileScannerService _service;
   StreamSubscription? _resultSub;
   FileNodeLibraryIndex? _libraryIndex;
-  FileScannerResultPhase? _lastResultPhase;
-
-  bool get didLastResultCompleteSync =>
-      _lastResultPhase == FileScannerResultPhase.syncCompleted;
 
   /// 暴露内部索引（只读用途，例如面包屑路径推导）。
   /// 调用方不应直接通过返回值变更导航状态，请使用 [stepIn]/[stepOut]/
@@ -64,7 +60,6 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     _resultSub?.cancel();
     _resultSub = _service.result.listen(
       (batch) {
-        _lastResultPhase = batch.phase;
         _libraryIndex = FileNodeLibraryIndex(
           flatNodes: batch.flatNodes,
           rootPath: batch.rootPath,
@@ -78,7 +73,6 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
           FileScannerResultPhase.cacheLoaded => true,
           FileScannerResultPhase.syncCompleted ||
           FileScannerResultPhase.syncSkipped => false,
-          FileScannerResultPhase.statusUpdated => state.isScanning,
         };
 
         _updateStateFromIndex(isScanning: isScanning);
@@ -218,7 +212,6 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
             .selectTarget(path: target.path, mode: target.scanMode),
       );
       _libraryIndex = index;
-      _lastResultPhase = FileScannerResultPhase.cacheLoaded;
       _updateStateFromIndex(isScanning: false);
       return true;
     }
@@ -249,31 +242,6 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     if (_libraryIndex == null) return;
     _libraryIndex!.goHome();
     _updateStateFromIndex();
-  }
-
-  /// 获取当前扫描根目录下所有待解析作品。
-  ///
-  /// 返回值按 workId 去重，每个作品只保留第一个命中的文件节点作为解析任务入口。
-  List<FileNode> getPendingWorkNodesInActiveRoot() {
-    if (_libraryIndex == null) return const [];
-
-    final seenWorkIds = <int>{};
-    final pendingNodes = <FileNode>[];
-    final files = _libraryIndex!.getFilesInFolder(
-      _libraryIndex!.rootFolder,
-      recursive: true,
-    );
-
-    for (final node in files) {
-      final workId = node.workId;
-      if (workId == null || node.nodeStatus != NodeStatus.pending) continue;
-
-      if (seenWorkIds.add(workId)) {
-        pendingNodes.add(node);
-      }
-    }
-
-    return pendingNodes;
   }
 
   /// 将树的单层节点投影，高效率、无嵌套地转换并同步为当前的 UI 视图切片状态

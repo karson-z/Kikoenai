@@ -5,6 +5,7 @@ import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -13,9 +14,21 @@ import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/features/local_media/widget/file_operation_sheet.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
+
+/// 已解析作品 id。作品库增删时重建一次，文件夹行只做集合查找。
+final parsedWorkIdsProvider = Provider<Set<int>>((ref) {
+  final box = AppStorage.scraperWorkBox;
+  final listenable = box.listenable();
+  void refresh() => ref.invalidateSelf();
+  listenable.addListener(refresh);
+  ref.onDispose(() => listenable.removeListener(refresh));
+  return box.values.map((work) => work.id).toSet();
+});
 
 /// 统一文件浏览器的功能开关。
 ///
@@ -24,7 +37,7 @@ class FileBrowserConfig {
   /// 显示“本地”下载标记，并对网络文件做本地路径替换（专辑详情-网络用）。
   final bool showDownloadBadge;
 
-  /// 显示文件夹状态药丸 + 子项数（本地媒体用）。
+  /// 显示文件夹解析状态药丸 + 子项数（本地媒体与网盘用）。
   final bool showFolderStatus;
 
   /// 字幕模式：点击文件复制路径而非播放（本地媒体-字幕扫描用）。
@@ -48,9 +61,10 @@ class FileBrowserConfig {
   /// 需要明确提示“可进入下一级”的界面（如本地媒体库）可手动开启。
   final bool showFolderEnterIcon;
 
-  /// 文件条目副标题显示大小与修改时间（Alist 文件系统用）。
+  /// 文件条目副标题显示大小与修改时间（网盘用）。
   ///
-  /// 开启后，非文件夹节点副标题展示 `大小 • 修改时间`。
+  /// 开启后，非文件夹节点副标题展示 `大小 • 修改时间`。带 RJ 号的文件夹
+  /// 则展示 RJ 号和解析状态胶囊。
   final bool showFileMetaInfo;
 
   const FileBrowserConfig({
@@ -170,6 +184,10 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.config.showFolderStatus) {
+      ref.watch(parsedWorkIdsProvider);
+      ref.watch(scraperQueueProvider);
+    }
     final downloadedTaskMap = _buildDownloadedTaskMap();
 
     if (widget.currentNodes.isEmpty) {
@@ -272,7 +290,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   Widget? _buildSubtitle(FileNode node) {
-    if (widget.config.showFolderStatus) {
+    if (widget.config.showFolderStatus && !widget.config.showFileMetaInfo) {
       if (node.isFolder) {
         final itemCount = node.subItemsCount;
         final itemCountText = '$itemCount 项';
@@ -306,6 +324,27 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         ),
       );
     }
+    if (widget.config.showFileMetaInfo &&
+        widget.config.showFolderStatus &&
+        node.isFolder &&
+        node.workId != null) {
+      final status = _folderDisplayStatus(node);
+      return Row(
+        children: [
+          Text(
+            'RJ0${node.workId}',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
+          if (status != null) ...[
+            const SizedBox(width: 8),
+            NodeStatusPill(status: status),
+          ],
+        ],
+      );
+    }
 
     // 专辑详情样式
     return Text(
@@ -336,12 +375,27 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     return '$y-$m-$d $h:$min';
   }
 
+  NodeStatus? _folderDisplayStatus(FileNode node) {
+    final workId = node.workId;
+    if (workId == null) return null;
+
+    final queue = ref.read(scraperQueueProvider);
+    final parsing = queue.processing.any((item) => item.workId == workId);
+    if (parsing) return NodeStatus.parsing;
+
+    final parsed = ref.read(parsedWorkIdsProvider).contains(workId);
+    return parsed ? NodeStatus.parsed : NodeStatus.pending;
+  }
+
   Widget? _buildTrailing(FileNode node, bool isDownloaded) {
-    if (widget.config.showFolderStatus && node.isFolder) {
+    if (widget.config.showFolderStatus &&
+        !widget.config.showFileMetaInfo &&
+        node.isFolder) {
+      final status = _folderDisplayStatus(node);
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          NodeStatusPill(status: node.nodeStatus),
+          if (status != null) NodeStatusPill(status: status),
           if (widget.config.showFolderEnterIcon) ...[
             const SizedBox(width: 8),
             const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),

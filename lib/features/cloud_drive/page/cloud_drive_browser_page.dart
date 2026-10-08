@@ -301,7 +301,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
                 source: nodeSource,
                 config: FileBrowserConfig(
                   showDownloadBadge: false,
-                  showFolderStatus: false,
+                  showFolderStatus: true,
                   subtitlesCopyMode: false,
                   enableFolderLongPress: false,
                   enableImagePreview: widget.mode == CloudDriveMode.alistApi,

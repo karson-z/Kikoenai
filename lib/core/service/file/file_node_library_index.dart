@@ -430,10 +430,9 @@ class FileNodeLibraryIndex {
       rootPath: normalizePath(rootPath),
       depth: _depthFromRoot(normalizePath(rootPath), folder.normalized),
       source: sample?.source ?? fallbackFolderSource,
-      workId: sample?.workId,
+      workId: RjCode.parse(folder.name),
       workTitle: sample?.workTitle,
       artist: sample?.artist,
-      nodeStatus: sample?.nodeStatus ?? NodeStatus.normal,
       subItemsCount: directFoldersCount + directFilesCount,
       children: null,
     );

@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kikoenai/core/service/file/file_scanner_service.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 import 'package:kikoenai/core/utils/scraper/dlsite_scraper.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_http_client.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
@@ -16,9 +14,6 @@ typedef ScraperWorkLoader =
     );
 typedef ScraperWorkExists = bool Function(int workId);
 typedef ScraperWorkSaver = Future<void> Function(int workId, Work work);
-typedef ScraperStatusUpdater =
-    Future<void> Function(int workId, NodeStatus status);
-
 final scraperWorkLoaderProvider = Provider<ScraperWorkLoader>((ref) {
   return (workId, cancellationToken) async {
     final rawData = await DlSiteScraper.scrapeAll(
@@ -35,16 +30,6 @@ final scraperWorkExistsProvider = Provider<ScraperWorkExists>((ref) {
 
 final scraperWorkSaverProvider = Provider<ScraperWorkSaver>((ref) {
   return ScraperStorage().saveWork;
-});
-
-final scraperStatusUpdaterProvider = Provider<ScraperStatusUpdater>((ref) {
-  return (workId, status) async {
-    await FileScannerStorage().updateNodeStatusByWorkIdGlobally(workId, status);
-    FileScannerService.instance.updateWorkStatusInCurrentResult(
-      workId: workId,
-      status: status,
-    );
-  };
 });
 
 final scraperQueueDelayProvider = Provider<Duration>(
@@ -178,7 +163,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     );
     for (final node in tasksToPause) {
       _cancellationTokens[node.keyId]?.cancel('全部任务已暂停');
-      _persistPendingStatus(node);
     }
   }
 
@@ -205,7 +189,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       isRunning: stillRunning,
     );
     _cancellationTokens[taskId]?.cancel('任务已暂停');
-    _persistPendingStatus(node);
+
     if (state.isRunning) _pumpQueue();
   }
 
@@ -237,15 +221,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
   /// 打断排队并清空
   void clearQueue() {
-    final queuedNodes = _appendUnique(const [], [
-      ...state.pending,
-      ...state.processing,
-      ...state.paused,
-    ]);
-    final activeNodes = queuedNodes
-        .where((node) => _activeTaskIds.contains(node.keyId))
-        .toList();
-
     _pauseRequested.clear();
     _discardRequested
       ..clear()
@@ -254,9 +229,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
     for (final cancellationToken in _cancellationTokens.values) {
       cancellationToken.cancel('队列已清空');
-    }
-    for (final node in activeNodes) {
-      _persistPendingStatus(node);
     }
   }
 
@@ -297,7 +269,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
 
       final id = parsingNode.workId;
       if (id == null) return;
-      await _updateWorkStatus(id, NodeStatus.parsing);
       cancellationToken.throwIfCancelled();
 
       if (!ref.read(scraperWorkExistsProvider)(id)) {
@@ -314,7 +285,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       cancellationToken.throwIfCancelled();
 
       final parsedNode = parsingNode.copyWith(nodeStatus: NodeStatus.parsed);
-      await _updateWorkStatus(id, NodeStatus.parsed);
       cancellationToken.throwIfCancelled();
 
       state = state.copyWith(
@@ -334,10 +304,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       debugPrint('[ScraperQueue] 爬取任务崩溃: $parsingNode \n异常: $e\n$stack');
 
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);
-      final id = failedNode.workId;
-      if (id != null) {
-        await _updateWorkStatus(id, NodeStatus.pending);
-      }
 
       state = state.copyWith(
         processing: state.processing
@@ -373,23 +339,6 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       paused: shouldDiscard || pending || !shouldPause
           ? state.paused.where((item) => item.keyId != taskId).toList()
           : _appendUnique(state.paused, [node]),
-    );
-    if (node.workId != null) {
-      await _updateWorkStatus(node.workId!, NodeStatus.pending);
-    }
-  }
-
-  Future<void> _updateWorkStatus(int workId, NodeStatus status) async {
-    await ref.read(scraperStatusUpdaterProvider)(workId, status);
-  }
-
-  void _persistPendingStatus(FileNode node) {
-    final workId = node.workId;
-    if (workId == null) return;
-    unawaited(
-      _updateWorkStatus(workId, NodeStatus.pending).catchError((error, stack) {
-        debugPrint('[ScraperQueue] 更新暂停状态失败: $error\n$stack');
-      }),
     );
   }
 

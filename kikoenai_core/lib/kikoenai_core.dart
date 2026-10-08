@@ -23,6 +23,7 @@ export 'core/common/paged_result.dart';
 
 // ---- Utils ----
 export 'core/utils/other.dart';
+export 'core/utils/rj_code.dart';
 
 // ---- Models: shared ----
 export 'core/model/shared/search_tag.dart';
