@@ -13,8 +13,15 @@ class ScraperUtils {
     return str.contains(RegExp(r'[a-zA-Z]'));
   }
 
-  /// 将数字 ID 转换为 RJ 编码（如 `123456` → `RJ0123456`）
-  static String toRjCode(int id, {int length = 7}) {
-    return 'RJ0${id.toString().padLeft(length, '0')}';
+  /// 将数字 ID 转换为 DLsite 作品编号。
+  ///
+  /// DLsite 只接受 6 位或 8 位数字。不足 6 位补到 6 位，
+  /// 6 位以上的奇数位补一个零，例如 `97514` → `RJ097514`、
+  /// `123456` → `RJ123456`、`1234567` → `RJ01234567`。
+  static String toRjCode(int id) {
+    var digits = id.toString();
+    if (digits.length < 6) digits = digits.padLeft(6, '0');
+    if (digits.length.isOdd) digits = '0$digits';
+    return 'RJ$digits';
   }
 }
