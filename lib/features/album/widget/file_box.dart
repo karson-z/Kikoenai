@@ -60,7 +60,7 @@ class FileBrowserConfig {
   /// 文件条目副标题显示大小与修改时间（网盘用）。
   ///
   /// 开启后，非文件夹节点副标题展示 `大小 • 修改时间`。带 RJ 号的文件夹
-  /// 则展示 RJ 号和解析状态胶囊。
+  /// 副标题右侧展示解析状态胶囊。
   final bool showFileMetaInfo;
 
   const FileBrowserConfig({
@@ -282,20 +282,24 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   Widget? _buildSubtitle(FileNode node) {
-    if (widget.config.showFolderStatus && !widget.config.showFileMetaInfo) {
-      if (node.isFolder) {
-        final itemCount = node.subItemsCount;
-        final itemCountText = '$itemCount 项';
-        return Text(
-          node.workId != null
-              ? 'RJ0${node.workId}  •  $itemCountText'
-              : itemCountText,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
+    if (widget.config.showFolderStatus && node.isFolder) {
+      final status = _folderDisplayStatus(node);
+      if (widget.config.showFileMetaInfo) {
+        if (node.workId == null && status == null) return null;
+        return _subtitleWithStatus(
+          node.workId == null ? null : 'RJ0${node.workId}',
+          status,
         );
       }
+      final itemCountText = '${node.subItemsCount} 项';
+      return _subtitleWithStatus(
+        node.workId == null
+            ? itemCountText
+            : 'RJ0${node.workId}  •  $itemCountText',
+        status,
+      );
+    }
+    if (widget.config.showFolderStatus && !widget.config.showFileMetaInfo) {
       return Text(
         node.mediaStreamUrl ?? '',
         style: const TextStyle(fontSize: 10, color: Colors.grey),
@@ -314,27 +318,6 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontSize: 12,
         ),
-      );
-    }
-    if (widget.config.showFileMetaInfo &&
-        widget.config.showFolderStatus &&
-        node.isFolder &&
-        node.workId != null) {
-      final status = _folderDisplayStatus(node);
-      return Row(
-        children: [
-          Text(
-            'RJ0${node.workId}',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-          if (status != null) ...[
-            const SizedBox(width: 8),
-            NodeStatusPill(status: status),
-          ],
-        ],
       );
     }
 
@@ -367,6 +350,32 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     return '$y-$m-$d $h:$min';
   }
 
+  Widget _subtitleWithStatus(String? text, NodeStatus? status) {
+    final style = TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 12,
+    );
+    return Row(
+      children: [
+        if (text != null)
+          Expanded(
+            child: Text(
+              text,
+              style: style,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          )
+        else
+          const Spacer(),
+        if (status != null) ...[
+          const SizedBox(width: 8),
+          NodeStatusPill(status: status),
+        ],
+      ],
+    );
+  }
+
   NodeStatus? _folderDisplayStatus(FileNode node) {
     final workId = node.workId;
     if (workId == null) return null;
@@ -380,20 +389,8 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
   }
 
   Widget? _buildTrailing(FileNode node, bool isDownloaded) {
-    if (widget.config.showFolderStatus &&
-        !widget.config.showFileMetaInfo &&
-        node.isFolder) {
-      final status = _folderDisplayStatus(node);
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (status != null) NodeStatusPill(status: status),
-          if (widget.config.showFolderEnterIcon) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-          ],
-        ],
-      );
+    if (widget.config.showFolderEnterIcon && node.isFolder) {
+      return const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey);
     }
     if (isDownloaded) {
       return Container(

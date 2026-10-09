@@ -23,9 +23,9 @@ class NodeStatusPill extends StatelessWidget {
         textColor = Colors.blue;
         text = '解析中';
         icon = Container(
-          margin: const EdgeInsets.only(right: 4),
-          width: 4,
-          height: 4,
+          margin: const EdgeInsets.only(right: 3),
+          width: 3,
+          height: 3,
           decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
         );
         break;
@@ -44,10 +44,10 @@ class NodeStatusPill extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -55,7 +55,7 @@ class NodeStatusPill extends StatelessWidget {
           if (icon != null) icon,
           Text(
             text,
-            style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.w500, height: 1.2),
           ),
         ],
       ),
