@@ -40,6 +40,7 @@ void main() {
                 onSearchChanged: (_) {},
                 onClearSearch: searchController.clear,
                 onSort: () => sortCount++,
+                onShowExcluded: () {},
               ),
             ],
           ),

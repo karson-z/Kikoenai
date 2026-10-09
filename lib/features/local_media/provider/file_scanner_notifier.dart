@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/service/permission/permission_service.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
+import 'package:kikoenai/features/local_media/model/local_media_exclusion.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/service/file/file_scanner_service.dart';
-import '../../../../core/service/file/file_scanner_storage.dart';
-import 'file_path_notifier.dart';
 import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
+import 'file_path_notifier.dart';
 
 final fileScannerProvider =
     NotifierProvider.autoDispose<FileScannerNotifier, FileBrowserState>(
@@ -19,6 +19,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   late FileScannerService _service;
   StreamSubscription? _resultSub;
   FileNodeLibraryIndex? _libraryIndex;
+  Set<({String relativePath, bool isFolder})> _exclusions = {};
 
   /// 暴露内部索引（只读用途，例如面包屑路径推导）。
   /// 调用方不应直接通过返回值变更导航状态，请使用 [stepIn]/[stepOut]/
@@ -55,6 +56,18 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     );
   }
 
+  /// 更新当前扫描根目录的排除记录，并立即刷新当前目录。
+  void applyExclusions(List<LocalMediaExclusion> entries) {
+    _exclusions = {
+      for (final entry in entries)
+        (relativePath: entry.relativePath, isFolder: entry.isFolder),
+    };
+    final index = _libraryIndex;
+    if (index == null) return;
+    index.exclusions = _exclusions;
+    _updateStateFromIndex();
+  }
+
   /// 内部初始化方法
   void _initializeService() {
     _resultSub?.cancel();
@@ -63,7 +76,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
         _libraryIndex = FileNodeLibraryIndex(
           flatNodes: batch.flatNodes,
           rootPath: batch.rootPath,
-        );
+        )..exclusions = _exclusions;
         _libraryIndex!.applySort(ref.read(fileSortProvider));
         if (state.currentFolderPath != null &&
             state.currentFolderPath != batch.rootPath) {

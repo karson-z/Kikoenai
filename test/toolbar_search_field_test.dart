@@ -51,6 +51,7 @@ void main() {
                 onSearchChanged: (_) {},
                 onClearSearch: controllers[1].clear,
                 onSort: () {},
+              onShowExcluded: () {},
               ),
               DlLibraryToolbar(
                 searchController: controllers[2],

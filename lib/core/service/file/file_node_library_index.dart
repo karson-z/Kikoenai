@@ -141,8 +141,51 @@ class FileNodeLibraryIndex {
   }
 
   List<FileNode> get currentChildren {
-    final folders = currentFolders.map(_folderToFileNode);
-    return [...folders, ...currentFiles];
+    final folders = currentFolders
+        .where((folder) => !isExcluded(folder.normalized, isFolder: true))
+        .map(_folderToFileNode);
+    final files = currentFiles.where(
+      (node) => !isExcluded(node.effectivePath, isFolder: false),
+    );
+    return [...folders, ...files];
+  }
+
+  /// 当前扫描根目录下被排除的相对路径。
+  ///
+  /// 由页面在生成目录内容前设置。空集合表示不过滤。
+  Set<({String relativePath, bool isFolder})> exclusions = {};
+
+  bool isExcluded(String absolutePath, {required bool isFolder}) {
+    if (exclusions.isEmpty) return false;
+    final relative = _relativeToRoot(absolutePath);
+    if (relative == null || relative.isEmpty) return false;
+    final segments = relative.split('/');
+    for (final entry in exclusions) {
+      final excluded = entry.relativePath.split('/');
+      if (excluded.isEmpty || segments.length < excluded.length) continue;
+      var matches = true;
+      for (var index = 0; index < excluded.length; index++) {
+        if (segments[index].toLowerCase() != excluded[index].toLowerCase()) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) continue;
+      if (entry.isFolder || (segments.length == excluded.length && !isFolder)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String? _relativeToRoot(String absolutePath) {
+    final root = normalizePath(rootPath);
+    final target = normalizePath(absolutePath);
+    final rootKey = root.toLowerCase();
+    final targetKey = target.toLowerCase();
+    if (targetKey == rootKey) return '';
+    if (!targetKey.startsWith('$rootKey/')) return null;
+    return target.substring(root.length + 1);
   }
 
   void stepIn(NodeFolder folder) {

@@ -19,7 +19,7 @@ void main() {
         overrides: [
           fileScannerProvider.overrideWith(_TestFileScannerNotifier.new),
         ],
-        child: const MaterialApp(home: ScannerPage()),
+        child: const MaterialApp(home: LocalMediaPage()),
       ),
     );
     await tester.pump();

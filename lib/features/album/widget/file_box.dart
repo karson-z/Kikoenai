@@ -17,6 +17,7 @@ import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
+import 'package:kikoenai/features/file_browser/model/file_browser_edit_config.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 
 /// 已解析作品 id。作品库增删时重建一次，文件夹行只做集合查找。
@@ -96,6 +97,7 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
     this.workResolver,
     this.sourceResolver,
     this.onOpenFile,
+    this.editConfig,
   });
 
   /// 当前层级的直接子节点（由调用方从 `FileNodeLibraryIndex.currentChildren` 取）。
@@ -121,6 +123,9 @@ class FileNodeBrowser extends ConsumerStatefulWidget {
 
   /// Overrides the default preview/play behavior for non-folder entries.
   final FutureOr<void> Function(FileNode node, List<FileNode> siblings)? onOpenFile;
+
+  /// 编辑模式配置。为 null 时保持普通浏览，长按也不会进入编辑。
+  final FileBrowserEditConfig? editConfig;
 
   @override
   ConsumerState<FileNodeBrowser> createState() => _FileNodeBrowserState();
@@ -217,12 +222,31 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     bool isDownloaded,
     Map<String, TaskRecord> downloadedTaskMap,
   ) {
+    final edit = widget.editConfig;
+    final selected = edit?.selectedKeys.contains(node.keyId) ?? false;
     final tile = ListTile(
-      leading: _buildLeading(node),
+      leading: edit?.isEditing == true
+          ? Icon(
+              selected ? Icons.check_circle : Icons.circle_outlined,
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            )
+          : _buildLeading(node),
       title: Text(node.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: _buildSubtitle(node),
       trailing: _buildTrailing(node, isDownloaded),
-      onTap: () => _handleTap(context, node, contextNodes, downloadedTaskMap),
+      selected: selected,
+      onTap: () {
+        if (edit?.isEditing == true) {
+          edit!.onToggle(node.keyId);
+          return;
+        }
+        _handleTap(context, node, contextNodes, downloadedTaskMap);
+      },
+      onLongPress: edit == null || edit.isEditing
+          ? null
+          : () => edit.onRequestEdit(node.keyId),
     );
 
     if (node.isAudio && widget.config.enableAudioContextMenu) {

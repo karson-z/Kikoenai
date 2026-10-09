@@ -3,28 +3,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_breadcrumb_header.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
+import 'package:kikoenai/features/file_browser/model/file_browser_edit_config.dart';
+import 'package:kikoenai/features/file_browser/provider/file_browser_edit_actions.dart';
+import 'package:kikoenai/features/file_browser/provider/file_browser_edit_notifier.dart';
+import 'package:kikoenai/features/file_browser/widget/file_browser_edit_bar.dart';
 import 'package:kikoenai/features/file_sort/widget/file_sort_dialog.dart';
+import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../provider/file_path_notifier.dart';
 import '../provider/file_scanner_notifier.dart';
+import '../model/local_media_exclusion.dart';
+import '../provider/local_media_exclusion_provider.dart';
+import '../widget/excluded_media_sheet.dart';
 import '../widget/local_media_header.dart';
 import '../widget/local_media_toolbar.dart';
 import '../widget/path_sheet.dart';
 
-class ScannerPage extends ConsumerStatefulWidget {
-  const ScannerPage({super.key});
+class LocalMediaPage extends ConsumerStatefulWidget {
+  const LocalMediaPage({super.key});
 
   @override
-  ConsumerState<ScannerPage> createState() => _ScannerPageState();
+  ConsumerState<LocalMediaPage> createState() => _LocalMediaPageState();
 }
 
-class _ScannerPageState extends ConsumerState<ScannerPage> {
+class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   String _searchQuery = '';
+  Object? _directoryKey;
+  Object? _appliedExclusionKey;
 
   @override
   void dispose() {
@@ -62,8 +75,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
     });
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final editing = ref.watch(localFileEditProvider).isEditing;
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
+      bottomNavigationBar: editing ? _buildEditBar() : null,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -90,6 +105,10 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
     BreadcrumbNotifier breadcrumbNotifier,
   ) {
     final scannerNotifier = ref.read(fileScannerProvider.notifier);
+    final exclusions = ref.watch(
+      localMediaExclusionsProvider(scannerState.rootPath),
+    );
+    _scheduleExclusionUpdate(scannerState.rootPath, exclusions);
     final normalizedQuery = _searchQuery.trim().toLowerCase();
     final visibleNodes = normalizedQuery.isEmpty
         ? scannerState.children
@@ -98,6 +117,20 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
                 (node) => node.title.toLowerCase().contains(normalizedQuery),
               )
               .toList(growable: false);
+    final directoryKey = Object.hash(
+      scannerState.rootPath,
+      scannerState.currentFolderPath,
+      normalizedQuery,
+    );
+    if (_directoryKey != directoryKey) {
+      _directoryKey = directoryKey;
+      final visibleKeys = visibleNodes.map((node) => node.keyId).toList();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _directoryKey != directoryKey) return;
+        ref.read(localFileEditProvider.notifier).retainVisible(visibleKeys);
+      });
+    }
+    final edit = ref.watch(localFileEditProvider);
 
     return PopScope(
       canPop: scannerState.isHome,
@@ -121,6 +154,8 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
           onSearchChanged: (query) => setState(() => _searchQuery = query),
           onClearSearch: _clearSearch,
           onSort: () => FileSortDialog.show(context),
+          onShowExcluded: () =>
+              ExcludedMediaSheet.show(context, scannerState.rootPath),
         ),
         child: RefreshIndicator(
           onRefresh: scannerState.isScanning
@@ -177,6 +212,15 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
                   sourceResolver: (node) => node.workId == null
                       ? NodeSource.localSingle
                       : NodeSource.localWork,
+                  editConfig: FileBrowserEditConfig(
+                    isEditing: edit.isEditing,
+                    selectedKeys: edit.selectedKeys,
+                    onToggle: (keyId) => ref
+                        .read(localFileEditProvider.notifier)
+                        .toggle(keyId),
+                    onRequestEdit: (keyId) =>
+                        ref.read(localFileEditProvider.notifier).enter(keyId),
+                  ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
@@ -272,6 +316,135 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
   Future<void> _showPathManager(ScanMode mode) async {
     await PathManagerSheet.show(context, initialMode: mode);
     if (mounted) _clearSearch();
+  }
+
+  void _scheduleExclusionUpdate(
+    String rootPath,
+    List<LocalMediaExclusion> exclusions,
+  ) {
+    final key = Object.hash(
+      rootPath,
+      Object.hashAll(
+        exclusions.map((entry) => '${entry.relativePath}:${entry.isFolder}'),
+      ),
+    );
+    if (_appliedExclusionKey == key) return;
+    _appliedExclusionKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _appliedExclusionKey != key) return;
+      ref.read(fileScannerProvider.notifier).applyExclusions(exclusions);
+    });
+  }
+
+  Widget _buildEditBar() {
+    final edit = ref.watch(localFileEditProvider);
+    final scanner = ref.watch(fileScannerProvider);
+    final visible = _visibleNodes(scanner);
+    final selected = visible
+        .where((node) => edit.selectedKeys.contains(node.keyId))
+        .toList(growable: false);
+    final parsed = ref.watch(parsedWorkIdsProvider);
+    final queue = ref.watch(scraperQueueProvider);
+    final canParse = FileBrowserEditActions.parseCandidates(
+      directoryNodes: selected,
+      parsedWorkIds: parsed,
+      queue: queue,
+    ).isNotEmpty;
+    final canPlay = scanner.scanMode != ScanMode.subtitles && selected.isNotEmpty;
+    return FileBrowserEditBar(
+      selectedCount: selected.length,
+      allSelected: edit.allVisibleSelected(visible.map((node) => node.keyId)),
+      canParse: canParse,
+      canPlay: canPlay,
+      canExclude: true,
+      onToggleAll: () => ref
+          .read(localFileEditProvider.notifier)
+          .toggleVisibleSelection(visible.map((node) => node.keyId)),
+      onParse: () => _parseSelected(selected, parsed, queue),
+      onPlay: () => _playSelected(selected),
+      onExclude: () => _excludeSelected(scanner.rootPath, selected),
+      onDone: () => ref.read(localFileEditProvider.notifier).exit(),
+    );
+  }
+
+  List<FileNode> _visibleNodes(FileBrowserState scanner) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return scanner.children;
+    return scanner.children
+        .where((node) => node.title.toLowerCase().contains(query))
+        .toList(growable: false);
+  }
+
+  Future<void> _parseSelected(
+    List<FileNode> selected,
+    Set<int> parsed,
+    ScraperQueueState queue,
+  ) async {
+    final candidates = FileBrowserEditActions.parseCandidates(
+      directoryNodes: selected,
+      parsedWorkIds: parsed,
+      queue: queue,
+    );
+    if (candidates.isEmpty) return;
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '加入解析队列',
+      content: '将 ${candidates.length} 个作品文件夹加入解析队列？',
+      confirmLabel: '加入',
+    );
+    if (!confirmed || !mounted) return;
+    await ref.read(scraperQueueProvider.notifier).addTasks(candidates);
+    if (!mounted) return;
+    KikoenaiToast.success('已加入解析队列');
+    ref.read(localFileEditProvider.notifier).exit();
+  }
+
+  Future<void> _playSelected(List<FileNode> selected) async {
+    final index = ref.read(fileScannerProvider.notifier).libraryIndex;
+    if (index == null) return;
+    final files = FileBrowserEditActions.collectLocalPlayable(
+      index: index,
+      selected: selected,
+    );
+    if (files.isEmpty) {
+      KikoenaiToast.info('所选内容没有可播放的媒体');
+      return;
+    }
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '加入播放队列',
+      content: '将 ${files.length} 个文件加入播放队列？',
+      confirmLabel: '加入',
+    );
+    if (!confirmed || !mounted) return;
+    final items = FileBrowserEditActions.playbackItems(
+      files,
+      workOf: (node) => node.workId == null
+          ? null
+          : ScraperStorage().getWork(node.workId!),
+    );
+    await ref.read(playerControllerProvider.notifier).addPlaybackItems(items);
+    if (!mounted) return;
+    ref.read(localFileEditProvider.notifier).exit();
+  }
+
+  Future<void> _excludeSelected(String rootPath, List<FileNode> selected) async {
+    final entries = FileBrowserEditActions.exclusionsFor(
+      rootPath: rootPath,
+      selected: selected,
+    );
+    if (entries.isEmpty) return;
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '排除所选内容',
+      content: '从当前媒体库隐藏 ${entries.length} 项？可以稍后在已排除列表中恢复。',
+      confirmLabel: '排除',
+    );
+    if (!confirmed || !mounted) return;
+    await ref.read(localMediaExclusionRepositoryProvider).addAll(entries);
+    if (!mounted) return;
+    ref.read(localFileEditProvider.notifier).exit();
+    KikoenaiToast.success('已排除');
   }
 
   void _clearSearch() {

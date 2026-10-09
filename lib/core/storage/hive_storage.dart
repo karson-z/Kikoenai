@@ -19,6 +19,7 @@ class AppStorage {
   lyricMatchBox; // 字幕匹配缓存 (Key: audio.id, Value: FileNode)
   static late Box<SearchTag> filterTagsBox; // 全局筛选
   static late Box<ScanTarget> scanTargetBox; // 扫描目标
+  static late Box<dynamic> localMediaExclusionBox; // 本地媒体排除记录
 
   static late final String _hiveRootPath;
 
@@ -72,6 +73,9 @@ class AppStorage {
       _openBox<ScanTarget>(
         BoxNames.scanTarget,
       ).then((val) => scanTargetBox = val),
+      _openBox<dynamic>(
+        BoxNames.localMediaExclusions,
+      ).then((val) => localMediaExclusionBox = val),
     ]);
 
     // 清理历史遗留：设置页已移除的"背景处理与性能"项
@@ -80,6 +84,7 @@ class AppStorage {
       settingsBox.delete('blur_background'),
       settingsBox.delete('background_scale'),
       settingsBox.delete('background_quality'),
+      settingsBox.delete(BoxNames.localMediaExclusions),
     ]);
 
     // 清理历史遗留：播放器状态 Box 已移除（冷启动恢复改由播放历史承担），

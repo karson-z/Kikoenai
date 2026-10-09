@@ -650,6 +650,20 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
+  /// 按每个文件自己的作品和来源加入播放队列。
+  ///
+  /// 本地媒体和网盘的批量播放使用这个方法。专辑详情继续使用
+  /// [addMultiInQueue]，因为那里的文件都属于同一个作品。
+  Future<void> addPlaybackItems(List<PlaybackItem> items) async {
+    if (items.isEmpty) return;
+    try {
+      await addAll(items.toMediaItems());
+      KikoenaiToast.success('已加入播放队列');
+    } catch (e) {
+      KikoenaiLogger().e('加入播放队列失败');
+    }
+  }
+
   Future<void> addMultiInQueue(
     List<FileNode> nodes,
     Work work, {

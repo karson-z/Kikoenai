@@ -131,7 +131,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.localMedia,
                 pageBuilder: (context, state) =>
-                    const MaterialPage(child: ScannerPage()),
+                    const MaterialPage(child: LocalMediaPage()),
               ),
             ],
           ),

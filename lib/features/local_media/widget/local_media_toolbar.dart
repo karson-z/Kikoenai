@@ -14,6 +14,7 @@ class LocalMediaToolbar extends StatelessWidget {
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onSort,
+    required this.onShowExcluded,
   });
 
   final bool isRoot;
@@ -26,6 +27,7 @@ class LocalMediaToolbar extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onSort;
+  final VoidCallback onShowExcluded;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +62,11 @@ class LocalMediaToolbar extends StatelessWidget {
           ),
           if (manage != null) manage,
           _buildSyncButton(),
+          _buildIconButton(
+            icon: Icons.visibility_off_outlined,
+            tooltip: '已排除',
+            onPressed: onShowExcluded,
+          ),
           _buildIconButton(icon: Icons.sort, tooltip: '排序', onPressed: onSort),
         ],
       ),

@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
+import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
+import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:kikoenai/features/album/widget/file_box.dart';
+import 'package:kikoenai/features/file_browser/model/file_browser_edit_config.dart';
+import 'package:kikoenai/features/file_browser/provider/file_browser_edit_actions.dart';
+import 'package:kikoenai/features/file_browser/provider/file_browser_edit_notifier.dart';
+import 'package:kikoenai/features/file_browser/widget/cloud_playable_progress_dialog.dart';
+import 'package:kikoenai/features/file_browser/widget/file_browser_edit_bar.dart';
+import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 import '../data/cloud_drive_source.dart';
 import '../model/cloud_drive_mode.dart';
 import '../model/cloud_drive_browser_state.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
 import '../provider/cloud_drive_browser_controller.dart';
 import '../provider/cloud_drive_source_provider.dart';
 import '../provider/webdav_connection_controller.dart';
@@ -47,6 +56,7 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
   final Map<String, double> _scrollOffsets = {};
   late String _currentPath;
   bool _isChangingPath = false;
+  Object? _directoryKey;
 
   static const double _loadMoreThreshold = 240;
 
@@ -197,9 +207,15 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     final state = ref.watch(cloudDriveBrowserControllerProvider(_args));
     final source = ref.watch(cloudDriveSourceProvider(widget.mode));
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final editing = ref.watch(cloudFileEditProvider).isEditing;
     final body = Material(
       color: isDark ? Colors.black : Colors.white,
-      child: _buildBrowserBody(state, source.nodeSource),
+      child: Column(
+        children: [
+          Expanded(child: _buildBrowserBody(state, source.nodeSource)),
+          if (editing) _buildEditBar(state),
+        ],
+      ),
     );
 
     return PopScope(
@@ -222,6 +238,22 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
     NodeSource nodeSource,
   ) {
     final nodes = state.visibleNodes;
+    final directoryKey = Object.hash(
+      widget.mode,
+      _currentPath,
+      state.isSearchMode,
+      state.searchQuery,
+      state.scope,
+    );
+    if (_directoryKey != directoryKey) {
+      _directoryKey = directoryKey;
+      final visibleKeys = nodes.map((node) => node.keyId).toList();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _directoryKey != directoryKey) return;
+        ref.read(cloudFileEditProvider.notifier).retainVisible(visibleKeys);
+      });
+    }
+    final edit = ref.watch(cloudFileEditProvider);
     final error = state.activeError;
     final showLoading = (_isChangingPath || state.isBusy) && nodes.isEmpty;
     final showError = error != null && nodes.isEmpty;
@@ -311,6 +343,14 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
                 ),
                 onEnterFolder: _enterFolder,
                 onOpenFile: null,
+                editConfig: FileBrowserEditConfig(
+                  isEditing: edit.isEditing,
+                  selectedKeys: edit.selectedKeys,
+                  onToggle: (keyId) =>
+                      ref.read(cloudFileEditProvider.notifier).toggle(keyId),
+                  onRequestEdit: (keyId) =>
+                      ref.read(cloudFileEditProvider.notifier).enter(keyId),
+                ),
               ),
               SliverToBoxAdapter(
                 child: CloudDriveFooter(
@@ -326,6 +366,105 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildEditBar(CloudDriveBrowserState state) {
+    final edit = ref.watch(cloudFileEditProvider);
+    final visible = state.visibleNodes;
+    final selected = visible
+        .where((node) => edit.selectedKeys.contains(node.keyId))
+        .toList(growable: false);
+    final parsed = ref.watch(parsedWorkIdsProvider);
+    final queue = ref.watch(scraperQueueProvider);
+    final canParse = FileBrowserEditActions.parseCandidates(
+      directoryNodes: selected,
+      parsedWorkIds: parsed,
+      queue: queue,
+    ).isNotEmpty;
+    return FileBrowserEditBar(
+      selectedCount: selected.length,
+      allSelected: edit.allVisibleSelected(visible.map((node) => node.keyId)),
+      canParse: canParse,
+      canPlay: selected.isNotEmpty,
+      canExclude: false,
+      onToggleAll: () => ref
+          .read(cloudFileEditProvider.notifier)
+          .toggleVisibleSelection(visible.map((node) => node.keyId)),
+      onParse: () => _parseSelected(selected, parsed, queue),
+      onPlay: () => _playSelected(selected),
+      onExclude: () {},
+      onDone: () => ref.read(cloudFileEditProvider.notifier).exit(),
+    );
+  }
+
+  Future<void> _parseSelected(
+    List<FileNode> selected,
+    Set<int> parsed,
+    ScraperQueueState queue,
+  ) async {
+    final candidates = FileBrowserEditActions.parseCandidates(
+      directoryNodes: selected,
+      parsedWorkIds: parsed,
+      queue: queue,
+    );
+    if (candidates.isEmpty) return;
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '加入解析队列',
+      content: '将 ${candidates.length} 个作品文件夹加入解析队列？',
+      confirmLabel: '加入',
+    );
+    if (!confirmed || !mounted) return;
+    await ref.read(scraperQueueProvider.notifier).addTasks(candidates);
+    if (!mounted) return;
+    KikoenaiToast.success('已加入解析队列');
+    ref.read(cloudFileEditProvider.notifier).exit();
+  }
+
+  Future<void> _playSelected(List<FileNode> selected) async {
+    final progress = ValueNotifier(
+      const CloudPlayableProgress(
+        completedDirectories: 0,
+        pendingDirectories: 0,
+        collectedFiles: 0,
+        failedDirectories: 0,
+      ),
+    );
+    final dialog = CloudPlayableProgressDialog.show(context, progress);
+    final source = ref.read(cloudDriveSourceProvider(widget.mode));
+    final collection = await FileBrowserEditActions.collectCloudPlayable(
+      source: source,
+      selected: selected,
+      onProgress: (value) => progress.value = value,
+    );
+    if (mounted) Navigator.of(context).pop();
+    await dialog;
+    progress.dispose();
+    if (!mounted) return;
+
+    if (collection.files.isEmpty) {
+      KikoenaiToast.info(
+        collection.failedDirectories > 0
+            ? '没有收集到可播放文件，${collection.failedDirectories} 个文件夹读取失败'
+            : '所选内容没有可播放的媒体',
+      );
+      return;
+    }
+    final failedText = collection.failedDirectories == 0
+        ? ''
+        : '\n${collection.failedDirectories} 个文件夹读取失败，已跳过。';
+    final confirmed = await KikoenaiAlertDialog.confirm(
+      context,
+      title: '加入播放队列',
+      content: '将 ${collection.files.length} 个文件加入播放队列？$failedText',
+      confirmLabel: '加入',
+    );
+    if (!confirmed || !mounted) return;
+    await ref
+        .read(playerControllerProvider.notifier)
+        .addPlaybackItems(FileBrowserEditActions.playbackItems(collection.files));
+    if (!mounted) return;
+    ref.read(cloudFileEditProvider.notifier).exit();
   }
 
   static String _normalizePath(String input) =>

@@ -30,6 +30,9 @@ class BoxNames {
   /// 扫描目标
   static const String scanTarget = 'scan_target';
 
+  /// 本地媒体排除记录
+  static const String localMediaExclusions = 'local_media_exclusions';
+
   static const List<String> values = [
     settings,
     logs,
