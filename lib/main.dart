@@ -74,11 +74,6 @@ class _OverlayApp extends ConsumerWidget {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  // 在主 isolate 提前创建全局唯一的 Player，明确其归属（media_kit 的 Player
-  // 会 spawn 专属 isolate + 原生 mpv）。若等音频服务/UI 再创建，一旦未来
-  // audio handler 被移到其他 isolate，会静默产生第二个 Player 导致
-  // 热重载/热重启崩溃。
-  PlayerService.instance;
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent, // 强制透明
