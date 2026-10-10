@@ -53,7 +53,7 @@ class ScraperQueueState {
     this.paused = const [],
     this.completed = const [],
     this.failed = const [],
-    this.isRunning = false, // 默认不运行，等待用户手动点击开始
+    this.isRunning = false, // 空闲时停止；addTasks 会在有新任务时自动启动
   });
 
   ScraperQueueState copyWith({
@@ -123,9 +123,11 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
     // 因为取消了 queued 状态，节点原本就是 pending，不需要再写入数据库修改状态
     state = state.copyWith(pending: [...state.pending, ...validNodes]);
 
-    // 如果当前处于运行状态，则直接开始消费
+    // 加入后立刻消费。队列空闲时也要先启动，否则任务会停在 pending。
     if (state.isRunning) {
       _pumpQueue();
+    } else {
+      start();
     }
   }
 

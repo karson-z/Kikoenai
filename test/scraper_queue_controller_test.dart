@@ -42,6 +42,29 @@ Future<void> _waitUntil(
 }
 
 void main() {
+  test('adding tasks starts scraping without a manual start', () async {
+    final started = Completer<int>();
+    final container = _container((workId, cancellationToken) async {
+      if (!started.isCompleted) started.complete(workId);
+      return Work(id: workId);
+    });
+    addTearDown(container.dispose);
+
+    final notifier = container.read(scraperQueueProvider.notifier);
+    await notifier.addTasks([_node(401), _node(402)]);
+
+    expect(await started.future, 401);
+    await _waitUntil(
+      () => container.read(scraperQueueProvider).completed.length == 2,
+    );
+
+    final state = container.read(scraperQueueProvider);
+    expect(state.pending, isEmpty);
+    expect(state.processing, isEmpty);
+    expect(state.completed.map((item) => item.workId).toSet(), {401, 402});
+    expect(state.isRunning, isFalse);
+  });
+
   test(
     'pauses an active task immediately and resumes it to completion',
     () async {
