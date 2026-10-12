@@ -208,13 +208,12 @@ void main() {
     );
     final preferences = _MemoryPreferenceRepository()
       ..values[workId] = remote.descriptor.key.storageKey;
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         dlMediaResolversProvider.overrideWithValue([local, remote, failed]),
         dlMediaPreferenceRepositoryProvider.overrideWithValue(preferences),
       ],
     );
-    addTearDown(container.dispose);
     final subscription = container.listen(
       dlMediaAggregationProvider(workId),
       (_, __) {},
@@ -256,13 +255,12 @@ void main() {
     );
     final preferences = _MemoryPreferenceRepository()
       ..values[workId] = preferred.descriptor.key.storageKey;
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         dlMediaResolversProvider.overrideWithValue([local, first, preferred]),
         dlMediaPreferenceRepositoryProvider.overrideWithValue(preferences),
       ],
     );
-    addTearDown(container.dispose);
     final subscription = container.listen(
       dlMediaAggregationProvider(workId),
       (_, __) {},
@@ -294,7 +292,7 @@ void main() {
       ),
       callback: (_) async => _index('/remote', NodeSource.asmrServer),
     );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         dlMediaResolversProvider.overrideWithValue([local, remote]),
         dlMediaPreferenceRepositoryProvider.overrideWithValue(
@@ -302,7 +300,6 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
     final subscription = container.listen(
       dlMediaAggregationProvider(workId),
       (_, __) {},
@@ -344,7 +341,7 @@ void main() {
         return invocation == 1 ? first.future : second.future;
       },
     );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         dlMediaResolversProvider.overrideWithValue([resolver]),
         dlMediaPreferenceRepositoryProvider.overrideWithValue(
@@ -352,7 +349,6 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
     final subscription = container.listen(
       dlMediaAggregationProvider(workId),
       (_, __) {},

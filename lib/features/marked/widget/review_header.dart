@@ -18,12 +18,8 @@ class ReviewHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. 监听 reviewListProvider，确保当参数改变引发数据刷新时，Header 也会重建
-    ref.watch(reviewListProvider);
-
-    // 2. 获取合并后的 Notifier 和 Params
+    final params = ref.watch(reviewQueryParamsProvider);
     final notifier = ref.read(reviewListProvider.notifier);
-    final params = notifier.params;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -120,7 +116,8 @@ class ReviewHeader extends ConsumerWidget {
 
   /// 2.1 下拉菜单
   /// 注意：这里的类型变成了 ReviewListNotifier
-  Widget _buildDropdownButton(BuildContext context, ReviewQueryParams params, ReviewListNotifier notifier) {
+  Widget _buildDropdownButton(BuildContext context, ReviewQueryParams params,
+      ReviewListNotifier notifier) {
     final currentSort = ReviewSortType.fromValue(params.order);
 
     return PopupMenuButton<ReviewSortType>(
@@ -151,8 +148,7 @@ class ReviewHeader extends ConsumerWidget {
               style: TextStyle(
                   color: Colors.grey[800],
                   fontSize: 13,
-                  fontWeight: FontWeight.w500
-              ),
+                  fontWeight: FontWeight.w500),
             ),
             const SizedBox(width: 4),
             Icon(Icons.arrow_drop_down, color: Colors.grey[600], size: 20),
@@ -163,7 +159,8 @@ class ReviewHeader extends ConsumerWidget {
   }
 
   /// 2.2 排序按钮
-  Widget _buildSortButton(ReviewListNotifier notifier, ReviewQueryParams params) {
+  Widget _buildSortButton(
+      ReviewListNotifier notifier, ReviewQueryParams params) {
     final isDesc = params.sort == 'desc';
     return InkWell(
       onTap: () {
@@ -187,8 +184,10 @@ class ReviewHeader extends ConsumerWidget {
   }
 
   /// 2.3 进度筛选器
-  Widget _buildProgressSelector(BuildContext context, ReviewQueryParams params, ReviewListNotifier notifier) {
-    final progressList = WorkProgress.values.where((e) => e != WorkProgress.unknown).toList();
+  Widget _buildProgressSelector(BuildContext context, ReviewQueryParams params,
+      ReviewListNotifier notifier) {
+    final progressList =
+        WorkProgress.values.where((e) => e != WorkProgress.unknown).toList();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(

@@ -21,18 +21,16 @@ void main() {
           api: _FakeSiteApi(),
         ),
       );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.test'),
       ],
     );
-    addTearDown(container.dispose);
 
     final router = container.read(goRouterProvider);
-    final shellRoute = router.configuration.routes
-        .whereType<StatefulShellRoute>()
-        .single;
+    final shellRoute =
+        router.configuration.routes.whereType<StatefulShellRoute>().single;
 
     expect(appNavigationItems.map((item) => item.label), [
       '首页',

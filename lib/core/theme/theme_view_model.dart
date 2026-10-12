@@ -40,21 +40,19 @@ class ThemeNotifier extends Notifier<ThemeState> {
   static const _keyRecent = 'theme_recent_seeds';
   static const _keyFontPreset = StorageKeys.themeFontPreset;
 
-  Box<dynamic> get settingBox => AppStorage.settingsBox;
+  Box<dynamic> get _settingBox => AppStorage.settingsBox;
 
   @override
   ThemeState build() {
-    final modeStr = settingBox.get(_keyMode) as String?;
-    final seed = settingBox.get(_keySeed) as int?;
-    final recent = settingBox.get(_keyRecent) as List<dynamic>? ?? [];
-    final fontPresetKey = settingBox.get(_keyFontPreset) as String?;
+    final modeStr = _settingBox.get(_keyMode) as String?;
+    final seed = _settingBox.get(_keySeed) as int?;
+    final recent = _settingBox.get(_keyRecent) as List<dynamic>? ?? [];
+    final fontPresetKey = _settingBox.get(_keyFontPreset) as String?;
 
     final mode = _parseMode(modeStr);
     final seedColor = seed != null ? Color(seed) : Colors.blue;
-    final recentSeeds = recent
-        .whereType<int>()
-        .map((v) => Color(v))
-        .toList(growable: false);
+    final recentSeeds =
+        recent.whereType<int>().map((v) => Color(v)).toList(growable: false);
     final fontPreset = AppFontPreset.fromStorageKey(fontPresetKey);
 
     return ThemeState(
@@ -66,10 +64,11 @@ class ThemeNotifier extends Notifier<ThemeState> {
   }
 
   void _persist(ThemeState s) {
-    settingBox.put(_keyMode, s.mode.name);
-    settingBox.put(_keySeed, s.seedColor.toARGB32());
-    settingBox.put(_keyRecent, s.recentSeeds.map((c) => c.toARGB32()).toList());
-    settingBox.put(_keyFontPreset, s.fontPreset.storageKey);
+    _settingBox.put(_keyMode, s.mode.name);
+    _settingBox.put(_keySeed, s.seedColor.toARGB32());
+    _settingBox.put(
+        _keyRecent, s.recentSeeds.map((c) => c.toARGB32()).toList());
+    _settingBox.put(_keyFontPreset, s.fontPreset.storageKey);
   }
 
   void setMode(ThemeMode mode) {
@@ -78,9 +77,8 @@ class ThemeNotifier extends Notifier<ThemeState> {
   }
 
   void toggleLightDark() {
-    final newMode = state.mode == ThemeMode.dark
-        ? ThemeMode.light
-        : ThemeMode.dark;
+    final newMode =
+        state.mode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     setMode(newMode);
   }
 

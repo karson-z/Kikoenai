@@ -12,8 +12,8 @@ import 'file_path_notifier.dart';
 
 final fileScannerProvider =
     NotifierProvider.autoDispose<FileScannerNotifier, FileBrowserState>(
-      FileScannerNotifier.new,
-    );
+  FileScannerNotifier.new,
+);
 
 class FileScannerNotifier extends Notifier<FileBrowserState> {
   late FileScannerService _service;
@@ -24,11 +24,17 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   /// 暴露内部索引（只读用途，例如面包屑路径推导）。
   /// 调用方不应直接通过返回值变更导航状态，请使用 [stepIn]/[stepOut]/
   /// [goHome]/[jumpToPath]/[jumpToBreadcrumbIndex] 等方法以保证 UI 同步。
-  FileNodeLibraryIndex? get libraryIndex => _libraryIndex;
+  FileNodeLibraryIndex? readLibraryIndex() => _libraryIndex;
 
   @override
   FileBrowserState build() {
-    final sortOption = ref.watch(fileSortProvider);
+    final sortOption = ref.read(fileSortProvider);
+    ref.listen(fileSortProvider, (_, next) {
+      final index = _libraryIndex;
+      if (index == null) return;
+      index.applySort(next);
+      _updateStateFromIndex();
+    });
     _service = FileScannerService.instance;
     ref.onDispose(_cleanupService);
     _initializeService();
@@ -85,7 +91,8 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
         final isScanning = switch (batch.phase) {
           FileScannerResultPhase.cacheLoaded => true,
           FileScannerResultPhase.syncCompleted ||
-          FileScannerResultPhase.syncSkipped => false,
+          FileScannerResultPhase.syncSkipped =>
+            false,
         };
 
         _updateStateFromIndex(isScanning: isScanning);
@@ -132,9 +139,8 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   }
 
   Future<void> refreshCurrentTarget() async {
-    final activeTarget = ref
-        .read(scanTargetsProvider.notifier)
-        .getActiveTarget();
+    final activeTarget =
+        ref.read(scanTargetsProvider.notifier).getActiveTarget();
     if (activeTarget == null) return;
 
     state = state.copyWith(isScanning: true);
@@ -176,28 +182,26 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
     final mode = FileExtensions.isAudio(filePath)
         ? ScanMode.audio
         : FileExtensions.isVideo(filePath)
-        ? ScanMode.video
-        : null;
+            ? ScanMode.video
+            : null;
     if (mode == null) return false;
 
     final normalizedFilePath = FileNodeLibraryIndex.normalizePath(filePath);
-    final targets =
-        ref
-            .read(scanTargetsProvider.notifier)
-            .getTargetsByMode(mode)
-            .where(
-              (target) => _isPathInsideRoot(normalizedFilePath, target.path),
-            )
-            .toList()
-          ..sort((a, b) {
-            final aLength = FileNodeLibraryIndex.normalizePath(a.path).length;
-            final bLength = FileNodeLibraryIndex.normalizePath(b.path).length;
-            return bLength.compareTo(aLength);
-          });
+    final targets = ref
+        .read(scanTargetsProvider.notifier)
+        .getTargetsByMode(mode)
+        .where(
+          (target) => _isPathInsideRoot(normalizedFilePath, target.path),
+        )
+        .toList()
+      ..sort((a, b) {
+        final aLength = FileNodeLibraryIndex.normalizePath(a.path).length;
+        final bLength = FileNodeLibraryIndex.normalizePath(b.path).length;
+        return bLength.compareTo(aLength);
+      });
 
     for (final target in targets) {
-      final isCurrentTarget =
-          state.scanMode == mode &&
+      final isCurrentTarget = state.scanMode == mode &&
           NodeFolder(state.rootPath).hasSamePathAs(target.path);
       final currentIndex = isCurrentTarget ? _libraryIndex : null;
 

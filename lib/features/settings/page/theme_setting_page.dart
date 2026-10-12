@@ -38,7 +38,7 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
   @override
   Widget build(BuildContext context) {
     // 获取当前的主题状态和方法
-    final themeNotifier = ref.watch(themeNotifierProvider.notifier);
+    final themeNotifier = ref.read(themeNotifierProvider.notifier);
     final themeState = ref.watch(themeNotifierProvider);
 
     // 计算当前选中的主题模式索引

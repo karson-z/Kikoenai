@@ -114,8 +114,8 @@ class HotWorksNotifier extends BaseWorksNotifier {
 
 final hotWorksProvider =
     AsyncNotifierProvider.autoDispose<HotWorksNotifier, KikoPagingState<Work>>(
-      HotWorksNotifier.new,
-    );
+  HotWorksNotifier.new,
+);
 
 // 2. 最新作品
 class NewWorksNotifier extends BaseWorksNotifier {
@@ -140,8 +140,8 @@ class NewWorksNotifier extends BaseWorksNotifier {
 
 final newWorksProvider =
     AsyncNotifierProvider.autoDispose<NewWorksNotifier, KikoPagingState<Work>>(
-      NewWorksNotifier.new,
-    );
+  NewWorksNotifier.new,
+);
 
 // 3. 推荐作品
 class RecommendedWorksNotifier extends BaseWorksNotifier {
@@ -152,8 +152,8 @@ class RecommendedWorksNotifier extends BaseWorksNotifier {
     final api = ref.read(activeSiteApiProvider);
     if (!api.supports(SiteFeature.recommend)) return null;
 
-    final recommendUuid = await CacheService.instance
-        .getOrGenerateRecommendUuid(siteId: siteId);
+    final recommendUuid =
+        await CacheService.instance.getOrGenerateRecommendUuid(siteId: siteId);
     final currentUser = CacheService.instance.getAuthSession(siteId: siteId);
     final targetUuid = currentUser?.user?.recommenderUuid ?? recommendUuid;
 
@@ -167,11 +167,9 @@ class RecommendedWorksNotifier extends BaseWorksNotifier {
   }
 }
 
-final recommendedWorksProvider =
-    AsyncNotifierProvider.autoDispose<
-      RecommendedWorksNotifier,
-      KikoPagingState<Work>
-    >(RecommendedWorksNotifier.new);
+final recommendedWorksProvider = AsyncNotifierProvider.autoDispose<
+    RecommendedWorksNotifier,
+    KikoPagingState<Work>>(RecommendedWorksNotifier.new);
 
 final albumAllEmptyProvider = Provider<bool>((ref) {
   final hot = ref.watch(hotWorksProvider);
@@ -190,22 +188,22 @@ final albumAllEmptyProvider = Provider<bool>((ref) {
 typedef SimilarWorkQuery = ({String siteId, String circle});
 
 final similarWorkProvider =
-    FutureProvider.family<List<Work>?, SimilarWorkQuery>((
-      ref,
-      queryParams,
-    ) async {
-      final api = ref.watch(siteApiByIdProvider(queryParams.siteId));
-      if (!api.supports(SiteFeature.search)) return null;
-      const order = 'release';
-      final sort = SortDirection.desc.value;
-      final keyWork = SearchTag(
-        TagType.circle.stringValue,
-        queryParams.circle,
-        true,
-      );
-      final query = SearchTag.buildTagQueryPath([keyWork], encode: true);
-      final result = await api.searchWorks(
-        SearchWorksRequest(page: 1, keyword: query, order: order, sort: sort),
-      );
-      return result.items;
-    });
+    FutureProvider.autoDispose.family<List<Work>?, SimilarWorkQuery>((
+  ref,
+  queryParams,
+) async {
+  final api = ref.watch(siteApiByIdProvider(queryParams.siteId));
+  if (!api.supports(SiteFeature.search)) return null;
+  const order = 'release';
+  final sort = SortDirection.desc.value;
+  final keyWork = SearchTag(
+    TagType.circle.stringValue,
+    queryParams.circle,
+    true,
+  );
+  final query = SearchTag.buildTagQueryPath([keyWork], encode: true);
+  final result = await api.searchWorks(
+    SearchWorksRequest(page: 1, keyword: query, order: order, sort: sort),
+  );
+  return result.items;
+});

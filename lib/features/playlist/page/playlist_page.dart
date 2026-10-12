@@ -49,7 +49,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   @override
   Widget build(BuildContext context) {
     // 1. 获取当前目标歌单
-    final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
+    final targetPlaylist = ref.watch(defaultMarkTargetPlaylistProvider).value;
     final isLogin = ref.watch(authNotifierProvider).value?.isLoggedIn ?? false;
     final canOpenAuth = ref.watch(
       surfaceAvailableProvider(AppSurface.authPage),
@@ -71,11 +71,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
       );
     }
     if (targetPlaylist == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(defaultMarkTargetPlaylistProvider.notifier)
-            .fetchAndCacheDefault();
-      });
       return Scaffold(
         appBar: AppBar(title: const Text('加载中...')),
         body: const Center(child: CircularProgressIndicator()),
@@ -129,7 +124,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
             ),
       body: Column(
         children: [
-          InlineFilterBar(module: FilterModule.playlist),
+          const InlineFilterBar(module: FilterModule.playlist),
           Expanded(
             child: worksAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),

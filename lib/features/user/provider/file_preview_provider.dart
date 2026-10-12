@@ -7,20 +7,16 @@ import '../../../../../core/service/site/site_api_provider.dart';
 
 typedef TextContentQuery = ({String inputPath, String? siteId});
 
-final textContentProvider = FutureProvider.family<String, TextContentQuery>((
+final textContentProvider =
+    FutureProvider.autoDispose.family<String, TextContentQuery>((
   ref,
   query,
 ) async {
   final inputPath = query.inputPath;
-  // 1. 缓存管理：保持 1 分钟
-  final link = ref.keepAlive();
-  final timer = Timer(const Duration(minutes: 1), () {
-    link.close();
-  });
-  ref.onDispose(() => timer.cancel());
 
   try {
     List<int> fileBytes;
+    String content;
 
     // 2. 获取原始字节流 (Bytes)
     if (inputPath.startsWith('http') || inputPath.startsWith('https')) {
@@ -37,17 +33,21 @@ final textContentProvider = FutureProvider.family<String, TextContentQuery>((
         fileBytes,
         hintedCharset: hintedCharset,
       );
-      return fileEncode.content;
+      content = fileEncode.content;
     } else {
       // 本地文件
       final file = File(inputPath);
       if (!file.existsSync()) throw Exception("文件不存在");
 
       fileBytes = await file.readAsBytes();
+      final fileEncode = await FileEncodingHelper.decodeBytes(fileBytes);
+      content = fileEncode.content;
     }
-    final fileEncode = await FileEncodingHelper.decodeBytes(fileBytes);
-    // 3. 调用智能解码函数
-    return fileEncode.content;
+
+    final link = ref.keepAlive();
+    final timer = Timer(const Duration(minutes: 1), link.close);
+    ref.onDispose(timer.cancel);
+    return content;
   } catch (e) {
     throw Exception('读取文件失败: $e');
   }

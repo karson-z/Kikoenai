@@ -21,10 +21,9 @@ void main() {
       totalCount: 3,
       searchItems: [_audio('/nested/result.mp3')],
     );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [cloudDriveSourceProvider.overrideWith((ref, mode) => source)],
     );
-    addTearDown(container.dispose);
     const args = (mode: CloudDriveMode.alistApi, path: '/');
     final subscription = container.listen(
       cloudDriveBrowserControllerProvider(args),
@@ -75,10 +74,9 @@ void main() {
       },
       totalCount: 3,
     );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [cloudDriveSourceProvider.overrideWith((ref, mode) => source)],
     );
-    addTearDown(container.dispose);
     const args = (mode: CloudDriveMode.webDav, path: '/');
     final subscription = container.listen(
       cloudDriveBrowserControllerProvider(args),
@@ -118,12 +116,11 @@ void main() {
         totalCount: 1,
         listCompleter: listCompleter,
       );
-      final container = ProviderContainer(
+      final container = ProviderContainer.test(
         overrides: [
           cloudDriveSourceProvider.overrideWith((ref, mode) => source),
         ],
       );
-      addTearDown(container.dispose);
       const args = (mode: CloudDriveMode.alistApi, path: '/');
       final subscription = container.listen(
         cloudDriveBrowserControllerProvider(args),
@@ -159,10 +156,9 @@ void main() {
       },
       totalCount: 1,
     );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [cloudDriveSourceProvider.overrideWith((ref, mode) => source)],
     );
-    addTearDown(container.dispose);
     const args = (mode: CloudDriveMode.alistApi, path: '/');
     final controller = container.read(
       cloudDriveBrowserControllerProvider(args).notifier,
@@ -178,21 +174,21 @@ void main() {
 }
 
 FileNode _folder(String path) => FileNode(
-  type: NodeType.folder,
-  title: NodeFolder(path).name,
-  path: path,
-  remoteId: path,
-  source: NodeSource.cloudDrive,
-);
+      type: NodeType.folder,
+      title: NodeFolder(path).name,
+      path: path,
+      remoteId: path,
+      source: NodeSource.cloudDrive,
+    );
 
 FileNode _audio(String path, {int size = 0}) => FileNode(
-  type: NodeType.audio,
-  title: NodeFolder(path).name,
-  path: path,
-  remoteId: path,
-  size: size,
-  source: NodeSource.cloudDrive,
-);
+      type: NodeType.audio,
+      title: NodeFolder(path).name,
+      path: path,
+      remoteId: path,
+      size: size,
+      source: NodeSource.cloudDrive,
+    );
 
 class _FakeCloudDriveSource implements CloudDriveSource {
   _FakeCloudDriveSource({

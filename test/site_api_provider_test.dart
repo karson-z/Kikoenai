@@ -25,7 +25,7 @@ void main() {
       ..registerRuntime(_runtime('site.one', {SiteFeature.search}))
       ..registerRuntime(_runtime('site.two', {SiteFeature.detail}));
     final persisted = <String>[];
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.one'),
@@ -34,7 +34,6 @@ void main() {
         }),
       ],
     );
-    addTearDown(container.dispose);
 
     expect(container.read(activeSiteInfoProvider).id, 'site.one');
     expect(container.read(siteSupportsProvider(SiteFeature.search)), isTrue);
@@ -53,14 +52,13 @@ void main() {
       ..registerRuntime(_runtime('site.one', const {}))
       ..registerRuntime(_runtime('site.two', const {}));
 
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.one'),
         siteSelectionPersistenceProvider.overrideWithValue((_) async {}),
       ],
     );
-    addTearDown(container.dispose);
 
     await container.read(activeSiteIdProvider.notifier).activate('site.two');
 
@@ -74,14 +72,13 @@ void main() {
       ..registerRuntime(
         _runtime(AsmrGaySiteApi.info.id, {SiteFeature.fileSystemBrowse}),
       );
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.one'),
         siteSelectionPersistenceProvider.overrideWithValue((_) async {}),
       ],
     );
-    addTearDown(container.dispose);
 
     await expectLater(
       container
@@ -98,13 +95,12 @@ void main() {
         _runtime(AsmrGaySiteApi.info.id, {SiteFeature.fileSystemBrowse}),
       )
       ..registerRuntime(_runtime('site.one', {SiteFeature.search}));
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue(AsmrGaySiteApi.info.id),
       ],
     );
-    addTearDown(container.dispose);
 
     expect(container.read(activeSiteIdProvider), 'site.one');
     expect(registry.activeId, 'site.one');

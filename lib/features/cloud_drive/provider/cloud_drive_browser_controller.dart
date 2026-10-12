@@ -235,9 +235,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       node.remoteId ?? node.path ?? node.mediaStreamUrl ?? node.title;
 }
 
-final cloudDriveBrowserControllerProvider =
-    NotifierProvider.family<
-      CloudDriveBrowserController,
-      CloudDriveBrowserState,
-      CloudDriveBrowserArgs
-    >(CloudDriveBrowserController.new);
+final cloudDriveBrowserControllerProvider = NotifierProvider.autoDispose.family<
+    CloudDriveBrowserController,
+    CloudDriveBrowserState,
+    CloudDriveBrowserArgs>(CloudDriveBrowserController.new);

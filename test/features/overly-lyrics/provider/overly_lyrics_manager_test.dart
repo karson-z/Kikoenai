@@ -46,8 +46,7 @@ void main() {
   }, skip: Platform.isAndroid);
 
   test('keeps the subtitle manager provider readable outside Android', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+    final container = ProviderContainer.test();
 
     expect(container.read(overlayLyricsSupportedProvider), isFalse);
     expect(container.read(subtitleManagerProvider), isA<NoopSubtitleManager>());

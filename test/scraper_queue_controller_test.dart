@@ -17,11 +17,11 @@ FileNode _node(int id) {
 }
 
 ProviderContainer _container(ScraperWorkLoader loader) {
-  return ProviderContainer(
+  return ProviderContainer.test(
     overrides: [
       scraperWorkLoaderProvider.overrideWithValue(loader),
       scraperWorkExistsProvider.overrideWithValue((_) => false),
-      scraperWorkSaverProvider.overrideWithValue((_, _) async {}),
+      scraperWorkSaverProvider.overrideWithValue((_siteId, _work) async {}),
       scraperQueueDelayProvider.overrideWithValue(Duration.zero),
       scraperQueueConcurrencyProvider.overrideWithValue(1),
     ],
@@ -48,7 +48,6 @@ void main() {
       if (!started.isCompleted) started.complete(workId);
       return Work(id: workId);
     });
-    addTearDown(container.dispose);
 
     final notifier = container.read(scraperQueueProvider.notifier);
     await notifier.addTasks([_node(401), _node(402)]);
@@ -79,7 +78,6 @@ void main() {
         }
         return Work(id: workId);
       });
-      addTearDown(container.dispose);
 
       final notifier = container.read(scraperQueueProvider.notifier);
       final node = _node(101);
@@ -124,7 +122,6 @@ void main() {
         }
         return Work(id: workId);
       });
-      addTearDown(container.dispose);
 
       final notifier = container.read(scraperQueueProvider.notifier);
       final nodes = [_node(201), _node(202), _node(203)];
@@ -170,7 +167,6 @@ void main() {
       cancellationToken.throwIfCancelled();
       return Work(id: workId);
     });
-    addTearDown(container.dispose);
 
     final notifier = container.read(scraperQueueProvider.notifier);
     await notifier.addTasks([_node(301)]);

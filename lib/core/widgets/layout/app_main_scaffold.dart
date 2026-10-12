@@ -77,11 +77,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     // NavigationBar owns a SafeArea. Reserve both its content height and the
     // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
-    final bottomNavBarHeight =
-        AppConstants.kAppBottomNavHeight +
+    final bottomNavBarHeight = AppConstants.kAppBottomNavHeight +
         MediaQuery.viewPaddingOf(context).bottom;
 
-    final mainController = ref.watch(mainScaffoldProvider.notifier);
+    final mainController = ref.read(mainScaffoldProvider.notifier);
     final mainState = ref.watch(mainScaffoldProvider);
     final panelController = ref.watch(panelControllerProvider);
     final hasPlaybackItems = ref.watch(
@@ -157,11 +156,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
               fadeCollapsed: false,
               panelBuilder:
                   (ScrollController sc, AnimationController controller) {
-                    return PlayerView(
-                      dragProgressNotifier: controller,
-                      minHeight: AppConstants.kMiniPlayerHeight,
-                    );
-                  },
+                return PlayerView(
+                  dragProgressNotifier: controller,
+                  minHeight: AppConstants.kMiniPlayerHeight,
+                );
+              },
               body: bodyContent,
               showBottomNavBar: isMobile ? showBottomNav : false,
               bottomNavBarHeight: bottomNavBarHeight,

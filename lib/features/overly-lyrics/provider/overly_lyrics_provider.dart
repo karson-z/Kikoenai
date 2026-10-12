@@ -30,13 +30,13 @@ final subtitleManagerProvider = Provider<SubtitleManager>((ref) {
 });
 final lyricsControllerProvider =
     NotifierProvider<LyricsController, LyricsState>(() {
-      return LyricsController();
-    });
+  return LyricsController();
+});
 
 class LyricsController extends Notifier<LyricsState> {
   StreamSubscription<Map<String, dynamic>>? _overlayEventSubscription;
   StreamSubscription<dynamic>? _audioControlSubscription;
-  Box<dynamic> get setting => AppStorage.settingsBox;
+  Box<dynamic> get _setting => AppStorage.settingsBox;
   @override
   LyricsState build() {
     final manager = ref.watch(subtitleManagerProvider);
@@ -50,19 +50,19 @@ class LyricsController extends Notifier<LyricsState> {
       _overlayEventSubscription?.cancel();
       _audioControlSubscription?.cancel();
     });
-    final isDesktopModeEnabled = setting.get(
+    final isDesktopModeEnabled = _setting.get(
       StorageKeys.desktopLyricsEnabled,
       defaultValue: false,
     );
-    final isLocked = setting.get(
+    final isLocked = _setting.get(
       StorageKeys.overlayLyricsIsLocked,
       defaultValue: false,
     );
-    final fontSize = setting.get(
+    final fontSize = _setting.get(
       StorageKeys.overlayLyricsFontSize,
       defaultValue: 24.0,
     );
-    final fontColorInt = setting.get(
+    final fontColorInt = _setting.get(
       StorageKeys.overlayLyricsFontColor,
       defaultValue: 0xFFFFFFFF,
     );
@@ -91,7 +91,7 @@ class LyricsController extends Notifier<LyricsState> {
           if (payload is Map) {
             final fontPresetKey = payload['fontPreset'] as String?;
             if (fontPresetKey != null && fontPresetKey.isNotEmpty) {
-              setting.put(StorageKeys.themeFontPreset, fontPresetKey);
+              _setting.put(StorageKeys.themeFontPreset, fontPresetKey);
             }
             state = state.copyWith(
               isPlaying: payload['isPlaying'] ?? state.isPlaying,
@@ -115,14 +115,14 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   void _listenToAudioControlEvents() {
-    _audioControlSubscription = AudioServiceSingleton.instance.customEvent
-        .listen((event) {
-          if (event == OverlayLyricsMediaAction.toggleVisibility) {
-            unawaited(_toggleDesktopLyricsFromMediaControl());
-          } else if (event == OverlayLyricsMediaAction.toggleClickThrough) {
-            unawaited(setLockFromMain(!state.isLocked));
-          }
-        });
+    _audioControlSubscription =
+        AudioServiceSingleton.instance.customEvent.listen((event) {
+      if (event == OverlayLyricsMediaAction.toggleVisibility) {
+        unawaited(_toggleDesktopLyricsFromMediaControl());
+      } else if (event == OverlayLyricsMediaAction.toggleClickThrough) {
+        unawaited(setLockFromMain(!state.isLocked));
+      }
+    });
   }
 
   Future<void> _toggleDesktopLyricsFromMediaControl() async {
@@ -141,10 +141,10 @@ class LyricsController extends Notifier<LyricsState> {
     unawaited(
       AudioServiceSingleton.instance
           .customAction(OverlayLyricsMediaAction.syncControlState, {
-            OverlayLyricsMediaAction.desktopLyricsEnabledKey:
-                state.isDesktopModeEnabled,
-            OverlayLyricsMediaAction.clickThroughEnabledKey: state.isLocked,
-          }),
+        OverlayLyricsMediaAction.desktopLyricsEnabledKey:
+            state.isDesktopModeEnabled,
+        OverlayLyricsMediaAction.clickThroughEnabledKey: state.isLocked,
+      }),
     );
   }
 
@@ -159,21 +159,21 @@ class LyricsController extends Notifier<LyricsState> {
 
   Future<void> show() async {
     if (state.isDesktopModeEnabled && state.isWindowVisible) return;
-    final isLocked = setting.get(
+    final isLocked = _setting.get(
       StorageKeys.overlayLyricsIsLocked,
       defaultValue: false,
     );
-    final posX = setting.get(
+    final posX = _setting.get(
       StorageKeys.overlayLyricsPositionX,
       defaultValue: 0.0,
     );
-    final posY = setting.get(
+    final posY = _setting.get(
       StorageKeys.overlayLyricsPositionY,
       defaultValue: 0.0,
     );
     await _manager.showOverlay(isLocked: isLocked, posX: posX, posY: posY);
     state = state.copyWith(isDesktopModeEnabled: true, isWindowVisible: true);
-    await setting.put(StorageKeys.desktopLyricsEnabled, true);
+    await _setting.put(StorageKeys.desktopLyricsEnabled, true);
     ref.read(overlayLyricSyncProvider).startSync();
     _syncAudioControlState();
   }
@@ -181,7 +181,7 @@ class LyricsController extends Notifier<LyricsState> {
   Future<void> hide({bool isUserAction = false}) async {
     if (isUserAction) {
       state = state.copyWith(isDesktopModeEnabled: false);
-      await setting.put(StorageKeys.desktopLyricsEnabled, false);
+      await _setting.put(StorageKeys.desktopLyricsEnabled, false);
       ref.read(overlayLyricSyncProvider).stopSync();
     }
     state = state.copyWith(isWindowVisible: false);
@@ -191,7 +191,7 @@ class LyricsController extends Notifier<LyricsState> {
 
   void updateLockState(bool isLocked) {
     state = state.copyWith(isLocked: isLocked);
-    setting.put(StorageKeys.overlayLyricsIsLocked, isLocked);
+    _setting.put(StorageKeys.overlayLyricsIsLocked, isLocked);
     _syncAudioControlState();
   }
 
@@ -239,9 +239,8 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   void toggleOrientation() {
-    final newOrientation = state.orientation == Axis.horizontal
-        ? Axis.vertical
-        : Axis.horizontal;
+    final newOrientation =
+        state.orientation == Axis.horizontal ? Axis.vertical : Axis.horizontal;
     state = state.copyWith(orientation: newOrientation);
   }
 
@@ -251,7 +250,7 @@ class LyricsController extends Notifier<LyricsState> {
   }
 
   void updateFontPresetAndSendToOverlay(AppFontPreset preset) {
-    setting.put(StorageKeys.themeFontPreset, preset.storageKey);
+    _setting.put(StorageKeys.themeFontPreset, preset.storageKey);
     _manager.sendToOverlay(PlayerConstants.syncBusinessState, {
       'fontPreset': preset.storageKey,
     });

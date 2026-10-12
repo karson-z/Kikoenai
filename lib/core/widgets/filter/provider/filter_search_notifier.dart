@@ -17,12 +17,12 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
   final FilterModule module;
 
-  Box<SearchTag> get filterTagsBox => AppStorage.filterTagsBox;
+  Box<SearchTag> get _filterTagsBox => AppStorage.filterTagsBox;
 
   @override
   SearchFilterState build() {
     if (module == FilterModule.global) {
-      final cachedTags = filterTagsBox.values.toList();
+      final cachedTags = _filterTagsBox.values.toList();
       return const SearchFilterState().copyWith(selectedTags: cachedTags);
     }
     return const SearchFilterState();
@@ -55,7 +55,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
   void resetSelected() {
     if (module == FilterModule.global) {
-      filterTagsBox.clear();
+      _filterTagsBox.clear();
     }
     state = state.copyWith(selectedTags: []);
   }
@@ -66,14 +66,14 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
     if (module == FilterModule.global) {
       final keysToDelete = [];
-      final map = filterTagsBox.toMap();
+      final map = _filterTagsBox.toMap();
       for (final entry in map.entries) {
         if (entry.value.type == type) {
           keysToDelete.add(entry.key);
         }
       }
       if (keysToDelete.isNotEmpty) {
-        filterTagsBox.deleteAll(keysToDelete);
+        _filterTagsBox.deleteAll(keysToDelete);
       }
     }
 
@@ -98,7 +98,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
     if (module == FilterModule.global) {
       final key = _findBoxKey(type, name);
       if (key != null) {
-        filterTagsBox.delete(key);
+        _filterTagsBox.delete(key);
       }
     }
 
@@ -114,7 +114,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
       tags.add(newTag);
 
       if (module == FilterModule.global) {
-        filterTagsBox.add(newTag);
+        _filterTagsBox.add(newTag);
       }
     } else {
       final old = tags[idx];
@@ -125,7 +125,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
         if (module == FilterModule.global) {
           final key = _findBoxKey(type, name);
           if (key != null) {
-            filterTagsBox.put(key, updatedTag);
+            _filterTagsBox.put(key, updatedTag);
           }
         }
       } else {
@@ -134,7 +134,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
         if (module == FilterModule.global) {
           final key = _findBoxKey(type, name);
           if (key != null) {
-            filterTagsBox.delete(key);
+            _filterTagsBox.delete(key);
           }
         }
       }
@@ -144,7 +144,7 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
   // 内部辅助方法：定位 Box 中的唯一 Key
   dynamic _findBoxKey(String type, String name) {
-    final map = filterTagsBox.toMap();
+    final map = _filterTagsBox.toMap();
     for (final entry in map.entries) {
       final currentTag = entry.value;
       if (currentTag.type == type && currentTag.name == name) {
@@ -173,9 +173,9 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
     if (module == FilterModule.global) {
       final key = _findBoxKey(type, name);
       if (key != null) {
-        filterTagsBox.put(key, updated);
+        _filterTagsBox.put(key, updated);
       } else {
-        filterTagsBox.add(updated);
+        _filterTagsBox.add(updated);
       }
     }
     state = state.copyWith(selectedTags: tags);
@@ -191,9 +191,5 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
   }
 }
 
-final searchFilterProvider =
-    NotifierProvider.family<
-      SearchFilterNotifier,
-      SearchFilterState,
-      FilterModule
-    >(SearchFilterNotifier.new);
+final searchFilterProvider = NotifierProvider.family<SearchFilterNotifier,
+    SearchFilterState, FilterModule>(SearchFilterNotifier.new);

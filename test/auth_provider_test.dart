@@ -60,14 +60,13 @@ void main() {
     final registry = SiteRegistry()
       ..registerRuntime(_runtime('site.one', siteOneApi))
       ..registerRuntime(_runtime('site.two', _NoAuthApi()));
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.one'),
         siteSelectionPersistenceProvider.overrideWithValue((_) async {}),
       ],
     );
-    addTearDown(container.dispose);
 
     await container.read(authNotifierProvider.future);
     final loginFuture = container

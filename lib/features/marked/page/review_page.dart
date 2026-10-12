@@ -42,9 +42,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     }
     // 1. 监听数据状态 (Loading / Data / Error)
     final reviewAsync = ref.watch(reviewListProvider);
-    // 2. 获取 Notifier 实例
+    final params = ref.watch(reviewQueryParamsProvider);
     final notifier = ref.read(reviewListProvider.notifier);
-    final params = notifier.params;
 
     // 计算 Tab Index
     final int currentTabIndex = params.filter != null ? 1 : 0;
@@ -75,12 +74,12 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                 AsyncValue(:final value?) when value.works.isEmpty =>
                   _buildEmptyView(),
                 AsyncValue(:final value?) => ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  itemCount: value.works.length,
-                  itemBuilder: (context, index) {
-                    return WorkListCard(work: value.works[index]);
-                  },
-                ),
+                    padding: const EdgeInsets.only(top: 8, bottom: 16),
+                    itemCount: value.works.length,
+                    itemBuilder: (context, index) {
+                      return WorkListCard(work: value.works[index]);
+                    },
+                  ),
                 AsyncValue(:final error?) => Text('Error: $error'),
                 _ => const Center(child: CircularProgressIndicator()),
               },

@@ -20,11 +20,13 @@ import '../../../../core/storage/hive_storage.dart';
 /// 多首曲目共用一个字幕文件时自动命中缓存；即使外层 provider 因
 /// 切歌 / 加载完成 / 映射更新等原因重跑，同一 URL 也不会重复发请求。
 /// （区别于整对象 watch：URL 是稳定标识，不随 freezed 实例重建而抖动。）
-final lyricsContentProvider = FutureProvider.family<String?, String>((
+final lyricsContentProvider =
+    FutureProvider.autoDispose.family<String?, String>((
   ref,
   url,
 ) async {
-  final siteId = ref.read(playerControllerProvider).currentItem?.contentId?.siteId;
+  final siteId =
+      ref.read(playerControllerProvider).currentItem?.contentId?.siteId;
   final httpClient = siteId == null
       ? ref.read(sitesHttpClientProvider)
       : ref.read(siteHttpClientByIdProvider(siteId));
@@ -90,15 +92,15 @@ extension LyricControllerExt on LyricController {
 /// 字幕样式提供者
 final lyricConfigProvider =
     NotifierProvider<LyricConfigNotifier, LyricConfigModel>(() {
-      return LyricConfigNotifier();
-    });
+  return LyricConfigNotifier();
+});
 
 class LyricConfigNotifier extends Notifier<LyricConfigModel> {
-  Box get setting => AppStorage.settingsBox;
+  Box get _setting => AppStorage.settingsBox;
 
   @override
   LyricConfigModel build() {
-    return setting.get(
+    return _setting.get(
       StorageKeys.lyricsStyleConfig,
       defaultValue: const LyricConfigModel(),
     );
@@ -124,7 +126,7 @@ class LyricConfigNotifier extends Notifier<LyricConfigModel> {
   // 统一保存逻辑
   void _save(LyricConfigModel newConfig) {
     state = newConfig;
-    setting.put(StorageKeys.lyricsStyleConfig, newConfig);
+    _setting.put(StorageKeys.lyricsStyleConfig, newConfig);
   }
 }
 

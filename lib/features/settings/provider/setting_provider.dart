@@ -3,32 +3,32 @@ import 'package:kikoenai/core/enums/playlist_filter.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../../core/service/cache/cache_service.dart';
 import '../../../../core/service/site/site_api_provider.dart';
+import '../../auth/provider/auth_provider.dart';
 
 // 1. 本地存储：管理用户选中的“默认播放列表”对象
 // 我们存储整个 Playlist 对象（JSON），以便显示名称
 final defaultMarkTargetPlaylistProvider =
-    NotifierProvider<DefaultMarkTargetPlaylistNotifier, Playlist?>(
-      DefaultMarkTargetPlaylistNotifier.new,
-    );
+    AsyncNotifierProvider<DefaultMarkTargetPlaylistNotifier, Playlist?>(
+  DefaultMarkTargetPlaylistNotifier.new,
+);
 
-class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
+class DefaultMarkTargetPlaylistNotifier extends AsyncNotifier<Playlist?> {
   @override
-  Playlist? build() {
+  Future<Playlist?> build() async {
     final siteId = ref.watch(activeSiteIdProvider);
-    // 1. 初始化时，直接从本地 Hive 缓存读取
-    final playList = CacheService.instance.getQuickMarkTargetPlaylist(
+    final auth = ref.watch(authNotifierProvider).value;
+    final cachedPlaylist = CacheService.instance.getQuickMarkTargetPlaylist(
       siteId: siteId,
     );
-    if (playList == null) {
-      fetchAndCacheDefault();
-    }
-    return playList;
+    if (cachedPlaylist != null) return cachedPlaylist;
+    if (auth?.isLoggedIn != true) return null;
+    return _fetchAndCacheDefault(siteId);
   }
 
   /// 更新选中的播放列表（用户手动选择）
   Future<void> setPlaylist(Playlist playlist) async {
     final siteId = ref.read(activeSiteIdProvider);
-    state = playlist;
+    state = AsyncData(playlist);
     // 同步保存到本地缓存
     await CacheService.instance.saveQuickMarkTargetPlaylist(
       playlist,
@@ -36,32 +36,29 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
     );
   }
 
-  Future<void> fetchAndCacheDefault() async {
+  Future<Playlist?> _fetchAndCacheDefault(String siteId) async {
     try {
-      final siteId = ref.read(activeSiteIdProvider);
       final auth = CacheService.instance.getAuthSession(siteId: siteId);
       if (auth == null || !auth.isSuccess) {
-        return;
+        return null;
       }
-      final api = ref.read(activeSiteApiProvider);
+      final api = ref.read(siteApiByIdProvider(siteId));
       final Playlist playlist;
       if (api.supports(SiteFeature.defaultMarkTargetPlaylist)) {
         playlist = await api.fetchDefaultMarkTargetPlaylist();
       } else {
-        if (!api.supports(SiteFeature.playlists)) return;
+        if (!api.supports(SiteFeature.playlists)) return null;
         final response = await api.fetchPlaylists(page: 1, pageSize: 1);
-        if (response.items.isEmpty) return;
+        if (response.items.isEmpty) return null;
         playlist = response.items.first;
       }
 
-      // 更新状态并缓存
-      state = playlist;
       await CacheService.instance.saveQuickMarkTargetPlaylist(
         playlist,
         siteId: siteId,
       );
+      return playlist;
     } catch (e) {
-      // 可以在这里处理错误，例如记录日志
       print('获取默认标记列表失败: $e');
       rethrow;
     }
@@ -70,7 +67,7 @@ class DefaultMarkTargetPlaylistNotifier extends Notifier<Playlist?> {
   /// 清除设置
   Future<void> clear() async {
     final siteId = ref.read(activeSiteIdProvider);
-    state = null;
+    state = const AsyncData(null);
     await CacheService.instance.clearQuickMarkTargetPlaylist(siteId: siteId);
   }
 }

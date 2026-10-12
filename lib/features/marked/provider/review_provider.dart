@@ -5,15 +5,23 @@ import '../../../../core/service/site/site_api_provider.dart';
 // 定义 Provider
 final reviewListProvider =
     AsyncNotifierProvider<ReviewListNotifier, PagedReviewData>(() {
-      return ReviewListNotifier();
-    });
+  return ReviewListNotifier();
+});
+
+final reviewQueryParamsProvider =
+    NotifierProvider<ReviewQueryParamsNotifier, ReviewQueryParams>(
+  ReviewQueryParamsNotifier.new,
+);
+
+class ReviewQueryParamsNotifier extends Notifier<ReviewQueryParams> {
+  @override
+  ReviewQueryParams build() => const ReviewQueryParams();
+
+  void update(ReviewQueryParams params) => state = params;
+}
 
 class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
-  // 1. 内部持有请求参数，默认为初始值
-  ReviewQueryParams _params = const ReviewQueryParams();
-
-  // 2. 向外暴露 getter，供 UI 读取当前参数（例如高亮 Tab 或显示页码）
-  ReviewQueryParams get params => _params;
+  ReviewQueryParams get _params => ref.read(reviewQueryParamsProvider);
 
   SiteApi get _api => ref.read(activeSiteApiProvider);
 
@@ -46,8 +54,9 @@ class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
 
   /// 切换页码
   Future<void> setPage(int page) async {
-    // 1. 更新参数
-    _params = _params.copyWith(page: page);
+    ref
+        .read(reviewQueryParamsProvider.notifier)
+        .update(_params.copyWith(page: page));
     // 2. 触发加载 (显示 loading 状态，或者使用 keepPreviousData 保持旧数据)
     state = const AsyncValue.loading();
     // 3. 重新获取数据并更新状态
@@ -69,11 +78,11 @@ class ReviewListNotifier extends AsyncNotifier<PagedReviewData> {
     }
 
     // 更新其他字段并重置页码
-    _params = newParams.copyWith(
-      sort: sort,
-      order: order,
-      page: 1, // 改了筛选条件，重置为第一页
-    );
+    ref.read(reviewQueryParamsProvider.notifier).update(newParams.copyWith(
+          sort: sort,
+          order: order,
+          page: 1, // 改了筛选条件，重置为第一页
+        ));
 
     // 2. 重新加载
     state = const AsyncValue.loading();

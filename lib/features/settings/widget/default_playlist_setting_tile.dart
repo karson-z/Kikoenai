@@ -16,7 +16,7 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
     // 1. 使用扩展方法直接获取登录状态
     final bool isLogin = ref.isLoggedIn;
 
-    final selectedPlaylist = ref.watch(defaultMarkTargetPlaylistProvider);
+    final selectedPlaylist = ref.watch(defaultMarkTargetPlaylistProvider).value;
     final playlistsAsync = ref.watch(allMyPlaylistsProvider);
 
     return Padding(
@@ -24,7 +24,8 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.playlist_add_check, size: 24, color: theme.colorScheme.onSurfaceVariant),
+          Icon(Icons.playlist_add_check,
+              size: 24, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -51,13 +52,14 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
 
           // --- 核心逻辑判断 ---
           if (!isLogin)
-          // 未登录状态：直接显示请登录，跳过网络请求解析
+            // 未登录状态：直接显示请登录，跳过网络请求解析
             Text(
               "请登录",
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
             )
           else
-          // 已登录状态：处理异步列表数据
+            // 已登录状态：处理异步列表数据
             playlistsAsync.when(
               loading: () => const SizedBox(
                 width: 20,
@@ -66,7 +68,8 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
               ),
               error: (_, __) => Text(
                 "加载失败",
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
               ),
               data: (playlists) {
                 // 如果登录了但没有歌单，提示无可用列表
@@ -86,8 +89,10 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
                     icon: const Icon(Icons.arrow_drop_down),
                     borderRadius: BorderRadius.circular(12),
                     menuMaxHeight: 400,
-                    items: playlists.map<DropdownMenuItem<String>>((Playlist playlist) {
-                      final displayName = OtherUtil.getDisplayName(playlist.name);
+                    items: playlists
+                        .map<DropdownMenuItem<String>>((Playlist playlist) {
+                      final displayName =
+                          OtherUtil.getDisplayName(playlist.name);
                       return DropdownMenuItem<String>(
                         value: playlist.id,
                         child: Container(
@@ -103,8 +108,11 @@ class DefaultPlaylistSettingTile extends ConsumerWidget {
                     }).toList(),
                     onChanged: (String? newId) {
                       if (newId != null) {
-                        final newPlaylist = playlists.firstWhere((p) => p.id == newId);
-                        ref.read(defaultMarkTargetPlaylistProvider.notifier).setPlaylist(newPlaylist);
+                        final newPlaylist =
+                            playlists.firstWhere((p) => p.id == newId);
+                        ref
+                            .read(defaultMarkTargetPlaylistProvider.notifier)
+                            .setPlaylist(newPlaylist);
                       }
                     },
                   ),

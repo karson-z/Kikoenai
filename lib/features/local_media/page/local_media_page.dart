@@ -59,9 +59,8 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
     final breadcrumbNotifier = ref.read(
       breadcrumbProvider(BreadCrumbBarType.local).notifier,
     );
-    final List<String> breadcrumbPaths = breadcrumbNodes
-        .map((node) => node.title)
-        .toList();
+    final List<String> breadcrumbPaths =
+        breadcrumbNodes.map((node) => node.title).toList();
 
     // 切换目录时清掉当前搜索，避免上一层的关键字继续过滤新目录。
     ref.listen<FileBrowserState>(fileScannerProvider, (previous, next) {
@@ -113,10 +112,10 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
     final visibleNodes = normalizedQuery.isEmpty
         ? scannerState.children
         : scannerState.children
-              .where(
-                (node) => node.title.toLowerCase().contains(normalizedQuery),
-              )
-              .toList(growable: false);
+            .where(
+              (node) => node.title.toLowerCase().contains(normalizedQuery),
+            )
+            .toList(growable: false);
     final directoryKey = Object.hash(
       scannerState.rootPath,
       scannerState.currentFolderPath,
@@ -215,9 +214,8 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
                   editConfig: FileBrowserEditConfig(
                     isEditing: edit.isEditing,
                     selectedKeys: edit.selectedKeys,
-                    onToggle: (keyId) => ref
-                        .read(localFileEditProvider.notifier)
-                        .toggle(keyId),
+                    onToggle: (keyId) =>
+                        ref.read(localFileEditProvider.notifier).toggle(keyId),
                     onRequestEdit: (keyId) =>
                         ref.read(localFileEditProvider.notifier).enter(keyId),
                   ),
@@ -229,8 +227,9 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
                       '已显示 ${visibleNodes.length} / ${scannerState.children.length} 项',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ),
                 ),
@@ -281,8 +280,8 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
           Text(
             "点击下方按钮管理并添加文件夹",
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
           ),
           const SizedBox(height: 32),
           FilledButton.icon(
@@ -350,7 +349,8 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
       parsedWorkIds: parsed,
       queue: queue,
     ).isNotEmpty;
-    final canPlay = scanner.scanMode != ScanMode.subtitles && selected.isNotEmpty;
+    final canPlay =
+        scanner.scanMode != ScanMode.subtitles && selected.isNotEmpty;
     return FileBrowserEditBar(
       selectedCount: selected.length,
       allSelected: edit.allVisibleSelected(visible.map((node) => node.keyId)),
@@ -400,7 +400,7 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
   }
 
   Future<void> _playSelected(List<FileNode> selected) async {
-    final index = ref.read(fileScannerProvider.notifier).libraryIndex;
+    final index = ref.read(fileScannerProvider.notifier).readLibraryIndex();
     if (index == null) return;
     final files = FileBrowserEditActions.collectLocalPlayable(
       index: index,
@@ -419,16 +419,16 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
     if (!confirmed || !mounted) return;
     final items = FileBrowserEditActions.playbackItems(
       files,
-      workOf: (node) => node.workId == null
-          ? null
-          : ScraperStorage().getWork(node.workId!),
+      workOf: (node) =>
+          node.workId == null ? null : ScraperStorage().getWork(node.workId!),
     );
     await ref.read(playerControllerProvider.notifier).addPlaybackItems(items);
     if (!mounted) return;
     ref.read(localFileEditProvider.notifier).exit();
   }
 
-  Future<void> _excludeSelected(String rootPath, List<FileNode> selected) async {
+  Future<void> _excludeSelected(
+      String rootPath, List<FileNode> selected) async {
     final entries = FileBrowserEditActions.exclusionsFor(
       rootPath: rootPath,
       selected: selected,

@@ -10,13 +10,12 @@ import 'webdav_connection_controller.dart';
 
 final cloudDriveSourceProvider =
     Provider.family<CloudDriveSource, CloudDriveMode>(
-      (ref, mode) => switch (mode) {
-        CloudDriveMode.alistApi => AlistApiCloudDriveSource(
-          ref.watch(siteApiByIdProvider(AsmrGaySiteApi.info.id))
-              as AlistSiteApi,
-        ),
-        CloudDriveMode.webDav => WebDavCloudDriveSource(
-          ref.watch(webDavConnectionControllerProvider.notifier),
-        ),
-      },
-    );
+  (ref, mode) => switch (mode) {
+    CloudDriveMode.alistApi => AlistApiCloudDriveSource(
+        ref.watch(siteApiByIdProvider(AsmrGaySiteApi.info.id)) as AlistSiteApi,
+      ),
+    CloudDriveMode.webDav => WebDavCloudDriveSource(
+        ref.read(webDavConnectionControllerProvider.notifier),
+      ),
+  },
+);

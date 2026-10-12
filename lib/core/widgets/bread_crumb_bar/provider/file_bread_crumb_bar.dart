@@ -35,7 +35,10 @@ class BreadcrumbNotifier extends Notifier<List<FileNode>> {
 
   List<FileNode> _localPath() {
     if (type != BreadCrumbBarType.local) return [];
-    return ref.read(fileScannerProvider.notifier).libraryIndex?.breadcrumbPath ??
+    return ref
+            .read(fileScannerProvider.notifier)
+            .readLibraryIndex()
+            ?.breadcrumbPath ??
         const [];
   }
 
@@ -96,7 +99,7 @@ class BreadcrumbNotifier extends Notifier<List<FileNode>> {
 }
 
 /// 暴露给 UI 的 Provider。
-final breadcrumbProvider = NotifierProvider.family.autoDispose<
-    BreadcrumbNotifier, List<FileNode>, BreadCrumbBarType>(
+final breadcrumbProvider = NotifierProvider.family
+    .autoDispose<BreadcrumbNotifier, List<FileNode>, BreadCrumbBarType>(
   BreadcrumbNotifier.new,
 );

@@ -23,8 +23,8 @@ import '../../overly-lyrics/provider/overly_lyrics_provider.dart';
 
 final playerControllerProvider =
     NotifierProvider<PlayerController, AppPlayerState>(() {
-      return PlayerController();
-    });
+  return PlayerController();
+});
 
 class PlayerController extends Notifier<AppPlayerState> {
   Timer? _playbackTicker;
@@ -39,7 +39,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   Box<dynamic> get _settingsBox => AppStorage.settingsBox;
 
-  HistoryController get historyController =>
+  HistoryController get _historyController =>
       ref.read(historyControllerProvider.notifier);
 
   WorkProgressRepository get _workProgressRepository =>
@@ -112,13 +112,11 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     final repeatMode = AudioServiceRepeatMode.values[repeatModeIndex];
 
-    final shuffleEnabled =
-        _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false)
-            as bool;
+    final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled,
+        defaultValue: false) as bool;
 
-    final isAudioOnly =
-        _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false)
-            as bool;
+    final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly,
+        defaultValue: false) as bool;
 
     // 2. 将配置应用到底层播放引擎
     if (isAudioOnly) {
@@ -126,7 +124,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
 
     // 3. 从历史记录恢复播放队列与进度
-    final previousState = historyController.getLatestOne();
+    final previousState = _historyController.getLatestOne();
     PlaybackSession? session;
 
     if (previousState != null) {
@@ -171,15 +169,12 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (item == null) {
       return;
     }
-    final contentId = item.source == NodeSource.asmrServer
-        ? item.contentId
-        : null;
+    final contentId =
+        item.source == NodeSource.asmrServer ? item.contentId : null;
 
     // 4. 通知 Provider
     if (contentId != null) {
-      ref
-          .read(playbackTrackerProvider.notifier)
-          .updatePlaybackStatus(
+      ref.read(playbackTrackerProvider.notifier).updatePlaybackStatus(
             siteId: contentId.siteId,
             workId: contentId.remoteId,
             isPlaying: finalIsPlaying,
@@ -285,8 +280,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
-        loading:
-            p.processingState == AudioProcessingState.loading ||
+        loading: p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -370,7 +364,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         lastPlayTime: now,
       );
 
-      historyController.upsert(history);
+      _historyController.upsert(history);
 
       // 同步维护作品维度的断点索引：与会话历史互相独立，
       // 删除会话不影响其他会话内同一作品的续播进度。
@@ -412,9 +406,8 @@ class PlayerController extends Notifier<AppPlayerState> {
   /// Returns false when the platform cannot provide it.
   Future<bool> loadScreenBrightness() async {
     try {
-      final brightness = await ref
-          .read(videoBrightnessServiceProvider)
-          .applicationBrightness;
+      final brightness =
+          await ref.read(videoBrightnessServiceProvider).applicationBrightness;
       state = state.copyWith(
         screenBrightness: brightness.clamp(0.0, 1.0).toDouble(),
       );
@@ -563,9 +556,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     NodeSource? source,
   }) async {
     if (node.isAudio || node.isVideo) {
-      final audioFiles = currentNodes
-          .where((n) => n.isAudio || n.isVideo)
-          .toList();
+      final audioFiles =
+          currentNodes.where((n) => n.isAudio || n.isVideo).toList();
       final playbackItems = audioFiles.map((n) {
         return _fileNodeToPlaybackItem(n, work, source: source);
       }).toList();
@@ -741,8 +733,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     final current = _handler.mediaItem.value;
     final currentIndex = current == null
         ? _handler.playbackState.value.queueIndex ??
-              state.session?.currentIndex ??
-              0
+            state.session?.currentIndex ??
+            0
         : queue.indexWhere((item) => item.id == current.id);
     final previousItems = {
       for (final item in state.playbackQueue) item.id: item,

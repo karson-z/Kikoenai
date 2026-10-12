@@ -11,18 +11,21 @@ import '../provider/playlist_provider.dart';
 
 class PlaylistSheet {
   static Future<void> show(
-      BuildContext context, {
-        bool? isDark,
-        VoidCallback? onClosed,
-      }) {
+    BuildContext context, {
+    bool? isDark,
+    VoidCallback? onClosed,
+  }) {
     return WoltModalSheet.show<void>(
       context: context,
       modalTypeBuilder: (_) {
         final width = MediaQuery.sizeOf(context).width;
-        return width < 500 ? const CustomBottomType() : const CustomSideSheetType();
+        return width < 500
+            ? const CustomBottomType()
+            : const CustomSideSheetType();
       },
       pageListBuilder: (modalContext) {
-        final isDarkMode = isDark ?? Theme.of(context).brightness == Brightness.dark;
+        final isDarkMode =
+            isDark ?? Theme.of(context).brightness == Brightness.dark;
         final bgColor = isDarkMode ? const Color(0xFF1C1C1E) : Colors.white;
         final titleColor = isDarkMode ? Colors.white : Colors.black87;
         final subtitleColor = isDarkMode ? Colors.white70 : Colors.grey;
@@ -35,7 +38,8 @@ class PlaylistSheet {
             isTopBarLayerAlwaysVisible: true,
             topBarTitle: Text(
               '我的歌单',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 18, color: titleColor),
             ),
             trailingNavBarWidget: Padding(
               padding: const EdgeInsets.only(right: 8.0),
@@ -53,7 +57,8 @@ class PlaylistSheet {
               const SliverPadding(padding: EdgeInsets.only(top: 12)),
               Consumer(
                 builder: (_, ref, __) {
-                  final asyncPlaylists = ref.watch(fetchPlaylistsProvider((page: 1, filterBy: PlaylistFilter.all.value)));
+                  final asyncPlaylists = ref.watch(fetchPlaylistsProvider(
+                      (page: 1, filterBy: PlaylistFilter.all.value)));
 
                   return asyncPlaylists.when(
                     loading: () => SliverToBoxAdapter(
@@ -79,9 +84,12 @@ class PlaylistSheet {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.album_outlined, size: 64, color: subtitleColor.withOpacity(0.3)),
+                                  Icon(Icons.album_outlined,
+                                      size: 64,
+                                      color: subtitleColor.withOpacity(0.3)),
                                   const SizedBox(height: 16),
-                                  Text("暂无歌单", style: TextStyle(color: subtitleColor)),
+                                  Text("暂无歌单",
+                                      style: TextStyle(color: subtitleColor)),
                                 ],
                               ),
                             ),
@@ -107,10 +115,13 @@ class PlaylistSheet {
                           ),
                           SliverLayoutBuilder(
                             builder: (context, constraints) {
-                              final paintedHeight = constraints.precedingScrollExtent;
-                              final remainingHeight = minSheetHeight - paintedHeight;
+                              final paintedHeight =
+                                  constraints.precedingScrollExtent;
+                              final remainingHeight =
+                                  minSheetHeight - paintedHeight;
                               return SliverToBoxAdapter(
-                                child: SizedBox(height: math.max(0, remainingHeight)),
+                                child: SizedBox(
+                                    height: math.max(0, remainingHeight)),
                               );
                             },
                           ),
@@ -131,20 +142,21 @@ class PlaylistSheet {
   }
 
   static Widget _buildPlaylistItem(
-      BuildContext context,
-      WidgetRef ref,
-      Playlist playlist,
-      Color titleColor,
-      Color subtitleColor,
-      Color iconColor,
-      ) {
+    BuildContext context,
+    WidgetRef ref,
+    Playlist playlist,
+    Color titleColor,
+    Color subtitleColor,
+    Color iconColor,
+  ) {
     String displayName = playlist.name;
     displayName = OtherUtil.getDisplayName(displayName);
 
-    final bool hasValidCover = playlist.mainCoverUrl != null && playlist.mainCoverUrl!.startsWith('http');
+    final bool hasValidCover = playlist.mainCoverUrl != null &&
+        playlist.mainCoverUrl!.startsWith('http');
 
     // 获取当前选中的播放列表，用于高亮显示（可选优化）
-    final currentTarget = ref.watch(defaultMarkTargetPlaylistProvider);
+    final currentTarget = ref.watch(defaultMarkTargetPlaylistProvider).value;
     final isSelected = currentTarget?.id == playlist.id;
 
     return ListTile(
@@ -161,9 +173,9 @@ class PlaylistSheet {
           color: Colors.grey.withOpacity(0.1),
           image: hasValidCover
               ? DecorationImage(
-            image: NetworkImage(playlist.mainCoverUrl!),
-            fit: BoxFit.cover,
-          )
+                  image: NetworkImage(playlist.mainCoverUrl!),
+                  fit: BoxFit.cover,
+                )
               : null,
         ),
         child: !hasValidCover
@@ -176,7 +188,8 @@ class PlaylistSheet {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: isSelected ? Theme.of(context).primaryColor : titleColor, // 选中变色
+          color:
+              isSelected ? Theme.of(context).primaryColor : titleColor, // 选中变色
         ),
       ),
       subtitle: Padding(
@@ -195,7 +208,9 @@ class PlaylistSheet {
         ),
       ),
       onTap: () {
-        ref.read(defaultMarkTargetPlaylistProvider.notifier).setPlaylist(playlist);
+        ref
+            .read(defaultMarkTargetPlaylistProvider.notifier)
+            .setPlaylist(playlist);
 
         Navigator.of(context).pop();
       },

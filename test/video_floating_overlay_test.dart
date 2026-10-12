@@ -27,21 +27,21 @@ const _video = PlaybackItem(
 class _TestPlayer extends PlayerController {
   @override
   AppPlayerState build() => const AppPlayerState(
-    playing: true,
-    videoWidth: 1920,
-    videoHeight: 1080,
-    session: PlaybackSession(
-      id: 'session',
-      createdAt: 0,
-      updatedAt: 0,
-      queue: [_video],
-    ),
-    progressBarState: ProgressBarState(
-      current: Duration(seconds: 30),
-      buffered: Duration(minutes: 3),
-      total: Duration(minutes: 5),
-    ),
-  );
+        playing: true,
+        videoWidth: 1920,
+        videoHeight: 1080,
+        session: PlaybackSession(
+          id: 'session',
+          createdAt: 0,
+          updatedAt: 0,
+          queue: [_video],
+        ),
+        progressBarState: ProgressBarState(
+          current: Duration(seconds: 30),
+          buffered: Duration(minutes: 3),
+          total: Duration(minutes: 5),
+        ),
+      );
 
   @override
   Future<bool> loadScreenBrightness() async => false;
@@ -92,17 +92,16 @@ void main() {
     pendingPlatformExit = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('window_manager'), (
-          call,
-        ) async {
-          if (call.method == 'setFullScreen') {
-            final isFullScreen =
-                (call.arguments as Map)['isFullScreen'] as bool;
-            fullscreenCommands.add(isFullScreen);
-            if (!isFullScreen) await pendingPlatformExit?.future;
-          }
-          return null;
-        });
-    container = ProviderContainer(
+      call,
+    ) async {
+      if (call.method == 'setFullScreen') {
+        final isFullScreen = (call.arguments as Map)['isFullScreen'] as bool;
+        fullscreenCommands.add(isFullScreen);
+        if (!isFullScreen) await pendingPlatformExit?.future;
+      }
+      return null;
+    });
+    container = ProviderContainer.test(
       overrides: [playerControllerProvider.overrideWith(_TestPlayer.new)],
     );
     presentation = VideoPresentationController(
@@ -119,7 +118,6 @@ void main() {
 
   tearDown(() {
     presentation.dispose();
-    container.dispose();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
   });

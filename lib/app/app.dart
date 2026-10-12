@@ -21,10 +21,7 @@ class MyApp extends ConsumerWidget {
     }
     final themeState = ref.watch(themeNotifierProvider);
     final router = ref.watch(goRouterProvider);
-    final notifier = ref.read(defaultMarkTargetPlaylistProvider.notifier);
-    if (ref.read(defaultMarkTargetPlaylistProvider) == null) {
-      notifier.fetchAndCacheDefault();
-    }
+    ref.watch(defaultMarkTargetPlaylistProvider);
 
     return MaterialApp.router(
       scrollBehavior: MyCustomScrollBehavior(),

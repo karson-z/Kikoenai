@@ -10,33 +10,33 @@ import '../../../../core/service/site/site_api_provider.dart';
 
 typedef PlaylistQueryParams = ({int page, String filterBy});
 
-final fetchPlaylistsProvider =
-    FutureProvider.family<PagedResult<Playlist>, PlaylistQueryParams>((
-      ref,
-      params,
-    ) async {
-      final api = ref.watch(activeSiteApiProvider);
-      if (!api.supports(SiteFeature.playlists)) {
-        return const PagedResult<Playlist>(
-          items: [],
-          pagination: Pagination(currentPage: 1, pageSize: 0, totalCount: 0),
-        );
-      }
+final fetchPlaylistsProvider = FutureProvider.autoDispose
+    .family<PagedResult<Playlist>, PlaylistQueryParams>((
+  ref,
+  params,
+) async {
+  final api = ref.watch(activeSiteApiProvider);
+  if (!api.supports(SiteFeature.playlists)) {
+    return const PagedResult<Playlist>(
+      items: [],
+      pagination: Pagination(currentPage: 1, pageSize: 0, totalCount: 0),
+    );
+  }
 
-      // 3. 将 String 类型的 filterBy 转为枚举
-      final filterEnum = PlaylistFilter.values.firstWhere(
-        (e) => e.name == params.filterBy,
-        orElse: () => PlaylistFilter.all,
-      );
+  // 3. 将 String 类型的 filterBy 转为枚举
+  final filterEnum = PlaylistFilter.values.firstWhere(
+    (e) => e.name == params.filterBy,
+    orElse: () => PlaylistFilter.all,
+  );
 
-      // 4. 发起请求
-      return api.fetchPlaylists(page: params.page, filterBy: filterEnum.name);
-    });
+  // 4. 发起请求
+  return api.fetchPlaylists(page: params.page, filterBy: filterEnum.name);
+});
 
 final playlistWorksProvider = AsyncNotifierProvider.autoDispose
     .family<PlaylistWorksNotifier, KikoPagingState<Work>, String>(
-      PlaylistWorksNotifier.new,
-    );
+  PlaylistWorksNotifier.new,
+);
 
 class PlaylistWorksNotifier extends AsyncNotifier<KikoPagingState<Work>> {
   PlaylistWorksNotifier(this.playlistId);
@@ -75,8 +75,7 @@ class PlaylistWorksNotifier extends AsyncNotifier<KikoPagingState<Work>> {
 
     // 1. 检查是否处于筛选/搜索状态
     // 逻辑：标签不为空、关键字不为空、开启了字幕筛选、或排序不是默认的“创建日期”
-    final isFiltered =
-        state.selectedTags.isNotEmpty ||
+    final isFiltered = state.selectedTags.isNotEmpty ||
         state.localSearchKeyword.isNotEmpty ||
         state.subtitleFilter != 0 || // 假设 0 是“全部”，1 是“仅字幕”
         state.sortOption != SortOrder.createDate;
@@ -130,8 +129,8 @@ class PlaylistWorksNotifier extends AsyncNotifier<KikoPagingState<Work>> {
 
 final playlistWorksMutationProvider =
     AsyncNotifierProvider.autoDispose<PlaylistWorksMutationController, void>(
-      PlaylistWorksMutationController.new,
-    );
+  PlaylistWorksMutationController.new,
+);
 
 class PlaylistWorksMutationController extends AsyncNotifier<void> {
   @override

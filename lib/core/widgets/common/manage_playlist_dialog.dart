@@ -208,7 +208,7 @@ class _SliverFileTreeContentState
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildNodeItem(currentNodes[index]),
+              (context, index) => _buildNodeItem(currentNodes[index]),
               childCount: currentNodes.length,
             ),
           ),
@@ -218,11 +218,14 @@ class _SliverFileTreeContentState
   }
 
   Widget _buildNodeItem(FileNode node) {
-    final downloadedIds = ref.watch(completedTasksProvider).map((t) => t.task.taskId).toSet();
-    final bool isDownloaded = !node.isFolder && downloadedIds.contains(node.hash);
+    final downloadedIds =
+        ref.watch(completedTasksProvider).map((t) => t.task.taskId).toSet();
+    final bool isDownloaded =
+        !node.isFolder && downloadedIds.contains(node.hash);
     // 选中状态：通过 index 拿到 folder 下的递归叶子。
-    final bool? checkboxState =
-        ref.read(fileSelectionProvider.notifier).getNodeStateForIndex(node, widget.index);
+    final bool? checkboxState = ref
+        .read(fileSelectionProvider.notifier)
+        .getNodeStateForIndex(node, widget.index);
 
     // 文件夹子项数：通过 index 实时统计。
     // folder 节点的 path 是自己的路径，folderPath 是父路径，必须用 path。
@@ -348,7 +351,7 @@ class FileTreeStickyHeader extends ConsumerWidget {
     );
 
     final selectionNotifier = ref.read(fileSelectionProvider.notifier);
-    ref.watch(fileSelectionProvider); // 监听选中变化
+    final selectedFiles = ref.watch(fileSelectionProvider);
 
     return Container(
       color: theme.scaffoldBackgroundColor,
@@ -369,10 +372,10 @@ class FileTreeStickyHeader extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                _buildSelectionInfo(theme, selectionNotifier),
+                _buildSelectionInfo(theme, selectedFiles),
                 const Spacer(),
                 if (index.hasRemoteContent)
-                  _buildDownloadButton(context, ref, selectionNotifier),
+                  _buildDownloadButton(context, ref, selectedFiles),
                 IconButton(
                   icon: const Icon(Icons.sort, size: 20),
                   tooltip: '排序',
@@ -402,7 +405,7 @@ class FileTreeStickyHeader extends ConsumerWidget {
   }
 
   // 内部辅助组件保持逻辑整洁
-  Widget _buildSelectionInfo(ThemeData theme, FileSelectionNotifier notifier) {
+  Widget _buildSelectionInfo(ThemeData theme, Set<FileNode> selectedFiles) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,9 +413,9 @@ class FileTreeStickyHeader extends ConsumerWidget {
           '全选(当前层)',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        if (notifier.count > 0)
+        if (selectedFiles.isNotEmpty)
           Text(
-            '已选: ${notifier.totalSizeStr}',
+            '已选: ${selectedFilesTotalSize(selectedFiles)}',
             style: TextStyle(fontSize: 12, color: theme.primaryColor),
           ),
       ],
@@ -422,13 +425,13 @@ class FileTreeStickyHeader extends ConsumerWidget {
   Widget _buildDownloadButton(
     BuildContext context,
     WidgetRef ref,
-    FileSelectionNotifier notifier,
+    Set<FileNode> selectedFiles,
   ) {
     final downloadedIds = ref
         .watch(completedTasksProvider)
         .map((item) => item.task.taskId)
         .toSet();
-    final filesToDownload = notifier.selectedList
+    final filesToDownload = selectedFilesList(selectedFiles)
         .where(
           (node) =>
               !node.isFolder &&

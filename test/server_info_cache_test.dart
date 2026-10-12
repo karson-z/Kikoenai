@@ -182,8 +182,7 @@ void main() {
 
   test('cloud-drive AList controller adds and selects a domain', () async {
     await setupSiteApi();
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+    final container = ProviderContainer.test();
     const custom = ServerInfo(
       id: 'custom-alist',
       baseUrl: 'https://custom-alist.example',
@@ -203,8 +202,7 @@ void main() {
 
   test('self-hosted controller registers and activates Kikoeru', () async {
     await setupSiteApi();
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+    final container = ProviderContainer.test();
     const custom = ServerInfo(
       id: 'custom-kikoeru',
       baseUrl: 'https://kikoeru.example.com',

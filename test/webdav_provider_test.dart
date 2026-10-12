@@ -15,26 +15,27 @@ import 'package:webdav_client/webdav_client.dart' as webdav;
 class _ConnectedWebDavController extends WebDavController {
   @override
   WebDavSessionState build() => const WebDavSessionState(
-    serverUrl: 'https://active.example.com/dav/',
-    username: 'active-user',
-    rootPath: '/active',
-    isConnected: true,
-  );
+        serverUrl: 'https://active.example.com/dav/',
+        username: 'active-user',
+        rootPath: '/active',
+        isConnected: true,
+      );
 }
 
 class _FakeWebDavClient extends webdav.Client {
   _FakeWebDavClient(WebDavConnectionConfig config)
-    : super(
-        uri: config.serverUrl,
-        c: webdav.WdDio(),
-        auth: webdav.BasicAuth(user: config.username, pwd: config.password),
-      );
+      : super(
+          uri: config.serverUrl,
+          c: webdav.WdDio(),
+          auth: webdav.BasicAuth(user: config.username, pwd: config.password),
+        );
 
   @override
   Future<List<webdav.File>> readDir(
     String path, [
     CancelToken? cancelToken,
-  ]) async => const [];
+  ]) async =>
+      const [];
 }
 
 class _FakeConnectableWebDavController extends WebDavController {
@@ -52,10 +53,10 @@ class _FakeConnectableWebDavController extends WebDavController {
 class _RestorableWebDavController extends _FakeConnectableWebDavController {
   @override
   WebDavSessionState build() => const WebDavSessionState(
-    serverUrl: 'https://cloud.example.com/dav/',
-    username: 'kiko',
-    rootPath: '/',
-  );
+        serverUrl: 'https://cloud.example.com/dav/',
+        username: 'kiko',
+        rootPath: '/',
+      );
 }
 
 class _MemoryWebDavCredentialStore implements WebDavCredentialStore {
@@ -277,7 +278,7 @@ void main() {
 
   test('successful connection publishes a scoped header change', () async {
     final credentialStore = _MemoryWebDavCredentialStore();
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         webDavCredentialStoreProvider.overrideWithValue(credentialStore),
         webDavConnectionControllerProvider.overrideWith(
@@ -285,7 +286,6 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
     final eventFuture = MediaHttpHeadersRegistry.instance.changes.first;
 
     final connected = await container
@@ -311,14 +311,13 @@ void main() {
   });
 
   test('invalid reconnect keeps the active session state', () async {
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         webDavConnectionControllerProvider.overrideWith(
           _ConnectedWebDavController.new,
         ),
       ],
     );
-    addTearDown(container.dispose);
 
     final connected = await container
         .read(webDavConnectionControllerProvider.notifier)
@@ -375,7 +374,7 @@ void main() {
       expect(_resolvePlaybackHeaders(restoredItem), isEmpty);
 
       final credentialStore = _MemoryWebDavCredentialStore('secret');
-      final container = ProviderContainer(
+      final container = ProviderContainer.test(
         overrides: [
           webDavCredentialStoreProvider.overrideWithValue(credentialStore),
           webDavConnectionControllerProvider.overrideWith(
@@ -383,7 +382,6 @@ void main() {
           ),
         ],
       );
-      addTearDown(container.dispose);
 
       expect(await container.read(webDavAutoRestoreProvider.future), isTrue);
 
@@ -397,7 +395,7 @@ void main() {
   test('disconnect unregisters auth for the current WebDAV item', () async {
     final currentItem = _webDavPlaybackItem.toMediaItem();
     final credentialStore = _MemoryWebDavCredentialStore();
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         webDavCredentialStoreProvider.overrideWithValue(credentialStore),
         webDavConnectionControllerProvider.overrideWith(
@@ -405,7 +403,6 @@ void main() {
         ),
       ],
     );
-    addTearDown(container.dispose);
     final controller = container.read(
       webDavConnectionControllerProvider.notifier,
     );

@@ -3,8 +3,8 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../core/service/file/file_node_library_index.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
-
-final fileSelectionProvider = NotifierProvider.autoDispose<FileSelectionNotifier, Set<FileNode>>(() {
+final fileSelectionProvider =
+    NotifierProvider.autoDispose<FileSelectionNotifier, Set<FileNode>>(() {
   return FileSelectionNotifier();
 });
 
@@ -14,25 +14,6 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
     return {}; // 初始状态为空集合
   }
 
-  // --- Getters (计算属性) ---
-
-  // 获取选中文件列表
-  List<FileNode> get selectedList => state.toList();
-
-  // 获取数量
-  int get count => state.length;
-
-  int get musicCount => state.where((node) => node.isAudio).length;
-
-
-  // 获取总大小字符串
-  String get totalSizeStr {
-    int total = 0;
-    for (var node in state) {
-      total += (node.size ?? 0);
-    }
-    return OtherUtil.formatBytes(total);
-  }
   /// 获取整个根列表的选中状态
   /// true: 全选, false: 全不选, null: 半选
   bool? getRootState(List<FileNode> roots) {
@@ -54,6 +35,7 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
     if (selectedCount == allLeaves.length) return true;
     return null;
   }
+
   // --- Actions (操作方法) ---
   void toggleSelectAll(List<FileNode> roots) {
     final currentState = getRootState(roots);
@@ -114,7 +96,6 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
 
     state = newState; // 赋值新 Set 触发 UI 刷新
   }
-
 
   // ============================================================
   // Index-aware 视图：folder 节点由 [FileNodeLibraryIndex] 提供，
@@ -249,6 +230,7 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
     }
     return leaves;
   }
+
   /// 递归查找所有子文件 (私有工具方法)
   List<FileNode> _getAllLeafNodes(FileNode node) {
     List<FileNode> leaves = [];
@@ -265,7 +247,20 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
   }
 }
 
-final fileBrowserProvider = NotifierProvider.autoDispose.family<FileBrowserNotifier, List<FileNode>, String>(FileBrowserNotifier.new);
+List<FileNode> selectedFilesList(Iterable<FileNode> selected) =>
+    selected.toList(growable: false);
+
+String selectedFilesTotalSize(Iterable<FileNode> selected) {
+  final total = selected.fold<int>(
+    0,
+    (sum, node) => sum + (node.size ?? 0),
+  );
+  return OtherUtil.formatBytes(total);
+}
+
+final fileBrowserProvider = NotifierProvider.autoDispose
+    .family<FileBrowserNotifier, List<FileNode>, String>(
+        FileBrowserNotifier.new);
 
 class FileBrowserNotifier extends Notifier<List<FileNode>> {
   final String workId;

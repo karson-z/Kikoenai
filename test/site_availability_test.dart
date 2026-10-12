@@ -103,14 +103,13 @@ void main() {
     final registry = SiteRegistry()
       ..registerRuntime(_runtime('site.local-only', const {}))
       ..registerRuntime(_runtime('site.search', {SiteFeature.search}));
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.local-only'),
         siteSelectionPersistenceProvider.overrideWithValue((_) async {}),
       ],
     );
-    addTearDown(container.dispose);
 
     expect(
       container.read(visibleDestinationsProvider).map((item) => item.label),
@@ -148,14 +147,13 @@ void main() {
     final registry = SiteRegistry()
       ..registerRuntime(_runtime('site.active', const {}))
       ..registerRuntime(_runtime('site.content', {SiteFeature.tracks}));
-    final container = ProviderContainer(
+    final container = ProviderContainer.test(
       overrides: [
         siteRegistryProvider.overrideWithValue(registry),
         initialActiveSiteIdProvider.overrideWithValue('site.active'),
         siteContextIdProvider.overrideWithValue('site.content'),
       ],
     );
-    addTearDown(container.dispose);
 
     expect(container.read(activeSiteIdProvider), 'site.active');
     expect(container.read(siteContextRuntimeProvider).siteId, 'site.content');
@@ -170,13 +168,12 @@ void main() {
     () async {
       final registry = SiteRegistry()
         ..registerRuntime(_runtime('site.playlists', {SiteFeature.playlists}));
-      final container = ProviderContainer(
+      final container = ProviderContainer.test(
         overrides: [
           siteRegistryProvider.overrideWithValue(registry),
           initialActiveSiteIdProvider.overrideWithValue('site.playlists'),
         ],
       );
-      addTearDown(container.dispose);
 
       final notifier = container.read(playlistWorksMutationProvider.notifier);
       expect(
