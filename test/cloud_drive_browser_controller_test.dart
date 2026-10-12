@@ -147,48 +147,58 @@ void main() {
     },
   );
 
-  test('loadIfNeeded reuses the loaded directory until refresh', () async {
-    final source = _FakeCloudDriveSource(
-      supportsRemoteSearch: false,
-      supportsPagination: false,
-      pages: {
-        1: [_folder('/folder')],
-      },
-      totalCount: 1,
-    );
-    final container = ProviderContainer.test(
-      overrides: [cloudDriveSourceProvider.overrideWith((ref, mode) => source)],
-    );
-    const args = (mode: CloudDriveMode.alistApi, path: '/');
-    final controller = container.read(
-      cloudDriveBrowserControllerProvider(args).notifier,
-    );
+  test(
+    'loadIfNeeded reuses the directory after listeners detach until refresh',
+    () async {
+      final source = _FakeCloudDriveSource(
+        supportsRemoteSearch: false,
+        supportsPagination: false,
+        pages: {
+          1: [_folder('/folder')],
+        },
+        totalCount: 1,
+      );
+      final container = ProviderContainer.test(
+        overrides: [
+          cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+        ],
+      );
+      const args = (mode: CloudDriveMode.alistApi, path: '/');
+      final provider = cloudDriveBrowserControllerProvider(args);
+      final subscription = container.listen(provider, (_, __) {});
+      final controller = container.read(provider.notifier);
 
-    await controller.loadIfNeeded();
-    await controller.loadIfNeeded();
-    expect(source.listCallCount, 1);
+      await controller.loadIfNeeded();
+      subscription.close();
+      await container.pump();
 
-    await controller.refresh();
-    expect(source.listCallCount, 2);
-  });
+      final returnedController = container.read(provider.notifier);
+      await returnedController.loadIfNeeded();
+      expect(container.read(provider).nodes.single.path, '/folder');
+      expect(source.listCallCount, 1);
+
+      await returnedController.refresh();
+      expect(source.listCallCount, 2);
+    },
+  );
 }
 
 FileNode _folder(String path) => FileNode(
-      type: NodeType.folder,
-      title: NodeFolder(path).name,
-      path: path,
-      remoteId: path,
-      source: NodeSource.cloudDrive,
-    );
+  type: NodeType.folder,
+  title: NodeFolder(path).name,
+  path: path,
+  remoteId: path,
+  source: NodeSource.cloudDrive,
+);
 
 FileNode _audio(String path, {int size = 0}) => FileNode(
-      type: NodeType.audio,
-      title: NodeFolder(path).name,
-      path: path,
-      remoteId: path,
-      size: size,
-      source: NodeSource.cloudDrive,
-    );
+  type: NodeType.audio,
+  title: NodeFolder(path).name,
+  path: path,
+  remoteId: path,
+  size: size,
+  source: NodeSource.cloudDrive,
+);
 
 class _FakeCloudDriveSource implements CloudDriveSource {
   _FakeCloudDriveSource({

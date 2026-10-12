@@ -235,7 +235,12 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       node.remoteId ?? node.path ?? node.mediaStreamUrl ?? node.title;
 }
 
-final cloudDriveBrowserControllerProvider = NotifierProvider.autoDispose.family<
-    CloudDriveBrowserController,
-    CloudDriveBrowserState,
-    CloudDriveBrowserArgs>(CloudDriveBrowserController.new);
+// 各目录保留自己的列表、分页和排序状态，返回上级时由 loadIfNeeded 复用。
+// 来源变化仍通过 build 中的 ref.watch 重置状态，手动刷新会重新请求。
+// TODO 缓存管理未制作，目前使用上没有任何问题。
+final cloudDriveBrowserControllerProvider =
+    NotifierProvider.family<
+      CloudDriveBrowserController,
+      CloudDriveBrowserState,
+      CloudDriveBrowserArgs
+    >(CloudDriveBrowserController.new);

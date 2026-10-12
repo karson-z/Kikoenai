@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kikoenai/features/album/widget/file_box.dart';
 import 'package:kikoenai/features/cloud_drive/data/cloud_drive_source.dart';
 import 'package:kikoenai/features/cloud_drive/model/cloud_drive_mode.dart';
 import 'package:kikoenai/features/cloud_drive/model/cloud_drive_page_result.dart';
@@ -21,6 +22,7 @@ void main() {
       ProviderScope(
         overrides: [
           cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+          parsedWorkIdsProvider.overrideWithValue(const <int>{}),
         ],
         child: MaterialApp(
           navigatorObservers: [observer],
@@ -78,6 +80,7 @@ void main() {
       ProviderScope(
         overrides: [
           cloudDriveSourceProvider.overrideWith((ref, mode) => source),
+          parsedWorkIdsProvider.overrideWithValue(const <int>{}),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -96,13 +99,8 @@ void main() {
         .widget<CustomScrollView>(find.byType(CustomScrollView))
         .controller!;
     for (var i = 0; i < 10 && find.text('folder').evaluate().isEmpty; i++) {
-      scrollController.jumpTo(
-        (scrollController.offset + 500).clamp(
-          scrollController.position.minScrollExtent,
-          scrollController.position.maxScrollExtent,
-        ),
-      );
-      await tester.pump();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));
+      await tester.pumpAndSettle();
     }
     expect(find.text('folder'), findsOneWidget);
     final savedOffset = scrollController.offset;
