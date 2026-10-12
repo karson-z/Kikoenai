@@ -437,7 +437,8 @@ class _CloudDriveBrowserPageState extends ConsumerState<CloudDriveBrowserPage> {
       selected: selected,
       onProgress: (value) => progress.value = value,
     );
-    if (mounted) Navigator.of(context).pop();
+    // 进度弹窗由 showDialog 推入根 Navigator，不能弹出网盘的分支页面。
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
     await dialog;
     progress.dispose();
     if (!mounted) return;
