@@ -400,12 +400,9 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
   }
 
   Future<void> _playSelected(List<FileNode> selected) async {
-    final index = ref.read(fileScannerProvider.notifier).readLibraryIndex();
-    if (index == null) return;
-    final files = FileBrowserEditActions.collectLocalPlayable(
-      index: index,
-      selected: selected,
-    );
+    final files = ref
+        .read(fileScannerProvider.notifier)
+        .collectSelectedPlayable(selected);
     if (files.isEmpty) {
       KikoenaiToast.info('所选内容没有可播放的媒体');
       return;

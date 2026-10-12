@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
+import 'package:kikoenai/features/file_browser/provider/file_browser_edit_actions.dart';
 import 'package:kikoenai/core/service/permission/permission_service.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
 import 'package:kikoenai/features/local_media/model/local_media_exclusion.dart';
@@ -21,10 +22,19 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   FileNodeLibraryIndex? _libraryIndex;
   Set<({String relativePath, bool isFolder})> _exclusions = {};
 
-  /// 暴露内部索引（只读用途，例如面包屑路径推导）。
-  /// 调用方不应直接通过返回值变更导航状态，请使用 [stepIn]/[stepOut]/
-  /// [goHome]/[jumpToPath]/[jumpToBreadcrumbIndex] 等方法以保证 UI 同步。
-  FileNodeLibraryIndex? readLibraryIndex() => _libraryIndex;
+  List<FileNode> currentBreadcrumbPath() =>
+      List.unmodifiable(_libraryIndex?.breadcrumbPath ?? const []);
+
+  List<FileNode> collectSelectedPlayable(List<FileNode> selected) {
+    final index = _libraryIndex;
+    if (index == null) return const [];
+    return List.unmodifiable(
+      FileBrowserEditActions.collectLocalPlayable(
+        index: index,
+        selected: selected,
+      ),
+    );
+  }
 
   @override
   FileBrowserState build() {

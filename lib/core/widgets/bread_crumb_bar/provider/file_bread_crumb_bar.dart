@@ -35,11 +35,7 @@ class BreadcrumbNotifier extends Notifier<List<FileNode>> {
 
   List<FileNode> _localPath() {
     if (type != BreadCrumbBarType.local) return [];
-    return ref
-            .read(fileScannerProvider.notifier)
-            .readLibraryIndex()
-            ?.breadcrumbPath ??
-        const [];
+    return ref.read(fileScannerProvider.notifier).currentBreadcrumbPath();
   }
 
   /// 绑定索引（detail / player 类型）。绑定后立即刷新面包屑链。
