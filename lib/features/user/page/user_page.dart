@@ -7,7 +7,6 @@ import 'package:kikoenai/features/marked/page/review_page.dart';
 import 'package:kikoenai/features/playlist/page/playlist_page.dart';
 import '../../../core/constants/app_images.dart';
 import '../../../core/service/site/site_api_provider.dart';
-import '../../../core/service/site/site_availability.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../history/page/history_page.dart';
 
@@ -18,15 +17,10 @@ class UserPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authStateAsync = ref.watch(authNotifierProvider);
     final activeSiteId = ref.watch(activeSiteIdProvider);
-    final availableSurfaces = ref.watch(availableSurfacesProvider);
-    final canOpenAuth = availableSurfaces.contains(AppSurface.authPage);
-    final canLogin = availableSurfaces.contains(AppSurface.loginAction);
-    final tabs = <({String label, Widget page})>[
-      (label: '播放历史', page: const HistoryPage()),
-      if (availableSurfaces.contains(AppSurface.userReviewsTab))
-        (label: '我的收藏', page: const ReviewPage()),
-      if (availableSurfaces.contains(AppSurface.userPlaylistsTab))
-        (label: '播放列表', page: const PlaylistPage()),
+    const tabs = <({String label, Widget page})>[
+      (label: '播放历史', page: HistoryPage()),
+      (label: '我的收藏', page: ReviewPage()),
+      (label: '播放列表', page: PlaylistPage()),
     ];
     final colorScheme = Theme.of(context).colorScheme; // 获取当前主题色板
 
@@ -191,8 +185,7 @@ class UserPage extends ConsumerWidget {
                                     ],
                                   ),
                                 ),
-                                if (!(value.currentUser?.loggedIn == true) &&
-                                    canOpenAuth)
+                                if (!(value.currentUser?.loggedIn == true))
                                   FilledButton(
                                     onPressed: () =>
                                         context.push(AppRoutes.login),
@@ -201,7 +194,7 @@ class UserPage extends ConsumerWidget {
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                     ),
-                                    child: Text(canLogin ? '登录' : '注册'),
+                                    child: const Text('登录'),
                                   ),
                               ],
                             ),

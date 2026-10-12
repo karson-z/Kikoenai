@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/features/auth/provider/auth_provider.dart';
 import 'package:kikoenai/features/auth/provider/auth_state.dart';
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
@@ -52,7 +51,6 @@ void main() {
         overrides: [
           authNotifierProvider.overrideWith(_TestAuthNotifier.new),
           activeSiteIdProvider.overrideWith(_TestActiveSiteIdNotifier.new),
-          availableSurfacesProvider.overrideWithValue(const {}),
           historyControllerProvider.overrideWith(_TestHistoryController.new),
         ],
         child: MaterialApp.router(routerConfig: router),

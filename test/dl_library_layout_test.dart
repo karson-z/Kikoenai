@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:kikoenai/core/widgets/card/work_card.dart';
 import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
@@ -60,7 +59,6 @@ void main() {
         ProviderScope(
           overrides: [
             explicitDarkModeProvider.overrideWithValue(false),
-            availableSurfacesProvider.overrideWithValue(const <AppSurface>{}),
             tagsProvider.overrideWith(
               (ref) async => const <Tag>[Tag(id: 999, name: '远程标签')],
             ),

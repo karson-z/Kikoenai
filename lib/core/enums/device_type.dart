@@ -18,14 +18,20 @@ enum DeviceType {
     if (width >= tabletBreakpoint) return DeviceType.tablet;
     return DeviceType.mobile;
   }
+
+  /// 用短边区分手机和平板，再用当前宽度区分笔记本和桌面。
+  /// 手机横屏时宽度会超过 [tabletBreakpoint]，但短边仍小于它，应继续使用手机布局。
+  static DeviceType fromSize(Size size) {
+    if (size.shortestSide < tabletBreakpoint) return DeviceType.mobile;
+    return fromWidth(size.width);
+  }
 }
 extension DeviceTypeX on BuildContext {
   /// 获取当前设备的 DeviceType
   /// 使用 MediaQuery.sizeOf(context) 比 .of(context) 更高效，
   /// 因为它只监听尺寸变化，不会因为其他 MediaQuery 属性（如键盘弹出）变化而导致无关的重建。
   DeviceType get deviceType {
-    final width = MediaQuery.sizeOf(this).width;
-    return DeviceType.fromWidth(width);
+    return DeviceType.fromSize(MediaQuery.sizeOf(this));
   }
 
   // --- 以下是可选的便捷判断属性 ---

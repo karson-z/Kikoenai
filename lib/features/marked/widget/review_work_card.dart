@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. 引入 Riverpod
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -19,13 +18,6 @@ class WorkListCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 3. build 方法增加 ref 参数
-    final canOpenDetail = ref.watch(
-      surfaceAvailableProvider(AppSurface.remoteAlbumDetailPage),
-    );
-    final canSubmitReview = ref.watch(
-      surfaceAvailableProvider(AppSurface.submitReviewAction),
-    );
     // 提取声优名称，如果有多个用逗号连接
     final vaNames = work.vas?.map((va) => va.name).join(' ') ?? '';
 
@@ -72,11 +64,9 @@ class WorkListCard extends ConsumerWidget {
         side: BorderSide(color: Colors.grey.shade100),
       ),
       child: InkWell(
-        onTap: canOpenDetail
-            ? () {
-                context.push(AppRoutes.detail, extra: {'work': work});
-              }
-            : null,
+        onTap: () {
+          context.push(AppRoutes.detail, extra: {'work': work});
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -136,22 +126,20 @@ class WorkListCard extends ConsumerWidget {
                             : 0,
 
                         // 3. 交互回调
-                        onRatingUpdate: canSubmitReview
-                            ? (int newRating) {
-                                final currentStatus = UserWorkStatus(
-                                  workId: work.id,
-                                );
-                                final newStatus = currentStatus.copyWith(
-                                  rating: newRating,
-                                  workId: work.id,
-                                );
-                                HandleSubmit.handleRatingSubmit(
-                                  context,
-                                  ref,
-                                  newStatus,
-                                );
-                              }
-                            : null,
+                        onRatingUpdate: (int newRating) {
+                          final currentStatus = UserWorkStatus(
+                            workId: work.id,
+                          );
+                          final newStatus = currentStatus.copyWith(
+                            rating: newRating,
+                            workId: work.id,
+                          );
+                          HandleSubmit.handleRatingSubmit(
+                            context,
+                            ref,
+                            newStatus,
+                          );
+                        },
                         extraWidgets: [
                           if (work.updatedAt != null) ...[
                             const SizedBox(width: 8), // 控制与分数的间距
@@ -194,15 +182,14 @@ class WorkListCard extends ConsumerWidget {
                         ),
 
                         // 编辑按钮 (点击打开 BottomSheet)
-                        if (canSubmitReview)
-                          InkWell(
-                            onTap: showEditSheet, // 绑定点击事件
-                            borderRadius: BorderRadius.circular(16),
-                            child: const Padding(
-                              padding: EdgeInsets.all(4.0), // 增加点击热区
-                              child: Icon(Icons.edit, size: 18),
-                            ),
+                        InkWell(
+                          onTap: showEditSheet, // 绑定点击事件
+                          borderRadius: BorderRadius.circular(16),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0), // 增加点击热区
+                            child: Icon(Icons.edit, size: 18),
                           ),
+                        ),
                       ],
                     ),
                   ],

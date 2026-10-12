@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/features/auth/page/auth_page.dart';
 import 'package:kikoenai/features/auth/provider/auth_provider.dart';
 import 'package:kikoenai/features/auth/provider/auth_state.dart';
@@ -31,10 +30,6 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          availableSurfacesProvider.overrideWithValue(const {
-            AppSurface.loginAction,
-            AppSurface.registerAction,
-          }),
           authNotifierProvider.overrideWith(_TestAuthNotifier.new),
         ],
         child: MaterialApp(

@@ -62,7 +62,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
 
   @override
   Widget build(BuildContext context) {
-    final destinations = ref.watch(visibleDestinationsProvider);
+    const destinations = appNavigationItems;
     final int selectedBranchIndex = widget.navigationShell.currentIndex;
     final visibleSelectedIndex = destinations.indexWhere(
       (item) => item.branchIndex == selectedBranchIndex,

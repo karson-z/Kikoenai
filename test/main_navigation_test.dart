@@ -14,6 +14,7 @@ class _FakeSiteApi extends SiteApi {
 
 void main() {
   test('main navigation items stay aligned with shell branches', () {
+    // 路由创建时会读取当前站点，测试需要一个已注册站点。
     final registry = SiteRegistry()
       ..registerRuntime(
         SiteRuntime.fromApi(

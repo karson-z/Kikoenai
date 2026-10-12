@@ -2,11 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai/core/routes/app_route_surface_policy.dart';
-import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
-import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/dl_page/media/dl_media_aggregation_controller.dart';
 import 'package:kikoenai/features/dl_page/media/dl_media_models.dart';
 import 'package:kikoenai/features/dl_page/media/dl_media_resolvers.dart';
@@ -168,26 +164,6 @@ Future<DlMediaAggregationState> _waitForCompletion(
 }
 
 void main() {
-  test(
-    'DL detail route bypasses remote-site surface gating only in DL mode',
-    () {
-      expect(
-        appRouteSurfacePolicy.surfaceFor(
-          AppRoutes.detail,
-          extra: const AlbumDetailArgs(mode: AlbumDetailMode.dlLibrary),
-        ),
-        isNull,
-      );
-      expect(
-        appRouteSurfacePolicy.surfaceFor(
-          AppRoutes.detail,
-          extra: const AlbumDetailArgs(mode: AlbumDetailMode.remote),
-        ),
-        AppSurface.remoteAlbumDetailPage,
-      );
-    },
-  );
-
   test('local media wins while source failures remain isolated', () async {
     const workId = 81234567;
     final local = _FakeResolver(

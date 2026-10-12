@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/features/category/provider/category_data_provider.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import '../../../../core/theme/theme_view_model.dart';
 import '../../../../core/widgets/filter/provider/filter_search_notifier.dart';
 
@@ -33,9 +32,7 @@ class TagRow extends ConsumerWidget {
     if (tags.isEmpty) return const SizedBox.shrink();
 
     final isDark = ref.watch(explicitDarkModeProvider);
-    final canOpenCategory =
-        enableNavigation &&
-        ref.watch(surfaceAvailableProvider(AppSurface.categoryPage));
+    final canOpenCategory = enableNavigation;
 
     return SizedBox(
       height: kRowHeight,

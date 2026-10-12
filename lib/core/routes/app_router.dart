@@ -15,7 +15,6 @@ import 'package:kikoenai/features/settings/page/global_filter_page.dart';
 import 'package:kikoenai/features/site/page/site_unavailable_page.dart';
 import 'package:kikoenai/features/user/page/user_page.dart';
 import 'package:kikoenai/features/cloud_drive/page/cloud_drive_page.dart';
-import 'package:kikoenai/config/navigation_item.dart';
 import '../../features/album/page/album_detail.dart';
 import '../../features/album/page/category_works_page.dart';
 import '../../features/album/widget/smart_works_sliver_grid.dart';
@@ -28,12 +27,10 @@ import '../../features/settings/page/theme_setting_page.dart';
 import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
 import '../service/site/site_api_provider.dart';
-import '../service/site/site_availability.dart';
 import '../service/site/site_unavailable_controller.dart';
 import '../widgets/image_box/image_view.dart';
 import '../widgets/layout/app_main_scaffold.dart';
 import 'app_routes.dart';
-import 'app_route_surface_policy.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   ref.read(activeSiteIdProvider);
@@ -61,18 +58,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.siteUnavailable;
       }
 
-      final isAvailable = appRouteSurfacePolicy.isAvailable(
-        path: state.uri.path,
-        extra: state.extra,
-        activeRuntime: ref.read(activeSiteProvider),
-        surfacePolicies: ref.read(surfacePolicyRegistryProvider),
-      );
-      if (isAvailable) return null;
-
-      final destinations = ref.read(visibleDestinationsProvider);
-      return destinations.isEmpty
-          ? AppRoutes.localMedia
-          : destinations.first.routePath;
+      return null;
     },
     routes: [
       GoRoute(

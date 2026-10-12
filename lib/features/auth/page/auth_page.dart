@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 import '../../../core/constants/app_images.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/service/site/site_availability.dart';
 import '../provider/auth_provider.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
@@ -67,10 +66,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final availableSurfaces = ref.watch(availableSurfacesProvider);
-    final canLogin = availableSurfaces.contains(AppSurface.loginAction);
-    final canRegister = availableSurfaces.contains(AppSurface.registerAction);
-    final isLoginMode = _isLogin ? canLogin || !canRegister : !canRegister;
+    final isLoginMode = _isLogin;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -96,13 +92,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         }
       }
     });
-
-    if (!canLogin && !canRegister) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('当前站点不支持账户功能')),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
@@ -256,39 +245,37 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                       ),
                               ),
                             ),
-                            if (canLogin && canRegister) ...[
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    isLoginMode ? '还没有账号？' : '已有账号？',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  isLoginMode ? '还没有账号？' : '已有账号？',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: authState.isLoading
+                                      ? null
+                                      : _toggleMode,
+                                  style: TextButton.styleFrom(
+                                    minimumSize: const Size(0, 44),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    isLoginMode ? '去注册' : '去登录',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  TextButton(
-                                    onPressed: authState.isLoading
-                                        ? null
-                                        : _toggleMode,
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 44),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                      ),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      isLoginMode ? '去注册' : '去登录',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),

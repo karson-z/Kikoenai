@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/utils/data/time_formatter.dart';
 import 'package:kikoenai/core/utils/submit/handle_submit.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
@@ -82,9 +81,7 @@ class _AlbumDetailContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDlLibrary = mode == AlbumDetailMode.dlLibrary;
-    final canShowSimilarWorks =
-        !isDlLibrary &&
-        ref.watch(surfaceAvailableProvider(AppSurface.albumSimilarWorks));
+    final canShowSimilarWorks = !isDlLibrary;
 
     return KikoenaiInnerDrawerScope(
       controller: controller,
@@ -126,9 +123,6 @@ class AlbumDetailSimilarWorkDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(surfaceAvailableProvider(AppSurface.albumSimilarWorks))) {
-      return const SizedBox.shrink();
-    }
     if (circleName == null || circleName!.isEmpty) {
       return const Center(child: Text('暂无相关作品'));
     }
@@ -223,16 +217,6 @@ class AlbumDetailContainer extends ConsumerWidget {
       );
     }
 
-    final availableSurfaces = ref.watch(availableSurfacesProvider);
-    final primarySiteHasTracks = availableSurfaces.contains(
-      AppSurface.albumTracksSection,
-    );
-    final canShowSimilarWorks = availableSurfaces.contains(
-      AppSurface.albumSimilarWorks,
-    );
-    final canSubmitReview = availableSurfaces.contains(
-      AppSurface.submitReviewAction,
-    );
     final workStatus = ref.watch(albumWorkDetailProvider(workId));
     final Work? work = initialWork ?? workStatus.value;
 
@@ -265,24 +249,16 @@ class AlbumDetailContainer extends ConsumerWidget {
       vas: work.vas,
       tags: work.tags,
       reviewLabel: reviewLabel,
-      onReviewTap: canSubmitReview
-          ? () => _showReviewSheet(context, ref, work, workStatus)
-          : null,
-      onDrawerOpen: canShowSimilarWorks
-          ? () => KikoenaiInnerDrawerScope.of(context).open()
-          : null,
-      onCircleTap: canShowSimilarWorks
-          ? () => _navigateToCategory(context, ref, work.name)
-          : null,
-      onRatingUpdate: canSubmitReview
-          ? (int newRating) => _submitRating(context, ref, work.id, newRating)
-          : null,
+      onReviewTap: () => _showReviewSheet(context, ref, work, workStatus),
+      onDrawerOpen: () => KikoenaiInnerDrawerScope.of(context).open(),
+      onCircleTap: () => _navigateToCategory(context, ref, work.name),
+      onRatingUpdate: (int newRating) =>
+          _submitRating(context, ref, work.id, newRating),
       // 文件区段（sliver）
       fileSection: fileSection,
       // 下拉刷新（仅网络）
-      onRefresh: primarySiteHasTracks
-          ? () => ref.refresh(albumTrackFileNodeIndexProvider(work.id).future)
-          : null,
+      onRefresh: () =>
+          ref.refresh(albumTrackFileNodeIndexProvider(work.id).future),
     );
   }
 

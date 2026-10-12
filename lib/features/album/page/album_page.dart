@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/enums/device_type.dart';
 import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/site/site_availability.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_mobile.dart';
 import 'package:kikoenai/core/widgets/loading/lottie_loading.dart';
 import '../provider/work_provider.dart';
@@ -20,20 +19,9 @@ class AlbumPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deviceType = context.deviceType;
-    final availableSurfaces = ref.watch(availableSurfacesProvider);
     final isEmpty = ref.watch(albumAllEmptyProvider);
-    final canSearch = availableSurfaces.contains(AppSurface.searchPage);
-    final canShowPopular = availableSurfaces.contains(
-      AppSurface.homePopularSection,
-    );
-    final canShowRecommended = availableSurfaces.contains(
-      AppSurface.homeRecommendedSection,
-    );
-    final canShowNewest = availableSurfaces.contains(
-      AppSurface.homeNewestSection,
-    );
     return Scaffold(
-      appBar: deviceType == DeviceType.mobile && canSearch
+      appBar: deviceType == DeviceType.mobile
           ? PreferredSize(
               preferredSize: const Size.fromHeight(
                 MobileSearchAppBar.toolbarHeight,
@@ -49,12 +37,9 @@ class AlbumPage extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait(<Future<void>>[
-            if (canShowPopular)
-              ref.refresh(hotWorksProvider.future).then((_) {}),
-            if (canShowRecommended)
-              ref.refresh(recommendedWorksProvider.future).then((_) {}),
-            if (canShowNewest)
-              ref.refresh(newWorksProvider.future).then((_) {}),
+            ref.refresh(hotWorksProvider.future).then((_) {}),
+            ref.refresh(recommendedWorksProvider.future).then((_) {}),
+            ref.refresh(newWorksProvider.future).then((_) {}),
           ]);
         },
         child: CustomScrollView(
@@ -81,9 +66,9 @@ class AlbumPage extends ConsumerWidget {
                 ),
               )
             else ...[
-              if (canShowPopular) const _HotWorksSection(),
-              if (canShowRecommended) const _RecommendedWorksSection(),
-              if (canShowNewest) const _NewestWorksSection(),
+              const _HotWorksSection(),
+              const _RecommendedWorksSection(),
+              const _NewestWorksSection(),
             ],
           ],
         ),
