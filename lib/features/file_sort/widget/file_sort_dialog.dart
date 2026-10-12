@@ -24,6 +24,8 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
   late FileSortField _selectedField;
   late bool _descending;
 
+  bool get _isDefaultField => _selectedField == FileSortField.defaultSort;
+
   @override
   void initState() {
     super.initState();
@@ -58,10 +60,13 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
             ),
           ),
           const Divider(),
+          // “默认”表示保持原始返回顺序，倒序对它没有意义，直接禁用。
           SwitchListTile(
             title: const Text('倒序'),
-            value: _descending,
-            onChanged: (value) => setState(() => _descending = value),
+            value: _isDefaultField ? false : _descending,
+            onChanged: _isDefaultField
+                ? null
+                : (value) => setState(() => _descending = value),
           ),
         ],
       ),
@@ -79,7 +84,7 @@ class _FileSortDialogBodyState extends ConsumerState<_FileSortDialogBody> {
             ref.read(fileSortProvider.notifier).update(
                   FileSortOption(
                     field: _selectedField,
-                    descending: _descending,
+                    descending: _isDefaultField ? false : _descending,
                   ),
                 );
             Navigator.of(context).pop();

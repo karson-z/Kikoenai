@@ -10,8 +10,13 @@ class FileNodeLibraryIndex {
   final Map<String, FileNode> nodeByKey = {};
   final Map<String, FileNode> nodeByPath = {};
 
-  /// 当前排序配置，默认按 title 升序。
+  /// 当前排序配置，默认不排序（保持接口/扫描返回顺序）。
   FileSortOption _currentSort = FileSortOption.defaultOption;
+  bool _sortApplied = false;
+
+  /// 构建完成时的原始顺序快照，用于切回“默认”排序时还原。
+  final Map<NodeFolder, List<FileNode>> _defaultFileOrder = {};
+  final Map<NodeFolder?, List<NodeFolder>> _defaultFolderOrder = {};
 
   late FolderTreeNode rootNode;
 
@@ -434,6 +439,7 @@ class FileNodeLibraryIndex {
       }
     }
 
+    _captureDefaultOrder();
     _sort(_currentSort);
   }
 
@@ -483,13 +489,62 @@ class FileNodeLibraryIndex {
 
   /// 应用新的排序配置并重排文件树。
   void applySort(FileSortOption option) {
+    // 同一份配置重复下发（例如 build 中每帧调用）时跳过，避免无意义重排。
+    if (_sortApplied && option == _currentSort) return;
     _currentSort = option;
     _sort(option);
   }
 
+  /// 记录构建完成时的原始顺序（文件 + 子目录），作为“默认”排序的还原基准。
+  void _captureDefaultOrder() {
+    _defaultFileOrder
+      ..clear()
+      ..addEntries(
+        folderMap.entries.map((e) => MapEntry(e.key, List.of(e.value))),
+      );
+    _defaultFolderOrder.clear();
+    rootNode.walkIncludingSelf((node) {
+      _defaultFolderOrder[node.folder] = node.children.keys.toList();
+    });
+  }
+
+  /// 还原构建时的原始顺序。排序是对 folderMap / children 的原地重排，
+  /// 不还原就会一直保留上一次的排序结果，导致“默认”选项看起来失效。
+  void _restoreDefaultOrder() {
+    for (final entry in folderMap.entries) {
+      final original = _defaultFileOrder[entry.key];
+      if (original == null) continue;
+      entry.value
+        ..clear()
+        ..addAll(original);
+    }
+
+    rootNode.walkIncludingSelf((node) {
+      final original = _defaultFolderOrder[node.folder];
+      if (original == null) return;
+      final restored = <NodeFolder, FolderTreeNode>{};
+      for (final folder in original) {
+        final child = node.children[folder];
+        if (child != null) restored[folder] = child;
+      }
+      // 快照之后新增的目录追加到末尾，避免丢节点
+      for (final entry in node.children.entries) {
+        restored.putIfAbsent(entry.key, () => entry.value);
+      }
+      node.children
+        ..clear()
+        ..addEntries(restored.entries);
+    });
+  }
+
   void _sort(FileSortOption option) {
-    // 默认排序：不进行任何处理，保持接口/扫描返回顺序
-    if (option.field == FileSortField.defaultSort) return;
+    _sortApplied = true;
+
+    // 默认排序：还原到构建时的原始顺序（接口/扫描返回顺序）
+    if (option.field == FileSortField.defaultSort) {
+      _restoreDefaultOrder();
+      return;
+    }
 
     // 文件夹没有 duration/size，这两种模式下继续按标题升序。
     // 标题和标题序号模式则与文件使用相同规则，否则纯文件夹目录会看起来“排序失效”。

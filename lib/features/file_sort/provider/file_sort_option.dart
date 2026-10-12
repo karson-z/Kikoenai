@@ -52,5 +52,14 @@ class FileSortOption {
   }
 
   @override
+  bool operator ==(Object other) =>
+      other is FileSortOption &&
+      other.field == field &&
+      other.descending == descending;
+
+  @override
+  int get hashCode => Object.hash(field, descending);
+
+  @override
   String toString() => 'FileSortOption(field: $field, descending: $descending)';
 }
