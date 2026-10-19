@@ -26,6 +26,54 @@ final playerControllerProvider =
   return PlayerController();
 });
 
+/// JSON 通道会把 `18.0` 编成整数再解回 `int`。`as double?` 会抛类型错误，
+/// 字号和整数坐标因此写不进 Hive。
+double? overlayFontSizeFromPayload(Object? payload) {
+  if (payload is! Map) return null;
+  return _payloadDouble(payload['size']);
+}
+
+Offset? overlayPositionFromPayload(Object? payload) {
+  if (payload is! Map) return null;
+  final x = _payloadDouble(payload['x']);
+  final y = _payloadDouble(payload['y']);
+  if (x == null || y == null) return null;
+  return Offset(x, y);
+}
+
+double? _payloadDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  return null;
+}
+
+/// 返回 true 表示这条指令只写设置，调用方不必再分发。
+bool persistOverlaySettingsCommand(
+  Box<dynamic> settings,
+  String action,
+  Object? payload,
+) {
+  switch (action) {
+    case PlayerConstants.color:
+      final colorValue = payload is Map ? payload['color'] as int? : null;
+      if (colorValue == null) return true;
+      settings.put(StorageKeys.overlayLyricsFontColor, colorValue);
+      return true;
+    case PlayerConstants.savePosition:
+      final position = overlayPositionFromPayload(payload);
+      if (position == null) return true;
+      settings.put(StorageKeys.overlayLyricsPositionX, position.dx);
+      settings.put(StorageKeys.overlayLyricsPositionY, position.dy);
+      return true;
+    case PlayerConstants.updateFontSize:
+      final size = overlayFontSizeFromPayload(payload);
+      if (size == null) return true;
+      settings.put(StorageKeys.overlayLyricsFontSize, size);
+      return true;
+    default:
+      return false;
+  }
+}
+
 class PlayerController extends Notifier<AppPlayerState> {
   Timer? _playbackTicker;
 
@@ -97,6 +145,21 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (!state.isVideoControlsVisible) {
       state = state.copyWith(isVideoControlsVisible: true);
     }
+    startControlsHideTimer();
+  }
+
+  /// Shows the video chrome and holds it up until [releaseControlsHold].
+  ///
+  /// Used while a seek drag is moving the progress bar, so the 4 second
+  /// auto-hide cannot drop the bars mid-gesture.
+  void holdControlsVisible() {
+    cancelControlsHideTimer();
+    if (!state.isVideoControlsVisible) {
+      state = state.copyWith(isVideoControlsVisible: true);
+    }
+  }
+
+  void releaseControlsHold() {
     startControlsHideTimer();
   }
 
@@ -223,6 +286,8 @@ class PlayerController extends Notifier<AppPlayerState> {
       final lyricsNotifier = ref.read(lyricsControllerProvider.notifier);
       final setting = AppStorage.settingsBox;
 
+      if (persistOverlaySettingsCommand(setting, action, payload)) return;
+
       switch (action) {
         case PlayerConstants.play:
           play();
@@ -242,26 +307,6 @@ class PlayerController extends Notifier<AppPlayerState> {
         case PlayerConstants.toggleLock:
           final isLocked = ref.read(lyricsControllerProvider).isLocked;
           lyricsNotifier.updateLockState(!isLocked);
-          break;
-        case PlayerConstants.color:
-          final colorValue = payload is Map ? payload['color'] as int? : null;
-          if (colorValue != null) {
-            setting.put(StorageKeys.overlayLyricsFontColor, colorValue);
-          }
-          break;
-        case PlayerConstants.savePosition:
-          final x = payload is Map ? payload['x'] as double? : null;
-          final y = payload is Map ? payload['y'] as double? : null;
-          if (x != null && y != null) {
-            setting.put(StorageKeys.overlayLyricsPositionX, x);
-            setting.put(StorageKeys.overlayLyricsPositionY, y);
-          }
-          break;
-        case PlayerConstants.updateFontSize:
-          final size = payload is Map ? payload['size'] as double? : null;
-          if (size != null) {
-            setting.put(StorageKeys.overlayLyricsFontSize, size);
-          }
           break;
       }
     });

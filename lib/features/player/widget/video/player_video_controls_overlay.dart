@@ -5,6 +5,7 @@ import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 
 import '../../../../../core/widgets/layout/provider/main_scaffold_provider.dart';
 import '../../provider/player_controller_provider.dart';
+import '../../provider/video_seek_preview_provider.dart';
 import '../other/player_list_sheet.dart';
 import '../other/player_more_options_sheet.dart';
 import '../other/player_progress_bar.dart';
@@ -147,6 +148,7 @@ class VideoBottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(playerControllerProvider);
+    final seekPreview = ref.watch(videoSeekPreviewProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final isFullScreen = ref.watch(mainScaffoldProvider).isFullScreen;
     final isDesktop =
@@ -232,7 +234,7 @@ class VideoBottomBar extends ConsumerWidget {
       ],
     ];
     final timeLabel = Text(
-      '${_formatDuration(state.progressBarState.current)} / ${_formatDuration(state.progressBarState.total)}',
+      '${_formatDuration(seekPreview ?? state.progressBarState.current)} / ${_formatDuration(state.progressBarState.total)}',
       style: const TextStyle(color: Colors.white, fontSize: 13),
     );
     final actionControls = <Widget>[

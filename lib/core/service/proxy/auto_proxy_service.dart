@@ -1,148 +1,140 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:native_flutter_proxy/native_flutter_proxy.dart';
+
+import 'system_proxy_config.dart';
 
 class ProxyService {
   ProxyService._();
 
-  static Future<void> init() async {
-    if (kIsWeb) return;
+  static SystemProxyConfig get current => _current;
+  static SystemProxyConfig _current = SystemProxyConfig.direct;
+  static final _changes = StreamController<SystemProxyConfig>.broadcast(
+    sync: true,
+  );
+  static Stream<SystemProxyConfig> get changes => _changes.stream;
+  static Future<void>? _initialization;
+  static Future<void>? _refreshing;
+  static Timer? _poll;
+  static AppLifecycleListener? _lifecycle;
+  static int _revision = 0;
+  static Future<SystemProxyConfig> Function() _reader = _readSystemProxy;
 
-    String? proxyString;
+  static Future<void> init({
+    @visibleForTesting Future<SystemProxyConfig> Function()? readSettings,
+  }) {
+    if (kIsWeb) return Future.value();
+    return _initialization ??= _initialize(readSettings);
+  }
 
+  static Future<void> _initialize(
+    Future<SystemProxyConfig> Function()? reader,
+  ) async {
+    _reader = reader ?? _readSystemProxy;
+    // Existing clients consult the current configuration for new connections.
+    HttpOverrides.global = SystemProxyHttpOverrides(() => _current);
+    if (Platform.isAndroid || Platform.isIOS) {
+      // Register even when the app starts without a proxy.
+      NativeProxyReader.setProxyChangedCallback((settings) async {
+        _apply(_fromMobile(settings));
+        return null;
+      });
+    }
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(refresh()));
+    await refresh();
+    if (Platform.isWindows || Platform.isMacOS) {
+      _poll = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => unawaited(refresh()),
+      );
+    }
+  }
+
+  static Future<void> refresh() => _refreshing ??= _refresh().whenComplete(() {
+    _refreshing = null;
+  });
+
+  static Future<void> _refresh() async {
+    final revision = _revision;
     try {
-      if (Platform.isWindows || Platform.isMacOS) {
-        proxyString = await _getDesktopProxy();
-      } else if (Platform.isAndroid || Platform.isIOS) {
-        try {
-          final settings = await NativeProxyReader.proxySetting;
-          if (settings.enabled && settings.host != null) {
-            proxyString = "${settings.host}:${settings.port}";
-
-            NativeProxyReader.setProxyChangedCallback((newSettings) async {
-              if (newSettings.enabled && newSettings.host != null) {
-                _applyProxy("${newSettings.host}:${newSettings.port}");
-              } else {
-                _applyProxy(null);
-              }
-              return null;
-            });
-          }
-        } catch (e) {
-          KikoenaiLogger().e('[Proxy] 移动端插件初始化错误: $e');
-        }
-      }
-    } catch (e) {
-      KikoenaiLogger().e('[Proxy] 获取系统代理失败: $e');
-    }
-
-    _applyProxy(proxyString);
-  }
-
-  static void _applyProxy(String? proxyStr) {
-    HttpOverrides.global = _GlobalHttpOverrides(proxyStr);
-    if (proxyStr != null && proxyStr.isNotEmpty) {
-      KikoenaiLogger().i('[Proxy] 全局代理已开启: $proxyStr');
-    } else {
-      KikoenaiLogger().i('[Proxy] 未检测到代理，使用直连');
+      final config = await _reader();
+      // A native notification may have arrived while reading settings.
+      if (revision == _revision) _apply(config);
+    } catch (error) {
+      // A read failure does not mean the proxy has been disabled.
+      KikoenaiLogger().e('[Proxy] 读取系统代理失败，保留上次配置: $error');
     }
   }
 
-  static Future<String?> _getDesktopProxy() async {
-    try {
-      if (Platform.isWindows) {
-        return await _getWindowsProxy();
-      } else if (Platform.isMacOS) {
-        return await _getMacOSProxy();
-      }
-    } catch (e) {
-      KikoenaiLogger().e('桌面端获取代理失败: $e');
-    }
-    return null;
+  static void _apply(SystemProxyConfig config) {
+    _revision++;
+    if (config == _current) return;
+    _current = config;
+    _changes.add(config);
+    KikoenaiLogger().i('[Proxy] 系统代理配置已更新');
   }
 
-  static Future<String?> _getWindowsProxy() async {
-    final result = await Process.run('reg', [
-      'query',
-      r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings',
-      '/v',
-      'ProxyServer'
-    ]);
-
-    final enableResult = await Process.run('reg', [
-      'query',
-      r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings',
-      '/v',
-      'ProxyEnable'
-    ]);
-
-    if (!enableResult.stdout.toString().contains('0x1')) return null;
-
-    final output = result.stdout.toString();
-    final RegExp regExp = RegExp(r'ProxyServer\s+REG_SZ\s+([^\r\n]+)');
-    final match = regExp.firstMatch(output);
-
-    if (match != null) {
-      String rawProxy = match.group(1)?.trim() ?? '';
-
-      if (rawProxy.contains('=')) {
-        final parts = rawProxy.split(';');
-        for (var part in parts) {
-          if (part.startsWith('http=') || part.startsWith('https=')) {
-            return part.split('=')[1];
-          }
-        }
-      } else {
-        return rawProxy;
-      }
+  static SystemProxyConfig _fromMobile(ProxySetting settings) {
+    if (!settings.enabled || settings.host == null || settings.port == null) {
+      return SystemProxyConfig.direct;
     }
-    return null;
+    final host = settings.host!;
+    return SystemProxyConfig.single(
+      ProxyEndpoint.parse(
+        '${host.contains(':') && !host.startsWith('[') ? '[$host]' : host}:${settings.port}',
+      ),
+    );
   }
 
-  static Future<String?> _getMacOSProxy() async {
-    final result = await Process.run('scutil', ['--proxy']);
-    final output = result.stdout.toString();
-    final Map<String, String> proxyConfig = {};
-
-    final lines = output.split('\n');
-    for (var line in lines) {
-      line = line.trim();
-      if (line.contains(':')) {
-        final parts = line.split(':');
-        if (parts.length >= 2) {
-          proxyConfig[parts[0].trim()] = parts.sublist(1).join(':').trim();
-        }
-      }
+  static Future<SystemProxyConfig> _readSystemProxy() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      return _fromMobile(await NativeProxyReader.proxySetting);
     }
-
-    if (proxyConfig['HTTPEnable'] == '1') {
-      final host = proxyConfig['HTTPProxy'];
-      final port = proxyConfig['HTTPPort'];
-      if (host != null && port != null) {
-        return "$host:$port";
+    if (Platform.isWindows) {
+      final result = await Process.run('reg', [
+        'query',
+        r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings',
+      ]).timeout(const Duration(seconds: 5));
+      if (result.exitCode != 0) {
+        throw StateError('reg query: ${result.exitCode}');
       }
+      return SystemProxyConfig.fromWindowsRegistry(result.stdout.toString());
     }
-    return null;
+    if (Platform.isMacOS) {
+      final result = await Process.run('scutil', [
+        '--proxy',
+      ]).timeout(const Duration(seconds: 5));
+      if (result.exitCode != 0) throw StateError('scutil: ${result.exitCode}');
+      return SystemProxyConfig.fromScutil(result.stdout.toString());
+    }
+    return SystemProxyConfig.direct;
+  }
+
+  @visibleForTesting
+  static void dispose() {
+    _poll?.cancel();
+    _poll = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+    _revision++;
+    _initialization = null;
+    _current = SystemProxyConfig.direct;
   }
 }
 
-class _GlobalHttpOverrides extends HttpOverrides {
-  final String? proxyString;
+class SystemProxyHttpOverrides extends HttpOverrides {
+  SystemProxyHttpOverrides(this.readConfig);
 
-  _GlobalHttpOverrides(this.proxyString);
+  final SystemProxyConfig Function() readConfig;
 
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-
-    client.findProxy = (uri) {
-      if (proxyString != null && proxyString!.isNotEmpty) {
-        return "PROXY $proxyString; DIRECT";
-      }
-      return "DIRECT";
-    };
-
+    client.findProxy = (uri) => readConfig().findProxy(uri);
     return client;
   }
 }

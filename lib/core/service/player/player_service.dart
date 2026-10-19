@@ -1,21 +1,44 @@
-import 'dart:io';
-
-import 'package:hive_ce/hive.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
-
-import '../../constants/app_constants.dart';
-import '../../storage/hive_key.dart';
-import '../../storage/hive_storage.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
+import '../proxy/auto_proxy_service.dart';
 
 /// 全局媒体播放管理器
 ///
 /// 负责持有底层的 [Player] 与 [VideoController] 实例。
 /// UI 层可通过此类挂载视频画面，音频服务层通过此类控制播放核心。
 class PlayerService {
-  PlayerService._();
+  PlayerService._() {
+    final native = player.platform;
+    if (native is NativePlayer) {
+      // media_kit runs this hook before opening the network stream. Keeping it
+      // here also covers opens triggered by repeat/playlist and header refresh.
+      native.onLoadHooks.add(() async {
+        final path = await native.getProperty(
+          'path',
+          waitForInitialization: false,
+        );
+        final uri = Uri.tryParse(path);
+        final endpoint = uri == null
+            ? null
+            : ProxyService.current.proxyFor(uri);
+        final proxy = endpoint?.url ?? '';
+        await native.setProperty(
+          'http-proxy',
+          proxy,
+          waitForInitialization: false,
+        );
+        // setProperty ignores mpv's return code; read back to detect rejection.
+        if (await native.getProperty(
+              'http-proxy',
+              waitForInitialization: false,
+            ) !=
+            proxy) {
+          KikoenaiLogger().e('[Proxy] mpv 未接受 HTTP 代理设置');
+        }
+      });
+    }
+  }
 
   static final PlayerService _instance = PlayerService._();
 

@@ -14,7 +14,6 @@ import 'app/app.dart';
 import 'core/service/audio/audio_service.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
 import 'core/service/file/local_media_sync_scheduler.dart';
-import 'core/service/player/player_service.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
 import 'core/utils/version/auto_update.dart';
@@ -82,8 +81,8 @@ void main() async {
   );
   await AppStorage.init();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  await AudioServiceSingleton.init();
   await ProxyService.init();
+  await AudioServiceSingleton.init();
   await DownloadService.init();
   debugPrint('开始初始化站点 API...');
   // api 服务器选择以及初始化不再阻塞

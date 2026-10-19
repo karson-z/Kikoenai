@@ -7,6 +7,9 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
+import '../proxy/auto_proxy_service.dart';
+import '../proxy/system_proxy_config.dart';
+import 'download_proxy_sync.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/v4.dart';
 
@@ -43,6 +46,8 @@ class DownloadService {
   Box get setting => AppStorage.settingsBox;
   // 初始化标志
   static bool _isInitialized = false;
+  static DownloadProxySync? _proxySync;
+  static StreamSubscription<SystemProxyConfig>? _proxySubscription;
 
   static Future<void> init() async {
     if (_isInitialized) return;
@@ -91,6 +96,28 @@ class DownloadService {
       ],
     );
 
+    _proxySync ??= DownloadProxySync(
+      readConfig: () => ProxyService.current,
+      useSystemProxy: Platform.isIOS,
+      configure: (proxy) async {
+        final results = await FileDownloader().configure(
+          globalConfig: (Config.proxy, proxy),
+        );
+        for (final result in results) {
+          if (result.$2.isNotEmpty) {
+            throw StateError('下载代理配置失败: ${result.$2}');
+          }
+        }
+      },
+    );
+    _proxySubscription ??= ProxyService.changes.listen((_) {
+      unawaited(
+        _proxySync!.sync().catchError((Object error) {
+          KikoenaiLogger().e('[Proxy] 更新下载代理失败: $error');
+        }),
+      );
+    });
+    await _proxySync!.sync();
     FileDownloader().start();
     _isInitialized = true;
     debugPrint('DownloadService 初始化完成');
@@ -98,6 +125,7 @@ class DownloadService {
 
   /// 场景方法：下载并打开 (等待模式)
   Future<void> downloadAndOpen(String url, String filename) async {
+    await _proxySync?.sync();
     final hasPrem = await _checkNotificationPermission();
     if (!hasPrem) {
       debugPrint("没有权限,不做通知");
@@ -230,6 +258,7 @@ class DownloadService {
     }
 
     if (tasksToEnqueue.isNotEmpty) {
+      await _proxySync?.sync();
       debugPrint("准备入队 ${tasksToEnqueue.length} 个任务");
       // 批量入队
       await FileDownloader().enqueueAll(tasksToEnqueue);
@@ -244,10 +273,12 @@ class DownloadService {
   }
 
   Future<void> resumeAll(List<Task> taskList) async {
+    await _proxySync?.sync();
     await FileDownloader().resumeAll(tasks: List<DownloadTask>.from(taskList));
   }
 
   Future<void> resume(Task task) async {
+    await _proxySync?.sync();
     await FileDownloader().resume(task as DownloadTask);
   }
 
@@ -274,6 +305,7 @@ class DownloadService {
 
     // 2. 检查对象是否存在
     if (task != null && task is DownloadTask) {
+      await _proxySync?.sync();
       return await FileDownloader().resume(task);
     }
 
@@ -422,6 +454,8 @@ class DownloadService {
 
   // 销毁（一般单例不销毁，但如果需要重置可调用）
   void dispose() {
+    unawaited(_proxySubscription?.cancel());
+    _proxySubscription = null;
     _progressController.close();
     _statusController.close();
   }

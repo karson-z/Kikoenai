@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../provider/player_controller_provider.dart';
+import '../../provider/video_seek_preview_provider.dart';
 
 enum GestureFeedbackType { none, seek, volume, brightness }
 
@@ -21,6 +22,7 @@ class VideoGestureLayer extends ConsumerStatefulWidget {
 class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   double _dragValue = 0;
   int _seekPositionSeconds = 0;
+  bool _seekDragActive = false;
 
   double _pendingBrightnessDelta = 0;
   bool _brightnessReady = false;
@@ -47,10 +49,43 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
   @override
   void dispose() {
     _feedbackTimer?.cancel();
+    if (_seekDragActive) {
+      _playerController.releaseControlsHold();
+      ref.read(videoSeekPreviewProvider.notifier).clear();
+    }
     if (_brightnessAdjusted) {
       unawaited(_playerController.resetScreenBrightness());
     }
     super.dispose();
+  }
+
+  void _beginSeekDrag(int startSeconds) {
+    _seekDragActive = true;
+    _dragValue = startSeconds.toDouble();
+    _playerController.holdControlsVisible();
+    ref
+        .read(videoSeekPreviewProvider.notifier)
+        .update(Duration(seconds: startSeconds));
+    _showFeedback(GestureFeedbackType.seek, seekPosition: startSeconds);
+  }
+
+  void _updateSeekDrag(int targetSeconds) {
+    _dragValue = targetSeconds.toDouble();
+    ref
+        .read(videoSeekPreviewProvider.notifier)
+        .update(Duration(seconds: targetSeconds));
+    _showFeedback(GestureFeedbackType.seek, seekPosition: targetSeconds);
+  }
+
+  void _endSeekDrag() {
+    if (!_seekDragActive) return;
+    _seekDragActive = false;
+    final target = Duration(seconds: _dragValue.toInt());
+    ref.read(videoSeekPreviewProvider.notifier).clear();
+    _playerController.releaseControlsHold();
+    if (_feedbackType == GestureFeedbackType.seek) {
+      unawaited(_playerController.seek(target));
+    }
   }
 
   Future<void> _loadBrightness() async {
@@ -171,16 +206,14 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                 onHorizontalDragStart: isDesktop
                     ? null
                     : (_) {
-                        _dragValue = state.progressBarState.current.inSeconds
-                            .toDouble();
-                        _showFeedback(
-                          GestureFeedbackType.seek,
-                          seekPosition: _dragValue.toInt(),
+                        _beginSeekDrag(
+                          state.progressBarState.current.inSeconds,
                         );
                       },
                 onHorizontalDragUpdate: isDesktop
                     ? null
                     : (details) {
+                        if (!_seekDragActive) return;
                         final total = state.progressBarState.total.inSeconds;
                         if (total <= 0) return;
                         // Dragging the full width covers the whole duration.
@@ -188,20 +221,12 @@ class _VideoGestureLayerState extends ConsumerState<VideoGestureLayer> {
                         if (width <= 0) return;
                         _dragValue += details.primaryDelta! / width * total;
                         _dragValue = _dragValue.clamp(0, total.toDouble());
-                        _showFeedback(
-                          GestureFeedbackType.seek,
-                          seekPosition: _dragValue.toInt(),
-                        );
+                        _updateSeekDrag(_dragValue.toInt());
                       },
-                onHorizontalDragEnd: isDesktop
+                onHorizontalDragEnd: isDesktop ? null : (_) => _endSeekDrag(),
+                onHorizontalDragCancel: isDesktop
                     ? null
-                    : (_) {
-                        if (_feedbackType == GestureFeedbackType.seek) {
-                          controller.seek(
-                            Duration(seconds: _dragValue.toInt()),
-                          );
-                        }
-                      },
+                    : () => _endSeekDrag(),
 
                 // 3. 实际的业务逻辑：调节音量和亮度
                 dragStartBehavior: DragStartBehavior.down,

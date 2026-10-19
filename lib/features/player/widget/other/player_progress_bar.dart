@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/features/player/widget/other/player_progress_modify.dart';
 
 import '../../provider/player_controller_provider.dart';
+import '../../provider/video_seek_preview_provider.dart';
 
 class PlayerProgressBar extends ConsumerWidget {
   final bool showTimeLabel;
@@ -16,6 +17,7 @@ class PlayerProgressBar extends ConsumerWidget {
     final progressBarState = ref.watch(
       playerControllerProvider.select((p) => p.progressBarState),
     );
+    final seekPreview = ref.watch(videoSeekPreviewProvider);
     final bool isBuffering = ref.watch(
       playerControllerProvider.select((p) => p.loading),
     );
@@ -50,7 +52,7 @@ class PlayerProgressBar extends ConsumerWidget {
         draggingThumbRadius: 6,
         thumbGlowRadius: 6,
         thumbRadius: thumbRadius,
-        progress: progressBarState.current,
+        progress: seekPreview ?? progressBarState.current,
         buffered: progressBarState.buffered,
         total: progressBarState.total,
         onSeek: (progressBarState.total != Duration.zero)
