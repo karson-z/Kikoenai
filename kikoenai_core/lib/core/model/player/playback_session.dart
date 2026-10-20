@@ -44,7 +44,9 @@ abstract class PlaybackItem with _$PlaybackItem {
   }) {
     final resolvedSource = source ?? node.source;
     final url = node.playablePath;
-    final workId = node.workId ?? work?.id;
+    // 显式传入的作品优先：调用方可能已按 RJ 目录重新解析，覆盖旧缓存里
+    // 可能过期的 node.workId。
+    final workId = work?.id ?? node.workId;
     final artist =
         _blankToNull(node.artist) ??
         _blankToNull(work == null ? null : OtherUtil.joinVAs(work.vas));

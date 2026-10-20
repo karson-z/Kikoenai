@@ -598,13 +598,20 @@ class PlayerController extends Notifier<AppPlayerState> {
     FileNode node,
     List<FileNode> currentNodes, {
     Work? work,
+    Work? Function(FileNode node)? workOf,
     NodeSource? source,
   }) async {
     if (node.isAudio || node.isVideo) {
       final audioFiles =
           currentNodes.where((n) => n.isAudio || n.isVideo).toList();
       final playbackItems = audioFiles.map((n) {
-        return _fileNodeToPlaybackItem(n, work, source: source);
+        // 批次里的节点可能来自不同目录（云盘搜索结果、递归收集）：按每个
+        // 文件实际所在文件夹解析，避免把点击项的作品套到其它目录的文件上。
+        return _fileNodeToPlaybackItem(
+          n,
+          workOf?.call(n) ?? work,
+          source: source,
+        );
       }).toList();
       final mediaList = playbackItems.toMediaItems();
 

@@ -7,6 +7,7 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 
 import '../../storage/hive_storage.dart';
 import 'file_node_library_index.dart';
+import 'work_association_index.dart';
 
 class FileScannerStorage {
   FileScannerStorage._();
@@ -146,9 +147,14 @@ class FileScannerStorage {
     debugPrint('[FileScannerStorage] cleared all scanner nodes.');
   }
 
+  /// 按 RJ 编号读取作品的本地文件索引。
+  ///
+  /// 关联在读取时完成（见 [WorkAssociationIndex]），不依赖扫描阶段写入的
+  /// `workId`；因此本地媒体、DL 库、网盘使用同一套 RJ 目录识别逻辑。
   FileNodeLibraryIndex? getWorkFileIndexLocally(int workId) {
-    final workFiles = getAllAcrossModes()
-        .where((node) => node.workId == workId && !node.isFolder)
+    final workFiles = WorkAssociationIndex.instance
+        .filesForWork(workId)
+        .where((node) => !node.isFolder)
         .toList();
 
     if (workFiles.isEmpty) return null;

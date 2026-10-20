@@ -2,13 +2,9 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../features/album/provider/audio_file_provider.dart';
+import 'package:kikoenai/core/service/file/work_association_index.dart';
 import 'package:path/path.dart' as p;
-
-import '../file/file_scanner_storage.dart';
-import 'package:kikoenai/core/service/file/file_scanner_storage.dart';
 
 class LyricsDataProcess {
   /// 字幕文件名数据处理
@@ -85,9 +81,10 @@ class SearchLyricsService {
   }
 
   static List<FileNode> findSubtitleInLocalById(int workId) {
-    final subtitles = FileScannerStorage()
-        .getAllByMode(ScanMode.subtitles)
-        .where((node) => !node.isFolder && node.workId == workId)
+    // 与 DL 本地来源共用读时关联索引，不再依赖扫描阶段写入的 workId。
+    final subtitles = WorkAssociationIndex.instance
+        .filesForWork(workId)
+        .where((node) => !node.isFolder && node.isText)
         .toList();
 
     subtitles.sort((a, b) {

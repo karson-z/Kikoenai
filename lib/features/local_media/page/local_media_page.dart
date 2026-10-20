@@ -4,7 +4,6 @@ import 'package:kikoenai/core/widgets/bread_crumb_bar/file_breadcrumb_header.dar
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
-import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/provider/file_bread_crumb_bar.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/layout/app_toast.dart';
@@ -205,12 +204,6 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
                     _clearSearch();
                     scannerNotifier.stepIn(NodeFolder(node.path!));
                   },
-                  workResolver: (node) => node.workId == null
-                      ? null
-                      : ScraperStorage().getWork(node.workId!),
-                  sourceResolver: (node) => node.workId == null
-                      ? NodeSource.localSingle
-                      : NodeSource.localWork,
                   editConfig: FileBrowserEditConfig(
                     isEditing: edit.isEditing,
                     selectedKeys: edit.selectedKeys,
@@ -414,11 +407,7 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
       confirmLabel: '加入',
     );
     if (!confirmed || !mounted) return;
-    final items = FileBrowserEditActions.playbackItems(
-      files,
-      workOf: (node) =>
-          node.workId == null ? null : ScraperStorage().getWork(node.workId!),
-    );
+    final items = FileBrowserEditActions.playbackItems(files);
     await ref.read(playerControllerProvider.notifier).addPlaybackItems(items);
     if (!mounted) return;
     ref.read(localFileEditProvider.notifier).exit();

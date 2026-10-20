@@ -1,5 +1,7 @@
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
+import 'package:kikoenai/core/service/file/work_association_index.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/features/cloud_drive/data/cloud_drive_source.dart';
 import 'package:kikoenai/features/local_media/model/local_media_exclusion.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -184,20 +186,37 @@ class FileBrowserEditActions {
     return target.substring(root.length + 1);
   }
 
-  /// 按每个文件自己的作品和来源生成播放项。
+  /// 读时解析节点所属的 DL 作品。
+  ///
+  /// 优先按文件夹链解析 RJ（与 DL 本地来源、字幕匹配保持一致），解析不到
+  /// 时才回退到节点自带的 `workId`（旧缓存兼容）。
+  static Work? resolveWorkForNode(FileNode node) {
+    final workId =
+        WorkAssociationIndex.instance.workIdForNode(node) ?? node.workId;
+    if (workId == null) return null;
+    try {
+      return ScraperStorage().getWork(workId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 按每个文件自己的作品生成播放项。
+  ///
+  /// 未显式传入 [workOf] 时使用 [resolveWorkForNode] 做读时关联；来源与
+  /// 续播 scope 保持原样，避免升级后旧的续播进度失效。
   static List<PlaybackItem> playbackItems(
     List<FileNode> files, {
     Work? Function(FileNode node)? workOf,
   }) {
-    return files
-        .map(
-          (node) => PlaybackItem.fromFileNode(
-            node,
-            work: workOf?.call(node),
-            source: node.source,
-          ),
-        )
-        .toList(growable: false);
+    return files.map((node) {
+      final work = workOf != null ? workOf(node) : resolveWorkForNode(node);
+      return PlaybackItem.fromFileNode(
+        node,
+        work: work,
+        source: node.source,
+      );
+    }).toList(growable: false);
   }
 }
 

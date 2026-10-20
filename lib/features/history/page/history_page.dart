@@ -5,6 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -602,6 +603,10 @@ class _MoreMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = workId == null ? null : ScraperStorage().getWork(workId!);
+    // 本地/云盘播放的作品元数据只存在于 DL 库，进入 DL 详情模式；
+    // 远端站点播放仍走远端详情（会重新拉取站点数据）。
+    final useDlLibraryMode =
+        work != null && entry.lastItem?.source != NodeSource.asmrServer;
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -617,7 +622,15 @@ class _MoreMenu extends ConsumerWidget {
       onSelected: (value) {
         switch (value) {
           case 'detail':
-            context.push(AppRoutes.detail, extra: {'work': work});
+            context.push(
+              AppRoutes.detail,
+              extra: useDlLibraryMode
+                  ? AlbumDetailArgs(
+                      work: work,
+                      mode: AlbumDetailMode.dlLibrary,
+                    )
+                  : {'work': work},
+            );
           case 'delete':
             onDelete();
         }

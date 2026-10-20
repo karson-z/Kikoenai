@@ -15,7 +15,9 @@ import 'package:kikoenai/core/widgets/menu/menu.dart';
 import 'package:kikoenai/core/widgets/text_preview/text_preview_page.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/core/service/file/work_association_index.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_controller.dart';
+import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/features/local_media/widget/status_pill.dart';
 import 'package:kikoenai/features/file_browser/model/file_browser_edit_config.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
@@ -265,6 +267,8 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         ],
         onSelected: (value) async {
           if (value == 'add') {
+            final work = _resolveWork(node);
+            if (work == null) return;
             FileNode nodeToAdd = node;
             final record = downloadedTaskMap[node.hash];
             if (record != null) {
@@ -277,7 +281,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
                 .read(playerControllerProvider.notifier)
                 .addSingleInQueue(
                   nodeToAdd,
-                  _resolveWork(node),
+                  work,
                   source: _resolveSource(node),
                 );
             KikoenaiToast.success('已添加到播放列表');
@@ -505,17 +509,33 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     playerController.handleFileTap(
       targetNode,
       processedList,
-      work: _resolveWork(node),
+      // 专辑详情整批文件同属一个作品；本地媒体/网盘按文件所在文件夹解析。
+      work: widget.work,
+      workOf: widget.work == null ? _resolveWork : null,
       source: _resolveSource(node),
     );
   }
 
-  Work _resolveWork(FileNode node) {
+  /// 读时解析节点所属作品。
+  ///
+  /// 优先级：外部注入的 workResolver > 专辑详情的固定 work > 按文件夹链
+  /// 解析 RJ > 节点自带 workId（旧缓存兜底）。
+  Work? _resolveWork(FileNode node) {
     final resolved = widget.workResolver?.call(node);
     if (resolved != null) return resolved;
-    return widget.work ?? Work(id: node.workId ?? 0);
+    if (widget.work != null) return widget.work;
+
+    final workId =
+        WorkAssociationIndex.instance.workIdForNode(node) ?? node.workId;
+    if (workId == null) return null;
+    try {
+      return ScraperStorage().getWork(workId);
+    } catch (_) {
+      return null;
+    }
   }
 
+  /// 基础来源；不在这里改变 `source`，避免升级后旧的续播 scope 失效。
   NodeSource _resolveSource(FileNode node) {
     return widget.sourceResolver?.call(node) ?? widget.source;
   }
