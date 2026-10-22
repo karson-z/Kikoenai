@@ -6,6 +6,7 @@ import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/features/album/widget/work_tag.dart';
 import 'package:kikoenai/features/category/provider/category_data_provider.dart';
 
@@ -47,38 +48,39 @@ class WorkListCard extends ConsumerWidget {
     final isSubTitle = hasSubtitle ?? false;
     final displayName = name ?? circleName ?? '';
     final colorScheme = Theme.of(context).colorScheme;
+    final card = context.layout.card(AppCardVariant.workList);
 
     return Card(
       clipBehavior: Clip.hardEdge,
       elevation: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+      margin: card.margin,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(card.radius)),
       ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: card.padding,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 封面缩略图（4:3，小尺寸降低解码/内存开销）
               ClipRRect(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(context.layout.radiusSmall),
                 child: SizedBox(
-                  width: 88,
-                  height: 66,
+                  width: card.coverSize!.width,
+                  height: card.coverSize!.height,
                   child: Hero(
                     tag: heroTag,
                     child: SimpleExtendedImage(
                       mainCoverUrl ?? '',
-                      width: 88,
+                      width: card.coverSize!.width,
                       cacheWidth: 200,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: card.spacing),
               // 信息区
               Expanded(
                 child: Column(
@@ -102,7 +104,10 @@ class WorkListCard extends ConsumerWidget {
                             ),
                           ),
                         if (isSubTitle)
-                          const _MetaChip(text: '字幕', background: Colors.black45),
+                          const _MetaChip(
+                            text: '字幕',
+                            background: Colors.black45,
+                          ),
                         if (release != null)
                           Text(
                             release!,

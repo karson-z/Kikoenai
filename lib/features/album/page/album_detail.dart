@@ -19,6 +19,7 @@ import 'package:kikoenai/features/album/widget/rating_section.dart';
 import 'package:kikoenai/features/album/widget/review_bottom_sheet.dart';
 import 'package:kikoenai/features/album/widget/work_tag.dart';
 import 'package:kikoenai/core/widgets/card/work_single_col_card.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 class AlbumDetailPage extends StatefulWidget {
@@ -415,7 +416,8 @@ class AlbumDetailView extends StatelessWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 600;
+          final isWide = constraints.maxWidth >= 600;
+          final layout = context.layout;
 
           final cover = AlbumCover(
             heroTag: heroTag,
@@ -429,13 +431,17 @@ class AlbumDetailView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Flexible(flex: 3, child: cover),
-                    const SizedBox(width: 16),
+                    SizedBox(width: layout.space4),
                     Flexible(flex: 6, child: info),
                   ],
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [cover, const SizedBox(height: 16), info],
+                  children: [
+                    cover,
+                    SizedBox(height: layout.space4),
+                    info,
+                  ],
                 );
 
           final scrollBody = CustomScrollView(
@@ -443,14 +449,14 @@ class AlbumDetailView extends StatelessWidget {
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.pageInset,
+                    vertical: layout.space3,
                   ),
                   child: metadata,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              SliverToBoxAdapter(child: SizedBox(height: layout.sectionGap)),
               fileSection,
             ],
           );

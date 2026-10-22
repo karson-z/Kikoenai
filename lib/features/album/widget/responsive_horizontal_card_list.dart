@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/config/work_layout_config.dart';
-import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/core/model/album/work.dart';
 import 'package:kikoenai/core/widgets/card/smart_color_card.dart';
@@ -16,14 +15,8 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
     // 鍒ょ┖淇濇姢锛岄伩鍏嶇┖鏁扮粍瀵艰嚧鐨勮绠楅敊璇?
     if (items.isEmpty) return const SizedBox();
 
-    final layout = WorkLayoutConfig.card(context);
-    var columns = layout.columns;
-    final spacing = layout.horizontalSpacing + 2;
-    final deviceType = context.deviceType;
-
-    if (deviceType != DeviceType.mobile) {
-      columns += 2;
-    }
+    final layout = context.layout;
+    final spacing = layout.gridGap;
 
     final isDesktop = [
       TargetPlatform.windows,
@@ -34,6 +27,7 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
+        final columns = (screenWidth / 180).floor().clamp(2, 6);
         final totalSpacing = (columns - 1) * spacing;
         final cardWidth = (screenWidth - totalSpacing) / columns;
         // 楂樺害璁＄畻淇濇寔涓嶅彉

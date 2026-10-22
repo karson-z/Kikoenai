@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/features/album/widget/work_tag.dart';
 import 'package:kikoenai/features/category/provider/category_data_provider.dart';
 
@@ -47,6 +48,7 @@ class WorkCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isSubTitle = hasSubtitle ?? false;
     final displayName = name ?? circleName ?? '';
+    final card = context.layout.card(AppCardVariant.workGrid);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -54,14 +56,14 @@ class WorkCard extends ConsumerWidget {
       child: Card(
         clipBehavior: Clip.hardEdge,
         elevation: 2,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(4)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(card.radius)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AspectRatio(
-              aspectRatio: 4 / 3,
+              aspectRatio: card.coverAspectRatio!,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -107,7 +109,10 @@ class WorkCard extends ConsumerWidget {
             Flexible(
               fit: FlexFit.tight,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: card.padding.horizontal / 2,
+                  vertical: context.layout.space1,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -139,7 +144,9 @@ class WorkCard extends ConsumerWidget {
                               categoryProvider(
                                 ref
                                     .read(
-                                      searchFilterProvider(FilterModule.category),
+                                      searchFilterProvider(
+                                        FilterModule.category,
+                                      ),
                                     )
                                     .sortOption,
                               ),

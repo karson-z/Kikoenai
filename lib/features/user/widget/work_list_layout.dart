@@ -4,7 +4,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/core/model/album/work.dart';
 import 'package:kikoenai/core/widgets/card/work_list.dart';
 
-import '../../../../config/work_layout_config.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 class ResponsiveListGrid extends StatelessWidget {
   final List<Work> work;
@@ -13,14 +13,18 @@ class ResponsiveListGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = WorkLayoutConfig.list(context);
+    final layout = context.layout;
 
     return SliverGrid.builder(
       itemCount: work.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: layout.columns,
-        crossAxisSpacing: layout.horizontalSpacing,
-        mainAxisSpacing: layout.verticalSpacing,
+        crossAxisCount: switch (layout.size) {
+          AppLayoutSize.compact => 1,
+          AppLayoutSize.medium => 2,
+          AppLayoutSize.expanded => 3,
+        },
+        crossAxisSpacing: layout.gridGap,
+        mainAxisSpacing: layout.gridGap,
         childAspectRatio: 2.6, // 横向大于纵向
       ),
       itemBuilder: (context, index) {

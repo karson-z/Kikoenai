@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/config/app_version_config.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
 import 'package:kikoenai/core/theme/app_theme.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 import 'package:kikoenai/core/widgets/scroll/my_scroll_behavior.dart';
 import 'package:kikoenai/features/cloud_drive/provider/webdav_connection_controller.dart';
 import 'package:kikoenai/features/overly-lyrics/provider/overly_lyrics_provider.dart';
@@ -37,6 +38,14 @@ class MyApp extends ConsumerWidget {
       ),
       themeMode: themeState.mode,
       routerConfig: router,
+      builder: (context, child) => ResponsiveBreakpoints.builder(
+        child: child!,
+        breakpoints: const [
+          Breakpoint(start: 0, end: 599, name: 'compact'),
+          Breakpoint(start: 600, end: 1023, name: 'medium'),
+          Breakpoint(start: 1024, end: double.infinity, name: 'expanded'),
+        ],
+      ),
     );
   }
 }

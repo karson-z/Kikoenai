@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
-import 'package:kikoenai/config/work_layout_config.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/pagination/paging_indicators.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -24,7 +24,7 @@ class PlaylistCardGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = WorkLayoutConfig.card(context);
+    final layout = context.layout;
 
     return PagedGridView<int, Work>(
       state: pagingState,
@@ -37,8 +37,8 @@ class PlaylistCardGridView extends StatelessWidget {
       showNoMoreItemsIndicatorAsGridChild: false,
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 240,
-        crossAxisSpacing: layout.horizontalSpacing,
-        mainAxisSpacing: layout.verticalSpacing,
+        crossAxisSpacing: layout.gridGap,
+        mainAxisSpacing: layout.gridGap,
         childAspectRatio: 0.75,
       ),
       builderDelegate: PagedChildBuilderDelegate<Work>(

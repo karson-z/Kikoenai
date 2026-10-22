@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
 import 'package:kikoenai/core/widgets/filter/provider/filter_search_notifier.dart';
@@ -76,7 +76,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     ); // 3. 获取数据状态 (带上当前的 sortOption family key)
     final currentTabAsync = ref.watch(categoryProvider(query.sortOption));
     final totalCount = currentTabAsync.value?.totalCount ?? 0;
-    final isMobile = context.isMobile;
+    final isMobile = context.isCompactLayout;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final Color bgColor = isDark ? Colors.black : Colors.white;

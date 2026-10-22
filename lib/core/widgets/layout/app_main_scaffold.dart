@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/constants/app_constants.dart';
-import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
     show mainScaffoldProvider;
@@ -72,12 +72,13 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
         .where((item) => item.branchIndex == selectedBranchIndex)
         .firstOrNull;
     final String title = selectedItem?.label ?? '';
-    final bool isMobile = context.isMobile;
+    final bool isMobile = context.isCompactLayout;
     final String currentPath = GoRouterState.of(context).uri.path;
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     // NavigationBar owns a SafeArea. Reserve both its content height and the
     // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
-    final bottomNavBarHeight = AppConstants.kAppBottomNavHeight +
+    final bottomNavBarHeight =
+        AppConstants.kAppBottomNavHeight +
         MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.read(mainScaffoldProvider.notifier);
@@ -156,11 +157,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
               fadeCollapsed: false,
               panelBuilder:
                   (ScrollController sc, AnimationController controller) {
-                return PlayerView(
-                  dragProgressNotifier: controller,
-                  minHeight: AppConstants.kMiniPlayerHeight,
-                );
-              },
+                    return PlayerView(
+                      dragProgressNotifier: controller,
+                      minHeight: AppConstants.kMiniPlayerHeight,
+                    );
+                  },
               body: bodyContent,
               showBottomNavBar: isMobile ? showBottomNav : false,
               bottomNavBarHeight: bottomNavBarHeight,

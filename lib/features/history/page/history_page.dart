@@ -5,6 +5,7 @@ import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/features/album/model/album_detail_args.dart';
 import 'package:kikoenai/features/history/provider/history_controller_provider.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
@@ -133,9 +134,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
 
   Future<void> _deleteOne(HistoryEntry entry) async {
     final messenger = ScaffoldMessenger.of(context);
-    await ref
-        .read(historyControllerProvider.notifier)
-        .delete(entry.session.id);
+    await ref.read(historyControllerProvider.notifier).delete(entry.session.id);
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(
@@ -207,25 +206,32 @@ class _SessionTimeline extends ConsumerWidget {
       rows.add((header: null, entry: entry));
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.only(bottom: editing ? 88 : 16),
-      itemCount: rows.length,
-      itemBuilder: (context, index) {
-        final row = rows[index];
-        if (row.entry == null) {
-          return _GroupHeader(label: row.header!);
-        }
-        final entry = row.entry!;
-        return _SessionCard(
-          entry: entry,
-          editing: editing,
-          selected: selectedIds.contains(entry.session.id),
-          onOpen: () => onOpen(entry),
-          onLongPress: () => onLongPress(entry),
-          onToggle: () => onToggle(entry),
-          onDelete: () => onDelete(entry),
-        );
-      },
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.layout.readingMaxWidth),
+        child: ListView.builder(
+          padding: EdgeInsets.only(
+            bottom: editing ? 88 : context.layout.space4,
+          ),
+          itemCount: rows.length,
+          itemBuilder: (context, index) {
+            final row = rows[index];
+            if (row.entry == null) {
+              return _GroupHeader(label: row.header!);
+            }
+            final entry = row.entry!;
+            return _SessionCard(
+              entry: entry,
+              editing: editing,
+              selected: selectedIds.contains(entry.session.id),
+              onOpen: () => onOpen(entry),
+              onLongPress: () => onLongPress(entry),
+              onToggle: () => onToggle(entry),
+              onDelete: () => onDelete(entry),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -289,6 +295,7 @@ class _SessionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final display = _SessionDisplay.of(entry);
     final theme = Theme.of(context);
+    final card = context.layout.card(AppCardVariant.history);
 
     final row = Material(
       color: selected
@@ -298,23 +305,24 @@ class _SessionCard extends ConsumerWidget {
         onTap: editing ? onToggle : onOpen,
         onLongPress: editing ? null : onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: card.margin.horizontal / 2,
+            vertical: card.padding.vertical / 2,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (editing) ...[
                 Icon(
-                  selected
-                      ? Icons.check_circle_rounded
-                      : Icons.circle_outlined,
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
                   color: selected
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: card.spacing),
               ],
               _SessionCover(covers: display.covers),
-              const SizedBox(width: 12),
+              SizedBox(width: card.spacing),
               Expanded(
                 child: _SessionInfo(entry: entry, display: display),
               ),
@@ -388,7 +396,9 @@ class _SessionDisplay {
 
     return _SessionDisplay(
       title: current?.albumTitle ?? current?.title ?? entry.title ?? '',
-      covers: scopes.length > 1 ? covers.take(3).toList() : covers.take(1).toList(),
+      covers: scopes.length > 1
+          ? covers.take(3).toList()
+          : covers.take(1).toList(),
       workId: current?.workId,
     );
   }
@@ -624,10 +634,7 @@ class _MoreMenu extends ConsumerWidget {
             context.push(
               AppRoutes.detail,
               extra: useDlLibraryMode
-                  ? AlbumDetailArgs(
-                      work: work,
-                      mode: AlbumDetailMode.dlLibrary,
-                    )
+                  ? AlbumDetailArgs(work: work, mode: AlbumDetailMode.dlLibrary)
                   : {'work': work},
             );
           case 'delete':

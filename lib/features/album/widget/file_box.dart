@@ -502,7 +502,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
         downloadedTaskMap,
       );
       targetNode = processedList.firstWhere(
-        (n) => n.hash == node.hash,
+        (n) => n.keyId == node.keyId,
         orElse: () => node,
       );
     }

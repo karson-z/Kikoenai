@@ -10,9 +10,7 @@ import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
 
 import 'package:kikoenai/core/widgets/common/win_control_button.dart';
 
-import 'package:kikoenai_core/kikoenai_core.dart';
-
-import '../../enums/device_type.dart';
+import '../../theme/app_layout_tokens.dart';
 
 PreferredSizeWidget buildAdaptiveAppBar(
   BuildContext context, {
@@ -27,7 +25,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
 }) {
   final theme = Theme.of(context);
 
-  final deviceType = context.deviceType;
+  final isCompact = context.isCompactLayout;
 
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
     return PreferredSize(
@@ -49,7 +47,7 @@ PreferredSizeWidget buildAdaptiveAppBar(
 
           child: Row(
             children: [
-              if (deviceType == DeviceType.mobile) const ThemeToggleButton(),
+              if (isCompact) const ThemeToggleButton(),
 
               const Spacer(),
 

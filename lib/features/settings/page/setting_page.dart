@@ -13,6 +13,7 @@ import '../../../../core/service/site/site_api_provider.dart';
 import '../../../../core/storage/hive_storage.dart';
 import '../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../core/widgets/layout/app_toast.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../../cloud_drive/provider/alist_server_provider.dart';
 import '../../cloud_drive/provider/webdav_connection_controller.dart';
@@ -40,154 +41,163 @@ class SettingsPage extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: [
-          _SettingsSection(
-            title: '通用偏好',
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: context.layout.formMaxWidth),
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.layout.pageInset,
+              vertical: context.layout.space2,
+            ),
             children: [
-              _ChevronTile(
-                title: '语言',
-                trailingText: '中文',
-                onTap: () {
-                  // TODO: 弹出语言选择逻辑
-                },
+              _SettingsSection(
+                title: '通用偏好',
+                children: [
+                  _ChevronTile(
+                    title: '语言',
+                    trailingText: '中文',
+                    onTap: () {
+                      // TODO: 弹出语言选择逻辑
+                    },
+                  ),
+                  const _SiteSelectionTile(),
+                  const _ServerSelectionTile(),
+                  _ChevronTile(
+                    title: '主题',
+                    onTap: () {
+                      context.push(AppRoutes.settingsTheme);
+                    },
+                  ),
+                  _ChevronTile(
+                    title: '存储空间',
+                    onTap: () {
+                      context.push(AppRoutes.settingsCache);
+                    },
+                  ),
+                  _ChevronTile(
+                    title: '邮箱',
+                    trailingText: isLoggedIn
+                        ? authState.value?.currentUser?.email
+                        : null,
+                    onTap: () {
+                      //TODO 等待实现邮箱绑定功能
+                    },
+                  ),
+                ],
               ),
-              const _SiteSelectionTile(),
-              const _ServerSelectionTile(),
-              _ChevronTile(
-                title: '主题',
-                onTap: () {
-                  context.push(AppRoutes.settingsTheme);
-                },
+              SizedBox(height: context.layout.sectionGap),
+              const _SettingsSection(
+                title: '云盘',
+                children: [_AlistSettingsTile(), _WebDavSettingsTile()],
               ),
-              _ChevronTile(
-                title: '存储空间',
-                onTap: () {
-                  context.push(AppRoutes.settingsCache);
-                },
-              ),
-              _ChevronTile(
-                title: '邮箱',
-                trailingText: isLoggedIn
-                    ? authState.value?.currentUser?.email
-                    : null,
-                onTap: () {
-                  //TODO 等待实现邮箱绑定功能
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const _SettingsSection(
-            title: '云盘',
-            children: [_AlistSettingsTile(), _WebDavSettingsTile()],
-          ),
-          const SizedBox(height: 24),
-          _SettingsSection(
-            title: '播放与内容',
-            children: [
-              const DefaultPlaylistSettingTile(),
-              const _LocalMediaSyncSettingsTile(),
-              const HiveSwitchTile(
-                title: '忽略音频焦点',
-                storageKey: StorageKeys.ignoreAudioFocus,
-                defaultValue: false,
-              ),
-              const HiveSwitchTile(
-                title: '允许后台播放',
-                storageKey: StorageKeys.playerPlayInBackground,
-                defaultValue: true,
-              ),
-              if (Platform.isAndroid)
-                HiveSegmentedButtonTile<String>(
-                  title: '音频输出引擎 (Android)',
-                  subtitle: '如遇破音或无声请尝试切换，AAudio 延迟更低',
-                  storageKey: StorageKeys.audioOutputMode, // 别忘了在 HiveKey 里补上这个
-                  defaultValue: AppConstants.defaultAoMode,
-                  options: const {
-                    AppConstants.aoAudioTrack: 'AudioTrack',
-                    AppConstants.aoAAudio: 'AAudio',
-                    AppConstants.aoOpenSLES: 'OpenSL',
-                  },
-                ),
-              if (Platform.isAndroid)
-                _ChevronTile(
-                  title: '桌面字幕',
-                  trailingText: '配置桌面字幕',
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Colors.transparent,
-                      isScrollControlled: true,
-                      builder: (context) {
-                        return const BackButtonPriorityWrapper(
-                          zIndex: 101, // 确保层级高于之前的面板
-                          name: 'SubtitleConfigBottomSheet',
-                          child: SubtitleConfigBottomSheet(),
+              SizedBox(height: context.layout.sectionGap),
+              _SettingsSection(
+                title: '播放与内容',
+                children: [
+                  const DefaultPlaylistSettingTile(),
+                  const _LocalMediaSyncSettingsTile(),
+                  const HiveSwitchTile(
+                    title: '忽略音频焦点',
+                    storageKey: StorageKeys.ignoreAudioFocus,
+                    defaultValue: false,
+                  ),
+                  const HiveSwitchTile(
+                    title: '允许后台播放',
+                    storageKey: StorageKeys.playerPlayInBackground,
+                    defaultValue: true,
+                  ),
+                  if (Platform.isAndroid)
+                    HiveSegmentedButtonTile<String>(
+                      title: '音频输出引擎 (Android)',
+                      subtitle: '如遇破音或无声请尝试切换，AAudio 延迟更低',
+                      storageKey:
+                          StorageKeys.audioOutputMode, // 别忘了在 HiveKey 里补上这个
+                      defaultValue: AppConstants.defaultAoMode,
+                      options: const {
+                        AppConstants.aoAudioTrack: 'AudioTrack',
+                        AppConstants.aoAAudio: 'AAudio',
+                        AppConstants.aoOpenSLES: 'OpenSL',
+                      },
+                    ),
+                  if (Platform.isAndroid)
+                    _ChevronTile(
+                      title: '桌面字幕',
+                      trailingText: '配置桌面字幕',
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (context) {
+                            return const BackButtonPriorityWrapper(
+                              zIndex: 101, // 确保层级高于之前的面板
+                              name: 'SubtitleConfigBottomSheet',
+                              child: SubtitleConfigBottomSheet(),
+                            );
+                          },
                         );
                       },
-                    );
-                  },
+                    ),
+                  _AudioFolderPreferenceTile(settingsBox: settingsBox),
+                  const HiveSwitchTile(
+                    title: '是否SFW',
+                    storageKey: StorageKeys.nsfwKey,
+                    defaultValue: false,
+                  ),
+                ],
+              ),
+              SizedBox(height: context.layout.sectionGap),
+              _SettingsSection(
+                title: '搜索',
+                children: [
+                  _ChevronTile(
+                    title: '全局筛选',
+                    trailingText: '筛选/屏蔽关键词',
+                    onTap: () {
+                      context.push(AppRoutes.settingsGlobalFilter);
+                    },
+                  ),
+                ],
+              ),
+              SizedBox(height: context.layout.sectionGap),
+
+              _SettingsSection(
+                title: '关于',
+                children: [
+                  _ChevronTile(
+                    title: '关于Kikoenai',
+                    onTap: () => context.push(AppRoutes.about),
+                  ),
+                  _ChevronTile(
+                    title: '系统权限',
+                    onTap: () => context.push(AppRoutes.settingsPermission),
+                  ),
+                  _ChevronTile(
+                    title: '系统日志',
+                    onTap: () => context.push(AppRoutes.settingsLog),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.layout.space12),
+              Center(
+                child: isLoggedIn
+                    ? _buildLogoutButton(context, ref, theme)
+                    : _buildLoginButton(context, theme, label: '立即登录'),
+              ),
+              SizedBox(height: context.layout.space4),
+              Center(
+                child: Text(
+                  '${VersionConfig.appName} version ${VersionConfig.version}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  ),
                 ),
-              _AudioFolderPreferenceTile(settingsBox: settingsBox),
-              const HiveSwitchTile(
-                title: '是否SFW',
-                storageKey: StorageKeys.nsfwKey,
-                defaultValue: false,
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _SettingsSection(
-            title: '搜索',
-            children: [
-              _ChevronTile(
-                title: '全局筛选',
-                trailingText: '筛选/屏蔽关键词',
-                onTap: () {
-                  context.push(AppRoutes.settingsGlobalFilter);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
 
-          _SettingsSection(
-            title: '关于',
-            children: [
-              _ChevronTile(
-                title: '关于Kikoenai',
-                onTap: () => context.push(AppRoutes.about),
-              ),
-              _ChevronTile(
-                title: '系统权限',
-                onTap: () => context.push(AppRoutes.settingsPermission),
-              ),
-              _ChevronTile(
-                title: '系统日志',
-                onTap: () => context.push(AppRoutes.settingsLog),
-              ),
+              SizedBox(height: context.layout.space8),
             ],
           ),
-          const SizedBox(height: 48),
-          Center(
-            child: isLoggedIn
-                ? _buildLogoutButton(context, ref, theme)
-                : _buildLoginButton(context, theme, label: '立即登录'),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              '${VersionConfig.appName} version ${VersionConfig.version}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
@@ -352,9 +362,8 @@ class _AudioFolderPreferenceTile extends StatelessWidget {
               isScrollControlled: true,
               showDragHandle: true,
               backgroundColor: Theme.of(context).colorScheme.surface,
-              builder: (context) => AudioFolderPreferenceSheet(
-                settingsBox: settingsBox,
-              ),
+              builder: (context) =>
+                  AudioFolderPreferenceSheet(settingsBox: settingsBox),
             );
           },
         );

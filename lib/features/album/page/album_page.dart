@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/enums/device_type.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/provider/work_layout_provider.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/layout/adaptive_app_bar_mobile.dart';
@@ -18,10 +18,10 @@ class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final deviceType = context.deviceType;
+    final isCompact = context.isCompactLayout;
     final isEmpty = ref.watch(albumAllEmptyProvider);
     return Scaffold(
-      appBar: deviceType == DeviceType.mobile
+      appBar: isCompact
           ? PreferredSize(
               preferredSize: const Size.fromHeight(
                 MobileSearchAppBar.toolbarHeight,
