@@ -15,7 +15,7 @@ FileNode _node({
   required String path,
   String? folderPath,
   int? workId,
-  NodeSource source = NodeSource.localSingle,
+  NodeSource source = NodeSource.local,
 }) {
   return FileNode(
     type: type,
@@ -230,7 +230,7 @@ void main() {
   });
 
   group('playback association', () {
-    test('resolves work metadata without changing source or resume scope',
+    test('resolves work metadata and groups local playback by work',
         () async {
       await AppStorage.scraperWorkBox.put(
         1234567,
@@ -250,8 +250,8 @@ void main() {
       expect(item.workId, 1234567);
       expect(item.albumTitle, '作品标题');
       expect(item.coverUrl, 'https://example.test/cover.jpg');
-      expect(item.source, NodeSource.localSingle);
-      expect(item.scopeKey, 'single_${item.id}');
+      expect(item.source, NodeSource.local);
+      expect(item.scopeKey, 'local_1234567');
       expect(item.isLocal, isTrue);
     });
 
@@ -261,7 +261,8 @@ void main() {
       ]);
 
       expect(items.single.workId, isNull);
-      expect(items.single.source, NodeSource.localSingle);
+      expect(items.single.source, NodeSource.local);
+      expect(items.single.scopeKey, 'local_${items.single.id}');
     });
 
     test('honours an explicit workOf callback', () {
@@ -271,8 +272,8 @@ void main() {
 
       expect(items.single.workId, 42);
       expect(items.single.albumTitle, 'injected');
-      expect(items.single.source, NodeSource.localSingle);
-      expect(items.single.scopeKey, 'single_${items.single.id}');
+      expect(items.single.source, NodeSource.local);
+      expect(items.single.scopeKey, 'local_42');
     });
 
     test('read-time parsing wins over a stale persisted workId', () async {

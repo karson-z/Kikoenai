@@ -535,7 +535,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     }
   }
 
-  /// 基础来源；不在这里改变 `source`，避免升级后旧的续播 scope 失效。
+  /// 使用显式提供的来源解析器，否则保留浏览器传入的来源。
   NodeSource _resolveSource(FileNode node) {
     return widget.sourceResolver?.call(node) ?? widget.source;
   }

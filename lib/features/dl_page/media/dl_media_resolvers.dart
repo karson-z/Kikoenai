@@ -69,7 +69,7 @@ class LocalDlMediaResolver implements DlMediaResolver {
       providerId: 'local-media',
     ),
     label: '本地',
-    nodeSource: NodeSource.localWork,
+    nodeSource: NodeSource.local,
   );
 
   @override

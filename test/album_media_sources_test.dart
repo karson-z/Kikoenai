@@ -50,7 +50,7 @@ class _EmptyDlResolver implements DlMediaResolver {
       providerId: 'test-local',
     ),
     label: '本地',
-    nodeSource: NodeSource.localWork,
+    nodeSource: NodeSource.local,
   );
 
   @override
@@ -216,7 +216,7 @@ void main() {
           providerId: 'local',
         ),
         label: '本地',
-        nodeSource: NodeSource.localWork,
+        nodeSource: NodeSource.local,
       ),
       fileName: 'local.mp3',
     );

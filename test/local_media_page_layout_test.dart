@@ -89,7 +89,7 @@ final _folder = FileNode(
   title: 'folder',
   path: '/root/folder',
   remoteId: '/root/folder',
-  source: NodeSource.localSingle,
+  source: NodeSource.local,
 );
 
 final _track = FileNode(
@@ -98,5 +98,5 @@ final _track = FileNode(
   path: '/root/folder/track.mp3',
   mediaStreamUrl: '/root/folder/track.mp3',
   remoteId: '/root/folder/track.mp3',
-  source: NodeSource.localSingle,
+  source: NodeSource.local,
 );

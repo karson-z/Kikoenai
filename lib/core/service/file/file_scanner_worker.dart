@@ -188,7 +188,7 @@ class FileScanWorker {
       rootPath: rootPath,
       lastModified: lastModified,
       size: size,
-      source: NodeSource.localSingle,
+      source: NodeSource.local,
     );
   }
 

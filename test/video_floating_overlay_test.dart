@@ -20,7 +20,7 @@ const _video = PlaybackItem(
   url: '/sample.mp4',
   title: 'Sample video',
   scopeId: 'sample',
-  source: NodeSource.localSingle,
+  source: NodeSource.local,
   isVideo: true,
 );
 

@@ -165,7 +165,7 @@ class FileScannerStorage {
     return FileNodeLibraryIndex(
       flatNodes: workFiles,
       rootPath: commonRoot,
-      fallbackFolderSource: NodeSource.localWork,
+      fallbackFolderSource: NodeSource.local,
     );
   }
 
@@ -180,7 +180,7 @@ class FileScannerStorage {
       mediaStreamUrl: root,
       path: root,
       rootPath: root,
-      source: NodeSource.localWork,
+      source: NodeSource.local,
       workId: workId,
       children: index.toTreeChildren(),
     );

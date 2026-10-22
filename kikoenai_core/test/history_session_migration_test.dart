@@ -56,13 +56,70 @@ void main() {
       expect(item.scopeKey, 'work_legacy-scope');
     });
 
-    test('本地单曲以曲目 id 独立成键', () {
+    test('未关联作品的本地文件以曲目 id 独立成键', () {
       final item = _item(
         'single-1',
-        source: NodeSource.localSingle,
+        source: NodeSource.local,
         scopeId: 'single-1',
       );
-      expect(item.scopeKey, 'single_single-1');
+      expect(item.scopeKey, 'local_single-1');
+    });
+
+    for (final source in [NodeSource.local, NodeSource.cloudDrive]) {
+      test('${source.name}同作品跨目录聚合，不同作品在同根目录仍独立', () {
+        final items = [
+          for (final (workId, disc) in [
+            (42, 'disc1'),
+            (42, 'disc2'),
+            (43, 'disc1'),
+          ])
+            PlaybackItem.fromFileNode(
+              FileNode(
+                type: NodeType.audio,
+                title: 'track.mp3',
+                path: '/library/$workId/$disc/track.mp3',
+                folderPath: '/library/$workId/$disc',
+                rootPath: '/library',
+                source: source,
+              ),
+              work: Work(
+                id: workId,
+                mainCoverUrl: 'https://example.test/$workId.jpg',
+              ),
+            ),
+        ];
+
+        expect(items[0].scopeKey, items[1].scopeKey);
+        expect(items[0].scopeKey, isNot(items[2].scopeKey));
+        expect(
+          items.take(2).map((item) => item.scopeKey).toSet(),
+          hasLength(1),
+        );
+        for (final item in items) {
+          final restored = PlaybackItem.fromMediaItem(item.toMediaItem());
+          expect(restored.source, source);
+          expect(restored.workId, item.workId);
+          expect(restored.scopeKey, item.scopeKey);
+        }
+      });
+    }
+
+    test('未关联作品的本地文件不因同处一个文件夹而合并', () {
+      final items = [
+        for (final name in ['a', 'b'])
+          PlaybackItem.fromFileNode(
+            FileNode(
+              type: NodeType.audio,
+              title: '$name.mp3',
+              path: '/library/$name.mp3',
+              folderPath: '/library',
+              rootPath: '/library',
+              source: NodeSource.local,
+            ),
+          ),
+      ];
+
+      expect(items[0].scopeKey, isNot(items[1].scopeKey));
     });
 
     test('云盘目录按 scopeId 聚合', () {

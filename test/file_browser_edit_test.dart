@@ -26,7 +26,7 @@ FileNode _node({
     folderPath: folderPath,
     rootPath: '/media',
     workId: workId,
-    source: NodeSource.localWork,
+    source: NodeSource.local,
   );
 }
 

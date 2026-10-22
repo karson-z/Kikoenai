@@ -203,8 +203,8 @@ class FileBrowserEditActions {
 
   /// 按每个文件自己的作品生成播放项。
   ///
-  /// 未显式传入 [workOf] 时使用 [resolveWorkForNode] 做读时关联；来源与
-  /// 续播 scope 保持原样，避免升级后旧的续播进度失效。
+  /// 未显式传入 [workOf] 时使用 [resolveWorkForNode] 做读时关联；
+  /// 播放项保留资源来源，续播分组由解析后的作品身份确定。
   static List<PlaybackItem> playbackItems(
     List<FileNode> files, {
     Work? Function(FileNode node)? workOf,

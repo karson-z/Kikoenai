@@ -193,7 +193,7 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
                 FileNodeBrowser(
                   currentNodes: visibleNodes,
                   work: null,
-                  source: NodeSource.localSingle,
+                  source: NodeSource.local,
                   config: FileBrowserConfig(
                     showFolderStatus: true,
                     subtitlesCopyMode:

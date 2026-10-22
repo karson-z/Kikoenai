@@ -535,8 +535,7 @@ class _SourceBadge extends StatelessWidget {
   String get _label {
     return switch (source) {
       NodeSource.asmrServer || NodeSource.asmrGay => '在线',
-      NodeSource.localWork => '本地',
-      NodeSource.localSingle => '单曲',
+      NodeSource.local => '本地',
       NodeSource.cloudDrive => '云盘',
       null => '未知',
     };

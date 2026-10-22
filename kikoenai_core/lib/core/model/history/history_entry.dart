@@ -45,7 +45,5 @@ abstract class HistoryEntry with _$HistoryEntry {
   bool get isNetworkWork =>
       source == NodeSource.asmrServer || source == NodeSource.asmrGay;
 
-  bool get isLocalWork => source == NodeSource.localWork;
-
-  bool get isLocalSingle => source == NodeSource.localSingle;
+  bool get isLocal => source == NodeSource.local;
 }

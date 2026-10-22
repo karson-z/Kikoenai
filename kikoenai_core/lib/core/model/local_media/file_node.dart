@@ -12,9 +12,7 @@ enum NodeSource {
   @HiveField(0)
   asmrServer,
   @HiveField(1)
-  localWork,
-  @HiveField(2)
-  localSingle,
+  local,
   @HiveField(3)
   cloudDrive,
   @HiveField(4)
@@ -118,16 +116,13 @@ abstract class FileNode extends HiveObject with _$FileNode {
     return NodeFolder(p);
   }
 
-  bool get isLocal =>
-      source == NodeSource.localWork || source == NodeSource.localSingle;
+  bool get isLocal => source == NodeSource.local;
   bool get isRemote =>
       source == NodeSource.asmrServer ||
       source == NodeSource.cloudDrive ||
       source == NodeSource.asmrGay;
 
   bool get isAsmrServer => source == NodeSource.asmrServer;
-  bool get isLocalWork => source == NodeSource.localWork;
-  bool get isLocalSingle => source == NodeSource.localSingle;
   bool get isCloudDrive => source == NodeSource.cloudDrive;
   bool get isAsmrGay => source == NodeSource.asmrGay;
 

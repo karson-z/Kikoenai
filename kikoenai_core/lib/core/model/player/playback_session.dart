@@ -19,10 +19,8 @@ abstract class PlaybackItem with _$PlaybackItem {
     @HiveField(3) @Default(false) bool isVideo,
     @HiveField(4) @Default(NodeSource.asmrServer) NodeSource source,
 
-    /// Historical aggregation id.
-    ///
-    /// Tracks in the same network work or local work share a scopeId. Local
-    /// singles usually use their own item id as the scopeId.
+    /// 续播与历史分组标识。已关联作品的本地/网盘文件按作品聚合；
+    /// 未关联的本地文件以曲目 id 独立标识，网盘文件按目录聚合。
     @HiveField(5) required String scopeId,
     @HiveField(6) int? workId,
     @HiveField(7) String? albumTitle,
@@ -121,8 +119,7 @@ abstract class PlaybackItem with _$PlaybackItem {
         switch (resolvedSource) {
           NodeSource.asmrServer => workId?.toString() ?? item.id,
           NodeSource.asmrGay => workId?.toString() ?? item.id,
-          NodeSource.localWork => workId?.toString() ?? item.id,
-          NodeSource.localSingle => item.id,
+          NodeSource.local => workId?.toString() ?? item.id,
           NodeSource.cloudDrive => workId?.toString() ?? item.id,
         };
 
@@ -162,20 +159,18 @@ abstract class PlaybackItem with _$PlaybackItem {
 
   /// 按播放作用域聚合的断点续播键（每个作品/单曲/云盘目录唯一）。
   ///
-  /// 同一网络作品或本地作品的曲目共享一个键；本地单曲以自身曲目 id
-  /// 独立成键。多站点身份通过 [SiteContentId.storageKey] 隔离。
+  /// 同一作品的曲目共享一个键；未关联作品的本地文件独立成键。
+  /// 多站点身份通过 [SiteContentId.storageKey] 隔离。
   String get scopeKey {
     return switch (source) {
       NodeSource.asmrServer || NodeSource.asmrGay =>
         siteId == null ? 'work_$scopeId' : 'work_${contentId!.storageKey}',
-      NodeSource.localWork => 'local_work_$scopeId',
-      NodeSource.localSingle => 'single_$id',
+      NodeSource.local => 'local_$scopeId',
       NodeSource.cloudDrive => 'cloud_$scopeId',
     };
   }
 
-  bool get isLocal =>
-      source == NodeSource.localWork || source == NodeSource.localSingle;
+  bool get isLocal => source == NodeSource.local;
 
   SiteContentId? get contentId {
     final resolvedSiteId =
@@ -218,11 +213,9 @@ abstract class PlaybackItem with _$PlaybackItem {
       NodeSource.asmrServer =>
         workId?.toString() ?? node.workTitle ?? node.keyId,
       NodeSource.asmrGay => node.remoteId ?? node.folderPath ?? node.keyId,
-      NodeSource.localWork =>
-        node.rootPath ?? node.folderPath ?? workId?.toString() ?? node.keyId,
-      NodeSource.localSingle => node.keyId,
+      NodeSource.local => workId?.toString() ?? node.keyId,
       NodeSource.cloudDrive =>
-        node.rootPath ?? node.folderPath ?? workId?.toString() ?? node.keyId,
+        workId?.toString() ?? node.rootPath ?? node.folderPath ?? node.keyId,
     };
   }
 }
@@ -306,7 +299,7 @@ String? _blankToNull(String? value) {
 NodeSource _inferSourceFromUrl(String? url) {
   if (url == null) return NodeSource.asmrServer;
   if (url.startsWith('/') || url.startsWith('file://')) {
-    return NodeSource.localWork;
+    return NodeSource.local;
   }
   return NodeSource.asmrServer;
 }

@@ -127,7 +127,7 @@ DlMediaSourceDescriptor _descriptor(
     key: DlMediaSourceKey(kind: kind, providerId: id),
     label: label,
     nodeSource: kind == DlMediaSourceKind.local
-        ? NodeSource.localWork
+        ? NodeSource.local
         : NodeSource.asmrServer,
   );
 }
@@ -168,7 +168,7 @@ void main() {
     const workId = 81234567;
     final local = _FakeResolver(
       descriptor: _descriptor(DlMediaSourceKind.local, 'local', '本地'),
-      callback: (_) async => _index('/local', NodeSource.localWork),
+      callback: (_) async => _index('/local', NodeSource.local),
     );
     final remote = _FakeResolver(
       descriptor: _descriptor(

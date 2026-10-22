@@ -29,7 +29,7 @@ const _track = PlaybackItem(
   title: 'Quiet evening',
   artist: 'Sample artist',
   scopeId: 'sample',
-  source: NodeSource.localSingle,
+  source: NodeSource.local,
 );
 
 class _TestPlayer extends PlayerController {

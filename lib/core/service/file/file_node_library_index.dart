@@ -26,7 +26,7 @@ class FileNodeLibraryIndex {
   FileNodeLibraryIndex({
     required List<FileNode> flatNodes,
     required this.rootPath,
-    this.fallbackFolderSource = NodeSource.localWork,
+    this.fallbackFolderSource = NodeSource.local,
   }) {
     _build(flatNodes);
   }
@@ -56,7 +56,7 @@ class FileNodeLibraryIndex {
   factory FileNodeLibraryIndex.fromTree({
     required List<FileNode> roots,
     String? rootPath,
-    NodeSource fallbackFolderSource = NodeSource.localWork,
+    NodeSource fallbackFolderSource = NodeSource.local,
   }) {
     // 计算 effectiveRoot
     final effectiveRoot =
@@ -124,8 +124,7 @@ class FileNodeLibraryIndex {
     if (nodeByKey.isNotEmpty) {
       return nodeByKey.values.every((node) => node.isLocal);
     }
-    return fallbackFolderSource == NodeSource.localWork ||
-        fallbackFolderSource == NodeSource.localSingle;
+    return fallbackFolderSource == NodeSource.local;
   }
 
   /// Whether the index contains at least one remotely downloadable file.

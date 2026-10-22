@@ -15,11 +15,11 @@ void main() {
             path: '/media/local.mp3',
             folderPath: '/media',
             rootPath: '/media',
-            source: NodeSource.localWork,
+            source: NodeSource.local,
           ),
         ],
         rootPath: '/media',
-        fallbackFolderSource: NodeSource.localWork,
+        fallbackFolderSource: NodeSource.local,
       );
 
       expect(index.isLocalContent, isTrue);
@@ -47,7 +47,7 @@ void main() {
       final localIndex = FileNodeLibraryIndex(
         flatNodes: const [],
         rootPath: '/empty',
-        fallbackFolderSource: NodeSource.localSingle,
+        fallbackFolderSource: NodeSource.local,
       );
       final remoteIndex = FileNodeLibraryIndex(
         flatNodes: const [],
@@ -71,7 +71,7 @@ void main() {
             path: '/mixed/local.mp3',
             folderPath: '/mixed',
             rootPath: '/mixed',
-            source: NodeSource.localWork,
+            source: NodeSource.local,
           ),
           FileNode(
             type: NodeType.audio,
@@ -101,13 +101,13 @@ void main() {
             path: '/media/[RJ01231231]/RJ09999999.mp3',
             folderPath: '/media/[RJ01231231]',
             rootPath: '/media',
-            source: NodeSource.localSingle,
+            source: NodeSource.local,
             workId: 9999999,
             nodeStatus: NodeStatus.parsed,
           ),
         ],
         rootPath: '/media',
-        fallbackFolderSource: NodeSource.localWork,
+        fallbackFolderSource: NodeSource.local,
       );
 
       final folder = index.currentChildren.singleWhere((node) => node.isFolder);
