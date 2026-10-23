@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
@@ -100,7 +101,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              padding: context.layout.pagePadding(top: 16, bottom: 32),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   minHeight: constraints.maxHeight > 48

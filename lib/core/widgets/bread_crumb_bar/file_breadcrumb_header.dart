@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_bread_crumb_bar.dart';
 
 class FileBreadcrumb extends StatelessWidget {
@@ -19,7 +20,7 @@ class FileBreadcrumb extends StatelessWidget {
     return Material(
       color: isDark ? Colors.black : Colors.white,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: context.layout.pagePadding(top: 8, bottom: 8),
         child: BreadcrumbBar(
           paths: segments,
           onHomeTap: onHomeTap,

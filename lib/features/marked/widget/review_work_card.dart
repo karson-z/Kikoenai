@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. 引入 Riverpod
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -57,7 +58,10 @@ class WorkListCard extends ConsumerWidget {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: context.layout.pagePadding(
+        top: context.isCompactLayout ? context.layout.gridGap / 2 : 6,
+        bottom: context.isCompactLayout ? context.layout.gridGap / 2 : 6,
+      ),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -127,9 +131,7 @@ class WorkListCard extends ConsumerWidget {
 
                         // 3. 交互回调
                         onRatingUpdate: (int newRating) {
-                          final currentStatus = UserWorkStatus(
-                            workId: work.id,
-                          );
+                          final currentStatus = UserWorkStatus(workId: work.id);
                           final newStatus = currentStatus.copyWith(
                             rating: newRating,
                             workId: work.id,

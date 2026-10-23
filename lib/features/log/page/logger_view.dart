@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter/services.dart';
 
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -125,7 +126,7 @@ class _LogViewerPageState extends State<LogViewerPage> {
           ? const Center(child: CircularProgressIndicator())
           : Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12.0),
+        padding: context.layout.pagePadding(top: 12, bottom: 12),
         color: const Color(0xFF1E1E1E),
         child: SingleChildScrollView(
           controller: _scrollController,

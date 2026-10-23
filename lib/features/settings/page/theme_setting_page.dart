@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:kikoenai/core/theme/app_font_preset.dart';
@@ -56,7 +57,7 @@ class _ThemeSettingPageState extends ConsumerState<ThemeSettingPage> {
         scrolledUnderElevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: context.layout.pagePadding(top: 8, bottom: 8),
         children: [
           // ==============================
           // 还原你的原版：主题模式 (ToggleButtons)

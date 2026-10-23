@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 /// 通用标题 + 更多按钮 的 Sliver 标题组件
 class SectionHeader extends StatelessWidget {
@@ -23,7 +24,7 @@ class SectionHeader extends StatelessWidget {
 
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        padding: context.layout.pagePadding(top: 12, bottom: 8),
         child: Row(
           children: [
             Expanded(

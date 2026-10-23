@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. 引入 Riverpod
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -187,7 +188,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      padding: context.layout.pagePadding(top: 8, bottom: 8),
       child: Text(
         title,
         style: TextStyle(
@@ -215,7 +216,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
       // 如果传入了 trailing 则使用传入的，否则显示默认箭头
       trailing: trailing ?? const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+      contentPadding: context.layout.pagePadding(),
     );
   }
 

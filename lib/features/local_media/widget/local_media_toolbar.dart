@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/widgets/common/toolbar_search_field.dart';
 
 class LocalMediaToolbar extends StatelessWidget {
@@ -47,7 +48,7 @@ class LocalMediaToolbar extends StatelessWidget {
         : null;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: context.layout.pagePadding(top: 8),
       child: Row(
         children: [
           if (leading != null) leading,

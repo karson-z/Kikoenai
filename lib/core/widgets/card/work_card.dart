@@ -54,6 +54,7 @@ class WorkCard extends ConsumerWidget {
       behavior: HitTestBehavior.translucent,
       onTap: onTap,
       child: Card(
+        margin: card.margin,
         clipBehavior: Clip.hardEdge,
         elevation: 2,
         shape: RoundedRectangleBorder(

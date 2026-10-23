@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../provider/webdav_connection_controller.dart';
@@ -61,7 +62,7 @@ class _WebDavConnectionFormState extends ConsumerState<WebDavConnectionForm> {
     final state = ref.watch(webDavConnectionControllerProvider);
     final theme = Theme.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 120),
+      padding: context.layout.pagePadding(top: 28, bottom: 120),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:kikoenai/core/enums/review_sort_type.dart';
@@ -22,7 +23,7 @@ class ReviewHeader extends ConsumerWidget {
     final notifier = ref.read(reviewListProvider.notifier);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: context.layout.pagePadding(top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

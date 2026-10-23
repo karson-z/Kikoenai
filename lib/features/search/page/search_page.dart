@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -94,7 +95,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+              padding: context.layout.pagePadding(top: 16, bottom: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -115,7 +116,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             // 历史记录列表 (使用 Wrap 流式布局，视觉效果更好)
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: context.layout.pagePadding(),
                 child: Wrap(
                   spacing: 8.0,
                   runSpacing: 8.0,

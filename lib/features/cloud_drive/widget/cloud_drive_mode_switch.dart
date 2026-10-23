@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 import '../model/cloud_drive_mode.dart';
 
@@ -19,11 +20,15 @@ class CloudDriveModeSwitch extends StatelessWidget {
       children: [
         const Icon(Icons.cloud_outlined, size: 20),
         const SizedBox(width: 8),
-        Text(
-          '云盘',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        Flexible(
+          child: Text(
+            '云盘',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
@@ -52,7 +57,7 @@ class CloudDriveModeSwitch extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: context.layout.pagePadding(top: 8, bottom: 8),
       child: Row(
         children: [
           Expanded(child: title),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_breadcrumb_header.dart';
 import 'package:kikoenai/core/widgets/layout/scroll_aware_toolbar_layout.dart';
@@ -215,7 +216,7 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
+                    padding: context.layout.pagePadding(top: 14, bottom: 110),
                     child: Text(
                       '已显示 ${visibleNodes.length} / ${scannerState.children.length} 项',
                       textAlign: TextAlign.center,

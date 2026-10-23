@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/tag_enum.dart';
 import 'package:kikoenai/core/widgets/filter/filter_bar.dart';
@@ -33,10 +34,7 @@ class _GlobalFilterTagsPageState extends ConsumerState<GlobalFilterTagsPage> {
           InlineFilterBar(module: FilterModule.global),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
+              padding: context.layout.pagePadding(top: 12, bottom: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

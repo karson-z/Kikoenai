@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter/services.dart'; // 用于剪贴板
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/user/provider/file_preview_provider.dart';
@@ -44,7 +45,7 @@ class TextPreviewPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: context.layout.pagePadding(top: 20, bottom: 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -72,7 +73,7 @@ class TextPreviewPage extends ConsumerWidget {
 
           return SizedBox.expand(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: context.layout.pagePadding(top: 16, bottom: 16),
               child: SelectableText(
                 text,
                 style: const TextStyle(

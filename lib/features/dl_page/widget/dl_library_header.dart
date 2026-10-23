@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 class DlLibraryHeader extends StatelessWidget {
   const DlLibraryHeader({
@@ -13,7 +14,7 @@ class DlLibraryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: context.layout.pagePadding(top: 8, bottom: 8),
       child: Row(
         children: [
           const Icon(Icons.library_music_outlined, size: 20),

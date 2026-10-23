@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -108,11 +109,7 @@ class UserPage extends ConsumerWidget {
                       flexibleSpace: FlexibleSpaceBar(
                         collapseMode: CollapseMode.pin,
                         background: Container(
-                          padding: const EdgeInsets.only(
-                            left: 16,
-                            right: 16,
-                            bottom: 60,
-                          ),
+                          padding: context.layout.pagePadding(bottom: 60),
                           alignment: Alignment.bottomLeft,
                           child: switch (authStateAsync) {
                             AsyncValue(:final value?) => Row(

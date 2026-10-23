@@ -16,7 +16,6 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
     if (items.isEmpty) return const SizedBox();
 
     final layout = context.layout;
-    final spacing = layout.gridGap;
 
     final isDesktop = [
       TargetPlatform.windows,
@@ -24,44 +23,48 @@ class ResponsiveHorizontalCardList extends StatelessWidget {
       TargetPlatform.linux,
     ].contains(Theme.of(context).platform);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final columns = (screenWidth / 180).floor().clamp(2, 6);
-        final totalSpacing = (columns - 1) * spacing;
-        final cardWidth = (screenWidth - totalSpacing) / columns;
-        // 楂樺害璁＄畻淇濇寔涓嶅彉
-        final cardHeight = cardWidth / (4 / 3) + 60;
+    return Padding(
+      padding: layout.pagePadding(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = constraints.maxWidth;
+          final columns = (screenWidth / 180).floor().clamp(2, 6);
+          final spacing = layout.gridGap;
+          final totalSpacing = (columns - 1) * spacing;
+          final cardWidth = (screenWidth - totalSpacing) / columns;
+          // 楂樺害璁＄畻淇濇寔涓嶅彉
+          final cardHeight = cardWidth / (4 / 3) + 60;
 
-        return SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: isDesktop
-                ? const BouncingScrollPhysics()
-                : const ClampingScrollPhysics(),
-            itemCount: items.length, // 浠呮覆鏌撶湡瀹炴暟鎹暱搴?
-            itemBuilder: (context, index) {
-              final item = items[index];
-              // --- 娓叉煋姝ｅ父鍗＄墖 ---
-              return SizedBox(
-                width: cardWidth,
-                child: SmartColorCard(
+          return SizedBox(
+            height: cardHeight,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: isDesktop
+                  ? const BouncingScrollPhysics()
+                  : const ClampingScrollPhysics(),
+              itemCount: items.length, // 浠呮覆鏌撶湡瀹炴暟鎹暱搴?
+              itemBuilder: (context, index) {
+                final item = items[index];
+                // --- 娓叉煋姝ｅ父鍗＄墖 ---
+                return SizedBox(
                   width: cardWidth,
-                  id: item.id,
-                  title: item.title,
-                  mainCoverUrl: item.mainCoverUrl,
-                  heroTag: item.effectiveHeroTag,
-                  onTap: () {
-                    context.push(AppRoutes.detail, extra: {'work': item});
-                  },
-                ),
-              );
-            },
-            separatorBuilder: (context, index) => SizedBox(width: spacing),
-          ),
-        );
-      },
+                  child: SmartColorCard(
+                    width: cardWidth,
+                    id: item.id,
+                    title: item.title,
+                    mainCoverUrl: item.mainCoverUrl,
+                    heroTag: item.effectiveHeroTag,
+                    onTap: () {
+                      context.push(AppRoutes.detail, extra: {'work': item});
+                    },
+                  ),
+                );
+              },
+              separatorBuilder: (context, index) => SizedBox(width: spacing),
+            ),
+          );
+        },
+      ),
     );
   }
 }

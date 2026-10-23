@@ -259,7 +259,7 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      padding: context.layout.pagePadding(top: 20, bottom: 4),
       child: Text(
         label,
         style: theme.textTheme.titleSmall?.copyWith(

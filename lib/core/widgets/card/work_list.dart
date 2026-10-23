@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
 
 class WorkListItem extends StatelessWidget {
@@ -21,8 +22,11 @@ class WorkListItem extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 1),
+        padding: EdgeInsets.symmetric(
+          vertical: context.isCompactLayout ? 0 : 1,
+        ),
         child: Card(
+          margin: EdgeInsets.zero,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

@@ -204,7 +204,7 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: context.layout.pagePadding(top: 4, bottom: 4),
         sliver: SliverGrid.builder(
           itemCount: works.length,
           gridDelegate: _getGridDelegate(context),
@@ -377,7 +377,7 @@ class _ParseWorksViewState extends ConsumerState<ParseWorksView> {
 
   Widget _buildFooter(BuildContext context, int visibleCount) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      padding: context.layout.pagePadding(top: 20, bottom: 32),
       child: Text(
         '已显示 $visibleCount / ${_localWorks.length} 部作品',
         textAlign: TextAlign.center,

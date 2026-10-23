@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
@@ -164,7 +165,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage>
       key: PageStorageKey<String>(
         isDownloading ? 'downloading_tasks' : 'completed_tasks',
       ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      padding: context.layout.pagePadding(top: 16, bottom: 96),
       itemCount: groupNames.length,
       itemBuilder: (context, index) {
         final groupName = groupNames[index];

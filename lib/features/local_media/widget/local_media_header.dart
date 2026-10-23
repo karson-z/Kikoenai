@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 class LocalMediaHeader extends StatelessWidget {
@@ -32,7 +33,7 @@ class LocalMediaHeader extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: context.layout.pagePadding(top: 8, bottom: 8),
       child: Row(
         children: [
           Expanded(child: title),

@@ -31,7 +31,7 @@ class PlaylistCardGridView extends StatelessWidget {
       fetchNextPage: fetchNextPage,
       scrollController: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: padding,
+      padding: padding ?? layout.pagePadding(),
       showNewPageProgressIndicatorAsGridChild: false,
       showNewPageErrorIndicatorAsGridChild: false,
       showNoMoreItemsIndicatorAsGridChild: false,

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
@@ -227,6 +228,7 @@ class _FileNodeBrowserState extends ConsumerState<FileNodeBrowser> {
     final edit = widget.editConfig;
     final selected = edit?.selectedKeys.contains(node.keyId) ?? false;
     final tile = ListTile(
+      contentPadding: context.layout.pagePadding(),
       leading: edit?.isEditing == true
           ? Icon(
               selected ? Icons.check_circle : Icons.circle_outlined,

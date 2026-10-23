@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
 import 'filter_chip.dart';
@@ -50,7 +51,7 @@ class CollapsedFilterBar extends StatelessWidget {
         height: _barHeight,
         child: Row(
           children: [
-            Expanded(child: _buildChips()),
+            Expanded(child: _buildChips(context)),
             if (totalCount != null)
               Padding(
                 padding: const EdgeInsets.only(left: 2),
@@ -77,7 +78,7 @@ class CollapsedFilterBar extends StatelessWidget {
   }
 
   /// 单行横向 chips（无已选时显示维度快捷入口），右缘淡出
-  Widget _buildChips() {
+  Widget _buildChips(BuildContext context) {
     final selectedChips = buildSelectedFilterChips(
       selectedTags: selectedTags,
       keyword: keyword,
@@ -110,7 +111,7 @@ class CollapsedFilterBar extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: context.layout.pagePadding(),
         child: Row(
           children: [
             for (var i = 0; i < chips.length; i++) ...[

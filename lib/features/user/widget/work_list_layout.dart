@@ -15,29 +15,35 @@ class ResponsiveListGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = context.layout;
 
-    return SliverGrid.builder(
-      itemCount: work.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: switch (layout.size) {
-          AppLayoutSize.compact => 1,
-          AppLayoutSize.medium => 2,
-          AppLayoutSize.expanded => 3,
+    final columns = switch (layout.size) {
+      AppLayoutSize.compact => 1,
+      AppLayoutSize.medium => 2,
+      AppLayoutSize.expanded => 3,
+    };
+    final gap = layout.gridGap;
+
+    return SliverPadding(
+      padding: layout.pagePadding(),
+      sliver: SliverGrid.builder(
+        itemCount: work.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          crossAxisSpacing: gap,
+          mainAxisSpacing: gap,
+          childAspectRatio: 2.6, // 横向大于纵向
+        ),
+        itemBuilder: (context, index) {
+          final item = work[index];
+          return WorkListItem(
+            imageUrl: item.mainCoverUrl,
+            title: item.title,
+            name: item.name,
+            onTap: () {
+              context.push(AppRoutes.detail, extra: {'work': item});
+            },
+          );
         },
-        crossAxisSpacing: layout.gridGap,
-        mainAxisSpacing: layout.gridGap,
-        childAspectRatio: 2.6, // 横向大于纵向
       ),
-      itemBuilder: (context, index) {
-        final item = work[index];
-        return WorkListItem(
-          imageUrl: item.mainCoverUrl,
-          title: item.title,
-          name: item.name,
-          onTap: () {
-            context.push(AppRoutes.detail, extra: {'work': item});
-          },
-        );
-      },
     );
   }
 }

@@ -143,7 +143,6 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                   },
                   child: PlaylistCardGridView(
                     pagingState: pagingState,
-                    padding: const EdgeInsets.all(12),
                     fetchNextPage: () {
                       ref
                           .read(

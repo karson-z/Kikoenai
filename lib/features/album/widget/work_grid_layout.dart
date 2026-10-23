@@ -24,48 +24,53 @@ class ResponsiveCardGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = context.layout;
 
-    return PagedSliverGrid<int, Work>(
-      state: pagingState,
-      fetchNextPage: fetchNextPage,
-      showNewPageProgressIndicatorAsGridChild: false,
-      showNewPageErrorIndicatorAsGridChild: false,
-      showNoMoreItemsIndicatorAsGridChild: false,
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 240,
-        crossAxisSpacing: layout.gridGap,
-        mainAxisSpacing: layout.gridGap,
-        childAspectRatio: 0.75,
-      ),
-      builderDelegate: PagedChildBuilderDelegate<Work>(
-        invisibleItemsThreshold: 3,
-        itemBuilder: (context, item, index) {
-          return WorkCard(
-            id: item.id,
-            title: item.title,
-            name: item.name,
-            circleName: item.circle?.name,
-            mainCoverUrl: item.mainCoverUrl,
-            heroTag: item.effectiveHeroTag,
-            hasSubtitle: item.hasSubtitle,
-            ageCategoryString: item.ageCategoryString,
-            release: item.release,
-            vas: item.vas,
-            tags: item.tags,
-            onTap: () {
-              context.push(AppRoutes.detail, extra: {'work': item});
-            },
-          );
-        },
-        firstPageProgressIndicatorBuilder: (_) =>
-            const PagingProgressIndicator(),
-        newPageProgressIndicatorBuilder: (_) => const PagingProgressIndicator(),
-        firstPageErrorIndicatorBuilder: (_) =>
-            PagingFirstPageErrorIndicator(onRetry: fetchNextPage),
-        newPageErrorIndicatorBuilder: (_) =>
-            PagingNewPageErrorIndicator(onRetry: fetchNextPage),
-        noItemsFoundIndicatorBuilder: (_) =>
-            PagingEmptyIndicator(message: emptyMessage),
-        noMoreItemsIndicatorBuilder: (_) => const PagingNoMoreItemsIndicator(),
+    return SliverPadding(
+      padding: layout.pagePadding(),
+      sliver: PagedSliverGrid<int, Work>(
+        state: pagingState,
+        fetchNextPage: fetchNextPage,
+        showNewPageProgressIndicatorAsGridChild: false,
+        showNewPageErrorIndicatorAsGridChild: false,
+        showNoMoreItemsIndicatorAsGridChild: false,
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 240,
+          crossAxisSpacing: layout.gridGap,
+          mainAxisSpacing: layout.gridGap,
+          childAspectRatio: 0.75,
+        ),
+        builderDelegate: PagedChildBuilderDelegate<Work>(
+          invisibleItemsThreshold: 3,
+          itemBuilder: (context, item, index) {
+            return WorkCard(
+              id: item.id,
+              title: item.title,
+              name: item.name,
+              circleName: item.circle?.name,
+              mainCoverUrl: item.mainCoverUrl,
+              heroTag: item.effectiveHeroTag,
+              hasSubtitle: item.hasSubtitle,
+              ageCategoryString: item.ageCategoryString,
+              release: item.release,
+              vas: item.vas,
+              tags: item.tags,
+              onTap: () {
+                context.push(AppRoutes.detail, extra: {'work': item});
+              },
+            );
+          },
+          firstPageProgressIndicatorBuilder: (_) =>
+              const PagingProgressIndicator(),
+          newPageProgressIndicatorBuilder: (_) =>
+              const PagingProgressIndicator(),
+          firstPageErrorIndicatorBuilder: (_) =>
+              PagingFirstPageErrorIndicator(onRetry: fetchNextPage),
+          newPageErrorIndicatorBuilder: (_) =>
+              PagingNewPageErrorIndicator(onRetry: fetchNextPage),
+          noItemsFoundIndicatorBuilder: (_) =>
+              PagingEmptyIndicator(message: emptyMessage),
+          noMoreItemsIndicatorBuilder: (_) =>
+              const PagingNoMoreItemsIndicator(),
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 class CloudDriveErrorContent extends StatelessWidget {
   const CloudDriveErrorContent({
@@ -21,7 +22,7 @@ class CloudDriveErrorContent extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: context.layout.pagePadding(top: 24, bottom: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -136,9 +137,9 @@ class CloudDriveFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoadingMore) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 110),
-        child: Center(
+      return Padding(
+        padding: context.layout.pagePadding(top: 16, bottom: 110),
+        child: const Center(
           child: SizedBox.square(
             dimension: 24,
             child: CircularProgressIndicator(strokeWidth: 2),
@@ -148,7 +149,7 @@ class CloudDriveFooter extends StatelessWidget {
     }
     if (hasMore) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+        padding: context.layout.pagePadding(top: 12, bottom: 110),
         child: Center(
           child: TextButton.icon(
             onPressed: onLoadMore,
@@ -160,7 +161,7 @@ class CloudDriveFooter extends StatelessWidget {
     }
     final resolvedTotal = totalCount == 0 ? loadedCount : totalCount;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
+      padding: context.layout.pagePadding(top: 14, bottom: 110),
       child: Text(
         '已显示 $loadedCount / $resolvedTotal 项',
         textAlign: TextAlign.center,

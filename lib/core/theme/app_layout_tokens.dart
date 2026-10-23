@@ -69,8 +69,12 @@ class AppLayoutTokens {
     AppLayoutSize.expanded => 32,
   };
 
+  /// 页面内容统一与首页标题对齐，纵向间距由各页面保留。
+  EdgeInsets pagePadding({double top = 0, double bottom = 0}) =>
+      EdgeInsets.fromLTRB(pageInset, top, pageInset, bottom);
+
   double get gridGap => switch (size) {
-    AppLayoutSize.compact => 8,
+    AppLayoutSize.compact => 1,
     AppLayoutSize.medium => 12,
     AppLayoutSize.expanded => 16,
   };
@@ -120,7 +124,10 @@ class AppLayoutTokens {
         coverAspectRatio: 4 / 3,
       ),
       AppCardVariant.workList => AppCardMetrics(
-        margin: EdgeInsets.symmetric(horizontal: pageInset, vertical: space1),
+        margin: EdgeInsets.symmetric(
+          horizontal: pageInset,
+          vertical: size == AppLayoutSize.compact ? gridGap / 2 : space1,
+        ),
         padding: EdgeInsets.all(space2),
         radius: radiusMedium,
         spacing: space3,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import '../../../../core/storage/hive_storage.dart';
@@ -239,10 +240,7 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                 // 1. 顶部总容量与进度条
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 24,
-                    ),
+                    padding: context.layout.pagePadding(top: 24, bottom: 24),
                     child: _buildStorageHeader(context, appTotalBytes),
                   ),
                 ),
@@ -250,7 +248,7 @@ class _CacheManagementPageState extends State<CacheManagementPage> {
                 // 2. 缓存项列表 (放置在同一张大卡片内)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: context.layout.pagePadding(),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: Container(

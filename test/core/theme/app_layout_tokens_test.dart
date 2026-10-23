@@ -54,7 +54,7 @@ void main() {
       [compact.pageInset, medium.pageInset, expanded.pageInset],
       [16, 24, 32],
     );
-    expect([compact.gridGap, medium.gridGap, expanded.gridGap], [8, 12, 16]);
+    expect([compact.gridGap, medium.gridGap, expanded.gridGap], [1, 12, 16]);
     expect(
       [compact.sectionGap, medium.sectionGap, expanded.sectionGap],
       [16, 24, 32],

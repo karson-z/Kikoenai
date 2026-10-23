@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../config/app_version_config.dart';
@@ -50,7 +51,7 @@ class _PermissionSettingsPageState extends ConsumerState<PermissionSettingsPage>
         error: (e, _) => Center(child: Text('加载失败: $e')),
         data: (statuses) {
           return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: context.layout.pagePadding(top: 16, bottom: 16),
             children: [
               // 顶部提示文案
               Padding(

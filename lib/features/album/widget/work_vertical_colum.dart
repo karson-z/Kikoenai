@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
@@ -28,6 +29,7 @@ class VerticalCardColumn extends StatelessWidget {
       height: maxHeight, // 固定高度
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
+        spacing: context.isCompactLayout ? context.layout.gridGap : 0,
         children: displayedItems
             .map(
               (item) => SizedBox(
