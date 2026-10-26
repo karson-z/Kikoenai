@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 import '../../theme/theme_view_model.dart';
 
@@ -8,36 +11,51 @@ class MobileSearchAppBar extends ConsumerWidget {
 
   final String hintText;
   final VoidCallback? onSearchTap;
+  final String title;
 
   const MobileSearchAppBar({
     Key? key,
     this.hintText = '搜索作品...',
     this.onSearchTap,
+    this.title = '首页',
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(explicitDarkModeProvider);
+    final layout = context.layout;
+    final openSearch = onSearchTap ?? () => context.push(AppRoutes.search);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final topPadding = MediaQuery.of(context).padding.top;
-        return Padding(
-          padding: EdgeInsets.only(
-            top: topPadding + 8,
-            left: 8,
-            right: 8,
-            bottom: 8,
-          ),
+    return SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: layout.searchToolbarHeight,
+        child: Padding(
+          padding: layout.pagePadding(),
           child: Row(
             children: [
-              Expanded(
-                child: GlobalSearchInput(
-                  hintText: hintText,
-                  height: 56,
-                  onTap: onSearchTap,
+              if (layout.isPhoneLandscape) ...[
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
-              ),
+                IconButton(
+                  tooltip: '搜索作品',
+                  onPressed: openSearch,
+                  icon: const Icon(Icons.search),
+                ),
+              ] else
+                Expanded(
+                  child: GlobalSearchInput(
+                    hintText: hintText,
+                    height: 44,
+                    onTap: openSearch,
+                  ),
+                ),
               const SizedBox(width: 8),
               IconButton(
                 tooltip: isDark ? '切换为浅色模式' : '切换为深色模式',
@@ -48,8 +66,8 @@ class MobileSearchAppBar extends ConsumerWidget {
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

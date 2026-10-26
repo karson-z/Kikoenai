@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 
 import '../../../core/widgets/layout/app_main_scaffold.dart';
 import '../provider/player_controller_provider.dart';
@@ -16,10 +17,12 @@ class PlayerView extends ConsumerStatefulWidget {
     super.key,
     this.dragProgressNotifier,
     this.minHeight = 80.0,
+    this.miniBottomPadding = 0,
   });
 
   final ValueListenable<double>? dragProgressNotifier;
   final double minHeight;
+  final double miniBottomPadding;
 
   @override
   ConsumerState<PlayerView> createState() => _PlayerViewState();
@@ -60,7 +63,8 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
           size: constraints.biggest,
           padding: mediaQuery.padding,
           textScaler: mediaQuery.textScaler,
-          minHeight: widget.minHeight,
+          minHeight: widget.minHeight - widget.miniBottomPadding,
+          collapsedLeft: context.layout.pageInset,
         );
         final audioContent = PlayerAudioContent(
           track: currentItem,
@@ -104,9 +108,15 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                     ignoring: miniOpacity < 0.05,
                     child: Opacity(
                       opacity: miniOpacity,
-                      child: CollapsedMinibar(
-                        track: currentItem,
-                        onTap: () => ref.read(panelControllerProvider).open(),
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          bottom: widget.miniBottomPadding,
+                        ),
+                        child: CollapsedMinibar(
+                          track: currentItem,
+                          coverRight: metrics.collapsedCover.right,
+                          onTap: () => ref.read(panelControllerProvider).open(),
+                        ),
                       ),
                     ),
                   ),

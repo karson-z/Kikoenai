@@ -54,6 +54,9 @@ class PlayerSheetPanel extends StatefulWidget {
   final bool showPanel;
   final bool fadeCollapsed;
 
+  /// Only the collapsed player is inset; expansion still fills the window.
+  final EdgeInsets collapsedInsets;
+
   const PlayerSheetPanel({
     Key? key,
     this.panel,
@@ -71,7 +74,7 @@ class PlayerSheetPanel extends StatefulWidget {
         blurRadius: 8.0,
         color: Color.fromRGBO(0, 0, 0, 0.25),
         offset: Offset(0, -10), // Y 轴负值将阴影向上偏移，完美避开下方
-      )
+      ),
     ],
     this.color = Colors.white,
     this.padding,
@@ -98,6 +101,7 @@ class PlayerSheetPanel extends StatefulWidget {
     this.bottomNavBarHeight = 50.0,
     this.showBottomNavBar = true,
     this.showPanel = true,
+    this.collapsedInsets = EdgeInsets.zero,
   }) : assert(panel != null || panelBuilder != null),
        assert(0 <= backdropOpacity && backdropOpacity <= 1.0),
        assert(snapPoint == null || 0 < snapPoint && snapPoint < 1.0),
@@ -176,26 +180,26 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
         // Body 部分
         widget.body != null
             ? widget.parallaxEnabled
-                ? AnimatedBuilder(
-                    animation: _ac,
-                    builder: (context, child) {
-                      return Positioned(
-                        top: widget.showPanel ? _getParallax() : 0.0,
-                        left: 0.0,
-                        right: 0.0,
-                        bottom: bottomContentHeight,
-                        child: child ?? const SizedBox.shrink(),
-                      );
-                    },
-                    child: widget.body,
-                  )
-                : Positioned(
-                    top: 0.0,
-                    left: 0.0,
-                    right: 0.0,
-                    bottom: bottomContentHeight,
-                    child: widget.body!,
-                  )
+                  ? AnimatedBuilder(
+                      animation: _ac,
+                      builder: (context, child) {
+                        return Positioned(
+                          top: widget.showPanel ? _getParallax() : 0.0,
+                          left: 0.0,
+                          right: 0.0,
+                          bottom: bottomContentHeight,
+                          child: child ?? const SizedBox.shrink(),
+                        );
+                      },
+                      child: widget.body,
+                    )
+                  : Positioned(
+                      top: 0.0,
+                      left: 0.0,
+                      right: 0.0,
+                      bottom: bottomContentHeight,
+                      child: widget.body!,
+                    )
             : const SizedBox.shrink(),
         widget.bottomNavBar != null && widget.showBottomNavBar
             ? Positioned(
@@ -271,8 +275,8 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                 animation: _ac,
                 builder: (context, child) {
                   return Positioned(
-                    left: 0.0,
-                    right: 0.0,
+                    left: widget.collapsedInsets.left * (1.0 - _ac.value),
+                    right: widget.collapsedInsets.right * (1.0 - _ac.value),
                     // 【核心修改】：动态控制面板的 bottom 偏移量
                     // 当 _ac.value 为 0 (折叠) 时，bottom 为底部导航栏的高度，恰好坐在导航栏上面不遮挡。
                     // 当 _ac.value 为 1 (展开) 时，bottom 为 0，面板完全沉底，占据刚刚隐藏的导航栏空间。
@@ -300,96 +304,86 @@ class _PlayerSheetPanelState extends State<PlayerSheetPanel>
                     ),
                   );
                 },
-                child: Stack(
-                  children: <Widget>[
-                    // Open panel content
-                    Positioned(
-                      top: widget.slideDirection == SlideDirection.UP
-                          ? 0.0
-                          : null,
-                      bottom: widget.slideDirection == SlideDirection.DOWN
-                          ? 0.0
-                          : null,
-                      width:
-                          MediaQuery.sizeOf(context).width -
-                          (widget.margin != null
-                              ? widget.margin!.horizontal
-                              : 0) -
-                          (widget.padding != null
-                              ? widget.padding!.horizontal
-                              : 0),
-                      child: SizedBox(
-                        height: widget.maxHeight,
-                        child:
-                            widget.panel ??
-                            widget.panelBuilder!(_sc, _ac), // 传入 _ac
+                child: LayoutBuilder(
+                  builder: (context, panelConstraints) => Stack(
+                    children: <Widget>[
+                      // Open panel content
+                      Positioned(
+                        top: widget.slideDirection == SlideDirection.UP
+                            ? 0.0
+                            : null,
+                        bottom: widget.slideDirection == SlideDirection.DOWN
+                            ? 0.0
+                            : null,
+                        width: panelConstraints.maxWidth,
+                        child: SizedBox(
+                          height: widget.maxHeight,
+                          child:
+                              widget.panel ??
+                              widget.panelBuilder!(_sc, _ac), // 传入 _ac
+                        ),
                       ),
-                    ),
 
-                    // Header
-                    widget.header != null
-                        ? Positioned(
-                            top: widget.slideDirection == SlideDirection.UP
-                                ? 0.0
-                                : null,
-                            bottom: widget.slideDirection == SlideDirection.DOWN
-                                ? 0.0
-                                : null,
-                            child: widget.header ?? const SizedBox(),
-                          )
-                        : Container(),
+                      // Header
+                      widget.header != null
+                          ? Positioned(
+                              top: widget.slideDirection == SlideDirection.UP
+                                  ? 0.0
+                                  : null,
+                              bottom:
+                                  widget.slideDirection == SlideDirection.DOWN
+                                  ? 0.0
+                                  : null,
+                              child: widget.header ?? const SizedBox(),
+                            )
+                          : Container(),
 
-                    // Footer
-                    widget.footer != null
-                        ? Positioned(
-                            top: widget.slideDirection == SlideDirection.UP
-                                ? null
-                                : 0.0,
-                            bottom: widget.slideDirection == SlideDirection.DOWN
-                                ? null
-                                : 0.0,
-                            child: widget.footer ?? const SizedBox(),
-                          )
-                        : Container(),
+                      // Footer
+                      widget.footer != null
+                          ? Positioned(
+                              top: widget.slideDirection == SlideDirection.UP
+                                  ? null
+                                  : 0.0,
+                              bottom:
+                                  widget.slideDirection == SlideDirection.DOWN
+                                  ? null
+                                  : 0.0,
+                              child: widget.footer ?? const SizedBox(),
+                            )
+                          : Container(),
 
-                    // Collapsed panel content
-                    Positioned(
-                      top: widget.slideDirection == SlideDirection.UP
-                          ? 0.0
-                          : null,
-                      bottom: widget.slideDirection == SlideDirection.DOWN
-                          ? 0.0
-                          : null,
-                      width:
-                          MediaQuery.sizeOf(context).width -
-                          (widget.margin != null
-                              ? widget.margin!.horizontal
-                              : 0) -
-                          (widget.padding != null
-                              ? widget.padding!.horizontal
-                              : 0),
-                      child: SizedBox(
-                        height: widget.minHeight,
-                        child: widget.collapsed == null
-                            ? Container()
-                            : widget.fadeCollapsed
-                            ? FadeTransition(
-                                opacity: Tween(
-                                  begin: 1.0,
-                                  end: 0.0,
-                                ).animate(_ac),
-                                child: IgnorePointer(
+                      // Collapsed panel content
+                      Positioned(
+                        top: widget.slideDirection == SlideDirection.UP
+                            ? 0.0
+                            : null,
+                        bottom: widget.slideDirection == SlideDirection.DOWN
+                            ? 0.0
+                            : null,
+                        width: panelConstraints.maxWidth,
+                        child: SizedBox(
+                          height: widget.minHeight,
+                          child: widget.collapsed == null
+                              ? Container()
+                              : widget.fadeCollapsed
+                              ? FadeTransition(
+                                  opacity: Tween(
+                                    begin: 1.0,
+                                    end: 0.0,
+                                  ).animate(_ac),
+                                  child: IgnorePointer(
+                                    ignoring: _isPanelOpen,
+                                    child: widget.collapsed,
+                                  ),
+                                )
+                              : IgnorePointer(
                                   ignoring: _isPanelOpen,
                                   child: widget.collapsed,
                                 ),
-                              )
-                            : IgnorePointer(
-                                ignoring: _isPanelOpen,
-                                child: widget.collapsed,
-                              ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
       ],
@@ -580,22 +574,34 @@ class PanelController {
   bool get isAttached => _panelState != null;
 
   Future<void> close() {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._close();
   }
 
   Future<void> open() {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._open();
   }
 
   Future<void> hide() {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._hide();
   }
 
   Future<void> show() {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._show();
   }
 
@@ -604,7 +610,10 @@ class PanelController {
     Duration? duration,
     Curve curve = Curves.linear,
   }) {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     assert(0.0 <= value && value <= 1.0);
     return _panelState!._animatePanelToPosition(
       value,
@@ -617,7 +626,10 @@ class PanelController {
     Duration? duration,
     Curve curve = Curves.linear,
   }) {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     assert(
       _panelState!.widget.snapPoint != null,
       "PlayerSheetPanelPanel snapPoint property must not be null",
@@ -629,33 +641,51 @@ class PanelController {
   }
 
   set panelPosition(double value) {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     assert(0.0 <= value && value <= 1.0);
     _panelState!._panelPosition = value;
   }
 
   double get panelPosition {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._panelPosition;
   }
 
   bool get isPanelAnimating {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._isPanelAnimating;
   }
 
   bool get isPanelOpen {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._isPanelOpen;
   }
 
   bool get isPanelClosed {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._isPanelClosed;
   }
 
   bool get isPanelShown {
-    assert(isAttached, "PanelController must be attached to a PlayerSheetPanelPanel");
+    assert(
+      isAttached,
+      "PanelController must be attached to a PlayerSheetPanelPanel",
+    );
     return _panelState!._isPanelShown;
   }
 }

@@ -3,6 +3,61 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kikoenai/core/widgets/slider/player_sheet_panel.dart';
 
 void main() {
+  testWidgets('panel applies its margin and padding only once', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlayerSheetPanel(
+            minHeight: 64,
+            maxHeight: 700,
+            collapsedInsets: const EdgeInsets.only(left: 164, right: 20),
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            panelBuilder: (_, _) => const SizedBox(key: Key('padded-player')),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getTopLeft(find.byKey(const Key('padded-player'))).dx, 184);
+    expect(tester.getSize(find.byKey(const Key('padded-player'))).width, 776);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'collapsed player respects rail and safe insets then expands fully',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = PanelController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PlayerSheetPanel(
+              controller: controller,
+              minHeight: 64,
+              maxHeight: 700,
+              collapsedInsets: const EdgeInsets.only(left: 164, right: 20),
+              body: const SizedBox.expand(key: Key('body')),
+              panelBuilder: (_, _) => const ColoredBox(
+                key: Key('inset-player'),
+                color: Colors.blue,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.getTopLeft(find.byKey(const Key('inset-player'))).dx, 164);
+      expect(tester.getSize(find.byKey(const Key('inset-player'))).width, 816);
+      expect(tester.getSize(find.byKey(const Key('body'))).width, 1000);
+      controller.panelPosition = 1;
+      await tester.pump();
+      expect(tester.getTopLeft(find.byKey(const Key('inset-player'))).dx, 0);
+      expect(tester.getSize(find.byKey(const Key('inset-player'))).width, 1000);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('hidden player panel is not built or included in layout', (
     tester,
   ) async {
@@ -93,10 +148,7 @@ void main() {
           data: const MediaQueryData(
             size: Size(390, 844),
             padding: EdgeInsets.only(top: topInset, bottom: bottomInset),
-            viewPadding: EdgeInsets.only(
-              top: topInset,
-              bottom: bottomInset,
-            ),
+            viewPadding: EdgeInsets.only(top: topInset, bottom: bottomInset),
           ),
           child: Scaffold(
             body: PlayerSheetPanel(
@@ -122,9 +174,7 @@ void main() {
                   ],
                 ),
               ),
-              panelBuilder: (_, _) => const SizedBox(
-                key: Key('player-panel'),
-              ),
+              panelBuilder: (_, _) => const SizedBox(key: Key('player-panel')),
             ),
           ),
         ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/widgets/common/theme_toggle_button.dart';
 
@@ -17,22 +19,37 @@ class AdaptiveNavigationRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onDestinationSelected,
-      labelType: NavigationRailLabelType.selected,
-      leading: const Padding(padding: EdgeInsets.only(top: 30.0)),
-      destinations: destinations
-          .map(
-            (item) => NavigationRailDestination(
-              icon: item.icon,
-              label: Text(item.label),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: SizedBox(
+          height: math.max(constraints.maxHeight, 560),
+          child: NavigationRail(
+            selectedIndex: selectedIndex,
+            onDestinationSelected: onDestinationSelected,
+            extended: true,
+            minExtendedWidth: AppLayoutTokens.navigationRailWidth,
+            labelType: NavigationRailLabelType.none,
+            leading: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'Kikoenai',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
-          )
-          .toList(),
-      trailing: const Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [Divider(), ThemeToggleButton()],
+            destinations: destinations
+                .map(
+                  (item) => NavigationRailDestination(
+                    icon: item.icon,
+                    label: Text(item.label),
+                  ),
+                )
+                .toList(),
+            trailing: const Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [Divider(), ThemeToggleButton()],
+            ),
+          ),
+        ),
       ),
     );
   }

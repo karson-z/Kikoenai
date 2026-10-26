@@ -260,30 +260,33 @@ class _LocalMediaPageState extends ConsumerState<LocalMediaPage> {
 
   Widget _buildEmptyStateView(BuildContext context, ScanMode mode) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.folder_open_rounded,
-            size: 80,
-            color: Theme.of(context).colorScheme.surfaceTint,
-          ),
-          const SizedBox(height: 16),
-          Text("这里空空如也", style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            "点击下方按钮管理并添加文件夹",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-          ),
-          const SizedBox(height: 32),
-          FilledButton.icon(
-            onPressed: () => _showPathManager(mode),
-            icon: const Icon(Icons.add),
-            label: const Text("添加文件夹"),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: context.layout.pagePadding(top: 16, bottom: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.folder_open_rounded,
+              size: 80,
+              color: Theme.of(context).colorScheme.surfaceTint,
+            ),
+            const SizedBox(height: 16),
+            Text("这里空空如也", style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              "点击下方按钮管理并添加文件夹",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () => _showPathManager(mode),
+              icon: const Icon(Icons.add),
+              label: const Text("添加文件夹"),
+            ),
+          ],
+        ),
       ),
     );
   }

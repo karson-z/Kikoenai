@@ -6,6 +6,7 @@ class AdaptiveAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool automaticallyImplyLeading;
   final double? height; // allow custom height
+  final bool includeWindowControls;
 
   const AdaptiveAppBar({
     super.key,
@@ -13,6 +14,7 @@ class AdaptiveAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.automaticallyImplyLeading = false,
     this.height,
+    this.includeWindowControls = true,
   });
 
   @override
@@ -26,6 +28,7 @@ class AdaptiveAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       automaticallyImplyLeading: automaticallyImplyLeading,
       height: height,
+      includeWindowControls: includeWindowControls,
     );
   }
 }

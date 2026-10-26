@@ -59,8 +59,8 @@ class WorkListCard extends ConsumerWidget {
 
     return Card(
       margin: context.layout.pagePadding(
-        top: context.isCompactLayout ? context.layout.gridGap / 2 : 6,
-        bottom: context.isCompactLayout ? context.layout.gridGap / 2 : 6,
+        top: context.layout.useDenseCards ? context.layout.gridGap / 2 : 6,
+        bottom: context.layout.useDenseCards ? context.layout.gridGap / 2 : 6,
       ),
       elevation: 0,
       shape: RoundedRectangleBorder(

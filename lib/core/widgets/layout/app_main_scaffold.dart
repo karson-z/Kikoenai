@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kikoenai/core/constants/app_constants.dart';
 import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
 import 'package:kikoenai/core/widgets/layout/provider/main_scaffold_provider.dart'
@@ -72,13 +72,19 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
         .where((item) => item.branchIndex == selectedBranchIndex)
         .firstOrNull;
     final String title = selectedItem?.label ?? '';
-    final bool isMobile = context.isCompactLayout;
+    final layout = context.layout;
+    final useWideNavigation = layout.useWideNavigation;
+    final railWidth = useWideNavigation
+        ? AppLayoutTokens.navigationRailWidth
+        : 0.0;
+    final hasWindowControls =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
     final String currentPath = GoRouterState.of(context).uri.path;
     final bool showBottomNav = AppRoutes.mainPages.contains(currentPath);
     // NavigationBar owns a SafeArea. Reserve both its content height and the
     // persistent bottom inset so the panel body/FAB cannot be clipped on iOS.
     final bottomNavBarHeight =
-        AppConstants.kAppBottomNavHeight +
+        layout.bottomNavigationHeight +
         MediaQuery.viewPaddingOf(context).bottom;
 
     final mainController = ref.read(mainScaffoldProvider.notifier);
@@ -100,33 +106,64 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       });
     }
 
-    Widget bodyContent;
-    if (isMobile) {
-      bodyContent = RepaintBoundary(child: widget.navigationShell);
-    } else {
-      bodyContent = Row(
+    // Keep the navigation shell in the same slot while chrome changes around it.
+    final bodyContent = SafeArea(
+      top: false,
+      bottom: false,
+      child: Column(
         children: [
-          AdaptiveNavigationRail(
-            selectedIndex: selectedIndex,
-            destinations: destinations,
-            onDestinationSelected: (index) =>
-                _navigateTo(destinations[index].branchIndex),
+          SizedBox(
+            height: hasWindowControls ? 40 : 0,
+            child: hasWindowControls
+                ? const AdaptiveAppBar(title: Text('Kikoenai'), height: 40)
+                : null,
           ),
           Expanded(
-            child: Column(
+            child: Row(
               children: [
-                AdaptiveAppBar(
-                  title: Text(title),
-                  automaticallyImplyLeading: false,
-                  height: kToolbarHeight,
+                SizedBox(width: railWidth),
+                Expanded(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: useWideNavigation
+                            ? 64 + MediaQuery.paddingOf(context).top
+                            : 0,
+                        child: useWideNavigation
+                            ? AdaptiveAppBar(
+                                title: Text(title),
+                                automaticallyImplyLeading: false,
+                                height: 64,
+                                includeWindowControls: false,
+                              )
+                            : null,
+                      ),
+                      Expanded(
+                        child: Builder(
+                          // Read inside SafeArea so pages do not apply its
+                          // horizontal insets a second time in landscape.
+                          builder: (contentContext) => MediaQuery.removePadding(
+                            context: contentContext,
+                            removeTop: useWideNavigation || hasWindowControls,
+                            child: RepaintBoundary(
+                              child: widget.navigationShell,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Expanded(child: widget.navigationShell),
               ],
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
+    final miniBottomPadding = useWideNavigation || !showBottomNav
+        ? MediaQuery.viewPaddingOf(context).bottom
+        : 0.0;
+    final miniHeight = layout.miniPlayerHeight + miniBottomPadding;
 
     // 2. 缁熶竴浣跨敤 SlidingUpPanel 鍖呰
     return Scaffold(
@@ -146,50 +183,73 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
           }
           return false;
         },
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            PlayerSheetPanel(
-              controller: panelController,
-              minHeight: AppConstants.kMiniPlayerHeight,
-              maxHeight: MediaQuery.sizeOf(context).height,
-              showPanel: hasPlaybackItems && !isCurrentVideoView,
-              fadeCollapsed: false,
-              panelBuilder:
-                  (ScrollController sc, AnimationController controller) {
-                    return PlayerView(
-                      dragProgressNotifier: controller,
-                      minHeight: AppConstants.kMiniPlayerHeight,
-                    );
-                  },
-              body: bodyContent,
-              showBottomNavBar: isMobile ? showBottomNav : false,
-              bottomNavBarHeight: bottomNavBarHeight,
-              bottomNavBar: isMobile
-                  ? RepaintBoundary(
-                      child: NavigationBar(
-                        height: AppConstants.kAppBottomNavHeight,
-                        maintainBottomViewPadding: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                top: hasWindowControls ? 40 : MediaQuery.paddingOf(context).top,
+                bottom: 0,
+                left: MediaQuery.paddingOf(context).left,
+                width: railWidth,
+                child: useWideNavigation
+                    ? AdaptiveNavigationRail(
                         selectedIndex: selectedIndex,
+                        destinations: destinations,
                         onDestinationSelected: (index) =>
                             _navigateTo(destinations[index].branchIndex),
-                        destinations: destinations
-                            .map(
-                              (item) => NavigationDestination(
-                                icon: item.icon,
-                                label: item.label,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    )
-                  : null,
-              onPanelOpened: () => mainController.handlePanelStateChange(true),
-              onPanelClosed: () => mainController.handlePanelStateChange(false),
-            ),
-            if (isCurrentVideoView)
-              VideoFloatingOverlay(controller: _videoPresentationController),
-          ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              PlayerSheetPanel(
+                controller: panelController,
+                minHeight: miniHeight,
+                maxHeight: constraints.maxHeight,
+                collapsedInsets: EdgeInsets.only(
+                  left: railWidth + MediaQuery.paddingOf(context).left,
+                  right: MediaQuery.paddingOf(context).right,
+                ),
+                showPanel: hasPlaybackItems && !isCurrentVideoView,
+                fadeCollapsed: false,
+                panelBuilder:
+                    (ScrollController sc, AnimationController controller) {
+                      return PlayerView(
+                        dragProgressNotifier: controller,
+                        minHeight: miniHeight,
+                        miniBottomPadding: miniBottomPadding,
+                      );
+                    },
+                body: bodyContent,
+                showBottomNavBar: !useWideNavigation && showBottomNav,
+                bottomNavBarHeight: bottomNavBarHeight,
+                bottomNavBar: !useWideNavigation
+                    ? RepaintBoundary(
+                        child: NavigationBar(
+                          height: layout.bottomNavigationHeight,
+                          maintainBottomViewPadding: true,
+                          selectedIndex: selectedIndex,
+                          onDestinationSelected: (index) =>
+                              _navigateTo(destinations[index].branchIndex),
+                          destinations: destinations
+                              .map(
+                                (item) => NavigationDestination(
+                                  icon: item.icon,
+                                  label: item.label,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      )
+                    : null,
+                onPanelOpened: () =>
+                    mainController.handlePanelStateChange(true),
+                onPanelClosed: () =>
+                    mainController.handlePanelStateChange(false),
+              ),
+              if (isCurrentVideoView)
+                VideoFloatingOverlay(controller: _videoPresentationController),
+            ],
+          ),
         ),
       ),
     );

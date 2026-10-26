@@ -76,7 +76,7 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
     ); // 3. 获取数据状态 (带上当前的 sortOption family key)
     final currentTabAsync = ref.watch(categoryProvider(query.sortOption));
     final totalCount = currentTabAsync.value?.totalCount ?? 0;
-    final isMobile = context.isCompactLayout;
+    final layout = context.layout;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final Color bgColor = isDark ? Colors.black : Colors.white;
@@ -157,18 +157,20 @@ class _CategoryPageState extends ConsumerState<CategoryPage>
         ),
       ],
     );
-    final body = isMobile
-        ? ScrollAwareToolbarLayout(
-            notificationPredicate: (_) => true,
-            toolbar: SizedBox(
-              height: MobileSearchAppBar.toolbarHeight,
-              child: MobileSearchAppBar(
+    final body = ScrollAwareToolbarLayout(
+      forceToolbarVisible: layout.useWideNavigation,
+      notificationPredicate: (_) => true,
+      toolbar: SizedBox(
+        height: layout.useWideNavigation ? 0 : layout.searchToolbarHeight,
+        child: layout.useWideNavigation
+            ? null
+            : MobileSearchAppBar(
+                title: '分类',
                 onSearchTap: () => context.push(AppRoutes.search),
               ),
-            ),
-            child: categoryContent,
-          )
-        : categoryContent;
+      ),
+      child: categoryContent,
+    );
 
     return Scaffold(
       backgroundColor: bgColor,

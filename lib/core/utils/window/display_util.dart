@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'mobile_system_ui_controller.dart';
 
 class DisplayUtils {
   DisplayUtils._();
+
+  static final mobileSystemUi = MobileSystemUiController();
 
   /// Orientations allowed before the current fullscreen session locked them.
   static List<DeviceOrientation>? _orientationsBeforeFullscreen;
@@ -23,9 +25,7 @@ class DisplayUtils {
       }
 
       // 2. 移动端 UI 模式处理
-      await SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.immersiveSticky,
-      );
+      await mobileSystemUi.enterFullscreen();
       if (!lockOrientation) return;
       _orientationsBeforeFullscreen ??= List<DeviceOrientation>.from(
         preferredOrientationsBeforeLock,
@@ -47,18 +47,7 @@ class DisplayUtils {
 
       // 2. 移动端处理
       if (Platform.isAndroid || Platform.isIOS) {
-        SystemUiMode mode = SystemUiMode.edgeToEdge;
-
-        if (Platform.isAndroid) {
-          final androidInfo = await DeviceInfoPlugin().androidInfo;
-          if (androidInfo.version.sdkInt < 29) {
-            mode = SystemUiMode.manual;
-          }
-        }
-        await SystemChrome.setEnabledSystemUIMode(
-          mode,
-          overlays: SystemUiOverlay.values,
-        );
+        await mobileSystemUi.exitFullscreen();
         final previous = _orientationsBeforeFullscreen;
         _orientationsBeforeFullscreen = null;
         await restoreOrientations(previous ?? preferredOrientationsBeforeLock);

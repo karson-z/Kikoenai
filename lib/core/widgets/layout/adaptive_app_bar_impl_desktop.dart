@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kikoenai/core/routes/app_routes.dart';
 
 import 'package:window_manager/window_manager.dart';
 
@@ -22,12 +24,13 @@ PreferredSizeWidget buildAdaptiveAppBar(
   bool automaticallyImplyLeading = true,
 
   double? height = kToolbarHeight,
+  bool includeWindowControls = true,
 }) {
   final theme = Theme.of(context);
 
-  final isCompact = context.isCompactLayout;
-
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
+  if (!includeWindowControls ||
+      kIsWeb ||
+      defaultTargetPlatform != TargetPlatform.windows) {
     return PreferredSize(
       preferredSize: Size.fromHeight(height ?? kToolbarHeight),
 
@@ -43,19 +46,33 @@ PreferredSizeWidget buildAdaptiveAppBar(
         titleSpacing: 0,
 
         title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: context.layout.pagePadding(),
 
           child: Row(
             children: [
-              if (isCompact) const ThemeToggleButton(),
-
-              const Spacer(),
-
-              const GlobalSearchInput(
-                hintText: '搜索作品、作者或标签…',
-                width: 250,
-                height: 40,
+              if (title != null)
+                Expanded(
+                  child: DefaultTextStyle.merge(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    child: title,
+                  ),
+                )
+              else
+                const Spacer(),
+              const SizedBox(width: 12),
+              Flexible(
+                flex: 2,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: GlobalSearchInput(
+                    hintText: '搜索作品、作者或标签…',
+                    height: 44,
+                    onTap: () => context.push(AppRoutes.search),
+                  ),
+                ),
               ),
+              const ThemeToggleButton(),
 
               if (actions != null) ...actions,
             ],
@@ -85,18 +102,22 @@ PreferredSizeWidget buildAdaptiveAppBar(
                     if (automaticallyImplyLeading) const BackButton(),
 
                     if (title != null)
-                      DefaultTextStyle(
-                        style: TextStyle(
-                          color:
-                              theme.appBarTheme.foregroundColor ??
-                              theme.colorScheme.onSurface,
+                      Flexible(
+                        child: DefaultTextStyle(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color:
+                                theme.appBarTheme.foregroundColor ??
+                                theme.colorScheme.onSurface,
 
-                          fontSize: 20,
+                            fontSize: 20,
 
-                          fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w600,
+                          ),
+
+                          child: title,
                         ),
-
-                        child: title,
                       ),
 
                     const Spacer(),

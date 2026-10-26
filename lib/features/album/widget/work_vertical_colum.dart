@@ -29,7 +29,7 @@ class VerticalCardColumn extends StatelessWidget {
       height: maxHeight, // 固定高度
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
-        spacing: context.isCompactLayout ? context.layout.gridGap : 0,
+        spacing: context.layout.useDenseCards ? context.layout.gridGap : 0,
         children: displayedItems
             .map(
               (item) => SizedBox(

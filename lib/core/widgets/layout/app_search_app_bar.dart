@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/common/global_search_input.dart';
 
@@ -28,12 +29,7 @@ class SearchAppBar extends ConsumerWidget {
 
         return Container(
           color: Theme.of(context).scaffoldBackgroundColor,
-          padding: EdgeInsets.only(
-              top: topPadding + 12,
-              left: 4,
-              right: 16,
-              bottom: 12
-          ),
+          padding: context.layout.pagePadding(top: topPadding + 12, bottom: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

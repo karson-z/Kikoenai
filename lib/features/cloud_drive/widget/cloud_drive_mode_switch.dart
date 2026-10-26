@@ -43,14 +43,8 @@ class CloudDriveModeSwitch extends StatelessWidget {
         shape: WidgetStatePropertyAll(StadiumBorder()),
       ),
       segments: const [
-        ButtonSegment(
-          value: CloudDriveMode.alistApi,
-          label: Text('AList'),
-        ),
-        ButtonSegment(
-          value: CloudDriveMode.webDav,
-          label: Text('WebDAV'),
-        ),
+        ButtonSegment(value: CloudDriveMode.alistApi, label: Text('AList')),
+        ButtonSegment(value: CloudDriveMode.webDav, label: Text('WebDAV')),
       ],
       selected: {value},
       onSelectionChanged: (values) => onChanged(values.single),

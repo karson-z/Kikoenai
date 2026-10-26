@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kikoenai/core/widgets/common/page_global_search_button.dart';
 import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -91,6 +92,7 @@ class UserPage extends ConsumerWidget {
                         },
                       ),
                       actions: [
+                        const PageGlobalSearchButton(),
                         IconButton(
                           tooltip: '下载管理',
                           icon: const Icon(Icons.download_outlined),

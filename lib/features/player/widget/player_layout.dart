@@ -13,6 +13,7 @@ class PlayerLayoutMetrics {
     required EdgeInsets padding,
     required TextScaler textScaler,
     required double minHeight,
+    double collapsedLeft = 12,
   }) {
     final safeWidth = math.max(0.0, size.width - padding.horizontal);
     topBar = Rect.fromLTWH(padding.left, padding.top + 8, safeWidth, 60);
@@ -200,7 +201,12 @@ class PlayerLayoutMetrics {
       lyricsCoverSize,
     );
     final miniCoverSize = math.max(0.0, minHeight - 10);
-    collapsedCover = Rect.fromLTWH(12, 5, miniCoverSize, miniCoverSize);
+    collapsedCover = Rect.fromLTWH(
+      collapsedLeft,
+      5,
+      miniCoverSize,
+      miniCoverSize,
+    );
   }
 
   static const wideBreakpoint = 800.0;

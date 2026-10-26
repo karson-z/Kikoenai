@@ -32,52 +32,89 @@ class AppCardMetrics {
 }
 
 class AppLayoutTokens {
-  const AppLayoutTokens._(this.size);
+  const AppLayoutTokens._(
+    this.size, {
+    this.windowSize = Size.zero,
+    this.isPhone = false,
+  });
 
   final AppLayoutSize size;
+  final Size windowSize;
+  final bool isPhone;
+
+  static const wideNavigationBreakpoint = 840.0;
+  static const navigationRailWidth = 164.0;
+
+  bool get useWideNavigation =>
+      !isPhone && windowSize.width >= wideNavigationBreakpoint;
+  bool get isPhoneLandscape => isPhone && windowSize.width > windowSize.height;
+  bool get useDenseCards => isPhone || size == AppLayoutSize.compact;
+  double get searchToolbarHeight => isPhoneLandscape ? 48 : 64;
+  double get bottomNavigationHeight => isPhoneLandscape ? 48 : 68;
+  double get miniPlayerHeight => isPhoneLandscape ? 48 : 64;
+
+  factory AppLayoutTokens.forWindow(Size windowSize, TargetPlatform platform) {
+    final mobilePlatform =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.android;
+    return AppLayoutTokens._(
+      windowSize.width < 600
+          ? AppLayoutSize.compact
+          : windowSize.width < 1024
+          ? AppLayoutSize.medium
+          : AppLayoutSize.expanded,
+      windowSize: windowSize,
+      isPhone: mobilePlatform && windowSize.shortestSide < 600,
+    );
+  }
 
   static AppLayoutTokens of(BuildContext context) {
+    final window = AppLayoutTokens.forWindow(
+      MediaQuery.sizeOf(context),
+      Theme.of(context).platform,
+    );
     try {
       return AppLayoutTokens._switch(
         ResponsiveBreakpoints.of(context).breakpoint.name,
+        window,
       );
     } on FlutterError {
-      final width = MediaQuery.sizeOf(context).width;
-      return AppLayoutTokens.forSize(
-        width < 600
-            ? AppLayoutSize.compact
-            : width < 1024
-            ? AppLayoutSize.medium
-            : AppLayoutSize.expanded,
-      );
+      return window;
     }
   }
 
   factory AppLayoutTokens.forSize(AppLayoutSize size) =>
       AppLayoutTokens._(size);
 
-  factory AppLayoutTokens._switch(String? name) =>
-      AppLayoutTokens._(switch (name) {
-        'medium' => AppLayoutSize.medium,
-        'expanded' => AppLayoutSize.expanded,
-        _ => AppLayoutSize.compact,
-      });
+  factory AppLayoutTokens._switch(String? name, AppLayoutTokens window) =>
+      AppLayoutTokens._(
+        switch (name) {
+          'medium' => AppLayoutSize.medium,
+          'expanded' => AppLayoutSize.expanded,
+          _ => AppLayoutSize.compact,
+        },
+        windowSize: window.windowSize,
+        isPhone: window.isPhone,
+      );
 
-  double get pageInset => switch (size) {
-    AppLayoutSize.compact => 4,
-    AppLayoutSize.medium => 8,
-    AppLayoutSize.expanded => 16,
-  };
+  double get pageInset => isPhone
+      ? 4
+      : switch (size) {
+          AppLayoutSize.compact => 4,
+          AppLayoutSize.medium => 6,
+          AppLayoutSize.expanded => 8,
+        };
 
   /// 页面内容统一与首页标题对齐，纵向间距由各页面保留。
   EdgeInsets pagePadding({double top = 0, double bottom = 0}) =>
       EdgeInsets.fromLTRB(pageInset, top, pageInset, bottom);
 
-  double get gridGap => switch (size) {
-    AppLayoutSize.compact => 1,
-    AppLayoutSize.medium => 12,
-    AppLayoutSize.expanded => 16,
-  };
+  double get gridGap => isPhone
+      ? 1
+      : switch (size) {
+          AppLayoutSize.compact => 1,
+          AppLayoutSize.medium => 2,
+          AppLayoutSize.expanded => 4,
+        };
 
   double get sectionGap => switch (size) {
     AppLayoutSize.compact => 16,
@@ -126,7 +163,7 @@ class AppLayoutTokens {
       AppCardVariant.workList => AppCardMetrics(
         margin: EdgeInsets.symmetric(
           horizontal: pageInset,
-          vertical: size == AppLayoutSize.compact ? gridGap / 2 : space1,
+          vertical: useDenseCards ? gridGap / 2 : space1,
         ),
         padding: EdgeInsets.all(space2),
         radius: radiusMedium,

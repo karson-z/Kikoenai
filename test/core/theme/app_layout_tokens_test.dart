@@ -4,6 +4,58 @@ import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 void main() {
+  test('phone navigation and density survive rotation', () {
+    final portrait = AppLayoutTokens.forWindow(
+      const Size(390, 844),
+      TargetPlatform.iOS,
+    );
+    final landscape = AppLayoutTokens.forWindow(
+      const Size(844, 390),
+      TargetPlatform.iOS,
+    );
+    final largePhone = AppLayoutTokens.forWindow(
+      const Size(1080, 480),
+      TargetPlatform.iOS,
+    );
+    for (final layout in [portrait, landscape, largePhone]) {
+      expect(layout.isPhone, isTrue);
+      expect(layout.useWideNavigation, isFalse);
+      expect(layout.pageInset, 4);
+      expect(layout.gridGap, 1);
+      expect(layout.card(AppCardVariant.workList).margin.vertical, 1);
+    }
+    expect(landscape.size, AppLayoutSize.medium);
+    expect(largePhone.size, AppLayoutSize.expanded);
+    expect(portrait.searchToolbarHeight, 64);
+    expect(landscape.searchToolbarHeight, 48);
+  });
+
+  test(
+    'non-phone navigation uses 840 without changing density breakpoints',
+    () {
+      final narrow = AppLayoutTokens.forWindow(
+        const Size(839, 390),
+        TargetPlatform.macOS,
+      );
+      final wide = AppLayoutTokens.forWindow(
+        const Size(840, 390),
+        TargetPlatform.macOS,
+      );
+      expect(narrow.isPhone, isFalse);
+      expect(narrow.useWideNavigation, isFalse);
+      expect(wide.useWideNavigation, isTrue);
+      expect(wide.pageInset, 8);
+      expect(wide.gridGap, 12);
+      final tablet = AppLayoutTokens.forWindow(
+        const Size(1024, 768),
+        TargetPlatform.iOS,
+      );
+      expect(tablet.isPhone, isFalse);
+      expect(tablet.useWideNavigation, isTrue);
+      expect(tablet.pageInset, 16);
+    },
+  );
+
   group('AppLayoutTokens breakpoints', () {
     for (final scenario in [
       (width: 599.0, size: AppLayoutSize.compact),

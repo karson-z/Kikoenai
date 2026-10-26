@@ -18,14 +18,12 @@ class AlbumPage extends ConsumerWidget {
   const AlbumPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isCompact = context.isCompactLayout;
+    final layout = context.layout;
     final isEmpty = ref.watch(albumAllEmptyProvider);
     return Scaffold(
-      appBar: isCompact
+      appBar: !layout.useWideNavigation
           ? PreferredSize(
-              preferredSize: const Size.fromHeight(
-                MobileSearchAppBar.toolbarHeight,
-              ),
+              preferredSize: Size.fromHeight(layout.searchToolbarHeight),
               child: MobileSearchAppBar(
                 onSearchTap: () {
                   debugPrint('跳转到搜索页面');

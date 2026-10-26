@@ -23,7 +23,7 @@ class WorkListItem extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          vertical: context.isCompactLayout ? 0 : 1,
+          vertical: context.layout.useDenseCards ? 0 : 1,
         ),
         child: Card(
           margin: EdgeInsets.zero,
