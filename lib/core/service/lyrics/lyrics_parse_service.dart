@@ -5,8 +5,6 @@ import 'package:flutter_lyric/core/lyric_parse.dart';
 import 'package:flutter_lyric/core/lyric_style.dart';
 import 'package:flutter_lyric/core/lyric_styles.dart';
 
-import 'package:kikoenai_core/kikoenai_core.dart';
-
 /// Vtt 字幕解析器
 class VttParser extends LyricParse {
   // 匹配 VTT 时间轴的正则：支持 00:00.000 或 00:00:00.000
@@ -110,19 +108,24 @@ class VttParser extends LyricParse {
   }
 }
 
+/// 播放页统一字幕样式。按实际阅读宽度设置字号，不读取历史自定义配置。
 class LyricStyleFactory {
-  static LyricStyle createStyle(LyricConfigModel config) {
-    final appleStyle = LyricStyles.appleMusic;
-    return appleStyle.copyWith(
-      textStyle: appleStyle.textStyle.copyWith(fontSize: config.mainFontSize),
-      activeStyle: appleStyle.activeStyle.copyWith(
-        fontSize: config.activeFontSize,
+  static LyricStyle createStyle({double viewportWidth = 390}) {
+    final preset = LyricStyles.appleMusic;
+    final readingWidth = viewportWidth - preset.contentPadding.horizontal;
+    final (mainSize, activeSize, translationSize, lineGap) = readingWidth >= 600
+        ? (32.0, 38.0, 20.0, 28.0)
+        : readingWidth >= 360
+        ? (28.0, 34.0, 18.0, 26.0)
+        : (26.0, 30.0, 16.0, 24.0);
+    return preset.copyWith(
+      textStyle: preset.textStyle.copyWith(fontSize: mainSize),
+      activeStyle: preset.activeStyle.copyWith(fontSize: activeSize),
+      translationStyle: preset.translationStyle.copyWith(
+        fontSize: translationSize,
       ),
-      translationStyle: appleStyle.translationStyle.copyWith(
-        fontSize: config.transFontSize,
-      ),
-      lineGap: config.lineGap,
-      translationLineGap: config.translationGap,
+      lineGap: lineGap,
+      translationLineGap: 6,
     );
   }
 }

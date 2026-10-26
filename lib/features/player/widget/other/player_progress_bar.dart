@@ -10,7 +10,13 @@ import '../../provider/video_seek_preview_provider.dart';
 class PlayerProgressBar extends ConsumerWidget {
   final bool showTimeLabel;
 
-  const PlayerProgressBar({super.key, this.showTimeLabel = true});
+  const PlayerProgressBar({
+    super.key,
+    this.showTimeLabel = true,
+    this.horizontalPadding = 16,
+  });
+
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +31,7 @@ class PlayerProgressBar extends ConsumerWidget {
     const double thumbRadius = 6.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: ProgressBar(
         height: showTimeLabel
             ? math.max(

@@ -33,7 +33,11 @@ class PlayerPlaybackPage extends StatelessWidget {
         _region(
           metrics.progressSlot,
           'player-progress-region',
-          const PlayerProgressBar(),
+          PlayerProgressBar(
+            horizontalPadding: metrics.isPaged || metrics.hasSharedControls
+                ? 16
+                : 0,
+          ),
           maxWidth: metrics.hasSharedControls
               ? double.infinity
               : PlayerLayoutMetrics.maxPlaybackWidth,

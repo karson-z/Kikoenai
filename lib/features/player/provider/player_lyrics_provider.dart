@@ -3,16 +3,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_lyric/core/lyric_parse.dart';
 import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive.dart';
-import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/data/charset_cover.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../core/service/file/archive_service.dart';
-import '../../../../core/service/lyrics/lyrics_parse_service.dart';
 import '../../../../core/service/site/site_api_provider.dart';
-import '../../../../core/storage/hive_storage.dart';
 
 /// 按字幕 URL 缓存字幕内容的 provider。
 ///
@@ -88,49 +83,3 @@ extension LyricControllerExt on LyricController {
     loadLyricModel(lyricModel);
   }
 }
-
-/// 字幕样式提供者
-final lyricConfigProvider =
-    NotifierProvider<LyricConfigNotifier, LyricConfigModel>(() {
-  return LyricConfigNotifier();
-});
-
-class LyricConfigNotifier extends Notifier<LyricConfigModel> {
-  Box get _setting => AppStorage.settingsBox;
-
-  @override
-  LyricConfigModel build() {
-    return _setting.get(
-      StorageKeys.lyricsStyleConfig,
-      defaultValue: const LyricConfigModel(),
-    );
-  }
-
-  void updateMainFontSize(double val) =>
-      _save(state.copyWith(mainFontSize: val));
-
-  void updateTransFontSize(double val) =>
-      _save(state.copyWith(transFontSize: val));
-
-  void updateActiveFontSize(double val) =>
-      _save(state.copyWith(activeFontSize: val));
-
-  void updateLineGap(double val) => _save(state.copyWith(lineGap: val));
-
-  void updateTransGap(double val) => _save(state.copyWith(translationGap: val));
-
-  void resetToDefault() {
-    _save(const LyricConfigModel());
-  }
-
-  // 统一保存逻辑
-  void _save(LyricConfigModel newConfig) {
-    state = newConfig;
-    _setting.put(StorageKeys.lyricsStyleConfig, newConfig);
-  }
-}
-
-final lyricStyleProvider = Provider<LyricStyle>((ref) {
-  final config = ref.watch(lyricConfigProvider);
-  return LyricStyleFactory.createStyle(config);
-});

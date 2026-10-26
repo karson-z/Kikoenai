@@ -5,7 +5,6 @@ import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/provider/audio_file_provider.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
-import 'package:kikoenai/features/player/widget/other/player_lyrics_edit.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_mapping_sheet.dart';
 import 'package:kikoenai/features/player/widget/other/player_more_widget.dart';
@@ -196,16 +195,6 @@ class _MoreOptionsContent extends ConsumerWidget {
         icon: Icons.favorite_border,
         label: "收藏",
         onTap: () => Navigator.pop(context),
-      ),
-      QuickActionItem(
-        icon: Icons.lyrics_outlined,
-        label: "字幕样式",
-        onTap: () {
-          // 跳转至字幕配置第二页
-          final page = buildLyricsStylePage(context);
-          WoltModalSheet.of(context).addPage(page);
-          WoltModalSheet.of(context).showNext();
-        },
       ),
       QuickActionItem(
         icon: Icons.folder_open_outlined,

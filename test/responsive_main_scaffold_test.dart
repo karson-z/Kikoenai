@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:kikoenai/config/navigation_item.dart';
 import 'package:kikoenai/core/routes/app_routes.dart';
-import 'package:kikoenai/core/service/lyrics/lyrics_parse_service.dart';
 import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
 import 'package:kikoenai/core/widgets/common/global_search_input.dart';
@@ -23,7 +22,6 @@ import 'package:kikoenai/features/local_media/widget/local_media_header.dart';
 import 'package:kikoenai/features/player/page/player_view.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
 import 'package:kikoenai/features/player/provider/player_lyrics_match_provider.dart';
-import 'package:kikoenai/features/player/provider/player_lyrics_provider.dart';
 import 'package:kikoenai/features/player/widget/audio/player_background.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
@@ -156,9 +154,6 @@ Future<GoRouter> _mount(
         ),
         lyricsMatchControllerProvider.overrideWith(_NoLyrics.new),
         blurredImageProvider.overrideWith((ref) async => null),
-        lyricStyleProvider.overrideWithValue(
-          LyricStyleFactory.createStyle(const LyricConfigModel()),
-        ),
         explicitDarkModeProvider.overrideWithValue(false),
       ],
       child: MaterialApp.router(

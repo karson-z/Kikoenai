@@ -50,6 +50,8 @@ class PlayerLayoutMetrics {
     final minimumLyricsHeight = math.max(360.0, textScaler.scale(20) * 10);
     final innerWidth = math.max(0.0, content.width - paneInset * 2);
     final stageWidth = math.min(innerWidth, maxSideBySideWidth);
+    final wideStageWidth = math.min(innerWidth, 1256.0);
+    final widePaneGap = content.width >= 1024 ? 64.0 : paneGap;
     final dockControlsHeight =
         (content.height - minimumLyricsHeight - paneGap - controlMaximums[1])
             .clamp(minimums[3], controlMaximums[2])
@@ -71,9 +73,9 @@ class PlayerLayoutMetrics {
         content.width >= wideBreakpoint &&
         minimumPlaybackWidth <= maxPlaybackWidth &&
         minimumLyricsWidth <= maxLyricsWidth &&
-        stageWidth >=
+        wideStageWidth >=
             math.max(320, minimumPlaybackWidth) +
-                paneGap +
+                widePaneGap +
                 minimumLyricsWidth &&
         content.height >= math.max(_sum(minimums) + 120, minimumLyricsHeight);
     final compactWidth = math.max(0.0, content.width - compactPaneInset * 2);
@@ -104,7 +106,7 @@ class PlayerLayoutMetrics {
         : PlayerLayoutMode.paged;
 
     if (isCompactSplit) {
-      final columnWidth = ((compactWidth - compactPaneGap) * 0.46)
+      final columnWidth = 302.0
           .clamp(
             compactPlaybackMinimum,
             compactWidth - compactPaneGap - compactLyricsMinimum,
@@ -123,11 +125,11 @@ class PlayerLayoutMetrics {
         content.height,
       );
       final headerHeight = math.min(
-        math.max(112.0, compactHeaderMinimum),
+        math.max(108.0, compactHeaderMinimum),
         content.height - compactTailHeight,
       );
       var y = (content.height - headerHeight - compactTailHeight) / 2;
-      final coverSize = math.min(112.0, headerHeight);
+      final coverSize = math.min(108.0, headerHeight);
       coverSlot = Rect.fromLTWH(
         0,
         y + (headerHeight - coverSize) / 2,
@@ -213,15 +215,15 @@ class PlayerLayoutMetrics {
       } else {
         final stage = Rect.fromCenter(
           center: content.center,
-          width: stageWidth,
+          width: wideStageWidth,
           height: math.min(content.height, maxLyricsHeight),
         );
-        final columnWidth = ((stageWidth - paneGap) * 0.4)
+        final columnWidth = 440.0
             .clamp(
               math.max(320.0, minimumPlaybackWidth),
               math.min(
                 maxPlaybackWidth,
-                stageWidth - paneGap - minimumLyricsWidth,
+                wideStageWidth - widePaneGap - minimumLyricsWidth,
               ),
             )
             .toDouble();
@@ -232,7 +234,7 @@ class PlayerLayoutMetrics {
           stage.height,
         );
         lyricsViewport = Rect.fromLTRB(
-          playbackViewport.right + paneGap,
+          playbackViewport.right + widePaneGap,
           stage.top,
           stage.right,
           stage.bottom,
@@ -240,7 +242,7 @@ class PlayerLayoutMetrics {
       }
       final blockWidth = math.min(playbackViewport.width, maxPlaybackWidth);
       final maximums = <double>[
-        math.min(blockWidth * 0.82, isPaged ? 450.0 : 350.0) + 24,
+        math.min(blockWidth * 0.82, isPaged ? 450.0 : 320.0) + 24,
         ...controlMaximums,
       ];
       final blockHeight = math.min(playbackViewport.height, _sum(maximums));
@@ -265,7 +267,7 @@ class PlayerLayoutMetrics {
         : math.max(
             0.0,
             math.min(
-              math.min(coverSlot.width * 0.82, isPaged ? 450.0 : 350.0),
+              math.min(coverSlot.width * 0.82, isPaged ? 450.0 : 320.0),
               coverSlot.height - 12,
             ),
           );

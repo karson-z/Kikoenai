@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kikoenai/core/service/lyrics/lyrics_parse_service.dart';
 import 'package:kikoenai/core/widgets/layout/app_main_scaffold.dart';
 import 'package:kikoenai/core/widgets/slider/player_sheet_panel.dart';
 import 'package:kikoenai/features/player/page/player_view.dart';
@@ -133,9 +132,6 @@ Future<void> _mount(
             (i) =>
                 '[${(i * 10 ~/ 60).toString().padLeft(2, '0')}:${(i * 10 % 60).toString().padLeft(2, '0')}.00]A quiet moment, line ${i + 1}',
           ).join('\n'),
-        ),
-        lyricStyleProvider.overrideWithValue(
-          LyricStyleFactory.createStyle(const LyricConfigModel()),
         ),
         if (panel != null) panelControllerProvider.overrideWithValue(panel),
       ],
@@ -868,7 +864,7 @@ void main() {
     final controls = tester.getRect(find.byType(PlayerControls));
     final volume = tester.getRect(find.byType(PlayerVolumeSlider));
     expect(cover.width, lessThanOrEqualTo(350));
-    expect(lyrics.size, const Size(760, 900));
+    expect(lyrics.size, const Size(752, 900));
     expect(controls.right, lessThan(lyrics.left));
     expect(info.top - cover.bottom, lessThan(100));
     expect(volume.bottom, lessThanOrEqualTo(1980 - 34));

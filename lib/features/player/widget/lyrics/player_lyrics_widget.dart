@@ -56,9 +56,11 @@ class _ShowLyricState extends ConsumerState<ShowLyric> {
 
   @override
   Widget build(BuildContext context) {
-    final configuredStyle = ref.watch(lyricStyleProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
+        final configuredStyle = LyricStyleFactory.createStyle(
+          viewportWidth: constraints.maxWidth,
+        );
         final style = widget.centerActiveLine
             ? configuredStyle.copyWith(
                 activeAnchorPosition: 0.5,
