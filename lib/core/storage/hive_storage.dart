@@ -38,6 +38,8 @@ class AppStorage {
     Hive.registerAdapter(NodeTypeAdapter());
     Hive.registerAdapter(NodeStatusAdapter());
     Hive.registerAdapter(FileNodeAdapter());
+    Hive.registerAdapter(FileOriginAdapter());
+    Hive.registerAdapter(FileOriginKindAdapter());
     Hive.registerAdapter(PlaybackItemAdapter());
     Hive.registerAdapter(PlaybackSessionAdapter());
     Hive.registerAdapter(CircleAdapter());

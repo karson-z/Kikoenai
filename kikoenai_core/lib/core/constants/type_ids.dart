@@ -21,6 +21,8 @@ class TypeIds {
   static const int nodeSource = 15;
   static const int searchTag = 16;
   static const int serverInfo = 17;
+  static const int fileOrigin = 18;
+  static const int fileOriginKind = 19;
 
   // --- 认证与用户 (30-49) ---
   static const int authResponse = 30;

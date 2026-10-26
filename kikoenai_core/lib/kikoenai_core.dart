@@ -88,6 +88,7 @@ export 'core/model/player/lyrics_match_state.dart';
 
 // ---- Models: local_media ----
 export 'core/model/local_media/file_node.dart';
+export 'core/model/local_media/file_origin.dart';
 export 'core/model/local_media/file_scanner_state.dart';
 export 'core/model/local_media/scan_mode.dart';
 

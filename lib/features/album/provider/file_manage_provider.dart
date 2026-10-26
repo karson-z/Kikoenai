@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../../../../core/service/file/file_node_library_index.dart';
-import 'package:kikoenai_core/kikoenai_core.dart';
 
 final fileSelectionProvider =
     NotifierProvider.autoDispose<FileSelectionNotifier, Set<FileNode>>(() {
@@ -181,10 +180,7 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
   /// Index 视图下整个根的选中状态（用于顶部"全选"复选框）。
   /// true: 全选, false: 全不选, null: 半选
   bool? getRootStateForIndex(FileNodeLibraryIndex index) {
-    final allLeaves = <FileNode>[];
-    index.walkFolders((folder, directFiles) {
-      allLeaves.addAll(directFiles);
-    });
+    final allLeaves = index.recursiveFilesOf(index.rootFolder);
 
     if (allLeaves.isEmpty) return false;
 
@@ -200,10 +196,7 @@ class FileSelectionNotifier extends Notifier<Set<FileNode>> {
 
   /// Index 视图下全选/取消全选当前根列表。
   void toggleSelectAllForIndex(FileNodeLibraryIndex index) {
-    final allLeaves = <FileNode>[];
-    index.walkFolders((folder, directFiles) {
-      allLeaves.addAll(directFiles);
-    });
+    final allLeaves = index.recursiveFilesOf(index.rootFolder);
 
     if (allLeaves.isEmpty) return;
 

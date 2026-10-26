@@ -21,7 +21,11 @@ class FileBrowserEditActions {
     required ScraperQueueState queue,
   }) {
     final queued = {
-      for (final node in [...queue.pending, ...queue.processing, ...queue.paused])
+      for (final node in [
+        ...queue.pending,
+        ...queue.processing,
+        ...queue.paused,
+      ])
         if (node.workId != null) node.workId!,
     };
     return directoryNodes.where((node) {
@@ -79,19 +83,31 @@ class FileBrowserEditActions {
     required List<FileNode> selected,
     int concurrency = 3,
     void Function(CloudPlayableProgress progress)? onProgress,
+    bool Function()? isCancelled,
   }) async {
     final files = <FileNode>[];
     final seen = <String>{};
     final pending = <String>[];
+    final visitedDirectories = <String>{};
     var failed = 0;
+
+    void addDirectory(String? path) {
+      if (path == null || path.isEmpty) return;
+      final normalized = FileOrigin.normalizePath(path);
+      if (visitedDirectories.add(normalized)) pending.add(normalized);
+    }
+
+    String fileKey(FileNode node) => node.fileOrigin == null
+        ? node.keyId
+        : '${node.fileOrigin!.connectionId}:${node.fileOrigin!.filePath}';
 
     for (final node in selected) {
       if (node.isFolder) {
         final path = node.path;
-        if (path != null && path.isNotEmpty) pending.add(path);
+        addDirectory(path);
         continue;
       }
-      if (node.isPlayable && seen.add(node.keyId)) files.add(node);
+      if (node.isPlayable && seen.add(fileKey(node))) files.add(node);
     }
 
     var completed = 0;
@@ -107,18 +123,19 @@ class FileBrowserEditActions {
     }
 
     await report();
-    while (pending.isNotEmpty) {
+    while (pending.isNotEmpty && isCancelled?.call() != true) {
       final batch = pending.take(concurrency).toList(growable: false);
       pending.removeRange(0, batch.length);
       final results = await Future.wait(
         batch.map((path) async {
           try {
-            return await _listAll(source, path);
+            return await _listAll(source, path, isCancelled);
           } catch (_) {
             return null;
           }
         }),
       );
+      if (isCancelled?.call() == true) break;
       for (final result in results) {
         completed++;
         if (result == null) {
@@ -128,25 +145,31 @@ class FileBrowserEditActions {
         for (final node in result) {
           if (node.isFolder) {
             final path = node.path;
-            if (path != null && path.isNotEmpty) pending.add(path);
+            addDirectory(path);
             continue;
           }
-          if (node.isPlayable && seen.add(node.keyId)) files.add(node);
+          if (node.isPlayable && seen.add(fileKey(node))) files.add(node);
         }
       }
       await report();
     }
 
-    return CloudPlayableCollection(files: files, failedDirectories: failed);
+    return CloudPlayableCollection(
+      files: files,
+      failedDirectories: failed,
+      cancelled: isCancelled?.call() == true,
+    );
   }
 
   static Future<List<FileNode>> _listAll(
     CloudDriveSource source,
     String path,
+    bool Function()? isCancelled,
   ) async {
     final items = <FileNode>[];
     var page = 1;
     while (true) {
+      if (isCancelled?.call() == true) return items;
       final result = await source.list(path: path, page: page, pageSize: 200);
       items.addAll(result.items);
       if (!source.supportsPagination || items.length >= result.totalCount) {
@@ -238,8 +261,10 @@ class CloudPlayableCollection {
   const CloudPlayableCollection({
     required this.files,
     required this.failedDirectories,
+    this.cancelled = false,
   });
 
   final List<FileNode> files;
   final int failedDirectories;
+  final bool cancelled;
 }

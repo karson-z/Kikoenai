@@ -193,6 +193,15 @@ class AsmrGaySiteApi extends AlistSiteApi {
     );
   }
 
+  /// 内置镜像确认属于同一内容源；自定义端点必须单独隔离。
+  static String connectionIdForServer(ServerInfo server) {
+    final baseUrl = normalizeBaseUrl(server);
+    final builtIn = _defaultServers.any(
+      (item) => normalizeBaseUrl(item) == baseUrl,
+    );
+    return builtIn ? 'alist:asmr.gay:built-in' : 'alist:$baseUrl';
+  }
+
   /// 当前站点支持的功能集合
   @override
   Set<SiteFeature> get supportedFeatures => const {
@@ -336,6 +345,11 @@ class AsmrGaySiteApi extends AlistSiteApi {
       remoteId: fullPath,
       path: fullPath,
       folderPath: effectiveParent,
+      fileOrigin: FileOrigin(
+        kind: FileOriginKind.alist,
+        connectionId: connectionIdForServer(currentServer),
+        filePath: FileOrigin.normalizePath(fullPath),
+      ),
       mediaDownloadUrl: downloadUrl,
       mediaStreamUrl: downloadUrl,
       subItemsCount: 0,

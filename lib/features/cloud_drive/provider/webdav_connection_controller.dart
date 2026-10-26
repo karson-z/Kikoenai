@@ -80,6 +80,9 @@ class WebDavSessionState {
   final String? errorMessage;
   final int revision;
 
+  String get connectionId =>
+      'webdav:${WebDavMediaIndexService.fingerprintFor(serverUrl: serverUrl, username: username, rootPath: rootPath)}';
+
   WebDavSessionState copyWith({
     String? serverUrl,
     String? username,
@@ -167,6 +170,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
       _unregisterPlaybackHeadersResolver?.call();
       _client = client;
       _baseUri = Uri.parse(config.serverUrl);
+      final connectionId = state.connectionId;
       _unregisterPlaybackHeadersResolver = MediaHttpHeadersRegistry.instance
           .register(
             (request) => buildPlaybackHttpHeaders(
@@ -174,6 +178,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
               baseUri: _baseUri!,
               url: request.url,
               extras: request.extras,
+              connectionId: connectionId,
             ),
           );
       state = state.copyWith(
@@ -288,9 +293,18 @@ class WebDavController extends Notifier<WebDavSessionState> {
 
     try {
       final normalizedPath = normalizeRemotePath(path);
+      final origin = FileOrigin(
+        kind: FileOriginKind.webDav,
+        connectionId: state.connectionId,
+        filePath: normalizedPath,
+        rootPath: state.rootPath,
+      );
       final files = await client.readDir(normalizedPath);
+      if (!identical(_client, client) || !state.isConnected) {
+        throw StateError('WebDAV 连接已变化，请重新打开目录');
+      }
       return files
-          .map((file) => _toFileNode(file, normalizedPath, baseUri))
+          .map((file) => _toFileNode(file, normalizedPath, baseUri, origin))
           .toList(growable: false);
     } catch (error) {
       throw WebDavBrowseException(describeError(error), error);
@@ -342,9 +356,17 @@ class WebDavController extends Notifier<WebDavSessionState> {
     required Uri baseUri,
     required String url,
     required Map<String, dynamic> extras,
+    String? connectionId,
   }) {
     if (extras['source'] != NodeSource.cloudDrive.name ||
         extras['siteId'] != webDavSiteId) {
+      return const {};
+    }
+
+    final origin = FileOrigin.tryParse(extras['fileOrigin']);
+    if (origin != null &&
+        connectionId != null &&
+        origin.connectionId != connectionId) {
       return const {};
     }
 
@@ -432,7 +454,12 @@ class WebDavController extends Notifier<WebDavSessionState> {
     return 'WebDAV 请求失败，请检查服务器配置';
   }
 
-  FileNode _toFileNode(webdav.File file, String parentPath, Uri baseUri) {
+  FileNode _toFileNode(
+    webdav.File file,
+    String parentPath,
+    Uri baseUri,
+    FileOrigin origin,
+  ) {
     final title = (file.name == null || file.name!.isEmpty)
         ? NodeFolder(file.path ?? parentPath).name
         : file.name!;
@@ -461,6 +488,7 @@ class WebDavController extends Notifier<WebDavSessionState> {
       parentPath: parentPath,
       siteId: webDavSiteId,
       remoteId: fullPath,
+      fileOrigin: origin.atPath(fullPath),
     );
   }
 

@@ -708,6 +708,26 @@ class PlayerController extends Notifier<AppPlayerState> {
     }
   }
 
+  /// 只为已核验的旧记录补全文件位置，保留曲目 id、会话和当前播放进度。
+  void rememberFileOrigin(PlaybackItem track, FileOrigin origin) {
+    final session = state.session;
+    if (session == null) return;
+    var changed = false;
+    final queue = session.queue.map((item) {
+      if (item.id != track.id ||
+          item.url != track.url ||
+          item.source != track.source ||
+          item.fileOrigin != null) {
+        return item;
+      }
+      changed = true;
+      return item.copyWith(fileOrigin: origin);
+    }).toList();
+    if (!changed) return;
+    state = state.copyWith(session: session.withQueue(queue));
+    _saveCurrentHistory();
+  }
+
   Future<void> addMultiInQueue(
     List<FileNode> nodes,
     Work work, {

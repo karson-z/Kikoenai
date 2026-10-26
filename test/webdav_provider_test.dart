@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -53,10 +54,28 @@ class _FakeConnectableWebDavController extends WebDavController {
 class _RestorableWebDavController extends _FakeConnectableWebDavController {
   @override
   WebDavSessionState build() => const WebDavSessionState(
-        serverUrl: 'https://cloud.example.com/dav/',
-        username: 'kiko',
-        rootPath: '/',
-      );
+    serverUrl: 'https://cloud.example.com/dav/',
+    username: 'kiko',
+    rootPath: '/',
+  );
+}
+
+class _PendingWebDavClient extends _FakeWebDavClient {
+  _PendingWebDavClient(super.config, this.handshake);
+  final Completer<List<webdav.File>> handshake;
+
+  @override
+  Future<List<webdav.File>> readDir(String path, [CancelToken? cancelToken]) =>
+      handshake.future;
+}
+
+class _PendingReconnectController extends _FakeConnectableWebDavController {
+  Completer<List<webdav.File>>? handshake;
+
+  @override
+  webdav.Client createClient(WebDavConnectionConfig config) => handshake == null
+      ? super.createClient(config)
+      : _PendingWebDavClient(config, handshake!);
 }
 
 class _MemoryWebDavCredentialStore implements WebDavCredentialStore {
@@ -338,6 +357,65 @@ void main() {
     expect(state.rootPath, '/active');
     expect(state.errorMessage, isNotNull);
   });
+
+  test(
+    'pending account switch cannot relabel the previous auth client',
+    () async {
+      final container = ProviderContainer.test(
+        overrides: [
+          webDavCredentialStoreProvider.overrideWithValue(
+            _MemoryWebDavCredentialStore(),
+          ),
+          webDavConnectionControllerProvider.overrideWith(
+            _PendingReconnectController.new,
+          ),
+        ],
+      );
+      final controller =
+          container.read(webDavConnectionControllerProvider.notifier)
+              as _PendingReconnectController;
+      const serverUrl = 'https://cloud.example.com/dav/';
+      Future<bool> connect(String username) => controller.connect(
+        WebDavConnectionConfig(
+          serverUrl: serverUrl,
+          username: username,
+          password: 'secret',
+          rootPath: '/',
+        ),
+      );
+      PlaybackItem track(String connectionId) => _webDavPlaybackItem.copyWith(
+        fileOrigin: FileOrigin(
+          kind: FileOriginKind.webDav,
+          connectionId: connectionId,
+          filePath: '/ASMR/track.mp3',
+        ),
+      );
+
+      expect(await connect('account-a'), isTrue);
+      final accountA = container
+          .read(webDavConnectionControllerProvider)
+          .connectionId;
+      controller.handshake = Completer<List<webdav.File>>();
+      final connecting = connect('account-b');
+      final accountB = container
+          .read(webDavConnectionControllerProvider)
+          .connectionId;
+      expect(accountA, isNot(accountB));
+      expect(_resolvePlaybackHeaders(track(accountB).toMediaItem()), isEmpty);
+      expect(
+        _resolvePlaybackHeaders(track(accountA).toMediaItem()),
+        contains('Authorization'),
+      );
+      controller.handshake!.complete([]);
+      expect(await connecting, isTrue);
+      expect(_resolvePlaybackHeaders(track(accountA).toMediaItem()), isEmpty);
+      expect(
+        _resolvePlaybackHeaders(track(accountB).toMediaItem()),
+        contains('Authorization'),
+      );
+      await controller.disconnect();
+    },
+  );
 
   test(
     'cold-start automatically reconnects and rebinds restored WebDAV auth',

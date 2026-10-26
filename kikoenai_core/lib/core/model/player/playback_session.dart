@@ -30,6 +30,7 @@ abstract class PlaybackItem with _$PlaybackItem {
     @HiveField(11) int? durationMs,
     @HiveField(12) String? siteId,
     @HiveField(13) String? remoteId,
+    @HiveField(14) FileOrigin? fileOrigin,
   }) = _PlaybackItem;
 
   factory PlaybackItem.fromFileNode(
@@ -65,7 +66,12 @@ abstract class PlaybackItem with _$PlaybackItem {
         (isLegacyNetworkSite ? workId?.toString() : null);
 
     return PlaybackItem(
-      id: node.keyId,
+      // 网盘同路径可属于不同连接，ETag 也可能被不同文件复用。
+      // 旧记录及本地/作品站点继续使用原有标识。
+      id: node.fileOrigin == null
+          ? node.keyId
+          : 'file:${Uri.encodeComponent(node.fileOrigin!.connectionId)}:'
+                '${Uri.encodeComponent(node.fileOrigin!.filePath)}',
       url: url,
       title: node.title,
       isVideo:
@@ -83,6 +89,7 @@ abstract class PlaybackItem with _$PlaybackItem {
           : (node.duration! * 1000).round(),
       siteId: resolvedSiteId,
       remoteId: resolvedRemoteId,
+      fileOrigin: node.fileOrigin,
     );
   }
 
@@ -149,6 +156,7 @@ abstract class PlaybackItem with _$PlaybackItem {
       durationMs: item.duration?.inMilliseconds,
       siteId: resolvedSiteId,
       remoteId: resolvedRemoteId,
+      fileOrigin: FileOrigin.tryParse(extras['fileOrigin']),
     );
   }
 
@@ -204,6 +212,7 @@ abstract class PlaybackItem with _$PlaybackItem {
         'mainCoverUrl': coverUrl,
         'samCoverUrl': smallCoverUrl,
         'isVideo': isVideo,
+        if (fileOrigin != null) 'fileOrigin': fileOrigin!.toJson(),
       },
     );
   }

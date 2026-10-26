@@ -3,32 +3,66 @@ import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/features/file_browser/provider/file_browser_edit_actions.dart';
 
 /// 网盘递归收集媒体时的进度弹窗。
-class CloudPlayableProgressDialog extends StatelessWidget {
-  const CloudPlayableProgressDialog({super.key, required this.progress});
+class CloudPlayableProgressDialog extends StatefulWidget {
+  const CloudPlayableProgressDialog({
+    super.key,
+    required this.progress,
+    this.onCancel,
+  });
 
   final ValueNotifier<CloudPlayableProgress> progress;
+  final VoidCallback? onCancel;
 
   static Future<void> show(
     BuildContext context,
-    ValueNotifier<CloudPlayableProgress> progress,
-  ) {
+    ValueNotifier<CloudPlayableProgress> progress, {
+    VoidCallback? onCancel,
+  }) {
     return KikoenaiDialog.show<void>(
       context: context,
       clickMaskDismiss: false,
-      builder: (_) => CloudPlayableProgressDialog(progress: progress),
+      builder: (_) => PopScope(
+        canPop: onCancel == null,
+        child: CloudPlayableProgressDialog(
+          progress: progress,
+          onCancel: onCancel,
+        ),
+      ),
     );
   }
 
   @override
+  State<CloudPlayableProgressDialog> createState() =>
+      _CloudPlayableProgressDialogState();
+}
+
+class _CloudPlayableProgressDialogState
+    extends State<CloudPlayableProgressDialog> {
+  bool _cancelled = false;
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: progress,
+      valueListenable: widget.progress,
       builder: (context, value, _) {
         final color = Theme.of(context).brightness == Brightness.dark
             ? Colors.white70
             : const Color(0xFF666666);
         return KikoenaiAlertDialog(
           titleText: '正在收集媒体',
+          actions: widget.onCancel == null
+              ? null
+              : [
+                  TextButton(
+                    onPressed: _cancelled
+                        ? null
+                        : () {
+                            setState(() => _cancelled = true);
+                            widget.onCancel!();
+                          },
+                    child: Text(_cancelled ? '正在取消…' : '取消收集'),
+                  ),
+                ],
           content: DefaultTextStyle(
             style: TextStyle(color: color, fontSize: 15),
             child: Column(

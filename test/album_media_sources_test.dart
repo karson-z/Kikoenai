@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_ce/hive.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
@@ -102,6 +106,19 @@ SiteRuntime _runtime(String id, String name, SiteApi api) {
 }
 
 void main() {
+  late Directory hiveDirectory;
+  setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'album_media_sources_',
+    );
+    Hive.init(hiveDirectory.path);
+    AppStorage.settingsBox = await Hive.openBox<dynamic>('settings');
+  });
+  tearDownAll(() async {
+    await Hive.close();
+    await hiveDirectory.delete(recursive: true);
+  });
+
   testWidgets('detail reads media only from the active site', (tester) async {
     final tracksApi = _FakeMediaSiteApi({SiteFeature.tracks});
     final registry = SiteRegistry()

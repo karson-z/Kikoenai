@@ -28,6 +28,8 @@ import '../../../local_media/provider/file_scanner_notifier.dart';
 import '../../../overly-lyrics/provider/overly_lyrics_provider.dart';
 import '../../../overly-lyrics/widget/overly_setting_panel.dart';
 import '../../provider/player_controller_provider.dart';
+import '../../provider/player_cloud_file_source_provider.dart';
+import 'player_cloud_file_sheet.dart';
 
 /// 触发 WoltModalSheet 更多选项
 void showMoreOptions(BuildContext context, WidgetRef ref, PlaybackItem? track) {
@@ -200,6 +202,12 @@ class _MoreOptionsContent extends ConsumerWidget {
         icon: Icons.folder_open_outlined,
         label: "文件管理",
         onTap: () async {
+          if (usesCloudFileBrowser(track)) {
+            final sheet = WoltModalSheet.of(context);
+            sheet.addPage(buildPlayerCloudFilePage(track));
+            sheet.showNext();
+            return;
+          }
           try {
             FileNodeLibraryIndex index;
             if (track.isLocal) {
@@ -213,6 +221,10 @@ class _MoreOptionsContent extends ConsumerWidget {
               index = await ref.read(
                 trackFileNodeIndexProvider(contentId).future,
               );
+              final currentNode = index.nodeByKey[track.id];
+              if (currentNode != null) {
+                index.jumpToFilePath(currentNode.effectivePath);
+              }
             }
             if (!context.mounted) return;
             final fileTreePage = FileTreeWoltSheet.buildPage(
@@ -220,6 +232,7 @@ class _MoreOptionsContent extends ConsumerWidget {
               index: index,
               work: work,
               isFirstPage: false,
+              track: track,
             );
             WoltModalSheet.of(context).addPage(fileTreePage);
             WoltModalSheet.of(context).showNext();

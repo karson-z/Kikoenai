@@ -3,6 +3,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:kikoenai_core/core/constants/type_ids.dart';
 import 'package:kikoenai_core/core/model/site/site_content_id.dart';
 import 'package:path/path.dart' as p;
+import 'file_origin.dart';
 
 part 'file_node.freezed.dart';
 part 'file_node.g.dart';
@@ -85,6 +86,9 @@ abstract class FileNode extends HiveObject with _$FileNode {
     /// 本地已下载文件路径（若有）。仅用于播放时优先本地、回退远端，
     /// 不会覆盖 [mediaStreamUrl]（后者始终保留远端/原始地址）。
     @HiveField(20) String? localMediaUrl,
+    @HiveField(21)
+    @JsonKey(fromJson: FileOrigin.tryParse, toJson: FileOrigin.encode)
+    FileOrigin? fileOrigin,
   }) = _FileNode;
 
   FileNode._();
