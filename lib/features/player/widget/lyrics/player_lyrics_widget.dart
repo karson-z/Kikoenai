@@ -13,12 +13,14 @@ class ShowLyric extends ConsumerStatefulWidget {
     super.key,
     required this.lyricText,
     required this.progress,
+    this.centerActiveLine = false,
     this.beforeLyricBuilder,
     this.afterLyricBuilder,
     this.initController,
   });
   final String lyricText;
   final Duration progress;
+  final bool centerActiveLine;
   final Function(LyricController)? initController;
   final List<Widget> Function(LyricController, LyricStyle)? beforeLyricBuilder;
   final List<Widget> Function(LyricController, LyricStyle)? afterLyricBuilder;
@@ -54,15 +56,32 @@ class _ShowLyricState extends ConsumerState<ShowLyric> {
 
   @override
   Widget build(BuildContext context) {
-    final style = ref.watch(lyricStyleProvider);
-    return Stack(
-      children: [
-        ...?widget.beforeLyricBuilder?.call(lyricController, style),
-        RepaintBoundary(
-          child: LyricView(controller: lyricController, style: style),
-        ),
-        ...?widget.afterLyricBuilder?.call(lyricController, style),
-      ],
+    final configuredStyle = ref.watch(lyricStyleProvider);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final style = widget.centerActiveLine
+            ? configuredStyle.copyWith(
+                activeAnchorPosition: 0.5,
+                anchorPosition: 0.5,
+                // Allow the first and last lines to reach the same center anchor.
+                contentPadding: configuredStyle.contentPadding.copyWith(
+                  top: constraints.maxHeight * 0.5,
+                  bottom: constraints.maxHeight * 0.5,
+                ),
+                activeAlignment: MainAxisAlignment.center,
+                highlightAlign: MainAxisAlignment.center,
+              )
+            : configuredStyle;
+        return Stack(
+          children: [
+            ...?widget.beforeLyricBuilder?.call(lyricController, style),
+            RepaintBoundary(
+              child: LyricView(controller: lyricController, style: style),
+            ),
+            ...?widget.afterLyricBuilder?.call(lyricController, style),
+          ],
+        );
+      },
     );
   }
 }

@@ -28,12 +28,15 @@ class PlayerPlaybackPage extends StatelessWidget {
         _region(
           metrics.infoSlot,
           'player-info-region',
-          PlayerInfoWidget(track: track),
+          PlayerInfoWidget(track: track, compact: metrics.isCompactSplit),
         ),
         _region(
           metrics.progressSlot,
           'player-progress-region',
           const PlayerProgressBar(),
+          maxWidth: metrics.hasSharedControls
+              ? double.infinity
+              : PlayerLayoutMetrics.maxPlaybackWidth,
         ),
         _region(
           metrics.controlsSlot,
@@ -49,15 +52,18 @@ class PlayerPlaybackPage extends StatelessWidget {
     );
   }
 
-  Widget _region(Rect rect, String key, Widget child) {
+  Widget _region(
+    Rect rect,
+    String key,
+    Widget child, {
+    double maxWidth = PlayerLayoutMetrics.maxPlaybackWidth,
+  }) {
     return Positioned.fromRect(
       rect: rect,
       child: Center(
         key: ValueKey(key),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: PlayerLayoutMetrics.maxPlaybackWidth,
-          ),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: RepaintBoundary(child: child),
         ),
       ),

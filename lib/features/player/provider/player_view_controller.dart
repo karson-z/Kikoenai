@@ -31,6 +31,15 @@ class PlayerViewController extends ChangeNotifier {
     _expandProgress?.addListener(notifyListeners);
   }
 
+  void selectPage(int page) {
+    if (!pageController.hasClients) return;
+    pageController.animateToPage(
+      page.clamp(0, 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   void rememberPage(int page) {
     _selectedPage = page;
   }

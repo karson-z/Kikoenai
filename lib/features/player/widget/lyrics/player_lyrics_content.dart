@@ -74,9 +74,9 @@ class PlayerLyricsContent extends StatelessWidget {
                 ),
               ),
             // A stable key preserves the lyric controller when the header appears.
-            const Expanded(
-              key: ValueKey('player-lyrics-panel'),
-              child: LyricsPanel(),
+            Expanded(
+              key: const ValueKey('player-lyrics-panel'),
+              child: LyricsPanel(centerActiveLine: !showHeader),
             ),
           ],
         ),

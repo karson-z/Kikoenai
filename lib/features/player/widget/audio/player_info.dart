@@ -5,14 +5,23 @@ import 'package:text_scroll/text_scroll.dart';
 class PlayerInfoWidget extends StatelessWidget {
   final PlaybackItem? track;
 
-  const PlayerInfoWidget({super.key, required this.track});
+  const PlayerInfoWidget({
+    super.key,
+    required this.track,
+    this.compact = false,
+  });
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: compact
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           TextScroll(
             track?.title ?? "没有播放的曲目",
@@ -22,23 +31,23 @@ class PlayerInfoWidget extends StatelessWidget {
             pauseBetween: const Duration(seconds: 2),
             fadedBorder: true,
             fadedBorderWidth: 0.1,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: compact ? 18 : 22,
               height: 1.3,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
+            textAlign: compact ? TextAlign.start : TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
             track?.artist ?? "未知艺人",
-            textAlign: TextAlign.center,
+            textAlign: compact ? TextAlign.start : TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white70,
-              fontSize: 16,
+              fontSize: compact ? 12 : 16,
               height: 1.3,
             ),
           ),

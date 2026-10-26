@@ -11,7 +11,10 @@ import '../../provider/player_lyrics_provider.dart';
 class LyricsPanel extends ConsumerStatefulWidget {
   const LyricsPanel({
     Key? key,
+    this.centerActiveLine = false,
   }) : super(key: key);
+
+  final bool centerActiveLine;
 
   @override
   ConsumerState<LyricsPanel> createState() => _LyricsPanelState();
@@ -51,12 +54,13 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
         return ShowLyric(
           key: ValueKey(lyricContent.hashCode),
           progress: progressNotifier,
+          centerActiveLine: widget.centerActiveLine,
           initController: (controller) {
             controller.setOnTapLineCallback(
-                  (duration) async => {
-                controller.stopSelection(),
-                await player.seek(duration),
-                player.play(),
+              (duration) async {
+                controller.stopSelection();
+                await player.seek(duration);
+                player.play();
               },
             );
           },

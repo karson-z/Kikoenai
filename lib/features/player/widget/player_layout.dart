@@ -2,11 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-enum PlayerLayoutMode { paged, sideBySide, stacked }
+enum PlayerLayoutMode { paged, compactSideBySide, sideBySide, sharedControls }
 
 /// Geometry shared by the actual pages and their floating cover.
-/// Playback slots are local to [playbackViewport]; other rectangles are in
-/// PlayerView coordinates. The PageView still fills [content] on narrow screens.
+/// Playback slots (including the shared bottom dock) are local to
+/// [playbackViewport]; other rectangles are in PlayerView coordinates.
+/// The PageView still fills [content] on narrow screens.
 class PlayerLayoutMetrics {
   PlayerLayoutMetrics({
     required this.size,
@@ -14,9 +15,17 @@ class PlayerLayoutMetrics {
     required TextScaler textScaler,
     required double minHeight,
     double collapsedLeft = 12,
+    bool isPhone = false,
+    bool isTablet = false,
   }) {
+    final phoneLandscape = isPhone && size.width > size.height;
     final safeWidth = math.max(0.0, size.width - padding.horizontal);
-    topBar = Rect.fromLTWH(padding.left, padding.top + 8, safeWidth, 60);
+    topBar = Rect.fromLTWH(
+      padding.left,
+      padding.top + 8,
+      safeWidth,
+      phoneLandscape ? 44 : 60,
+    );
     content = Rect.fromLTWH(
       padding.left,
       topBar.bottom + 8,
@@ -36,54 +45,183 @@ class PlayerLayoutMetrics {
       minimums[3] + 18,
       minimums[4] + 16,
     ];
-    final minimumPlaybackWidth = math.max(320.0, textScaler.scale(22) * 8 + 56);
-    final minimumLyricsWidth = math.max(360.0, textScaler.scale(20) * 12 + 48);
+    final minimumPlaybackWidth = math.max(244.0, textScaler.scale(22) * 8 + 56);
+    final minimumLyricsWidth = math.max(320.0, textScaler.scale(20) * 12 + 48);
     final minimumLyricsHeight = math.max(360.0, textScaler.scale(20) * 10);
-    final controlHeight = _sum(controlMaximums);
-    final compactHeight = math.max(compactCoverLimit, controlHeight);
     final innerWidth = math.max(0.0, content.width - paneInset * 2);
-    final sideWidth = math.min(innerWidth, maxSideBySideWidth);
-    final stackedWidth = math.min(innerWidth, maxStackedWidth);
+    final stageWidth = math.min(innerWidth, maxSideBySideWidth);
+    final dockControlsHeight =
+        (content.height - minimumLyricsHeight - paneGap - controlMaximums[1])
+            .clamp(minimums[3], controlMaximums[2])
+            .toDouble();
+    final dockHeight = controlMaximums[1] + dockControlsHeight;
 
-    // Width alone cannot distinguish a desktop window from a tall portrait
-    // display. Check both the shape and the space needed by each content region.
-    final canShowSideBySide =
+    final tabletPortrait = isTablet && size.height > size.width;
+    final canShowSharedControls =
+        !isPhone &&
+        tabletPortrait &&
         content.width >= wideBreakpoint &&
-        safeWidth >= math.max(0.0, size.height - padding.vertical) * 1.2 &&
         minimumPlaybackWidth <= maxPlaybackWidth &&
         minimumLyricsWidth <= maxLyricsWidth &&
-        sideWidth >= minimumPlaybackWidth + paneGap + minimumLyricsWidth &&
+        stageWidth >= minimumPlaybackWidth + paneGap + minimumLyricsWidth &&
+        content.height >= minimumLyricsHeight + paneGap + dockHeight;
+    final canShowSideBySide =
+        !isPhone &&
+        !tabletPortrait &&
+        content.width >= wideBreakpoint &&
+        minimumPlaybackWidth <= maxPlaybackWidth &&
+        minimumLyricsWidth <= maxLyricsWidth &&
+        stageWidth >=
+            math.max(320, minimumPlaybackWidth) +
+                paneGap +
+                minimumLyricsWidth &&
         content.height >= math.max(_sum(minimums) + 120, minimumLyricsHeight);
-    final canStack =
-        content.width >= stackedBreakpoint &&
-        minimumPlaybackWidth <= maxPlaybackWidth &&
-        minimumLyricsWidth <= maxLyricsWidth &&
-        stackedWidth >= 180 + paneGap + minimumPlaybackWidth &&
-        stackedWidth >= minimumLyricsWidth &&
-        content.height >= compactHeight + paneGap + minimumLyricsHeight;
-    mode = canShowSideBySide
+    final compactWidth = math.max(0.0, content.width - compactPaneInset * 2);
+    final compactInfoHeight =
+        (textScaler.scale(18) + textScaler.scale(12)) * 1.3 + 16;
+    final compactHeaderMinimum = math.max(80.0, compactInfoHeight);
+    final compactProgressHeight = minimums[2];
+    final compactControlsHeight = minimums[3];
+    final compactVolumeHeight = minimums[4];
+    final compactTailHeight =
+        compactProgressHeight + compactControlsHeight + compactVolumeHeight;
+    final compactPlaybackMinimum = math.max(
+      300.0,
+      textScaler.scale(18) * 8 + 80,
+    );
+    final compactLyricsMinimum = math.max(260.0, textScaler.scale(20) * 7 + 32);
+    final canShowCompactSideBySide =
+        phoneLandscape &&
+        compactWidth >=
+            compactPlaybackMinimum + compactPaneGap + compactLyricsMinimum &&
+        content.height >= compactHeaderMinimum + compactTailHeight;
+    mode = canShowCompactSideBySide
+        ? PlayerLayoutMode.compactSideBySide
+        : canShowSharedControls
+        ? PlayerLayoutMode.sharedControls
+        : canShowSideBySide
         ? PlayerLayoutMode.sideBySide
-        : canStack
-        ? PlayerLayoutMode.stacked
         : PlayerLayoutMode.paged;
 
-    switch (mode) {
-      case PlayerLayoutMode.paged:
+    if (isCompactSplit) {
+      final columnWidth = ((compactWidth - compactPaneGap) * 0.46)
+          .clamp(
+            compactPlaybackMinimum,
+            compactWidth - compactPaneGap - compactLyricsMinimum,
+          )
+          .toDouble();
+      playbackViewport = Rect.fromLTWH(
+        content.left + compactPaneInset,
+        content.top,
+        columnWidth,
+        content.height,
+      );
+      lyricsViewport = Rect.fromLTWH(
+        playbackViewport.right + compactPaneGap,
+        content.top,
+        compactWidth - columnWidth - compactPaneGap,
+        content.height,
+      );
+      final headerHeight = math.min(
+        math.max(112.0, compactHeaderMinimum),
+        content.height - compactTailHeight,
+      );
+      var y = (content.height - headerHeight - compactTailHeight) / 2;
+      final coverSize = math.min(112.0, headerHeight);
+      coverSlot = Rect.fromLTWH(
+        0,
+        y + (headerHeight - coverSize) / 2,
+        coverSize,
+        coverSize,
+      );
+      infoSlot = Rect.fromLTWH(
+        coverSize + 16,
+        y,
+        columnWidth - coverSize - 16,
+        headerHeight,
+      );
+      y += headerHeight;
+      progressSlot = Rect.fromLTWH(0, y, columnWidth, compactProgressHeight);
+      y += compactProgressHeight;
+      controlsSlot = Rect.fromLTWH(0, y, columnWidth, compactControlsHeight);
+      y += compactControlsHeight;
+      volumeSlot = Rect.fromLTWH(0, y, columnWidth, compactVolumeHeight);
+    } else if (hasSharedControls) {
+      playbackViewport = Rect.fromCenter(
+        center: content.center,
+        width: stageWidth,
+        height: math.min(
+          content.height,
+          maxLyricsHeight + paneGap + dockHeight,
+        ),
+      );
+      final columnWidth = ((stageWidth - paneGap) * 0.4)
+          .clamp(
+            minimumPlaybackWidth,
+            math.min(
+              maxPlaybackWidth,
+              stageWidth - paneGap - minimumLyricsWidth,
+            ),
+          )
+          .toDouble();
+      final readingHeight = playbackViewport.height - paneGap - dockHeight;
+      lyricsViewport = Rect.fromLTWH(
+        playbackViewport.left + columnWidth + paneGap,
+        playbackViewport.top,
+        stageWidth - columnWidth - paneGap,
+        readingHeight,
+      );
+      final infoHeight = controlMaximums[0];
+      final coverSize = math.min(
+        math.min(columnWidth * 0.9, 350.0),
+        readingHeight - infoHeight - 24,
+      );
+      final blockTop = math.min(
+        (readingHeight - coverSize) / 2 - 12,
+        readingHeight - coverSize - 24 - infoHeight,
+      );
+      coverSlot = Rect.fromLTWH(0, blockTop, columnWidth, coverSize);
+      infoSlot = Rect.fromLTWH(
+        0,
+        coverSlot.bottom + 24,
+        columnWidth,
+        infoHeight,
+      );
+      progressSlot = Rect.fromLTWH(
+        0,
+        readingHeight + paneGap,
+        stageWidth,
+        controlMaximums[1],
+      );
+      final controlsWidth = (stageWidth * 0.52).clamp(320.0, 420.0).toDouble();
+      controlsSlot = Rect.fromLTWH(
+        0,
+        progressSlot.bottom,
+        controlsWidth,
+        dockControlsHeight,
+      );
+      volumeSlot = Rect.fromLTWH(
+        controlsSlot.right + 24,
+        controlsSlot.top,
+        stageWidth - controlsWidth - 24,
+        controlsSlot.height,
+      );
+    } else {
+      if (isPaged) {
         playbackViewport = content;
         lyricsViewport = content;
-      case PlayerLayoutMode.sideBySide:
+      } else {
         final stage = Rect.fromCenter(
           center: content.center,
-          width: sideWidth,
+          width: stageWidth,
           height: math.min(content.height, maxLyricsHeight),
         );
-        final playbackWidth = (stage.width - paneGap) * 0.44;
-        final columnWidth = playbackWidth
+        final columnWidth = ((stageWidth - paneGap) * 0.4)
             .clamp(
-              minimumPlaybackWidth,
+              math.max(320.0, minimumPlaybackWidth),
               math.min(
                 maxPlaybackWidth,
-                stage.width - paneGap - minimumLyricsWidth,
+                stageWidth - paneGap - minimumLyricsWidth,
               ),
             )
             .toDouble();
@@ -99,56 +237,7 @@ class PlayerLayoutMetrics {
           stage.right,
           stage.bottom,
         );
-      case PlayerLayoutMode.stacked:
-        final lyricsHeight = math.min(
-          maxLyricsHeight,
-          content.height - compactHeight - paneGap,
-        );
-        final stage = Rect.fromCenter(
-          center: content.center,
-          width: stackedWidth,
-          height: compactHeight + paneGap + lyricsHeight,
-        );
-        playbackViewport = Rect.fromLTWH(
-          stage.left,
-          stage.top,
-          stage.width,
-          compactHeight,
-        );
-        lyricsViewport = Rect.fromLTRB(
-          stage.left,
-          playbackViewport.bottom + paneGap,
-          stage.right,
-          stage.bottom,
-        );
-    }
-
-    if (mode == PlayerLayoutMode.stacked) {
-      final coverWidth = math.min(
-        compactCoverLimit,
-        math.min(
-          (playbackViewport.width - paneGap) * 0.36,
-          playbackViewport.width - paneGap - minimumPlaybackWidth,
-        ),
-      );
-      coverSlot = Rect.fromLTWH(0, 0, coverWidth, compactHeight);
-      var y = (compactHeight - controlHeight) / 2;
-      Rect slot(double height) {
-        final rect = Rect.fromLTWH(
-          coverWidth + paneGap,
-          y,
-          playbackViewport.width - coverWidth - paneGap,
-          height,
-        );
-        y += height;
-        return rect;
       }
-
-      infoSlot = slot(controlMaximums[0]);
-      progressSlot = slot(controlMaximums[1]);
-      controlsSlot = slot(controlMaximums[2]);
-      volumeSlot = slot(controlMaximums[3]);
-    } else {
       final blockWidth = math.min(playbackViewport.width, maxPlaybackWidth);
       final maximums = <double>[
         math.min(blockWidth * 0.82, isPaged ? 450.0 : 350.0) + 24,
@@ -171,8 +260,8 @@ class PlayerLayoutMetrics {
       volumeSlot = slot(heights[4]);
     }
 
-    final coverSize = mode == PlayerLayoutMode.stacked
-        ? coverSlot.width
+    final coverSize = hasSharedControls || isCompactSplit
+        ? coverSlot.height
         : math.max(
             0.0,
             math.min(
@@ -209,16 +298,15 @@ class PlayerLayoutMetrics {
     );
   }
 
-  static const wideBreakpoint = 800.0;
-  static const stackedBreakpoint = 720.0;
+  static const wideBreakpoint = 720.0;
   static const paneInset = 24.0;
+  static const compactPaneInset = 16.0;
+  static const compactPaneGap = 24.0;
   static const paneGap = 32.0;
   static const maxPlaybackWidth = 560.0;
   static const maxLyricsWidth = 760.0;
   static const maxLyricsHeight = 900.0;
-  static const compactCoverLimit = 280.0;
   static const maxSideBySideWidth = maxPlaybackWidth + paneGap + maxLyricsWidth;
-  static const maxStackedWidth = compactCoverLimit + paneGap + maxPlaybackWidth;
   static const lyricsCoverLeft = 24.0;
   static const lyricsCoverSize = 50.0;
   static const _weights = [0.50, 0.14, 0.10, 0.16, 0.10];
@@ -226,6 +314,8 @@ class PlayerLayoutMetrics {
   final Size size;
   late final PlayerLayoutMode mode;
   bool get isPaged => mode == PlayerLayoutMode.paged;
+  bool get isCompactSplit => mode == PlayerLayoutMode.compactSideBySide;
+  bool get hasSharedControls => mode == PlayerLayoutMode.sharedControls;
   late final Rect topBar;
   late final Rect content;
   late final Rect playbackViewport;

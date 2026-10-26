@@ -7,7 +7,17 @@ import '../../provider/player_controller_provider.dart';
 class TopBar extends ConsumerWidget {
   final VoidCallback onClose;
 
-  const TopBar({super.key, required this.onClose});
+  const TopBar({
+    super.key,
+    required this.onClose,
+    this.showTitle = false,
+    this.selectedPage = 0,
+    this.onSelectPage,
+  });
+
+  final bool showTitle;
+  final int selectedPage;
+  final ValueChanged<int>? onSelectPage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,35 +30,70 @@ class TopBar extends ConsumerWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 左侧：下拉关闭
-          Positioned(
-            left: 0,
-            child: IconButton(
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: onClose,
+          if (showTitle)
+            const Text(
+              '正在播放',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
-          ),
-
-          // 右侧：功能按钮组
-          Positioned(
-            right: 0,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SleepTimerButton(),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.more_horiz, color: Colors.white),
-                  onPressed: () {
-                    showMoreOptions(context, ref, currentItem);
-                  },
+          Row(
+            children: [
+              // 左侧：下拉关闭
+              IconButton(
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 28,
                 ),
-              ],
-            ),
+                onPressed: onClose,
+              ),
+              Expanded(
+                child: onSelectPage != null
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (var page = 0; page < 2; page++)
+                            Flexible(
+                              child: Semantics(
+                                selected: selectedPage == page,
+                                child: TextButton(
+                                  key: ValueKey('player-tab-$page'),
+                                  onPressed: () => onSelectPage!(page),
+                                  style: TextButton.styleFrom(
+                                    minimumSize: const Size(44, 44),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    foregroundColor: selectedPage == page
+                                        ? Colors.white
+                                        : Colors.white38,
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(page == 0 ? '播放' : '歌词'),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+
+              // 右侧：功能按钮组
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SleepTimerButton(),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.more_horiz, color: Colors.white),
+                    onPressed: () {
+                      showMoreOptions(context, ref, currentItem);
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

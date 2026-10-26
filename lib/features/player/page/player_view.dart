@@ -65,6 +65,11 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
           textScaler: mediaQuery.textScaler,
           minHeight: widget.minHeight - widget.miniBottomPadding,
           collapsedLeft: context.layout.pageInset,
+          isPhone: context.layout.isPhone,
+          isTablet:
+              !context.layout.isPhone &&
+              (Theme.of(context).platform == TargetPlatform.iOS ||
+                  Theme.of(context).platform == TargetPlatform.android),
         );
         final audioContent = PlayerAudioContent(
           track: currentItem,

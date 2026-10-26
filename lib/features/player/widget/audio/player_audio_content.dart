@@ -65,11 +65,7 @@ class _PlayerAudioContentState extends State<PlayerAudioContent> {
         else
           Positioned.fill(
             child: Stack(
-              key: ValueKey(
-                metrics.mode == PlayerLayoutMode.sideBySide
-                    ? 'player-split-view'
-                    : 'player-stacked-view',
-              ),
+              key: const ValueKey('player-split-view'),
               children: [
                 Positioned.fromRect(
                   rect: metrics.playbackViewport,
@@ -84,7 +80,19 @@ class _PlayerAudioContentState extends State<PlayerAudioContent> {
           ),
         Positioned.fromRect(
           rect: metrics.topBar,
-          child: RepaintBoundary(child: TopBar(onClose: widget.onClose)),
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: widget.controller,
+              builder: (context, _) => TopBar(
+                onClose: widget.onClose,
+                showTitle: metrics.hasSharedControls,
+                selectedPage: widget.controller.pageProgress.round(),
+                onSelectPage: metrics.isPaged
+                    ? widget.controller.selectPage
+                    : null,
+              ),
+            ),
+          ),
         ),
       ],
     );
