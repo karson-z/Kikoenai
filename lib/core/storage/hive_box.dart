@@ -15,7 +15,7 @@ class BoxNames {
   /// 观看记录
   static const String history = 'history';
 
-  /// 作品断点续播进度 (Key: scopeKey)
+  /// 作品断点续播进度 (Key: scopeKey 的固定长度摘要)
   static const String workProgress = 'work_progress';
 
   /// 抓取的作品元数据

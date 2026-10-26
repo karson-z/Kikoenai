@@ -101,7 +101,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     _playbackTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (state.playing) {
-        _saveCurrentHistory();
+        unawaited(_saveCurrentHistory());
       }
     });
 
@@ -393,7 +393,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     );
   }
 
-  void _saveCurrentHistory() {
+  Future<void> _saveCurrentHistory() async {
     final session = state.session;
     final currentItem = state.currentItem;
 
@@ -409,19 +409,20 @@ class PlayerController extends Notifier<AppPlayerState> {
         lastPlayTime: now,
       );
 
-      _historyController.upsert(history);
-
       // 同步维护作品维度的断点索引：与会话历史互相独立，
       // 删除会话不影响其他会话内同一作品的续播进度。
-      _workProgressRepository.save(
-        WorkProgressPoint(
-          scopeKey: currentItem.scopeKey,
-          itemId: currentItem.id,
-          progressMs: currentProgressMs,
-          updatedAt: now,
-          sessionId: session.id,
+      await Future.wait([
+        _historyController.upsert(history),
+        _workProgressRepository.save(
+          WorkProgressPoint(
+            scopeKey: currentItem.scopeKey,
+            itemId: currentItem.id,
+            progressMs: currentProgressMs,
+            updatedAt: now,
+            sessionId: session.id,
+          ),
         ),
-      );
+      ]);
     } catch (e) {
       debugPrint('保存历史记录失败: $e');
     }
@@ -725,7 +726,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     }).toList();
     if (!changed) return;
     state = state.copyWith(session: session.withQueue(queue));
-    _saveCurrentHistory();
+    unawaited(_saveCurrentHistory());
   }
 
   Future<void> addMultiInQueue(

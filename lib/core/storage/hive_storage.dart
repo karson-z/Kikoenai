@@ -5,13 +5,14 @@ import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/api/server_info.dart';
 import 'package:kikoenai/core/storage/hive_box.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
+import 'package:kikoenai/core/storage/work_progress_store.dart';
 import 'package:path_provider/path_provider.dart';
 
 class AppStorage {
   // 1. 定义强类型的 Box
   static late Box<AuthResponse> authBox; // 登录信息
   static late Box<HistoryEntry> historyBox; // 播放历史 (Key: session.id)
-  static late Box<WorkProgressPoint> workProgressBox; // 作品断点进度 (Key: scopeKey)
+  static late Box<WorkProgressPoint> workProgressBox; // 作品断点进度 (Key: scope 摘要)
   static late Box<dynamic> settingsBox; // 通用设置/缓存
   static late Box<FileNode> scannerBox; // 扫描结果
   static late Box<Work> scraperWorkBox; // 爬取作品元数据
@@ -120,7 +121,10 @@ class AppStorage {
 
       await historyBox.clear();
       await historyBox.putAll(result.sessions);
-      await workProgressBox.putAll(result.progress);
+      final progressStore = WorkProgressStore(workProgressBox);
+      for (final point in result.progress.values) {
+        await progressStore.save(point);
+      }
       await settingsBox.put(StorageKeys.historySessionMigrated, true);
     } catch (e) {
       debugPrint('历史记录会话化迁移失败，将在下次启动重试: $e');
