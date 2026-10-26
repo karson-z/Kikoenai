@@ -64,9 +64,9 @@ class AppLayoutTokens {
       });
 
   double get pageInset => switch (size) {
-    AppLayoutSize.compact => 16,
-    AppLayoutSize.medium => 24,
-    AppLayoutSize.expanded => 32,
+    AppLayoutSize.compact => 4,
+    AppLayoutSize.medium => 8,
+    AppLayoutSize.expanded => 16,
   };
 
   /// 页面内容统一与首页标题对齐，纵向间距由各页面保留。
