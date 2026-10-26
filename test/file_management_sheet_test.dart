@@ -11,8 +11,6 @@ import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/widgets/common/kikoenai_dialog.dart';
 import 'package:kikoenai/core/widgets/common/manage_playlist_dialog.dart';
-import 'package:kikoenai/core/widgets/common/custom_bottom_type.dart';
-import 'package:kikoenai/core/widgets/common/custom_side_sheet_type.dart';
 import 'package:kikoenai/features/download/provider/download_provider.dart';
 import 'package:kikoenai/features/file_browser/widget/file_management_sheet.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_option.dart';
@@ -133,6 +131,7 @@ Future<void> _mount(
                 if (nested) {
                   WoltModalSheet.show<void>(
                     context: context,
+                    modalTypeBuilder: fileManagementModalType,
                     pageListBuilder: (context) => [
                       WoltModalSheetPage(
                         child: Builder(
@@ -194,8 +193,10 @@ void main() {
     testWidgets(
       'iOS header buttons receive taps across their full touch area at $size',
       (tester) async {
-        await tester.binding.setSurfaceSize(size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         var back = 0;
         var refresh = 0;
         var settings = 0;
@@ -207,9 +208,7 @@ void main() {
                 body: TextButton(
                   onPressed: () => WoltModalSheet.show<void>(
                     context: context,
-                    modalTypeBuilder: (_) => size.width < 500
-                        ? const CustomBottomType()
-                        : const CustomSideSheetType(),
+                    modalTypeBuilder: fileManagementModalType,
                     pageListBuilder: (_) => [
                       buildFileManagementPage(
                         Column(
@@ -234,6 +233,18 @@ void main() {
         );
         await tester.tap(find.text('打开'));
         await tester.pumpAndSettle();
+        final header = tester.getRect(find.byType(FileManagementHeader));
+        final surface = find.ancestor(
+          of: find.byType(FileManagementHeader),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Material && widget.shape is RoundedRectangleBorder,
+          ),
+        );
+        expect(surface, findsOneWidget);
+        final page = tester.getRect(surface);
+        // 标题行紧贴页面顶部，不能通过整体下移来避开手柄。
+        expect(header.top, page.top);
         for (final tooltip in ['返回', '刷新目录', '来源设置']) {
           final button = find.byTooltip(tooltip);
           final rect = tester.getRect(button);
@@ -249,9 +260,8 @@ void main() {
         expect(settings, 3);
         expect(tester.takeException(), isNull);
         if (size.width < 500) {
-          final header = tester.getRect(find.byType(FileManagementHeader));
           await tester.flingFrom(
-            Offset(size.width / 2, header.top - 24),
+            Offset(size.width / 2, header.top + 10),
             const Offset(0, 400),
             1200,
           );
@@ -266,8 +276,10 @@ void main() {
     testWidgets(
       'indexed files use the shared sheet and preserve folder selection at $size',
       (tester) async {
-        await tester.binding.setSurfaceSize(size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         final index = FileNodeLibraryIndex(
           flatNodes: [
             _file('/media/album/one.mp3'),
@@ -339,8 +351,10 @@ void main() {
   testWidgets(
     'shared modal fits a small phone with large text and dark theme',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(320, 568));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final index = FileNodeLibraryIndex(
         flatNodes: [_file('/work/track.mp3', remote: true)],
         rootPath: '/work',

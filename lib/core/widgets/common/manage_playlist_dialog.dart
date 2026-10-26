@@ -12,8 +12,6 @@ import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 import '../../service/file/file_node_library_index.dart';
 import '../layout/app_toast.dart';
-import 'custom_bottom_type.dart';
-import 'custom_side_sheet_type.dart';
 
 /// 兼容现有作品页、播放页入口；索引来源也使用统一文件管理弹窗。
 class FileTreeWoltSheet {
@@ -25,9 +23,7 @@ class FileTreeWoltSheet {
   }) async {
     await WoltModalSheet.show<void>(
       context: context,
-      modalTypeBuilder: (_) => MediaQuery.sizeOf(context).width < 500
-          ? const CustomBottomType()
-          : const CustomSideSheetType(),
+      modalTypeBuilder: fileManagementModalType,
       pageListBuilder: (modalContext) => [
         buildPage(
           modalContext,

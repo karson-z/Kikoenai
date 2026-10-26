@@ -319,8 +319,10 @@ void main() {
     testWidgets('directory error in real modal can retry at $size', (
       tester,
     ) async {
-      await tester.binding.setSurfaceSize(size);
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       var fail = true;
       final fake = _FakeSource((path, _) async {
         if (fail) throw const PlayerCloudSourceException('目录暂时不可用');
@@ -365,8 +367,10 @@ void main() {
     testWidgets(
       'real player more sheet opens cloud file manager and returns at $size',
       (tester) async {
-        await tester.binding.setSurfaceSize(size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         final fake = _FakeSource(
           (_, __) async => _page([_node(_origin.filePath)]),
         );
@@ -418,8 +422,10 @@ void main() {
     testWidgets(
       'browser selects unassociated video and keeps page after adding at $size',
       (tester) async {
-        await tester.binding.setSurfaceSize(size);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         final video = _node('/root/album/video.mp4', NodeType.video);
         final fake = _FakeSource(
           (path, _) async => _page([_node(_origin.filePath), video]),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/widgets/bread_crumb_bar/file_breadcrumb_header.dart';
 import 'package:kikoenai/core/widgets/common/back_button_interceptor.dart';
+import 'package:kikoenai/core/widgets/common/custom_bottom_type.dart';
+import 'package:kikoenai/core/widgets/common/custom_side_sheet_type.dart';
 import 'package:kikoenai/features/cloud_drive/widget/cloud_drive_file_details.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
@@ -10,32 +12,77 @@ SliverWoltModalSheetPage buildFileManagementPage(Widget child) =>
     NonScrollingWoltModalSheetPage(
       navBarHeight: 0,
       hasTopBarLayer: false,
-      child: Builder(
-        builder: (context) {
-          final modal = WoltModalSheet.of(context).widget;
-          final theme = Theme.of(context).extension<WoltModalSheetThemeData>();
-          final modalType = (modal.modalTypeBuilder ?? theme?.modalTypeBuilder)
-              ?.call(context);
-          final enableDrag =
-              modal.enableDrag ??
-              modalType?.isDragToDismissEnabled ??
-              theme?.enableDrag ??
-              true;
-          final showHandle =
-              modal.showDragHandle ??
-              modalType?.showDragHandle ??
-              (enableDrag && (theme?.showDragHandle ?? true));
-          // Wolt 的手柄覆盖顶部整行 48pt，并以 opaque 命中触摸。
-          // 保留手柄与拖拽关闭，将全部自定义按钮放在其触摸区域下方。
-          return Padding(
-            padding: EdgeInsets.only(
-              top: showHandle ? kMinInteractiveDimension : 0,
-            ),
-            child: child,
-          );
-        },
-      ),
+      child: child,
     );
+
+WoltModalType fileManagementModalType(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < 500
+    ? const _FileManagementBottomType()
+    : const CustomSideSheetType();
+
+/// Wolt 0.11 的默认手柄会拦截顶部整行触摸。将触摸区限制在手柄周围，
+/// 两侧按钮直接接收点击，拖拽仍交由 Wolt 外层手势处理。
+class _FileManagementBottomType extends CustomBottomType {
+  const _FileManagementBottomType() : super(showDragHandle: false);
+
+  @override
+  Widget decoratePageContent(
+    BuildContext context,
+    Widget child,
+    bool useSafeArea,
+  ) {
+    final theme = Theme.of(context);
+    final modalTheme = theme.extension<WoltModalSheetThemeData>();
+    final size = modalTheme?.dragHandleSize ?? const Size(36, 4);
+    final color =
+        modalTheme?.dragHandleColor ??
+        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
+    return super.decoratePageContent(
+      context,
+      Stack(
+        fit: StackFit.passthrough,
+        children: [
+          child,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: size.width < kMinInteractiveDimension
+                    ? kMinInteractiveDimension
+                    : size.width,
+                height: kMinInteractiveDimension,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  child: Semantics(
+                    label: MaterialLocalizations.of(
+                      context,
+                    ).modalBarrierDismissLabel,
+                    container: true,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        width: size.width,
+                        height: size.height,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(size.height / 2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      useSafeArea,
+    );
+  }
+}
 
 typedef FileManagementSortChoice = ({String id, String label});
 

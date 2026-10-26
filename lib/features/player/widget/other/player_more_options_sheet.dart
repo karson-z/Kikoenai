@@ -5,6 +5,7 @@ import 'package:kikoenai/core/utils/scraper/scraper_storage.dart';
 import 'package:kikoenai/core/utils/window/display_util.dart';
 import 'package:kikoenai/features/album/provider/audio_file_provider.dart';
 import 'package:kikoenai/features/file_sort/provider/file_sort_provider.dart';
+import 'package:kikoenai/features/file_browser/widget/file_management_sheet.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 import 'package:kikoenai/features/player/widget/lyrics/player_lyrics_mapping_sheet.dart';
 import 'package:kikoenai/features/player/widget/other/player_more_widget.dart';
@@ -16,8 +17,6 @@ import '../../../../../core/storage/hive_key.dart';
 import '../../../../../core/storage/hive_storage.dart';
 import '../../../../../core/widgets/common/back_button_interceptor.dart';
 import '../../../../../core/widgets/common/kikoenai_dialog.dart';
-import '../../../../../core/widgets/common/custom_bottom_type.dart';
-import '../../../../../core/widgets/common/custom_side_sheet_type.dart';
 import '../../../../../core/widgets/common/manage_playlist_dialog.dart';
 import '../../../../../core/widgets/layout/app_main_scaffold.dart';
 import '../../../../../core/widgets/layout/app_toast.dart';
@@ -37,12 +36,7 @@ void showMoreOptions(BuildContext context, WidgetRef ref, PlaybackItem? track) {
 
   WoltModalSheet.show<void>(
     context: context,
-    modalTypeBuilder: (modalContext) {
-      final width = MediaQuery.of(modalContext).size.width;
-      return width < 500
-          ? const CustomBottomType()
-          : const CustomSideSheetType();
-    },
+    modalTypeBuilder: fileManagementModalType,
     pageListBuilder: (modalContext) {
       return [_buildWoltPage(modalContext, track)];
     },
