@@ -425,7 +425,7 @@ class WdDio with DioMixin implements Dio {
 
     if (resp.requestOptions.receiveTimeout != null &&
         resp.requestOptions.receiveTimeout!
-                .compareTo(Duration(milliseconds: 0)) >
+                .compareTo(const Duration(milliseconds: 0)) >
             0) {
       future = future
           .timeout(resp.requestOptions.receiveTimeout!)
