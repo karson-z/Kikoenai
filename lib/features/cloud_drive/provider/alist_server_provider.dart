@@ -26,6 +26,8 @@ class AlistServerController {
   Future<void> switchTo(String serverId) async {
     await site_setup.switchServer(serverId, siteId: AsmrGaySiteApi.info.id);
     ref.invalidate(siteRuntimeByIdProvider(AsmrGaySiteApi.info.id));
+    // The runtime is mutated in place, so its identity cannot notify listeners.
+    ref.invalidate(alistServerStateProvider);
   }
 
   Future<void> upsert(ServerInfo server, {String? originalServerId}) async {

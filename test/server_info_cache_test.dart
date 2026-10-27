@@ -8,6 +8,7 @@ import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_api_setup.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
+import 'package:kikoenai/features/cloud_drive/page/alist_server_management_page.dart';
 import 'package:kikoenai/features/cloud_drive/provider/alist_server_provider.dart';
 import 'package:kikoenai/features/settings/provider/self_hosted_site_controller.dart';
 import 'package:kikoenai/features/settings/widget/service_selection.dart';
@@ -198,6 +199,71 @@ void main() {
       CacheService.instance.getSiteServers(siteId: AsmrGaySiteApi.info.id),
       contains(custom),
     );
+  });
+
+  test('AList domain switches notify existing state listeners', () async {
+    await setupSiteApi();
+    final container = ProviderContainer.test();
+    final selectedIds = <String>[];
+    container.listen(alistServerStateProvider, (_, next) {
+      selectedIds.add(next.currentServer.id);
+    });
+    await container.pump();
+
+    final initial = container.read(alistServerStateProvider);
+    final backup = initial.servers.firstWhere(
+      (server) => server.id != initial.currentServer.id,
+    );
+    final controller = container.read(alistServerControllerProvider);
+
+    for (final server in [backup, initial.currentServer]) {
+      await controller.switchTo(server.id);
+      await container.pump();
+
+      expect(container.read(alistServerStateProvider).currentServer, server);
+      expect(siteRegistry.currentServerOf(AsmrGaySiteApi.info.id), server);
+      expect(
+        CacheService.instance.getCurrentHost(siteId: AsmrGaySiteApi.info.id),
+        server.resolvedBaseUrl,
+      );
+    }
+    expect(selectedIds, [backup.id, initial.currentServer.id]);
+  });
+
+  testWidgets('AList domain selection refreshes on an open page', (
+    tester,
+  ) async {
+    await tester.runAsync(setupSiteApi);
+    final container = ProviderContainer.test();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: AlistServerManagementPage()),
+      ),
+    );
+    await tester.pump();
+
+    final initial = container.read(alistServerStateProvider);
+    final backup = initial.servers.firstWhere(
+      (server) => server.id != initial.currentServer.id,
+    );
+    Finder selectedIcon(ServerInfo server) => find.descendant(
+      of: find.widgetWithText(ListTile, server.label),
+      matching: find.byIcon(Icons.radio_button_checked),
+    );
+
+    expect(selectedIcon(initial.currentServer), findsOneWidget);
+    expect(selectedIcon(backup), findsNothing);
+
+    await tester.runAsync(
+      () => container.read(alistServerControllerProvider).switchTo(backup.id),
+    );
+    await tester.pump();
+
+    expect(selectedIcon(backup), findsOneWidget);
+    expect(selectedIcon(initial.currentServer), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   test('self-hosted controller registers and activates Kikoeru', () async {
