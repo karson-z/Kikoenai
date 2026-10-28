@@ -29,6 +29,7 @@ class AppRoutes {
   static String get about => '$settings/about';
   // 设置子项
   static String get settingsTheme => '$settings/theme';
+  static String get settingsProxy => '$settings/proxy';
   static String get settingsPermission => '$settings/permission';
   static String get settingsCache => '$settings/cache';
   static String get settingsAccount => '$settings/account';

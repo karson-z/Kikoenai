@@ -99,6 +99,7 @@ class DownloadService {
     _proxySync ??= DownloadProxySync(
       readConfig: () => ProxyService.current,
       useSystemProxy: Platform.isIOS,
+      hasManualProxy: () => ProxyService.manualSettings.isActive,
       configure: (proxy) async {
         final results = await FileDownloader().configure(
           globalConfig: (Config.proxy, proxy),

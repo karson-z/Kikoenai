@@ -6,6 +6,27 @@ import 'package:kikoenai/core/service/proxy/system_proxy_config.dart';
 
 void main() {
   test(
+    'iOS uses the manual endpoint and clears it when returning to system routing',
+    () async {
+      var manual = false;
+      final writes = <Object>[];
+      final sync = DownloadProxySync(
+        useSystemProxy: true,
+        hasManualProxy: () => manual,
+        readConfig: () =>
+            SystemProxyConfig.single(const ProxyEndpoint('manual', 7890)),
+        configure: (value) async => writes.add(value),
+      );
+      await sync.sync();
+      manual = true;
+      await sync.sync();
+      await sync.sync();
+      manual = false;
+      await sync.sync();
+      expect(writes, [false, ('manual', 7890), false]);
+    },
+  );
+  test(
     'updates serialize; disabling clears stale proxy before next task',
     () async {
       var config = SystemProxyConfig.single(const ProxyEndpoint('a', 8080));

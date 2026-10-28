@@ -2,6 +2,9 @@ class StorageKeys {
   StorageKeys._();
 
   static const String activeSiteId = 'active_site_id';
+
+  /// Manual HTTP proxy address, enable state and connection test settings.
+  static const String networkProxy = 'network_proxy';
   static const String siteScopePrefix = 'site';
 
   static String forSite(String key, String siteId) =>

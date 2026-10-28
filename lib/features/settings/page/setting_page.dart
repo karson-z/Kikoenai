@@ -63,6 +63,10 @@ class SettingsPage extends ConsumerWidget {
                   const _SiteSelectionTile(),
                   const _ServerSelectionTile(),
                   _ChevronTile(
+                    title: '网络代理',
+                    onTap: () => context.push(AppRoutes.settingsProxy),
+                  ),
+                  _ChevronTile(
                     title: '主题',
                     onTap: () {
                       context.push(AppRoutes.settingsTheme);

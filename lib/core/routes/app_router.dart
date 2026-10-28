@@ -24,6 +24,7 @@ import '../../features/album/page/album_page.dart';
 import '../../features/category/page/category_page.dart';
 import '../../features/search/page/search_page.dart';
 import '../../features/settings/page/theme_setting_page.dart';
+import '../../features/settings/page/proxy_settings_page.dart';
 import '../widgets/animation/slide_right_transition.dart';
 import '../widgets/common/kikoenai_dialog.dart';
 import '../service/site/site_api_provider.dart';
@@ -47,6 +48,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final incident = unavailableController.incident;
+      // Keep the recovery settings reachable while a site is unavailable.
+      if (state.uri.path == AppRoutes.settingsProxy) return null;
       if (state.uri.path == AppRoutes.siteUnavailable) {
         return incident == null ? AppRoutes.home : null;
       }
@@ -212,6 +215,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
 
+          GoRoute(
+            path: AppRoutes.toRelative(AppRoutes.settingsProxy),
+            pageBuilder: (context, state) => SlideRightTransitionPage(
+              key: state.pageKey,
+              child: const ProxySettingsPage(),
+            ),
+          ),
           // 4. 缓存设置
           GoRoute(
             path: AppRoutes.toRelative(AppRoutes.settingsCache),

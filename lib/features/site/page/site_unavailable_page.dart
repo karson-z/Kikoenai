@@ -219,6 +219,12 @@ class _SiteUnavailablePageState extends ConsumerState<SiteUnavailablePage> {
                         ],
                         const SizedBox(height: 4),
                         TextButton.icon(
+                          onPressed: () =>
+                              context.push(AppRoutes.settingsProxy),
+                          icon: const Icon(Icons.settings_ethernet),
+                          label: const Text('配置网络代理'),
+                        ),
+                        TextButton.icon(
                           onPressed: () => _leaveErrorPage(
                             null,
                             destination: AppRoutes.localMedia,

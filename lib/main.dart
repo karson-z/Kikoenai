@@ -13,6 +13,7 @@ import 'package:media_kit/media_kit.dart';
 import 'app/app.dart';
 import 'core/service/audio/audio_service.dart';
 import 'core/service/proxy/auto_proxy_service.dart';
+import 'core/service/proxy/proxy_settings.dart';
 import 'core/service/file/local_media_sync_scheduler.dart';
 import 'core/storage/hive_key.dart';
 import 'core/storage/hive_storage.dart';
@@ -81,7 +82,9 @@ void main() async {
   );
   await AppStorage.init();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  await ProxyService.init();
+  await ProxyService.init(
+    manualSettings: ProxySettings.fromStorage(AppStorage.settingsBox),
+  );
   await AudioServiceSingleton.init();
   await DownloadService.init();
   debugPrint('开始初始化站点 API...');

@@ -37,17 +37,28 @@ class ProxyEndpoint extends Equatable {
 }
 
 class SystemProxyConfig extends Equatable {
-  SystemProxyConfig({this.http, this.https, List<String> bypass = const []})
-    : bypass = List.unmodifiable(bypass);
+  SystemProxyConfig({
+    this.http,
+    this.https,
+    List<String> bypass = const [],
+    this.fallbackToDirect = true,
+  }) : bypass = List.unmodifiable(bypass);
 
   static final direct = SystemProxyConfig();
 
   final ProxyEndpoint? http;
   final ProxyEndpoint? https;
   final List<String> bypass;
+  final bool fallbackToDirect;
 
-  factory SystemProxyConfig.single(ProxyEndpoint? endpoint) =>
-      SystemProxyConfig(http: endpoint, https: endpoint);
+  factory SystemProxyConfig.single(
+    ProxyEndpoint? endpoint, {
+    bool fallbackToDirect = true,
+  }) => SystemProxyConfig(
+    http: endpoint,
+    https: endpoint,
+    fallbackToDirect: fallbackToDirect,
+  );
 
   ProxyEndpoint? proxyFor(Uri uri) {
     if (bypass.any((rule) => _matchesBypass(uri, rule))) return null;
@@ -60,7 +71,8 @@ class SystemProxyConfig extends Equatable {
 
   String findProxy(Uri uri) {
     final endpoint = proxyFor(uri);
-    return endpoint == null ? 'DIRECT' : 'PROXY ${endpoint.authority}; DIRECT';
+    if (endpoint == null) return 'DIRECT';
+    return 'PROXY ${endpoint.authority}${fallbackToDirect ? '; DIRECT' : ''}';
   }
 
   /// background_downloader has a single global endpoint, with no bypass API.
@@ -186,5 +198,5 @@ class SystemProxyConfig extends Equatable {
   }
 
   @override
-  List<Object?> get props => [http, https, bypass];
+  List<Object?> get props => [http, https, bypass, fallbackToDirect];
 }

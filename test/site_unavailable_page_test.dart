@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/routes/app_router.dart';
+import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai/core/service/site/site_api_provider.dart';
 import 'package:kikoenai/core/service/site/site_unavailable_controller.dart';
 import 'package:kikoenai/features/site/page/site_unavailable_page.dart';
+import 'package:kikoenai/features/settings/page/proxy_settings_page.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 
 class _UnavailableSiteApi extends SiteApi {
@@ -93,6 +98,7 @@ void main() {
     expect(find.text('选择服务器'), findsOneWidget);
     expect(find.text('切换站点'), findsOneWidget);
     expect(find.text('使用本地媒体'), findsOneWidget);
+    expect(find.text('配置网络代理'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -136,5 +142,29 @@ void main() {
     expect(find.byType(SiteUnavailablePage), findsOneWidget);
     expect(find.text('测试站点 暂时无法连接'), findsOneWidget);
     expect(controller.incident?.returnLocation, '/');
+
+    final directory = (await tester.runAsync(() async {
+      final directory = await Directory.systemTemp.createTemp(
+        'proxy_recovery_',
+      );
+      Hive.init(directory.path);
+      AppStorage.settingsBox = await Hive.openBox<dynamic>('settings');
+      return directory;
+    }))!;
+    addTearDown(() async {
+      await Hive.close();
+      await directory.delete(recursive: true);
+    });
+    await tester.ensureVisible(find.text('配置网络代理'));
+    await tester.tap(find.text('配置网络代理'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProxySettingsPage), findsOneWidget);
+    expect(controller.incident?.returnLocation, '/');
+    expect(controller.incident, isNotNull);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(SiteUnavailablePage), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -7,12 +7,16 @@ import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:native_flutter_proxy/native_flutter_proxy.dart';
 
 import 'system_proxy_config.dart';
+import 'proxy_settings.dart';
 
 class ProxyService {
   ProxyService._();
 
   static SystemProxyConfig get current => _current;
   static SystemProxyConfig _current = SystemProxyConfig.direct;
+  static SystemProxyConfig _system = SystemProxyConfig.direct;
+  static ProxySettings _manualSettings = const ProxySettings();
+  static ProxySettings get manualSettings => _manualSettings;
   static final _changes = StreamController<SystemProxyConfig>.broadcast(
     sync: true,
   );
@@ -25,16 +29,19 @@ class ProxyService {
   static Future<SystemProxyConfig> Function() _reader = _readSystemProxy;
 
   static Future<void> init({
+    ProxySettings manualSettings = const ProxySettings(),
     @visibleForTesting Future<SystemProxyConfig> Function()? readSettings,
   }) {
     if (kIsWeb) return Future.value();
-    return _initialization ??= _initialize(readSettings);
+    return _initialization ??= _initialize(readSettings, manualSettings);
   }
 
   static Future<void> _initialize(
     Future<SystemProxyConfig> Function()? reader,
+    ProxySettings manualSettings,
   ) async {
     _reader = reader ?? _readSystemProxy;
+    setManualSettings(manualSettings);
     // Existing clients consult the current configuration for new connections.
     HttpOverrides.global = SystemProxyHttpOverrides(() => _current);
     if (Platform.isAndroid || Platform.isIOS) {
@@ -72,10 +79,31 @@ class ProxyService {
 
   static void _apply(SystemProxyConfig config) {
     _revision++;
+    _system = config;
+    _updateEffectiveConfig();
+  }
+
+  static void setManualSettings(ProxySettings settings) {
+    if (settings.enabled && !settings.isActive) {
+      throw StateError('请先保存并测试代理配置');
+    }
+    _manualSettings = settings;
+    _updateEffectiveConfig();
+  }
+
+  static void _updateEffectiveConfig() {
+    final config = _manualSettings.isActive
+        ? SystemProxyConfig.single(
+            _manualSettings.endpoint,
+            fallbackToDirect: false,
+          )
+        : _system;
     if (config == _current) return;
     _current = config;
     _changes.add(config);
-    KikoenaiLogger().i('[Proxy] 系统代理配置已更新');
+    KikoenaiLogger().i(
+      _manualSettings.isActive ? '[Proxy] 手动代理配置已更新' : '[Proxy] 系统代理配置已更新',
+    );
   }
 
   static SystemProxyConfig _fromMobile(ProxySetting settings) {
@@ -123,6 +151,8 @@ class ProxyService {
     _revision++;
     _initialization = null;
     _current = SystemProxyConfig.direct;
+    _system = SystemProxyConfig.direct;
+    _manualSettings = const ProxySettings();
   }
 }
 
