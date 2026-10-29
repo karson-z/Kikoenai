@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
 import 'package:lottie/lottie.dart';
@@ -39,7 +40,7 @@ class LottieLoadingIndicator extends StatelessWidget {
               effectiveAssetPath,
               fit: fit,
               errorBuilder: (context, error, stackTrace) {
-                debugPrint(' Lottie Error [$effectiveAssetPath]: $error');
+                KikoenaiLogger(tag: 'LottieLoading').w(' Lottie Error [$effectiveAssetPath]: $error');
                 return Icon(
                   Icons.image_not_supported_outlined,
                   color: Colors.grey.shade400,

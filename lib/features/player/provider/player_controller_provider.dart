@@ -275,10 +275,10 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _listenToOverlayCommands() {
-    debugPrint('AudioController: 准备连接悬浮窗插件消息通道...');
+    KikoenaiLogger(tag: 'PlayerControllerProvider').d('AudioController: 准备连接悬浮窗插件消息通道...');
     final manager = ref.read(subtitleManagerProvider);
     _overlayCommandSubscription = manager.messagesFromOverlay.listen((message) {
-      debugPrint('AudioController: 插件通道捕获到指令 -> $message');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').d('AudioController: 插件通道捕获到指令 -> $message');
       final action = message['action'] as String?;
       final payload = message['payload'];
       if (action == null) return;
@@ -424,7 +424,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         ),
       ]);
     } catch (e) {
-      debugPrint('保存历史记录失败: $e');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w('保存历史记录失败: $e');
     }
   }
 
@@ -459,7 +459,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       );
       return true;
     } catch (error) {
-      debugPrint('视频亮度读取失败: $error');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w('视频亮度读取失败: $error');
       return false;
     }
   }
@@ -475,7 +475,7 @@ class PlayerController extends Notifier<AppPlayerState> {
           .setApplicationBrightness(brightness);
       return true;
     } catch (error) {
-      debugPrint('视频亮度设置失败: $error');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w('视频亮度设置失败: $error');
       return false;
     }
   }
@@ -486,7 +486,7 @@ class PlayerController extends Notifier<AppPlayerState> {
           .read(videoBrightnessServiceProvider)
           .resetApplicationBrightness();
     } catch (error) {
-      debugPrint('视频亮度恢复失败: $error');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w('视频亮度恢复失败: $error');
     }
   }
 
@@ -530,7 +530,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     try {
       await _player.setAudioTrack(track);
     } catch (e) {
-      debugPrint("切换音频轨道失败: $e");
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w("切换音频轨道失败: $e");
     }
   }
 
@@ -538,7 +538,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     try {
       await _player.setSubtitleTrack(track);
     } catch (e) {
-      debugPrint("切换字幕轨道失败: $e");
+      KikoenaiLogger(tag: 'PlayerControllerProvider').w("切换字幕轨道失败: $e");
     }
   }
 
@@ -705,7 +705,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       await addAll(items.toMediaItems());
       KikoenaiToast.success('已加入播放队列');
     } catch (e) {
-      KikoenaiLogger().e('加入播放队列失败');
+      KikoenaiLogger(tag: 'PlayerControllerProvider').e('加入播放队列失败');
     }
   }
 
@@ -741,7 +741,7 @@ class PlayerController extends Notifier<AppPlayerState> {
       await addAll(items.toMediaItems());
       KikoenaiToast.success("已加入播放队列");
     } catch (e) {
-      KikoenaiLogger().e("加入播放队列失败");
+      KikoenaiLogger(tag: 'PlayerControllerProvider').e("加入播放队列失败");
     }
   }
 
@@ -752,7 +752,7 @@ class PlayerController extends Notifier<AppPlayerState> {
     ref.read(mainScaffoldProvider.notifier).setFullScreen(targetIsFull);
 
     if (targetIsFull) {
-      debugPrint(
+      KikoenaiLogger(tag: 'PlayerControllerProvider').d(
         'currentPortrait: ${state.isVideoPortrait} dw: ${state.videoWidth} dh: ${state.videoHeight} rotate: ${state.videoRotate}',
       );
       await DisplayUtils.enterFullScreen(state.isVideoPortrait);

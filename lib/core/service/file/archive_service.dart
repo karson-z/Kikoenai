@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:archive/archive.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import '../../utils/data/charset_cover.dart';
 import 'package:kikoenai/core/utils/data/charset_cover.dart';
@@ -59,7 +59,7 @@ class ArchiveService {
         ));
       }
     } catch (e) {
-      debugPrint("ArchiveService: 扫描失败 $filePath, $e");
+      KikoenaiLogger(tag: 'ArchiveService').w("ArchiveService: 扫描失败 $filePath, $e");
     } finally {
       // 确保流被关闭，防止内存泄漏或文件占用
       inputStream?.close();
@@ -121,7 +121,7 @@ class ArchiveService {
         return content is Uint8List ? content : Uint8List.fromList(content);
       }
     } catch (e) {
-      debugPrint("ArchiveService: 解压失败 $e");
+      KikoenaiLogger(tag: 'ArchiveService').w("ArchiveService: 解压失败 $e");
     } finally {
       inputStream?.close();
     }

@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 
 /// 统一风格的 AlertDialog，样式与“取消定时关闭”弹窗一致。
@@ -173,11 +174,11 @@ class KikoenaiDialog {
         onDismiss?.call();
         return result;
       } catch (e) {
-        debugPrint('Kikoenai Dialog Error: Failed to show dialog: $e');
+        KikoenaiLogger(tag: 'KikoenaiDialog').w('Kikoenai Dialog Error: Failed to show dialog: $e');
         return null;
       }
     } else {
-      debugPrint(
+      KikoenaiLogger(tag: 'KikoenaiDialog').w(
           'Kikoenai Dialog Error: No context available to show the dialog');
       return null;
     }
@@ -221,10 +222,10 @@ class KikoenaiDialog {
         );
         onDismiss?.call();
       } catch (e) {
-        debugPrint('Kikoenai Dialog Error: Failed to show loading dialog: $e');
+        KikoenaiLogger(tag: 'KikoenaiDialog').w('Kikoenai Dialog Error: Failed to show loading dialog: $e');
       }
     } else {
-      debugPrint(
+      KikoenaiLogger(tag: 'KikoenaiDialog').w(
           'Kikoenai Dialog Error: No context available to show the loading dialog');
     }
   }
@@ -272,11 +273,11 @@ class KikoenaiDialog {
         );
         return result;
       } catch (e) {
-        debugPrint('Kikoenai Dialog Error: Failed to show bottom sheet: $e');
+        KikoenaiLogger(tag: 'KikoenaiDialog').w('Kikoenai Dialog Error: Failed to show bottom sheet: $e');
         return null;
       }
     } else {
-      debugPrint(
+      KikoenaiLogger(tag: 'KikoenaiDialog').w(
           'Kikoenai Dialog Error: No context available to show the bottom sheet');
       return null;
     }
@@ -288,10 +289,10 @@ class KikoenaiDialog {
       try {
         Navigator.of(observer.kikoenaiDialogContext!).pop(popWith);
       } catch (e) {
-        debugPrint('Kikoenai Dialog Error: Failed to dismiss dialog: $e');
+        KikoenaiLogger(tag: 'KikoenaiDialog').w('Kikoenai Dialog Error: Failed to dismiss dialog: $e');
       }
     } else {
-      debugPrint('Kikoenai Dialog Debug: No active KikoenaiDialog to dismiss');
+      KikoenaiLogger(tag: 'KikoenaiDialog').d('Kikoenai Dialog Debug: No active KikoenaiDialog to dismiss');
     }
   }
 }

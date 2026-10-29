@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
@@ -62,7 +62,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       );
     } catch (error, stackTrace) {
       if (!ref.mounted || requestVersion != _browseRequestVersion) return;
-      debugPrint('云盘目录加载失败: $error\n$stackTrace');
+      KikoenaiLogger(tag: 'CloudDriveBrowserController').w('云盘目录加载失败: $error\n$stackTrace');
       state = state.copyWith(
         isLoading: false,
         errorMessage: _source.describeError(error),
@@ -94,7 +94,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       );
     } catch (error) {
       if (!ref.mounted) return;
-      debugPrint('云盘目录分页加载失败: $error');
+      KikoenaiLogger(tag: 'CloudDriveBrowserController').w('云盘目录分页加载失败: $error');
       state = state.copyWith(isLoadingMore: false);
     }
   }
@@ -142,7 +142,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       );
     } catch (error, stackTrace) {
       if (!ref.mounted || requestVersion != _searchRequestVersion) return;
-      debugPrint('云盘搜索失败: $error\n$stackTrace');
+      KikoenaiLogger(tag: 'CloudDriveBrowserController').w('云盘搜索失败: $error\n$stackTrace');
       state = state.copyWith(
         isSearching: false,
         searchErrorMessage: _source.describeError(error),
@@ -171,7 +171,7 @@ class CloudDriveBrowserController extends Notifier<CloudDriveBrowserState> {
       );
     } catch (error) {
       if (!ref.mounted) return;
-      debugPrint('云盘搜索分页加载失败: $error');
+      KikoenaiLogger(tag: 'CloudDriveBrowserController').w('云盘搜索分页加载失败: $error');
       state = state.copyWith(isSearchingMore: false);
     }
   }

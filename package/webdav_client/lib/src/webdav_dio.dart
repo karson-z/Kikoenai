@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:kikoenai_core/core/utils/log/package_log.dart';
 import 'adapter/adapter_stub.dart'
     if (dart.library.io) 'adapter/adapter_mobile.dart'
     if (dart.library.js) 'adapter/adapter_web.dart';
@@ -46,7 +47,10 @@ class WdDio with DioMixin implements Dio {
 
     // debug
     if (debug == true) {
-      this.interceptors.add(LogInterceptor(responseBody: true));
+      this.interceptors.add(LogInterceptor(
+        responseBody: true,
+        logPrint: (message) => const PackageLog(tag: 'WebDav').d(message),
+      ));
     }
   }
 

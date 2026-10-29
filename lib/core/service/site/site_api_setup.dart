@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -85,7 +86,7 @@ SiteRuntimeContext _createRuntimeContext(
                 AsmrGaySiteApi.normalizeBaseUrl(server);
                 return true;
               } catch (error) {
-                debugPrint('忽略无效的 AList 服务器 ${server.id}: $error');
+                KikoenaiLogger(tag: 'SiteApiSetup').w('忽略无效的 AList 服务器 ${server.id}: $error');
                 return false;
               }
             })
@@ -99,7 +100,7 @@ SiteRuntimeContext _createRuntimeContext(
               KikoeruSiteApi.apiBaseUrlFor(server);
               return true;
             } catch (error) {
-              debugPrint('忽略无效的 Kikoeru 服务器 ${server.id}: $error');
+              KikoenaiLogger(tag: 'SiteApiSetup').w('忽略无效的 Kikoeru 服务器 ${server.id}: $error');
               return false;
             }
           })
@@ -273,7 +274,7 @@ Future<ReadRecoveryResult> _switchToHealthyAlternative({
       excludedServerIds: {failedServerId},
     );
   } catch (error) {
-    debugPrint('检查站点 $siteId 的备用服务器失败: $error');
+    KikoenaiLogger(tag: 'SiteApiSetup').w('检查站点 $siteId 的备用服务器失败: $error');
   }
   if (selected == null) return _allServersUnavailable(siteId);
 
@@ -297,7 +298,7 @@ Future<ServerInfo?> recheckSiteServers(String siteId) async {
   try {
     selected = await siteRegistry.selectHealthyServer(siteId);
   } catch (error) {
-    debugPrint('重新检查站点 $siteId 的服务器失败: $error');
+    KikoenaiLogger(tag: 'SiteApiSetup').w('重新检查站点 $siteId 的服务器失败: $error');
   }
   if (selected == null) return null;
 
@@ -313,7 +314,7 @@ Future<void> _persistSelectedServer(String siteId, ServerInfo server) async {
       siteId: siteId,
     );
   } catch (error) {
-    debugPrint('保存站点 $siteId 的服务器失败: $error');
+    KikoenaiLogger(tag: 'SiteApiSetup').w('保存站点 $siteId 的服务器失败: $error');
   }
 }
 

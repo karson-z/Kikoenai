@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:background_downloader/background_downloader.dart';
-import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
@@ -71,7 +70,7 @@ class DownloadService {
         StorageKeys.fileDownloadKey,
         defaultValue: defaultPath,
       );
-      debugPrint("下载保存路径已设置为: ${_instance._savePath}");
+      KikoenaiLogger(tag: 'DownloadService').d("下载保存路径已设置为: ${_instance._savePath}");
 
       // 确保目录存在（如果是首次运行，不仅要获取路径，还要创建文件夹）
       final savedDir = Directory(_instance._savePath);
@@ -79,7 +78,7 @@ class DownloadService {
         savedDir.createSync(recursive: true);
       }
     } catch (e) {
-      debugPrint("获取下载路径失败: $e");
+      KikoenaiLogger(tag: 'DownloadService').w("获取下载路径失败: $e");
       final supportDir = await getApplicationSupportDirectory();
       _instance._savePath = p.join(supportDir.path, 'kikoenaiDownload');
     }
@@ -114,14 +113,14 @@ class DownloadService {
     _proxySubscription ??= ProxyService.changes.listen((_) {
       unawaited(
         _proxySync!.sync().catchError((Object error) {
-          KikoenaiLogger().e('[Proxy] 更新下载代理失败: $error');
+          KikoenaiLogger(tag: 'DownloadService').e('[Proxy] 更新下载代理失败: $error');
         }),
       );
     });
     await _proxySync!.sync();
     FileDownloader().start();
     _isInitialized = true;
-    debugPrint('DownloadService 初始化完成');
+    KikoenaiLogger(tag: 'DownloadService').d('DownloadService 初始化完成');
   }
 
   /// 场景方法：下载并打开 (等待模式)
@@ -129,7 +128,7 @@ class DownloadService {
     await _proxySync?.sync();
     final hasPrem = await _checkNotificationPermission();
     if (!hasPrem) {
-      debugPrint("没有权限,不做通知");
+      KikoenaiLogger(tag: 'DownloadService').d("没有权限,不做通知");
     }
     final task = DownloadTask(
       url: url,
@@ -153,7 +152,7 @@ class DownloadService {
   }) async {
     final hasPrem = await _checkNotificationPermission();
     if (!hasPrem) {
-      debugPrint("没有权限,不做通知");
+      KikoenaiLogger(tag: 'DownloadService').d("没有权限,不做通知");
     }
 
     final String dynamicGroupName = title;
@@ -183,7 +182,7 @@ class DownloadService {
     final Set<FileNode> selectedSet = selectedFiles.toSet();
     // 将根目录设置为rjCode
     final workFileDirectory = p.join(_savePath, metaData['id'].toString());
-    KikoenaiLogger().i('文件下载路径为：$workFileDirectory');
+    KikoenaiLogger(tag: 'DownloadService').i('文件下载路径为：$workFileDirectory');
     List<DownloadTask> tasksToEnqueue = [];
 
     // --- 核心逻辑：完全依靠 FileNodeLibraryIndex 递归遍历 tree ---
@@ -260,11 +259,11 @@ class DownloadService {
 
     if (tasksToEnqueue.isNotEmpty) {
       await _proxySync?.sync();
-      debugPrint("准备入队 ${tasksToEnqueue.length} 个任务");
+      KikoenaiLogger(tag: 'DownloadService').d("准备入队 ${tasksToEnqueue.length} 个任务");
       // 批量入队
       await FileDownloader().enqueueAll(tasksToEnqueue);
     } else {
-      debugPrint("没有有效的任务可下载");
+      KikoenaiLogger(tag: 'DownloadService').d("没有有效的任务可下载");
     }
   }
 
@@ -294,7 +293,7 @@ class DownloadService {
       return await FileDownloader().pause(task);
     }
 
-    debugPrint('暂停失败: 未找到 ID 为 $taskId 的任务或任务类型不支持');
+    KikoenaiLogger(tag: 'DownloadService').w('暂停失败: 未找到 ID 为 $taskId 的任务或任务类型不支持');
     return false;
   }
 
@@ -310,7 +309,7 @@ class DownloadService {
       return await FileDownloader().resume(task);
     }
 
-    debugPrint('恢复失败: 未找到 ID 为 $taskId 的任务');
+    KikoenaiLogger(tag: 'DownloadService').w('恢复失败: 未找到 ID 为 $taskId 的任务');
     return false;
   }
 
@@ -322,7 +321,7 @@ class DownloadService {
     try {
       // 1. 删除数据库中的记录
       await deleteRecord(task.taskId);
-      debugPrint("下载记录已删除: ${task.taskId}");
+      KikoenaiLogger(tag: 'DownloadService').d("下载记录已删除: ${task.taskId}");
 
       // 2. 获取文件的完整物理路径
       final String path = await task.filePath();
@@ -351,7 +350,7 @@ class DownloadService {
       final records = await downloader.database.allRecords(group: groupName);
 
       if (records.isEmpty) {
-        debugPrint("该组没有记录: $groupName");
+        KikoenaiLogger(tag: 'DownloadService').d("该组没有记录: $groupName");
         return;
       }
       // 2. 遍历删除物理文件
@@ -362,15 +361,15 @@ class DownloadService {
 
           if (await file.exists()) {
             await file.delete(recursive: true); // recursive: true 对文件夹更安全
-            debugPrint("物理文件已删除: $path");
+            KikoenaiLogger(tag: 'DownloadService').d("物理文件已删除: $path");
           }
         } catch (e) {
-          debugPrint("删除单个文件失败: ${record.task.filename}, 错误: $e");
+          KikoenaiLogger(tag: 'DownloadService').w("删除单个文件失败: ${record.task.filename}, 错误: $e");
         }
       }
       // 3. 删除数据库中的记录
       await downloader.database.deleteAllRecords(group: groupName);
-      debugPrint("数据库记录已清理: $groupName");
+      KikoenaiLogger(tag: 'DownloadService').d("数据库记录已清理: $groupName");
       KikoenaiToast.success("批量删除成功");
     } catch (e) {
       KikoenaiToast.error("批量删除失败: $e");
@@ -434,7 +433,7 @@ class DownloadService {
         validRecords.add(record);
       } else {
         await deleteRecord(record.task.taskId);
-        debugPrint('已清理缺失文件的下载记录: ${record.task.taskId}');
+        KikoenaiLogger(tag: 'DownloadService').d('已清理缺失文件的下载记录: ${record.task.taskId}');
       }
     }
 

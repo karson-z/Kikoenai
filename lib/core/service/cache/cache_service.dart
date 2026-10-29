@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:uuid/uuid.dart';
 
@@ -88,7 +88,7 @@ class CacheService {
         final jsonMap = Map<String, dynamic>.from(data);
         return Playlist.fromJson(jsonMap);
       } catch (e) {
-        debugPrint('Error parsing QuickMarkTargetPlaylist: $e');
+        KikoenaiLogger(tag: 'CacheService').w('Error parsing QuickMarkTargetPlaylist: $e');
         clearQuickMarkTargetPlaylist(siteId: siteId);
       }
     }
@@ -315,13 +315,13 @@ class CacheService {
   Future<void> clearBox(String boxName) async {
     if (Hive.isBoxOpen(boxName)) {
       await Hive.box(boxName).clear();
-      debugPrint("Box [$boxName] cleared successfully.");
+      KikoenaiLogger(tag: 'CacheService').d("Box [$boxName] cleared successfully.");
     } else {
-      debugPrint("Box [$boxName] is not open, trying to delete file...");
+      KikoenaiLogger(tag: 'CacheService').d("Box [$boxName] is not open, trying to delete file...");
       try {
         await Hive.deleteBoxFromDisk(boxName);
       } catch (e) {
-        debugPrint("Failed to clear box $boxName: $e");
+        KikoenaiLogger(tag: 'CacheService').w("Failed to clear box $boxName: $e");
       }
     }
   }

@@ -1,274 +1,443 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:synchronized/synchronized.dart';
 
+import 'package:kikoenai_core/core/utils/log/package_log.dart';
+
 const Symbol _forceLogKey = #_forceLog;
+const Symbol _tagKey = #_logTag;
+const Symbol _sinkKey = #_logSink;
 
 class KikoenaiLogFilter extends LogFilter {
   @override
-  bool shouldLog(LogEvent event) {
-    final forceLog = Zone.current[_forceLogKey] as bool? ?? false;
-    if (forceLog) {
-      return true;
-    }
-    return event.level.index >= Logger.level.index;
-  }
+  bool shouldLog(LogEvent event) =>
+      Zone.current[_forceLogKey] == true ||
+      event.level.index >= Logger.level.index;
 }
 
-class KikoenaiLogPrinter extends PrettyPrinter {
-  KikoenaiLogPrinter()
-      : super(
-    methodCount: 0,
-    errorMethodCount: 8,
-    lineLength: 120,
-    colors: true,
-    // Disable emojis for better compatibility
-    printEmojis: false,
-    dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-  );
-
+/// The console and file use the same plain-text format. Continuation lines stay
+/// attached to their event, including errors and explicitly supplied stacks.
+class KikoenaiLogPrinter extends LogPrinter {
   @override
   List<String> log(LogEvent event) {
-    // For trace, debug, info - never show stack trace
-    if (event.level == Level.trace ||
-        event.level == Level.debug ||
-        event.level == Level.info) {
-      final messageStr = stringifyMessage(event.message);
-      final time = getTime(event.time);
-      final prefix = _getPrefix(event.level);
-      final levelName = _getLevelName(event.level);
-
-      return [
-        '$prefix $time $levelName $messageStr',
-      ];
+    final tag = Zone.current[_tagKey] as String? ?? 'App';
+    String message;
+    try {
+      final value = event.message is Function ? event.message() : event.message;
+      message = value is Map || value is List
+          ? const JsonEncoder.withIndent('  ').convert(value)
+          : '$value';
+    } catch (_) {
+      message = '${event.message}';
     }
-
-    return super.log(event);
-  }
-
-  /// Colored prefix for log level
-  String _getPrefix(Level level) {
-    if (!colors) return _getLevelTag(level);
-
-    const reset = '\x1B[0m';
-    String colorCode;
-
-    switch (level) {
-      case Level.trace:
-        colorCode = '\x1B[90m';
-        break; // Bright Black
-      case Level.debug:
-        colorCode = '\x1B[36m';
-        break; // Cyan
-      case Level.info:
-        colorCode = '\x1B[32m';
-        break; // Green
-      case Level.warning:
-        colorCode = '\x1B[33m';
-        break; // Yellow
-      case Level.error:
-        colorCode = '\x1B[31m';
-        break; // Red
-      case Level.fatal:
-        colorCode = '\x1B[35m';
-        break; // Magenta
-      default:
-        colorCode = '';
-    }
-
-    return '$colorCode${_getLevelTag(level)}$reset';
-  }
-
-  /// Tag symbol for log level
-  String _getLevelTag(Level level) {
-    switch (level) {
-      case Level.trace:
-        return '[·]';
-      case Level.debug:
-        return '[*]';
-      case Level.info:
-        return '[i]';
-      case Level.warning:
-        return '[!]';
-      case Level.error:
-        return '[×]';
-      case Level.fatal:
-        return '[‼]';
-      default:
-        return '[-]';
-    }
-  }
-
-  String _getLevelName(Level level) {
-    return level.name.toUpperCase().padRight(7);
+    final body = StringBuffer(message);
+    if (event.error != null) body.write('\n异常: ${event.error}');
+    final stack =
+        event.stackTrace ??
+        (event.error == null
+            ? null
+            : StackTrace.fromString(
+                StackTrace.current
+                    .toString()
+                    .split('\n')
+                    .where(
+                      (line) =>
+                          !line.contains('package:logger/') &&
+                          !line.contains('kikoenai_log.dart'),
+                    )
+                    .take(8)
+                    .join('\n'),
+              ));
+    if (stack != null) body.write('\n堆栈:\n$stack');
+    final lines = redactLogText(
+      body.toString(),
+    ).replaceAll('\r\n', '\n').split('\n');
+    return [
+      '[${event.time.toIso8601String()}] '
+          '[${event.level.name.toUpperCase().padRight(7)}] [$tag] ${lines.first}',
+      ...lines.skip(1).map((line) => '  │ $line'),
+    ];
   }
 }
 
 class KikoenaiLogOutput extends LogOutput {
   static final Lock _logLock = Lock();
-  static String? _logFilePath;
-
-  static Future<String> _getLogFilePath() async {
-    if (_logFilePath != null) return _logFilePath!;
-
-    final dir = (await getApplicationSupportDirectory()).path;
-    final logDir = p.join(dir, "logs");
-    final directory = Directory(logDir);
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
-    // Renamed log file to match the new class name
-    _logFilePath = p.join(logDir, "kikoenai_logs.log");
-    return _logFilePath!;
-  }
+  static final List<String> _pending = [];
+  static bool _scheduled = false;
+  static String? _lastWriteError;
 
   @override
   void output(OutputEvent event) {
-    for (var line in event.lines) {
+    for (final line in event.lines) {
+      // The only console sink. Calling the logger here would recurse.
+      // ignore: avoid_print
       print(line);
     }
-
-    // Write to file if: warning/error/fatal OR forceLog is enabled
-    final forceLog = Zone.current[_forceLogKey] as bool? ?? false;
-    if (event.level.index >= Level.warning.index || forceLog) {
-      _writeToFile(event);
+    final text = '${event.lines.join('\n')}\n\n';
+    final sink = Zone.current[_sinkKey] as void Function(String)?;
+    if (sink != null) {
+      sink(text);
+    } else {
+      acceptForwarded(text);
     }
   }
 
-  void _writeToFile(OutputEvent event) {
-    _logLock.synchronized(() async {
-      try {
-        final filePath = await _getLogFilePath();
-        final file = File(filePath);
+  /// Background tasks forward formatted events to the main isolate so they do
+  /// not invoke platform channels or race the main isolate's file writes.
+  static T runWithSink<T>(void Function(String) sink, T Function() action) =>
+      runZoned(() {
+        KikoenaiLogger.initialize();
+        return action();
+      }, zoneValues: {_sinkKey: sink});
 
-        final timestamp = DateTime.now().toString();
+  static void acceptForwarded(String text) {
+    _pending.add(text);
+    _scheduleFlush();
+  }
 
-        final buffer = StringBuffer();
-        buffer.writeln('[$timestamp]');
-        for (var line in event.lines) {
-          final cleanLine = _removeAnsiCodes(line);
-          buffer.writeln(cleanLine);
+  static Future<KikoenaiLogCapture<T>> capture<T>(
+    FutureOr<T> Function() action,
+  ) async {
+    final logs = <String>[];
+    try {
+      final value = await runWithSink(logs.add, action);
+      return KikoenaiLogCapture<T>._(value, logs, null, null);
+    } catch (error, stack) {
+      return KikoenaiLogCapture<T>._(null, logs, error, stack);
+    }
+  }
+
+  static void _scheduleFlush() {
+    if (!_scheduled) {
+      _scheduled = true;
+      scheduleMicrotask(() async {
+        var success = false;
+        try {
+          await flush();
+          success = true;
+        } catch (error) {
+          // File output must never interrupt playback, storage or startup.
+          final reason = '$error'.split('\n').first;
+          if (_lastWriteError != reason) {
+            _lastWriteError = reason;
+            // ignore: avoid_print
+            print('[KikoenaiLogger] 写入日志失败: $reason');
+          }
+          // Bound retry memory when storage is unavailable; existing files are
+          // never rotated or removed automatically.
+          if (_pending.length > 2000) {
+            _pending.removeRange(0, _pending.length - 2000);
+          }
+        } finally {
+          _scheduled = false;
+          if (success && _pending.isNotEmpty) _scheduleFlush();
         }
-        buffer.writeln();
-
-        await file.writeAsString(
-          buffer.toString(),
-          mode: FileMode.writeOnlyAppend,
-        );
-      } catch (e) {
-        print('Failed to write log to file: $e');
-      }
-    });
+      });
+    }
   }
 
-  /// Remove ANSI escape codes from string to ensure clean log files
-  String _removeAnsiCodes(String text) {
-    return text.replaceAll(RegExp(r'\x1B\[[0-9;]*m'), '');
-  }
+  static Future<void> flush() => _logLock.synchronized(() async {
+    while (_pending.isNotEmpty) {
+      final count = _pending.length;
+      final batch = _pending.take(count).join();
+      final file = await getLogsPath();
+      await file.writeAsString(batch, mode: FileMode.writeOnlyAppend);
+      _pending.removeRange(0, count);
+      _lastWriteError = null;
+    }
+  });
 }
 
 class KikoenaiLogger {
-  KikoenaiLogger._internal() {
-    _logger = Logger(
-      filter: KikoenaiLogFilter(),
-      printer: KikoenaiLogPrinter(),
-      output: KikoenaiLogOutput(),
+  KikoenaiLogger._(this.tag);
+
+  static final Map<String, KikoenaiLogger> _instances = {};
+  factory KikoenaiLogger({String tag = 'App'}) {
+    initialize();
+    return _instances.putIfAbsent(tag, () => KikoenaiLogger._(tag));
+  }
+
+  static bool _initialized = false;
+
+  /// Local packages provide events through a callback. All formatting and file
+  /// access stay in this file; packages never depend back on the app.
+  static void initialize() {
+    if (_initialized) return;
+    _initialized = true;
+    PackageLog.bind((tag, event) {
+      runZoned(
+        () => _logger.log(
+          event.level,
+          event.message,
+          time: event.time,
+          error: event.error,
+          stackTrace: event.stackTrace,
+        ),
+        zoneValues: {_tagKey: tag},
+      );
+    });
+  }
+
+  final String tag;
+  static final Logger _logger = Logger(
+    filter: KikoenaiLogFilter(),
+    printer: KikoenaiLogPrinter(),
+    output: KikoenaiLogOutput(),
+  );
+
+  void _log(
+    Level level,
+    dynamic message,
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog,
+  ) {
+    runZoned(
+      () => _logger.log(level, message, error: error, stackTrace: stackTrace),
+      zoneValues: {_forceLogKey: forceLog, _tagKey: tag},
     );
   }
 
-  static final KikoenaiLogger _instance = KikoenaiLogger._internal();
-  factory KikoenaiLogger() {
-    return _instance;
-  }
-
-  late final Logger _logger;
-  void _log(void Function() logFn, bool forceLog) {
-    if (forceLog) {
-      runZoned(logFn, zoneValues: {_forceLogKey: true});
-    } else {
-      logFn();
-    }
-  }
-
-  /// Trace log - lowest level, very detailed information
-  void t(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.t(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
-
-  /// Debug log - detailed information for debugging
-  void d(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.d(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
-
-  /// Info log - informational messages
-  void i(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.i(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
-
-  /// Warning log - potentially harmful situations
-  void w(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.w(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
-
-  /// Error log - error events that might still allow the app to continue
-  void e(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.e(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
-
-  /// Fatal log - very severe error events that will presumably lead the app to abort
-  void f(dynamic message,
-      {Object? error, StackTrace? stackTrace, bool forceLog = false}) {
-    _log(() => _logger.f(message, error: error, stackTrace: stackTrace),
-        forceLog);
-  }
+  void t(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.trace, message, error, stackTrace, forceLog);
+  void d(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.debug, message, error, stackTrace, forceLog);
+  void i(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.info, message, error, stackTrace, forceLog);
+  void w(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.warning, message, error, stackTrace, forceLog);
+  void e(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.error, message, error, stackTrace, forceLog);
+  void f(
+    dynamic message, {
+    Object? error,
+    StackTrace? stackTrace,
+    bool forceLog = false,
+  }) => _log(Level.fatal, message, error, stackTrace, forceLog);
 }
 
 Future<File> getLogsPath() async {
-  final dir = (await getApplicationSupportDirectory()).path;
-  final logDir = p.join(dir, "logs");
-  // Updated filename
-  final filename = p.join(logDir, "kikoenai_logs.log");
-
-  final directory = Directory(logDir);
-  if (!await directory.exists()) {
-    await directory.create(recursive: true);
-  }
-
-  final file = File(filename);
-  if (!await file.exists()) {
-    // Updated Lock reference
-    await KikoenaiLogOutput._logLock.synchronized(() async {
-      if (!await file.exists()) {
-        await file.create();
-      }
-    });
-  }
+  final dir = await getApplicationSupportDirectory();
+  final directory = Directory(p.join(dir.path, 'logs'));
+  await directory.create(recursive: true);
+  // Keep the existing path so previous logs remain accessible.
+  final file = File(p.join(directory.path, 'kikoenai_logs.log'));
+  if (!await file.exists()) await file.create();
   return file;
 }
 
 Future<bool> clearLogs() async {
   try {
-    final file = await getLogsPath();
-    // Updated Lock reference
     await KikoenaiLogOutput._logLock.synchronized(() async {
+      final file = await getLogsPath();
+      final count = KikoenaiLogOutput._pending.length;
       await file.writeAsString('');
+      KikoenaiLogOutput._pending.removeRange(0, count);
     });
     return true;
-  } catch (e) {
-    print('Error clearing file: $e');
+  } catch (error) {
+    KikoenaiLogger(tag: 'Logger').e('清空日志失败', error: error);
     return false;
+  }
+}
+
+class KikoenaiLogRecord {
+  const KikoenaiLogRecord({
+    required this.text,
+    required this.message,
+    this.time,
+    this.level,
+    this.tag = '历史日志',
+  });
+
+  final String text;
+  final String message;
+  final DateTime? time;
+  final Level? level;
+  final String tag;
+
+  static final _ansi = RegExp(r'\x1B\[[0-9;]*m');
+  static final _header = RegExp(
+    r'^\[([^\]]+)\] \[([A-Z]+)\s*\] \[([^\]]*)\] (.*)$',
+  );
+  static final _legacyHeader = RegExp(r'^\[(\d{4}-\d\d-\d\d[^\]]*)\]$');
+
+  /// Supports both the new records and the previous PrettyPrinter file format.
+  static List<KikoenaiLogRecord> parse(String content) {
+    final result = <KikoenaiLogRecord>[];
+    final lines = <String>[];
+    void finish() {
+      if (lines.isEmpty) return;
+      final text = lines.join('\n').trimRight();
+      lines.clear();
+      if (text.trim().isEmpty) return;
+      final parts = text.split('\n');
+      final header = _header.firstMatch(parts.first);
+      final legacy = _legacyHeader.firstMatch(parts.first);
+      final levelName =
+          header?.group(2) ??
+          RegExp(
+            r'\b(TRACE|DEBUG|INFO|WARNING|ERROR|FATAL)\b',
+          ).firstMatch(text)?.group(1);
+      final level = Level.values.where(
+        (l) => l.name.toUpperCase() == levelName,
+      );
+      result.add(
+        KikoenaiLogRecord(
+          text: text,
+          time: DateTime.tryParse(header?.group(1) ?? legacy?.group(1) ?? ''),
+          level: level.isEmpty ? null : level.first,
+          tag: header?.group(3) ?? '历史日志',
+          message: header == null
+              ? text
+              : [
+                  header.group(4)!,
+                  ...parts
+                      .skip(1)
+                      .map(
+                        (line) =>
+                            line.startsWith('  │ ') ? line.substring(4) : line,
+                      ),
+                ].join('\n').trimRight(),
+        ),
+      );
+    }
+
+    for (final line in content.replaceAll(_ansi, '').split('\n')) {
+      if (_header.hasMatch(line) || _legacyHeader.hasMatch(line)) finish();
+      lines.add(line);
+    }
+    finish();
+    return result;
+  }
+}
+
+class KikoenaiLogSnapshot {
+  const KikoenaiLogSnapshot(this.records, this.fileBytes, this.truncated);
+  final List<KikoenaiLogRecord> records;
+  final int fileBytes;
+  final bool truncated;
+}
+
+/// Read a bounded tail for the viewer without deleting any log history.
+Future<KikoenaiLogSnapshot> readLogSnapshot({
+  int maxBytes = 2 * 1024 * 1024,
+  int maxRecords = 2000,
+}) async {
+  await KikoenaiLogOutput.flush();
+  return KikoenaiLogOutput._logLock.synchronized(() async {
+    final file = await getLogsPath();
+    if (!await file.exists()) return const KikoenaiLogSnapshot([], 0, false);
+    final handle = await file.open();
+    try {
+      final length = await handle.length();
+      final offset = length > maxBytes ? length - maxBytes : 0;
+      await handle.setPosition(offset);
+      var content = utf8.decode(
+        await handle.read(length - offset),
+        allowMalformed: true,
+      );
+      if (offset > 0) {
+        // The first event may start before the byte boundary; omit that fragment.
+        final nextHeader = RegExp(
+          r'^\[\d{4}-\d\d-\d\d',
+          multiLine: true,
+        ).firstMatch(content);
+        content = nextHeader == null ? '' : content.substring(nextHeader.start);
+      }
+      final records = KikoenaiLogRecord.parse(content);
+      return KikoenaiLogSnapshot(
+        records.length > maxRecords
+            ? records.sublist(records.length - maxRecords)
+            : records,
+        length,
+        offset > 0 || records.length > maxRecords,
+      );
+    } finally {
+      await handle.close();
+    }
+  });
+}
+
+Future<String> readAllLogs() async {
+  await KikoenaiLogOutput.flush();
+  return KikoenaiLogOutput._logLock.synchronized(() async {
+    final file = await getLogsPath();
+    return await file.exists() ? file.readAsString() : '';
+  });
+}
+
+/// Avoid persisting credentials from HTTP diagnostics. Only the logged text is
+/// changed; requests, stored sessions and permission flows remain untouched.
+String redactLogText(String text) {
+  var result = text.replaceAllMapped(
+    RegExp(r'\b(Bearer|Basic)\s+[A-Za-z0-9+/=_\.\-]+', caseSensitive: false),
+    (match) => '${match[1]} <redacted>',
+  );
+  result = result.replaceAllMapped(
+    RegExp(
+      r'([?&](?:access_token|refresh_token|token|password|passwd|api_key|apikey|sign|signature)=)[^&\s]*',
+      caseSensitive: false,
+    ),
+    (match) => '${match[1]}<redacted>',
+  );
+  result = result.replaceAllMapped(
+    RegExp(
+      r'''((?:["']?)(?:authorization|cookie|set-cookie|password|passwd|access_token|refresh_token|token|api_key|apikey)(?:["']?)\s*:\s*)(?:"[^"]*"|'[^']*'|[^\r\n,}]+)''',
+      caseSensitive: false,
+    ),
+    (match) => '${match[1]}<redacted>',
+  );
+  return result.replaceAllMapped(
+    RegExp(r'(https?://)[^\s/@:]+:[^\s/@]+@', caseSensitive: false),
+    (match) => '${match[1]}<redacted>@',
+  );
+}
+
+/// File access boundary used by the viewer and replaceable in widget tests.
+class KikoenaiLogStore {
+  const KikoenaiLogStore();
+  Future<KikoenaiLogSnapshot> readSnapshot() => readLogSnapshot();
+  Future<String> readAll() => readAllLogs();
+  Future<bool> clear() => clearLogs();
+}
+
+/// Transferable result of an isolated task, including logs emitted before an
+/// exception. The caller enqueues the logs before accessing [value].
+class KikoenaiLogCapture<T> {
+  const KikoenaiLogCapture._(this._value, this.logs, this._error, this._stack);
+  final T? _value;
+  final List<String> logs;
+  final Object? _error;
+  final StackTrace? _stack;
+
+  T get value {
+    if (_error != null) Error.throwWithStackTrace(_error, _stack!);
+    return _value as T;
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:hive_ce/hive.dart';
 
 import '../../../../core/service/file/file_scanner_service.dart';
@@ -25,7 +25,7 @@ class ScannerPathRepository {
   Future<void> saveActiveTarget(ScanTarget target) async {
     await scanTargetBox.put(activeKey, target);
 
-    debugPrint(
+    KikoenaiLogger(tag: 'ScannerPathRepository').d(
       '[ScannerPathRepository] Saved active target for ${target.scanMode.name}: ${target.path}',
     );
   }
@@ -46,7 +46,7 @@ class ScannerPathRepository {
   Future<void> saveTarget(ScanTarget target) async {
     final key = _generateKey(target.path, target.scanMode);
     await scanTargetBox.put(key, target);
-    debugPrint(
+    KikoenaiLogger(tag: 'ScannerPathRepository').d(
       '[ScannerPathRepository] Saved target: ${target.path} for mode: ${target.scanMode.name}',
     );
   }
@@ -77,7 +77,7 @@ class ScannerPathRepository {
     if (scanTargetBox.containsKey(key)) {
       await FileScannerStorage().clearByRootPath(mode, path);
       await scanTargetBox.delete(key);
-      debugPrint(
+      KikoenaiLogger(tag: 'ScannerPathRepository').d(
         '[ScannerPathRepository] Deleted target and cleared caches for: $path',
       );
     }
@@ -85,7 +85,7 @@ class ScannerPathRepository {
 
   Future<void> clearAllTargets() async {
     await scanTargetBox.clear();
-    debugPrint('[ScannerPathRepository] Cleared absolutely all scan targets.');
+    KikoenaiLogger(tag: 'ScannerPathRepository').d('[ScannerPathRepository] Cleared absolutely all scan targets.');
   }
 
   /// 获取单个特定的扫描目标

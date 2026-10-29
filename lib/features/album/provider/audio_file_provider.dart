@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
@@ -36,7 +36,7 @@ final trackFileNodeIndexProvider =
   ref,
   contentId,
 ) async {
-  debugPrint('trackFileNodeIndexProvider build: ${contentId.storageKey}');
+  KikoenaiLogger(tag: 'AudioFileProvider').d('trackFileNodeIndexProvider build: ${contentId.storageKey}');
   final api = ref.watch(siteApiByIdProvider(contentId.siteId));
   if (!api.supports(SiteFeature.tracks)) {
     throw UnsupportedError('站点 ${contentId.siteId} 不支持作品音轨');

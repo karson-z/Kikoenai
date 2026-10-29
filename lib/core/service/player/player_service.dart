@@ -34,7 +34,7 @@ class PlayerService {
               waitForInitialization: false,
             ) !=
             proxy) {
-          KikoenaiLogger().e('[Proxy] mpv 未接受 HTTP 代理设置');
+          KikoenaiLogger(tag: 'PlayerService').e('[Proxy] mpv 未接受 HTTP 代理设置');
         }
       });
     }
@@ -78,13 +78,13 @@ class PlayerService {
     try {
       if (enable) {
         await player.setVideoTrack(VideoTrack.auto());
-        KikoenaiLogger().d("视频画面解码已开启");
+        KikoenaiLogger(tag: 'PlayerService').d("视频画面解码已开启");
       } else {
         await player.setVideoTrack(VideoTrack.no());
-        KikoenaiLogger().d("视频画面解码已关闭，进入纯音频模式");
+        KikoenaiLogger(tag: 'PlayerService').d("视频画面解码已关闭，进入纯音频模式");
       }
     } catch (e) {
-      KikoenaiLogger().e("切换视频轨道失败: $e");
+      KikoenaiLogger(tag: 'PlayerService').e("切换视频轨道失败: $e");
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
@@ -112,7 +113,7 @@ class AndroidSubtitleManager implements SubtitleManager {
     dynamic event,
     StreamController<Map<String, dynamic>> controller,
   ) {
-    debugPrint('IPC Receiver (${endpoint.name}): $event');
+    KikoenaiLogger(tag: 'OverlyLyricsManager').d('IPC Receiver (${endpoint.name}): $event');
     if (event is! Map) return;
 
     controller.add({
@@ -191,7 +192,7 @@ class AndroidSubtitleManager implements SubtitleManager {
   @override
   Future<void> sendToOverlay(String action, [dynamic payload]) async {
     _requireEndpoint(SubtitleEndpoint.main, 'sendToOverlay');
-    debugPrint('IPC Sender (Main -> Overlay): $action');
+    KikoenaiLogger(tag: 'OverlyLyricsManager').d('IPC Sender (Main -> Overlay): $action');
     await FlutterOverlayWindow.sendToOverlay({
       'action': action,
       'payload': payload,
@@ -201,7 +202,7 @@ class AndroidSubtitleManager implements SubtitleManager {
   @override
   Future<void> sendToMain(String action, [dynamic payload]) async {
     _requireEndpoint(SubtitleEndpoint.overlay, 'sendToMain');
-    debugPrint('IPC Sender (Overlay -> Main): $action');
+    KikoenaiLogger(tag: 'OverlyLyricsManager').d('IPC Sender (Overlay -> Main): $action');
     await FlutterOverlayWindow.sendToMain({
       'action': action,
       'payload': payload,
@@ -223,7 +224,7 @@ class AndroidSubtitleManager implements SubtitleManager {
       final position = await FlutterOverlayWindow.getOverlayPosition();
       return Offset(position.x.toDouble(), position.y.toDouble());
     } catch (error) {
-      debugPrint('IPC Exception: 获取Android悬浮窗坐标失败 $error');
+      KikoenaiLogger(tag: 'OverlyLyricsManager').w('IPC Exception: 获取Android悬浮窗坐标失败 $error');
       return Offset.zero;
     }
   }

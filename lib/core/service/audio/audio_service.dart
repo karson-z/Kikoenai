@@ -65,7 +65,7 @@ class AudioServiceSingleton {
   }
 
   static Future<void> init() async {
-    debugPrint("AudioServiceSingleton.init()");
+    KikoenaiLogger(tag: 'AudioService').d("AudioServiceSingleton.init()");
     _instance = await AudioService.init(
       builder: () => MyAudioHandler(PlayerService.instance.player),
       config: const AudioServiceConfig(
@@ -78,7 +78,7 @@ class AudioServiceSingleton {
     );
     // configure 握手（含原生 MediaBrowser 绑定）到这里才算完成；
     // 之后挂上诊断：吞错的平台异常流 + 注册状态基线。
-    KikoenaiLogger().i(
+    KikoenaiLogger(tag: 'AudioService').i(
       '【媒体中心】AudioService.init 完成，原生服务已连接',
       forceLog: true,
     );
@@ -181,7 +181,7 @@ class MyAudioHandler extends BaseAudioHandler {
         await nativePlayer.setProperty('cache-on-disk', 'no');
         await nativePlayer.setProperty("demuxer-lavf-o", "fflags=+fastseek");
         final cacheDir = await OtherUtil.getPlayerTempPath();
-        KikoenaiLogger().i("当前缓存路径:$cacheDir");
+        KikoenaiLogger(tag: 'AudioService').i("当前缓存路径:$cacheDir");
         await nativePlayer.setProperty("demuxer-cache-dir", cacheDir);
         await nativePlayer.setProperty("af", "scaletempo2=max-speed=8");
 
@@ -199,9 +199,9 @@ class MyAudioHandler extends BaseAudioHandler {
               : AppConstants.defaultAoMode;
           await nativePlayer.setProperty("ao", safeAoMode);
         }
-        KikoenaiLogger().d("底层 mpv 参数配置注入成功");
+        KikoenaiLogger(tag: 'AudioService').d("底层 mpv 参数配置注入成功");
       } catch (e) {
-        KikoenaiLogger().e("底层 mpv 参数配置注入失败: $e");
+        KikoenaiLogger(tag: 'AudioService').e("底层 mpv 参数配置注入失败: $e");
       }
     }
   }
@@ -210,7 +210,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _audioSession = await AudioSession.instance;
     await _audioSession.configure(const AudioSessionConfiguration.music());
     _audioSessionReady = true;
-    KikoenaiLogger().d('【媒体中心】AudioSession 初始化完成', forceLog: true);
+    KikoenaiLogger(tag: 'AudioService').d('【媒体中心】AudioSession 初始化完成', forceLog: true);
 
     _audioSession.interruptionEventStream.listen((event) {
       if (isIgnoreAudioFocus) return;
@@ -261,11 +261,11 @@ class MyAudioHandler extends BaseAudioHandler {
       final logMessage =
           "[mpv] [${event.level}] ${event.prefix}: ${event.text}";
       if (event.level.contains('error')) {
-        KikoenaiLogger().e(logMessage);
+        KikoenaiLogger(tag: 'AudioService').e(logMessage);
       } else if (event.level.contains('warn')) {
-        KikoenaiLogger().w(logMessage);
+        KikoenaiLogger(tag: 'AudioService').w(logMessage);
       } else {
-        KikoenaiLogger().i(logMessage);
+        KikoenaiLogger(tag: 'AudioService').i(logMessage);
       }
     });
   }
@@ -275,7 +275,7 @@ class MyAudioHandler extends BaseAudioHandler {
     if (!isIgnoreAudioFocus) {
       final success = await _audioSession.setActive(true);
       if (!success) {
-        KikoenaiLogger().w("无法获取音频焦点，播放可能会被系统静音或中断");
+        KikoenaiLogger(tag: 'AudioService').w("无法获取音频焦点，播放可能会被系统静音或中断");
       }
     }
     await _player.play();
@@ -314,7 +314,7 @@ class MyAudioHandler extends BaseAudioHandler {
           // _setupAudioSession 是不等待的 async（AudioSession.instance 走平台
           // 通道往返）。启动后立刻点播放会撞上这个窗口，此时访问
           // _audioSession 会抛 LateInitializationError 并被上层静默吞掉。
-          KikoenaiLogger().w(
+          KikoenaiLogger(tag: 'AudioService').w(
             '【媒体中心】AudioSession 尚未就绪（启动竞态），本次跳过焦点申请',
             forceLog: true,
           );
@@ -322,7 +322,7 @@ class MyAudioHandler extends BaseAudioHandler {
           final success = await _audioSession.setActive(true);
           if (!success) {
             autoPlay = false;
-            KikoenaiLogger().w(
+            KikoenaiLogger(tag: 'AudioService').w(
               '【媒体中心】获取音频焦点失败 → 降级为只加载不播放，'
               '不会产生 playing 边沿，媒体中心不会注册',
               forceLog: true,
@@ -332,12 +332,12 @@ class MyAudioHandler extends BaseAudioHandler {
       }
 
       try {
-        KikoenaiLogger().i(
+        KikoenaiLogger(tag: 'AudioService').i(
           '【媒体中心】open 开始: ${item.title} (autoPlay=$autoPlay)',
           forceLog: true,
         );
         await _player.open(media, play: autoPlay);
-        KikoenaiLogger().d(
+        KikoenaiLogger(tag: 'AudioService').d(
           '【媒体中心】open 完成，等待 mpv playing 流边沿',
           forceLog: true,
         );
@@ -401,7 +401,7 @@ class MyAudioHandler extends BaseAudioHandler {
         autoPlay: autoPlay,
       );
     } catch (e, stackTrace) {
-      KikoenaiLogger().e(
+      KikoenaiLogger(tag: 'AudioService').e(
         '【媒体中心】加载播放列表失败（播放与注册链路中断）',
         error: e,
         stackTrace: stackTrace,
@@ -458,11 +458,11 @@ class MyAudioHandler extends BaseAudioHandler {
 
       if (_currentIndex != index || _playlist[index].id != item.id) return;
       await _player.open(media, play: wasPlaying);
-      KikoenaiLogger().i(
+      KikoenaiLogger(tag: 'AudioService').i(
         'WebDAV 播放认证已更新，当前媒体从 ${position.inMilliseconds} ms 重新加载',
       );
     } catch (error, stackTrace) {
-      KikoenaiLogger().e(
+      KikoenaiLogger(tag: 'AudioService').e(
         '更新当前媒体的 WebDAV 播放认证失败',
         error: error,
         stackTrace: stackTrace,
@@ -590,7 +590,7 @@ class MyAudioHandler extends BaseAudioHandler {
     _player.stream.playing.listen((playing) {
       // 原生层凭这个 false→true 边沿触发 startForeground +
       // setActive(true)，即“注册媒体中心”的唯一入口。
-      KikoenaiLogger().i(
+      KikoenaiLogger(tag: 'AudioService').i(
         '【媒体中心】mpv playing 流发出: $playing → 已广播给原生层'
         '${playing ? '（触发注册）' : ''}',
         forceLog: true,

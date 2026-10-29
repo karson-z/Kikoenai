@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
 import '../../../service/cache/cache_service.dart';
@@ -89,7 +90,7 @@ Future<List<T>> _fetchAndCache<T>({
     }
   } catch (e) {
     // 缓存读取出错不应阻断流程，打印日志后继续走 API
-    print('Cache read failed: $e');
+    KikoenaiLogger(tag: 'SiteOptionProviders').w('Cache read failed: $e');
   }
 
   // 2. 缓存未命中，请求 API（直接返回强类型 List<T>，无需 map）
@@ -101,7 +102,7 @@ Future<List<T>> _fetchAndCache<T>({
   try {
     await saveToCache(list.map(toJson).toList());
   } catch (e) {
-    print('Cache save failed: $e');
+    KikoenaiLogger(tag: 'SiteOptionProviders').w('Cache save failed: $e');
   }
 
   return list;

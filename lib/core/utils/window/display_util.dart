@@ -33,7 +33,7 @@ class DisplayUtils {
       // 当前视频比例是否是9：16 且rotate 90° 是就是竖屏不是就是横屏
       isPortraitUp ? await setVertical() : await setLandscape();
     } catch (e) {
-      KikoenaiLogger().e('DisplayUtils: failed to enter full screen. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').e('DisplayUtils: failed to enter full screen. Error: $e');
     }
   }
 
@@ -53,7 +53,7 @@ class DisplayUtils {
         await restoreOrientations(previous ?? preferredOrientationsBeforeLock);
       }
     } catch (e) {
-      debugPrint('DisplayUtils: failed to exit full screen. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').w('DisplayUtils: failed to exit full screen. Error: $e');
     }
   }
 
@@ -93,7 +93,7 @@ class DisplayUtils {
         await SystemChrome.setPreferredOrientations(orientations);
       }
     } catch (e) {
-      debugPrint('DisplayUtils: failed to restore orientation. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').w('DisplayUtils: failed to restore orientation. Error: $e');
     }
   }
 
@@ -112,7 +112,7 @@ class DisplayUtils {
         ]);
       }
     } catch (e) {
-      debugPrint('DisplayUtils: failed to set landscape. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').w('DisplayUtils: failed to set landscape. Error: $e');
     }
   }
 
@@ -125,7 +125,7 @@ class DisplayUtils {
         ]);
       }
     } catch (e) {
-      debugPrint('DisplayUtils: failed to set vertical. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').w('DisplayUtils: failed to set vertical. Error: $e');
     }
   }
 
@@ -136,7 +136,7 @@ class DisplayUtils {
         await SystemChrome.setPreferredOrientations([]);
       }
     } catch (e) {
-      debugPrint('DisplayUtils: failed to unlock rotation. Error: $e');
+      KikoenaiLogger(tag: 'DisplayUtil').w('DisplayUtils: failed to unlock rotation. Error: $e');
     }
   }
 }

@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:developer';
 
+import 'package:kikoenai_core/core/utils/log/package_log.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/src/models/overlay_position.dart';
 import 'package:flutter_overlay_window/src/overlay_config.dart';
@@ -114,7 +114,7 @@ class FlutterOverlayWindow {
     try {
       return await _channel.invokeMethod<bool>('checkPermission') ?? false;
     } on PlatformException catch (error) {
-      log("$error");
+      const PackageLog(tag: 'OverlayWindow').w("$error");
       return Future.value(false);
     }
   }
@@ -125,7 +125,7 @@ class FlutterOverlayWindow {
     try {
       return await _channel.invokeMethod<bool?>('requestPermission');
     } on PlatformException catch (error) {
-      log("Error requestPermession: $error");
+      const PackageLog(tag: 'OverlayWindow').w("Error requestPermession: $error");
       rethrow;
     }
   }

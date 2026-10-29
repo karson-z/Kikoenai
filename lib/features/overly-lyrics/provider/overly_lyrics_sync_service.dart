@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_lyric/core/lyric_model.dart';
@@ -89,7 +89,7 @@ class OverlayLyricSyncService {
                 // 3. 核心修复：数据准备好了，确保窗口打开
                 ref.read(lyricsControllerProvider.notifier).show();
               } catch (e) {
-                debugPrint('字幕解析异常: $e');
+                KikoenaiLogger(tag: 'OverlyLyricsSyncService').w('字幕解析异常: $e');
                 _handleNoLyrics();
               }
             } else {
@@ -99,7 +99,7 @@ class OverlayLyricSyncService {
           },
           loading: () {},
           error: (err, stack) {
-            debugPrint('歌词 Provider 错误: $err');
+            KikoenaiLogger(tag: 'OverlyLyricsSyncService').w('歌词 Provider 错误: $err');
             _handleNoLyrics();
           },
         );

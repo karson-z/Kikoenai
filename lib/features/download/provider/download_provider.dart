@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:background_downloader/background_downloader.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/service/download/download_service.dart';
 
@@ -81,7 +81,7 @@ class AllTasksNotifier extends AsyncNotifier<List<TaskRecord>> {
       }
     } catch (e) {
       // 如果 Service 报错了，这里捕获异常，UI 列表不变化
-      debugPrint("Notifier 删除组失败: $e");
+      KikoenaiLogger(tag: 'DownloadProvider').w("Notifier 删除组失败: $e");
     }
   }
 

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 
@@ -86,7 +86,7 @@ class FileScannerStorage {
     }
 
     await _box.putAll(map);
-    debugPrint(
+    KikoenaiLogger(tag: 'FileScannerStorage').d(
       '[FileScannerStorage] (${mode.name}) saved ${map.length} flat nodes.',
     );
   }
@@ -94,7 +94,7 @@ class FileScannerStorage {
   Future<void> deleteNodes(ScanMode mode, List<String> nodeKeys) async {
     if (nodeKeys.isEmpty) return;
     await _box.deleteAll(nodeKeys.map((key) => _keyFor(mode, key)));
-    debugPrint(
+    KikoenaiLogger(tag: 'FileScannerStorage').d(
       '[FileScannerStorage] (${mode.name}) deleted ${nodeKeys.length} stale nodes.',
     );
   }
@@ -129,7 +129,7 @@ class FileScannerStorage {
         .toList();
 
     await _box.deleteAll(keys);
-    debugPrint(
+    KikoenaiLogger(tag: 'FileScannerStorage').d(
       '[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes under $rootPath.',
     );
   }
@@ -137,14 +137,14 @@ class FileScannerStorage {
   Future<void> clearByMode(ScanMode mode) async {
     final keys = _box.keys.where((key) => _isModeKey(mode, key)).toList();
     await _box.deleteAll(keys);
-    debugPrint(
+    KikoenaiLogger(tag: 'FileScannerStorage').d(
       '[FileScannerStorage] (${mode.name}) cleared ${keys.length} nodes.',
     );
   }
 
   Future<void> clearAbsolutelyAll() async {
     await _box.clear();
-    debugPrint('[FileScannerStorage] cleared all scanner nodes.');
+    KikoenaiLogger(tag: 'FileScannerStorage').d('[FileScannerStorage] cleared all scanner nodes.');
   }
 
   /// 按 RJ 编号读取作品的本地文件索引。

@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/theme/app_layout_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +37,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _performSearch(String val) {
     if (val.trim().isEmpty) return;
 
-    debugPrint('提交关键字: $val');
+    KikoenaiLogger(tag: 'SearchPage').d('提交关键字: $val');
 
     ref.read(searchHistoryProvider.notifier).add(val);
 

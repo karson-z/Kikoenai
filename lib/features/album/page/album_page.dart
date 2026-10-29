@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +27,7 @@ class AlbumPage extends ConsumerWidget {
               preferredSize: Size.fromHeight(layout.searchToolbarHeight),
               child: MobileSearchAppBar(
                 onSearchTap: () {
-                  debugPrint('跳转到搜索页面');
+                  KikoenaiLogger(tag: 'AlbumPage').d('跳转到搜索页面');
                   context.push(AppRoutes.search);
                 },
               ),

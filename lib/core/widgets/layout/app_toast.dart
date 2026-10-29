@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 
 import '../common/kikoenai_dialog.dart';
@@ -23,7 +24,7 @@ class KikoenaiToast {
     final ctx = context ?? KikoenaiDialog.observer.scaffoldContext;
 
     if (ctx == null || !ctx.mounted) {
-      debugPrint('KikoenaiToast Error: No valid Scaffold context found to show toast.');
+      KikoenaiLogger(tag: 'AppToast').w('KikoenaiToast Error: No valid Scaffold context found to show toast.');
       return;
     }
 

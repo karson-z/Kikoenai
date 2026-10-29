@@ -42,7 +42,7 @@ class AppUpdateNotifier extends AsyncNotifier<void> {
       final stack = state.stackTrace;
 
       // 记录日志
-      KikoenaiLogger().e('Update: check update failed', error: error, stackTrace: stack);
+      KikoenaiLogger(tag: 'AboutProvider').e('Update: check update failed', error: error, stackTrace: stack);
 
       // 如果是手动检查，需要给用户反馈
       if (isManual) {

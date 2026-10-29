@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai/core/storage/hive_key.dart';
 import 'package:kikoenai/core/storage/hive_storage.dart';
 import 'package:kikoenai_core/core/model/local_media/file_scanner_state.dart';
@@ -173,7 +173,7 @@ class LocalMediaSyncScheduler {
 
   Future<void> _runJob(LocalMediaSyncJob job) async {
     try {
-      debugPrint(
+      KikoenaiLogger(tag: 'LocalMediaSyncScheduler').d(
         '[LocalMediaSyncScheduler] start ${job.target.scanMode.name}: ${job.target.path}',
       );
 
@@ -184,11 +184,11 @@ class LocalMediaSyncScheduler {
         DateTime.now().millisecondsSinceEpoch,
       );
 
-      debugPrint(
+      KikoenaiLogger(tag: 'LocalMediaSyncScheduler').d(
         '[LocalMediaSyncScheduler] done ${job.target.scanMode.name}: ${job.target.path}',
       );
     } catch (e, stackTrace) {
-      debugPrint(
+      KikoenaiLogger(tag: 'LocalMediaSyncScheduler').w(
         '[LocalMediaSyncScheduler] failed ${job.target.scanMode.name}: ${job.target.path}\n$e\n$stackTrace',
       );
     } finally {

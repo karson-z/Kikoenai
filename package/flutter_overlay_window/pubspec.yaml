@@ -11,6 +11,8 @@ environment:
 resolution: workspace
 
 dependencies:
+  kikoenai_core:
+    path: ../../kikoenai_core
   flutter:
     sdk: flutter
 

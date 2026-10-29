@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:hive_ce_flutter/adapters.dart';
 import 'package:kikoenai_core/kikoenai_core.dart';
 import 'package:kikoenai_sites/api/server_info.dart';
@@ -127,7 +127,7 @@ class AppStorage {
       }
       await settingsBox.put(StorageKeys.historySessionMigrated, true);
     } catch (e) {
-      debugPrint('历史记录会话化迁移失败，将在下次启动重试: $e');
+      KikoenaiLogger(tag: 'HiveStorage').w('历史记录会话化迁移失败，将在下次启动重试: $e');
     }
   }
 
@@ -140,7 +140,7 @@ class AppStorage {
       }
       return await Hive.openBox<T>(name);
     } catch (e) {
-      debugPrint("Box $name 损坏或模型不匹配，正在重建... \n原因: $e");
+      KikoenaiLogger(tag: 'HiveStorage').w("Box $name 损坏或模型不匹配，正在重建... \n原因: $e");
 
       // 1. 尝试强行关闭处于“半打开”状态的 Box，释放文件句柄
       if (Hive.isBoxOpen(name)) {
@@ -155,9 +155,9 @@ class AppStorage {
       // 3. 再次尝试从磁盘删除
       try {
         await Hive.deleteBoxFromDisk(name);
-        debugPrint("Box $name 旧文件清理成功。");
+        KikoenaiLogger(tag: 'HiveStorage').d("Box $name 旧文件清理成功。");
       } catch (deleteError) {
-        debugPrint("Box清理失败，请手动前往提示的 C 盘路径删除文件。错误: $deleteError");
+        KikoenaiLogger(tag: 'HiveStorage').w("Box清理失败，请手动前往提示的 C 盘路径删除文件。错误: $deleteError");
       }
 
       // 4. 重新创建全新的 Box

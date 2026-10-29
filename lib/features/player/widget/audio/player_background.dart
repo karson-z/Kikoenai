@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/widgets/image_box/simple_extended_image.dart';
@@ -94,10 +95,14 @@ class BlurredImageService {
         resizeWidth: _kResizeWidth,
         quality: _kQuality,
       );
-      final Uint8List? blurredBytes = await compute(
+      final captured = await compute(
         _processBlurInIsolate,
         params,
       );
+      for (final text in captured.logs) {
+        KikoenaiLogOutput.acceptForwarded(text);
+      }
+      final blurredBytes = captured.value;
 
       if (blurredBytes != null) {
         final File savedFile = await BlurCacheManager.instance.putFile(
@@ -108,7 +113,7 @@ class BlurredImageService {
         return savedFile;
       }
     } catch (e) {
-      debugPrint('Error generating blurred image: $e');
+      KikoenaiLogger(tag: 'PlayerBackground').w('Error generating blurred image: $e');
     }
 
     return null;
@@ -156,7 +161,7 @@ class BlurredImageService {
       }
     }
     if (lastError != null) {
-      debugPrint(
+      KikoenaiLogger(tag: 'PlayerBackground').w(
         'BlurredImageService: 原图下载失败（重试 $_kMaxFetchAttempts 次）：$lastError',
       );
     }
@@ -168,18 +173,20 @@ class BlurredImageService {
     return DateTime.now().microsecondsSinceEpoch % 1000 / 1000.0;
   }
 
-  static Future<Uint8List?> _processBlurInIsolate(
+  static Future<KikoenaiLogCapture<Uint8List?>> _processBlurInIsolate(
     BlurProcessParams params,
-  ) async {
+  ) => KikoenaiLogOutput.capture(() => _processBlur(params));
+
+  static Uint8List? _processBlur(BlurProcessParams params) {
     final totalStopwatch = Stopwatch()..start();
     final stepStopwatch = Stopwatch()..start();
 
     final img.Image? decodedImage = img.decodeImage(params.imageBytes);
     if (decodedImage == null) {
-      debugPrint('图片解码失败');
+      KikoenaiLogger(tag: 'PlayerBackground').w('图片解码失败');
       return null;
     }
-    debugPrint('1. 解码耗时: ${stepStopwatch.elapsedMilliseconds} ms');
+    KikoenaiLogger(tag: 'PlayerBackground').d('1. 解码耗时: ${stepStopwatch.elapsedMilliseconds} ms');
     stepStopwatch.reset();
 
     final int origWidth = decodedImage.width;
@@ -191,25 +198,25 @@ class BlurredImageService {
       decodedImage,
       width: safeResizeWidth,
     );
-    debugPrint('=> 缩放后尺寸: ${resizedImage.width} x ${resizedImage.height}');
-    debugPrint('2. 缩放耗时: ${stepStopwatch.elapsedMilliseconds} ms');
+    KikoenaiLogger(tag: 'PlayerBackground').d('=> 缩放后尺寸: ${resizedImage.width} x ${resizedImage.height}');
+    KikoenaiLogger(tag: 'PlayerBackground').d('2. 缩放耗时: ${stepStopwatch.elapsedMilliseconds} ms');
     stepStopwatch.reset();
 
     final img.Image blurredImage = img.gaussianBlur(
       resizedImage,
       radius: params.blurRadius,
     );
-    debugPrint('3. 模糊耗时: ${stepStopwatch.elapsedMilliseconds} ms');
+    KikoenaiLogger(tag: 'PlayerBackground').d('3. 模糊耗时: ${stepStopwatch.elapsedMilliseconds} ms');
     stepStopwatch.reset();
 
     final Uint8List resultBytes = img.encodeJpg(
       blurredImage,
       quality: params.quality,
     );
-    debugPrint('4. 编码耗时: ${stepStopwatch.elapsedMilliseconds} ms');
+    KikoenaiLogger(tag: 'PlayerBackground').d('4. 编码耗时: ${stepStopwatch.elapsedMilliseconds} ms');
 
     totalStopwatch.stop();
-    debugPrint('=> 总计耗时: ${totalStopwatch.elapsedMilliseconds} ms');
+    KikoenaiLogger(tag: 'PlayerBackground').d('=> 总计耗时: ${totalStopwatch.elapsedMilliseconds} ms');
     return resultBytes;
   }
 }

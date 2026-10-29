@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +37,7 @@ class _SleepTimerBottomSheetState extends ConsumerState<SleepTimerBottomSheet> {
             onConfirm: (Duration duration) {
               final controller = ref.read(sleepTimerProvider.notifier);
               controller.startTimer(duration);
-              print("自定义时间: $duration");
+              KikoenaiLogger(tag: 'PlayerSleepTimePicker').d("自定义时间: $duration");
               Navigator.pop(context);
             },
           )

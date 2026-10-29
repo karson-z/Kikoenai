@@ -73,7 +73,7 @@ class ProxyService {
       if (revision == _revision) _apply(config);
     } catch (error) {
       // A read failure does not mean the proxy has been disabled.
-      KikoenaiLogger().e('[Proxy] 读取系统代理失败，保留上次配置: $error');
+      KikoenaiLogger(tag: 'AutoProxyService').e('[Proxy] 读取系统代理失败，保留上次配置: $error');
     }
   }
 
@@ -101,7 +101,7 @@ class ProxyService {
     if (config == _current) return;
     _current = config;
     _changes.add(config);
-    KikoenaiLogger().i(
+    KikoenaiLogger(tag: 'AutoProxyService').i(
       _manualSettings.isActive ? '[Proxy] 手动代理配置已更新' : '[Proxy] 系统代理配置已更新',
     );
   }

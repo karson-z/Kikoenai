@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/enums/playlist_filter.dart';
 import 'package:kikoenai_sites/kikoenai_sites.dart';
@@ -59,7 +60,7 @@ class DefaultMarkTargetPlaylistNotifier extends AsyncNotifier<Playlist?> {
       );
       return playlist;
     } catch (e) {
-      print('获取默认标记列表失败: $e');
+      KikoenaiLogger(tag: 'SettingProvider').w('获取默认标记列表失败: $e');
       rethrow;
     }
   }

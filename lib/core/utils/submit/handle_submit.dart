@@ -1,3 +1,4 @@
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,7 +39,7 @@ class HandleSubmit {
     } catch (e) {
       // 7. 处理错误
       KikoenaiDialog.dismiss(); // 确保关闭 Loading
-      debugPrint("提交失败: $e");
+      KikoenaiLogger(tag: 'HandleSubmit').w("提交失败: $e");
       KikoenaiToast.error("提交失败:$e");
     }
   }

@@ -10,6 +10,7 @@ environment:
 resolution: workspace
 
 dependencies:
+  kikoenai_core: ^0.1.0
   flutter:
     sdk: flutter
   dio: ^5.1.0

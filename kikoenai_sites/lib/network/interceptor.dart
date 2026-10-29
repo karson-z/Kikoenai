@@ -1,3 +1,4 @@
+import 'package:kikoenai_core/core/utils/log/package_log.dart';
 import 'package:dio/dio.dart';
 
 import 'cookie_manager.dart';
@@ -136,7 +137,7 @@ class CookieInterceptor extends Interceptor {
 /// - 响应：`[Sites] RES [<status>] <uri>`
 /// - 错误：`[Sites] ERR [<status>] <message>`
 class LoggerInterceptor extends Interceptor {
-  /// 自定义日志输出函数（默认 print）
+  /// 自定义日志输出函数（默认使用 PackageLog）
   final void Function(String message) log;
 
   /// 是否打印请求体
@@ -152,8 +153,12 @@ class LoggerInterceptor extends Interceptor {
   }) : log = log ?? _defaultLog;
 
   static void _defaultLog(String message) {
-    // ignore: avoid_print
-    print(message);
+    const logger = PackageLog(tag: 'Sites');
+    if (message.startsWith('[Sites] ERR')) {
+      logger.e(message);
+    } else {
+      logger.d(message);
+    }
   }
 
   @override

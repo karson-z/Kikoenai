@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:kikoenai_core/core/utils/log/package_log.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai_core/core/model/album/va.dart';
@@ -35,8 +36,8 @@ class OtherUtil {
         try {
           return Work.fromJson(e);
         } catch (ex) {
-          print('解析Work失败: $ex');
-          print('数据: $e');
+          const PackageLog(tag: 'Other').w('解析Work失败: $ex');
+          const PackageLog(tag: 'Other').d('数据: $e');
           return null;
         }
       }).whereType<Work>().toList();

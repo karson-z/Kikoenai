@@ -96,7 +96,7 @@ class AutoUpdater {
         availableTypes.add(InstallationType.androidApk);
       }
     } catch (e) {
-      KikoenaiLogger().w('Update: detect installation types failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').w('Update: detect installation types failed', error: e);
     }
 
     if (availableTypes.isEmpty) {
@@ -138,7 +138,7 @@ class AutoUpdater {
 
       return null;
     } catch (e) {
-      KikoenaiLogger().e('Update: check for updates failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').e('Update: check for updates failed', error: e);
       rethrow;
     }
   }
@@ -156,7 +156,7 @@ class AutoUpdater {
       }
     } catch (e) {
       // 自动检查失败时不显示错误
-      KikoenaiLogger().w('Update: auto check for updates failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').w('Update: auto check for updates failed', error: e);
     }
   }
 
@@ -382,7 +382,7 @@ class AutoUpdater {
       _downloadUpdate(downloadInfo, expectedHash);
     } catch (e) {
       KikoenaiToast.error('下载失败: ${e.toString()}');
-      KikoenaiLogger().e('Update: download update failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').e('Update: download update failed', error: e);
     }
   }
 
@@ -490,7 +490,7 @@ class AutoUpdater {
         },
       );
 
-      KikoenaiLogger().e('Update: download update failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').e('Update: download update failed', error: e);
     }
   }
 
@@ -606,7 +606,7 @@ class AutoUpdater {
     if (await file.exists()) {
       // GitHub 未提供 digest 时不做哈希校验，直接复用已下载的文件
       if (expectedHash.isEmpty) {
-        KikoenaiLogger().i('Update: file already exists, skipping download: $filePath');
+        KikoenaiLogger(tag: 'AutoUpdate').i('Update: file already exists, skipping download: $filePath');
         _downloadProgress.value = 1.0;
         return filePath;
       }
@@ -615,18 +615,18 @@ class AutoUpdater {
         final localHash = await OtherUtil.calculateFileHash(file);
         if (localHash == expectedHash) {
           // 文件已存在且哈希匹配，直接返回
-          KikoenaiLogger().i('Update: file already exists and hash verified, skipping download: $filePath');
+          KikoenaiLogger(tag: 'AutoUpdate').i('Update: file already exists and hash verified, skipping download: $filePath');
           _downloadProgress.value = 1.0;
           return filePath;
         } else {
           // 文件存在但哈希不匹配，删除后重新下载
-          KikoenaiLogger().i(
+          KikoenaiLogger(tag: 'AutoUpdate').i(
               'Update: file hash mismatch detected (local: $localHash, expected: $expectedHash), deleting and re-downloading');
           await file.delete();
         }
       } catch (e) {
         // 验证过程中出错，删除文件重新下载
-        KikoenaiLogger().w('Update: file verification failed, deleting and re-downloading', error: e);
+        KikoenaiLogger(tag: 'AutoUpdate').w('Update: file verification failed, deleting and re-downloading', error: e);
         if (await file.exists()) {
           await file.delete();
         }
@@ -654,9 +654,9 @@ class AutoUpdater {
         await file.delete();
         throw Exception('文件完整性验证失败: 期望 $expectedHash，实际 $downloadedHash');
       }
-      KikoenaiLogger().i('Update: file downloaded and hash verified: $filePath');
+      KikoenaiLogger(tag: 'AutoUpdate').i('Update: file downloaded and hash verified: $filePath');
     } else {
-      KikoenaiLogger().i('Update: file downloaded (no digest provided): $filePath');
+      KikoenaiLogger(tag: 'AutoUpdate').i('Update: file downloaded (no digest provided): $filePath');
     }
 
     return filePath;
@@ -705,7 +705,7 @@ class AutoUpdater {
       }
     } catch (e) {
       KikoenaiToast.error('启动安装程序失败: ${e.toString()}');
-      KikoenaiLogger().e('Update: launch installer failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').e('Update: launch installer failed', error: e);
     }
   }
 
@@ -725,7 +725,7 @@ class AutoUpdater {
       KikoenaiDialog.dismiss();
     } catch (e) {
       KikoenaiToast.error('无法打开文件管理器');
-      KikoenaiLogger().w('Update: reveal in file manager failed', error: e);
+      KikoenaiLogger(tag: 'AutoUpdate').w('Update: reveal in file manager failed', error: e);
     }
   }
 

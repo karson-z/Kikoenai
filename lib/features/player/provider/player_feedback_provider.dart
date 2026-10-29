@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/cache/cache_service.dart';
 import 'package:kikoenai/features/player/provider/player_controller_provider.dart';
@@ -82,9 +82,9 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
           recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
           type: ListenEventType.start,
         );
-        debugPrint("[埋点] 开始播放作品: ${state.currentWorkId}");
+        KikoenaiLogger(tag: 'PlayerFeedbackProvider').d("[埋点] 开始播放作品: ${state.currentWorkId}");
       } catch (e) {
-        debugPrint("[埋点] 开始播放上报失败: $e");
+        KikoenaiLogger(tag: 'PlayerFeedbackProvider').w("[埋点] 开始播放上报失败: $e");
       }
       state = state.copyWith(hasReportedStart: true);
     }
@@ -111,9 +111,9 @@ class PlaybackTrackerNotifier extends Notifier<PlaybackTrackerState> {
           recommendUuid: currentUser.recommenderUuid ?? recommendUuid,
           type: ListenEventType.fiveMinutes,
         );
-        debugPrint("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
+        KikoenaiLogger(tag: 'PlayerFeedbackProvider').d("[埋点] 作品播放满5分钟: ${state.currentWorkId}");
       } catch (e) {
-        debugPrint("[埋点] 5分钟上报失败: $e");
+        KikoenaiLogger(tag: 'PlayerFeedbackProvider').w("[埋点] 5分钟上报失败: $e");
       }
 
       state = state.copyWith(hasReported5Mins: true);

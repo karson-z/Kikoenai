@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/service/file/file_node_library_index.dart';
 import 'package:kikoenai/features/file_browser/provider/file_browser_edit_actions.dart';
@@ -137,7 +137,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
             .updateScanTime(path: scanTarget.path, mode: scanTarget.scanMode);
       }
     } catch (e) {
-      debugPrint('FileScannerNotifier: 扫描失败: $e');
+      KikoenaiLogger(tag: 'FileScannerNotifier').w('FileScannerNotifier: 扫描失败: $e');
       state = state.copyWith(isScanning: false);
     }
   }
@@ -161,7 +161,7 @@ class FileScannerNotifier extends Notifier<FileBrowserState> {
   void stepIn(NodeFolder folder) {
     if (_libraryIndex == null) return;
     _libraryIndex!.stepIn(folder);
-    debugPrint('FileScannerNotifier: 进入子文件夹: ${folder.normalized}');
+    KikoenaiLogger(tag: 'FileScannerNotifier').d('FileScannerNotifier: 进入子文件夹: ${folder.normalized}');
     _updateStateFromIndex();
   }
 

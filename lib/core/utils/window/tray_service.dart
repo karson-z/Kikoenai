@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kikoenai/core/constants/app_images.dart';
@@ -60,7 +61,7 @@ class TrayService with TrayListener {
       await trayManager.setContextMenu(menu);
       _initialized = true;
     } catch (e) {
-      debugPrint('TrayService init failed: $e');
+      KikoenaiLogger(tag: 'TrayService').w('TrayService init failed: $e');
     }
   }
 
@@ -113,7 +114,7 @@ class TrayService with TrayListener {
     try {
       await PlayerService.instance.dispose();
     } catch (e) {
-      debugPrint('PlayerService dispose failed on exit: $e');
+      KikoenaiLogger(tag: 'TrayService').w('PlayerService dispose failed on exit: $e');
     }
     try {
       await trayManager.destroy();

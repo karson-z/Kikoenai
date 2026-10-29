@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/theme/theme_view_model.dart';
@@ -79,7 +80,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent>
           .supportsPartialTouchRegion();
       if (mounted) setState(() => _supportsPartialTouchRegion = supported);
     } catch (error) {
-      debugPrint('Failed to query subtitle overlay touch support: $error');
+      KikoenaiLogger(tag: 'OverlyLyricsPanel').w('Failed to query subtitle overlay touch support: $error');
       if (mounted) setState(() => _supportsPartialTouchRegion = false);
     }
   }
@@ -149,7 +150,7 @@ class _LyricsOverlayContentState extends ConsumerState<LyricsOverlayContent>
           }
         })
         .catchError((Object error) {
-          debugPrint('Failed to update subtitle overlay touch area: $error');
+          KikoenaiLogger(tag: 'OverlyLyricsPanel').w('Failed to update subtitle overlay touch area: $error');
         });
     return _nativeChange;
   }

@@ -63,7 +63,7 @@ Future<String?> fetchLyricContent(String? url, dynamic apiClient) async {
       }
     }
   } catch (e, stack) {
-    KikoenaiLogger().e("加载字幕失败, URL: $url", error: e, stackTrace: stack);
+    KikoenaiLogger(tag: 'PlayerLyricsProvider').e("加载字幕失败, URL: $url", error: e, stackTrace: stack);
     rethrow;
   }
 }

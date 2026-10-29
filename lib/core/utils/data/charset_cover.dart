@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:charset_converter/charset_converter.dart'; // 引入系统级字符转换
 
 typedef CharsetDecodeHandler = Future<String> Function(
@@ -60,7 +61,7 @@ class FileEncodingHelper {
       final bytes = await file.readAsBytes();
       return await decodeBytes(bytes); // 变更为 await
     } catch (e) {
-      print('[FileEncodingHelper] 读取文件失败: $e');
+      KikoenaiLogger(tag: 'CharsetCover').w('[FileEncodingHelper] 读取文件失败: $e');
       rethrow;
     }
   }
@@ -239,7 +240,7 @@ class FileEncodingHelper {
           bytes = utf8.encode(content);
       }
     } catch (e) {
-      print('[FileEncodingHelper] 编码转换失败 ($encoding)，回退到 UTF-8: $e');
+      KikoenaiLogger(tag: 'CharsetCover').w('[FileEncodingHelper] 编码转换失败 ($encoding)，回退到 UTF-8: $e');
       bytes = utf8.encode(content);
     }
 

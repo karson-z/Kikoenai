@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,7 @@ import 'features/overly-lyrics/provider/overly_lyrics_provider.dart';
 @pragma("vm:entry-point")
 void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+  KikoenaiLogger.initialize();
   await AppStorage.init();
   runApp(
     ProviderScope(
@@ -73,6 +75,7 @@ class _OverlayApp extends ConsumerWidget {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  KikoenaiLogger.initialize();
   MediaKit.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -87,7 +90,7 @@ void main() async {
   );
   await AudioServiceSingleton.init();
   await DownloadService.init();
-  debugPrint('开始初始化站点 API...');
+  KikoenaiLogger(tag: 'Main').d('开始初始化站点 API...');
   // api 服务器选择以及初始化不再阻塞
   unawaited(setupSiteApi());
   setupDesktopWindow();

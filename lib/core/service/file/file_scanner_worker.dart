@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai_core/core/constants/file_extensions.dart';
 import 'package:kikoenai_core/core/model/local_media/file_node.dart';
 import 'package:path/path.dart' as p;
@@ -57,6 +58,10 @@ class FileScanWorker {
 
     try {
       await for (final message in receivePort) {
+        if (message is _FileScanLogMessage) {
+          KikoenaiLogOutput.acceptForwarded(message.text);
+          continue;
+        }
         if (message is _FileScanBatchMessage) {
           yield FileScanBatch(
             nodes: message.nodes,
@@ -79,7 +84,13 @@ class FileScanWorker {
     }
   }
 
-  static Future<void> _scanEntry(_FileScanRequest request) async {
+  static Future<void> _scanEntry(_FileScanRequest request) =>
+      KikoenaiLogOutput.runWithSink(
+        (text) => request.sendPort.send(_FileScanLogMessage(text)),
+        () => _scan(request),
+      );
+
+  static Future<void> _scan(_FileScanRequest request) async {
     try {
       final batch = <FileNode>[];
       var scannedFileCount = 0;
@@ -259,4 +270,9 @@ class _FileScanErrorMessage {
 
 class _FileScanDoneMessage {
   const _FileScanDoneMessage();
+}
+
+class _FileScanLogMessage {
+  const _FileScanLogMessage(this.text);
+  final String text;
 }

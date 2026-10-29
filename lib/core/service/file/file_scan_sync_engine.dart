@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:kikoenai_core/core/constants/file_extensions.dart';
 import 'package:kikoenai_core/core/model/local_media/file_node.dart';
 import 'package:kikoenai_core/core/model/local_media/file_scanner_state.dart';
@@ -149,7 +149,7 @@ class FileScanSyncEngine {
       });
     }
 
-    debugPrint(
+    KikoenaiLogger(tag: 'FileScanSyncEngine').d(
       '[FileScanSyncEngine] '
       '${target.scanMode.name}: '
       '${nodes.length} files indexed, '

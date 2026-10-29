@@ -30,7 +30,7 @@ class FileWatcher {
     final watcher = Watcher(path);
     final subscription = watcher.events.listen(
           (event) => _handleFileEvent(event),
-      onError: (e) => KikoenaiLogger().e('Path $path watch error: $e'),
+      onError: (e) => KikoenaiLogger(tag: 'FileWatchService').e('Path $path watch error: $e'),
       cancelOnError: false,
     );
     _subscriptions[path] = subscription;
@@ -56,7 +56,7 @@ class FileWatcher {
       // TODO: 更新缓存中的 mtime 等元数据
         break;
     }
-    print('Event: ${event.type} on ${event.path}');
+    KikoenaiLogger(tag: 'FileWatchService').d('Event: ${event.type} on ${event.path}');
   }
 
   /// 销毁所有资源

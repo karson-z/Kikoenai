@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:html/parser.dart' show parse;
 
 import 'hvdb_scraper.dart';
@@ -20,7 +20,7 @@ class DlSiteScraper {
     final String rjcode = ScraperUtils.toRjCode(id);
     final String url =
         'https://www.dlsite.com/maniax/work/=/product_id/$rjcode.html';
-    debugPrint('当前页面请求路径为：$url');
+    KikoenaiLogger(tag: 'DlsiteScraper').d('当前页面请求路径为：$url');
 
     String ageLabel,
         genreLabel,
@@ -169,7 +169,7 @@ class DlSiteScraper {
     final String rjcode = ScraperUtils.toRjCode(id);
     final String url =
         'https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=$rjcode';
-    debugPrint('当前JSON请求路径为：$url');
+    KikoenaiLogger(tag: 'DlsiteScraper').d('当前JSON请求路径为：$url');
 
     final response = await ScraperHttpClient.retryGet(
       url,
@@ -191,7 +191,7 @@ class DlSiteScraper {
       work['rank'] = data['rank'];
     }
 
-    debugPrint('[RJ$rjcode] 成功从 DLSite 抓取 Dynamic 元数据...');
+    KikoenaiLogger(tag: 'DlsiteScraper').d('[RJ$rjcode] 成功从 DLSite 抓取 Dynamic 元数据...');
     return work;
   }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kikoenai/core/utils/scraper/dlsite_scraper.dart';
@@ -274,7 +275,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
       cancellationToken.throwIfCancelled();
 
       if (!ref.read(scraperWorkExistsProvider)(id)) {
-        debugPrint('[ScraperQueue] 开始爬取网络元数据: $id');
+        KikoenaiLogger(tag: 'ScraperController').d('[ScraperQueue] 开始爬取网络元数据: $id');
         final work = await ref.read(scraperWorkLoaderProvider)(
           id,
           cancellationToken,
@@ -282,7 +283,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
         cancellationToken.throwIfCancelled();
         await ref.read(scraperWorkSaverProvider)(id, work);
       } else {
-        debugPrint('[ScraperQueue] 命中本地缓存，跳过网络爬取: $id');
+        KikoenaiLogger(tag: 'ScraperController').d('[ScraperQueue] 命中本地缓存，跳过网络爬取: $id');
       }
       cancellationToken.throwIfCancelled();
 
@@ -303,7 +304,7 @@ class ScraperQueueNotifier extends Notifier<ScraperQueueState> {
         return;
       }
 
-      debugPrint('[ScraperQueue] 爬取任务崩溃: $parsingNode \n异常: $e\n$stack');
+      KikoenaiLogger(tag: 'ScraperController').w('[ScraperQueue] 爬取任务崩溃: $parsingNode \n异常: $e\n$stack');
 
       final failedNode = parsingNode.copyWith(nodeStatus: NodeStatus.pending);
 
