@@ -36,13 +36,13 @@ macOS Debug/Profile 和 Release 的沙盒权限增加 `com.apple.security.networ
 
 ```sh
 flutter test --no-pub --timeout 45s \
-  test/system_proxy_config_test.dart test/download_proxy_sync_test.dart \
-  test/proxy_routing_test.dart test/proxy_service_test.dart \
-  test/proxy_settings_test.dart test/scraper_http_client_test.dart \
-  test/proxy_settings_page_test.dart test/site_unavailable_page_test.dart \
-  test/download_page_test.dart test/user_download_entry_test.dart \
-  test/audio_service_overlay_controls_test.dart \
-  test/media_http_headers_registry_test.dart test/card_image_loading_test.dart
+  test/core/service/proxy/system_proxy_config_test.dart test/core/service/download/download_proxy_sync_test.dart \
+  test/core/service/proxy/proxy_routing_test.dart test/core/service/proxy/proxy_service_test.dart \
+  test/core/service/proxy/proxy_settings_test.dart test/core/utils/scraper/scraper_http_client_test.dart \
+  test/features/settings/page/proxy_settings_page_test.dart test/features/site/page/site_unavailable_page_test.dart \
+  test/features/download/page/download_page_test.dart test/features/user/page/user_download_entry_test.dart \
+  test/core/service/audio/audio_service_overlay_controls_test.dart \
+  test/core/service/player/media_http_headers_registry_test.dart test/core/widgets/card/card_image_loading_test.dart
 ```
 
 以上 34 项为本机 HTTP/TLS 测试、单元测试和 Widget 测试。原生播放器的 iOS 验证见下文；iOS 后台下载尚未联调。
@@ -74,11 +74,11 @@ Flutter 3.47.1：以下 18 项相关测试通过，覆盖同一 HttpClient 的 A
 
 ```sh
 flutter test --no-pub \
-  test/system_proxy_config_test.dart test/download_proxy_sync_test.dart \
-  test/proxy_routing_test.dart test/proxy_service_test.dart \
-  test/scraper_http_client_test.dart test/download_page_test.dart \
-  test/user_download_entry_test.dart test/audio_service_overlay_controls_test.dart \
-  test/media_http_headers_registry_test.dart
+  test/core/service/proxy/system_proxy_config_test.dart test/core/service/download/download_proxy_sync_test.dart \
+  test/core/service/proxy/proxy_routing_test.dart test/core/service/proxy/proxy_service_test.dart \
+  test/core/utils/scraper/scraper_http_client_test.dart test/features/download/page/download_page_test.dart \
+  test/features/user/page/user_download_entry_test.dart test/core/service/audio/audio_service_overlay_controls_test.dart \
+  test/core/service/player/media_http_headers_registry_test.dart
 ```
 
 对项目 macOS 依赖指定的 libmpv v0.6.0 归档做了独立本地网络验证（非完整 Flutter 应用联调）：
