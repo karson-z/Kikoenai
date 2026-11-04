@@ -178,6 +178,13 @@ class PlayerController extends Notifier<AppPlayerState> {
     final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled,
         defaultValue: false) as bool;
 
+    await _handler.setRepeatMode(repeatMode);
+    await _handler.setShuffleMode(
+      shuffleEnabled
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
+    );
+
     final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly,
         defaultValue: false) as bool;
 
@@ -553,6 +560,7 @@ class PlayerController extends Notifier<AppPlayerState> {
   Future<void> toggleShuffle() async {
     final enabled = !state.shuffleEnabled;
     state = state.copyWith(shuffleEnabled: enabled);
+    await _settingsBox.put(StorageKeys.playerShuffleEnabled, enabled);
     await _handler.setShuffleMode(
       enabled ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
@@ -560,6 +568,7 @@ class PlayerController extends Notifier<AppPlayerState> {
 
   Future<void> setRepeat(AudioServiceRepeatMode mode) async {
     state = state.copyWith(repeatMode: mode);
+    await _settingsBox.put(StorageKeys.playerRepeatMode, mode.index);
     await _handler.setRepeatMode(mode);
   }
 
