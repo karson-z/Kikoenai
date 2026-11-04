@@ -117,6 +117,7 @@ dev_dependencies:
   riverpod_lint: ^3.0.3
   freezed: ^3.0.0
   hive_ce_generator: ^1.9.3
+  vm_service: ^15.3.0
 
 # flutter_gen 资源代码生成配置：扫描 flutter.assets 生成类型安全常量（lib/gen/）
 flutter_gen:

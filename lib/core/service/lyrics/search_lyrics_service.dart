@@ -11,7 +11,7 @@ class LyricsDataProcess {
   /// 输入[nodes] 字幕文件列表
   static List<FileNode> batchLyricsProcess(List<FileNode> nodes) {
     return nodes.map((node) {
-      final cleanTitle = _generateFingerprint(node.title);
+      final cleanTitle = titleFingerprint(node.title);
       // 返回带有新标题的新对象
       return node.copyWith(title: cleanTitle);
     }).toList();
@@ -21,7 +21,7 @@ class LyricsDataProcess {
   /// 输入[playList] 播放列表
   static List<MediaItem> batchPlayListProcess(List<MediaItem> playList) {
     return playList.map((mediaItem) {
-      final cleanTitle = _generateFingerprint(mediaItem.title);
+      final cleanTitle = titleFingerprint(mediaItem.title);
       // 返回带有新标题的新对象
       return mediaItem.copyWith(title: cleanTitle);
     }).toList();
@@ -29,7 +29,7 @@ class LyricsDataProcess {
 
   /// [内部流水线] 生成文件指纹
   /// 将三个步骤串联：取文件名 -> 去扩展名 -> 去干扰字符 -> 归一化
-  static String _generateFingerprint(String originalName) {
+  static String titleFingerprint(String originalName) {
     String step1 = _removeAllExtensions(originalName);
     String step2 = _removeSuffixes(step1);
     String step3 = _normalizeForComparison(step2);
@@ -38,7 +38,8 @@ class LyricsDataProcess {
 
   /// 1. 安全去除扩展名
   static String _removeAllExtensions(String fileName) {
-    while (p.extension(fileName).isNotEmpty) {
+    while (FileExtensions.isMedia(fileName) ||
+        FileExtensions.isSubtitle(fileName)) {
       fileName = p.basenameWithoutExtension(fileName);
     }
     return fileName;
@@ -135,7 +136,9 @@ class SearchLyricsService {
     Ref ref,
   ) async {
     // A.拿到作品对应的文件列表
-    final workFiles = await ref.read(trackFileNodeIndexProvider(contentId).future);
+    final workFiles = await ref.read(
+      trackFileNodeIndexProvider(contentId).future,
+    );
     final subTitleFiles = SearchLyricsService.findSubTitlesInFiles(workFiles);
     return subTitleFiles;
   }

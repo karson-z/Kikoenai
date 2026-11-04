@@ -60,6 +60,7 @@ void main() {
       expect(restored.url, playback.url);
       expect(restored.id, playback.id);
       expect(restored.contentId, playback.contentId);
+      expect(restored.path, original.path);
     },
   );
 
@@ -128,9 +129,12 @@ void main() {
       Hive.registerAdapter<PlaybackItem>(PlaybackItemAdapter(), override: true);
       box = await Hive.openBox<PlaybackSession>('sessions');
       expect(box.get('new')!.queue.single.fileOrigin, origin);
+      expect(box.get('new')!.queue.single.path, origin.filePath);
       expect(box.get('new')!.id, original.id);
       expect(box.get('old')!.queue.single, legacy);
       expect(box.get('old')!.queue.single.fileOrigin, isNull);
+      expect(box.get('old')!.queue.single.path, isNull);
+      expect(box.get('old')!.queue.single.rootPath, isNull);
     },
   );
 }

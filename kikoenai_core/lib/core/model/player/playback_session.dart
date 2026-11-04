@@ -31,6 +31,10 @@ abstract class PlaybackItem with _$PlaybackItem {
     @HiveField(12) String? siteId,
     @HiveField(13) String? remoteId,
     @HiveField(14) FileOrigin? fileOrigin,
+
+    /// 原始文件层级，独立于可能为哈希/API 地址的播放 URL。
+    @HiveField(15) String? path,
+    @HiveField(16) String? rootPath,
   }) = _PlaybackItem;
 
   factory PlaybackItem.fromFileNode(
@@ -90,6 +94,12 @@ abstract class PlaybackItem with _$PlaybackItem {
       siteId: resolvedSiteId,
       remoteId: resolvedRemoteId,
       fileOrigin: node.fileOrigin,
+      path:
+          node.path ??
+          (node.folderPath == null
+              ? null
+              : NodeFolder.joinPath(node.folderPath!, node.title)),
+      rootPath: node.rootPath,
     );
   }
 
@@ -157,6 +167,8 @@ abstract class PlaybackItem with _$PlaybackItem {
       siteId: resolvedSiteId,
       remoteId: resolvedRemoteId,
       fileOrigin: FileOrigin.tryParse(extras['fileOrigin']),
+      path: extras['path'] as String?,
+      rootPath: extras['rootPath'] as String?,
     );
   }
 
@@ -213,6 +225,8 @@ abstract class PlaybackItem with _$PlaybackItem {
         'samCoverUrl': smallCoverUrl,
         'isVideo': isVideo,
         if (fileOrigin != null) 'fileOrigin': fileOrigin!.toJson(),
+        if (path != null) 'path': path,
+        if (rootPath != null) 'rootPath': rootPath,
       },
     );
   }
