@@ -41,6 +41,8 @@ cd kikoenai_core
 | --- | --- |
 | [test/core/routes/main_navigation_test.dart](../test/core/routes/main_navigation_test.dart) | [lib/core/routes/app_router.dart](../lib/core/routes/app_router.dart) |
 | [test/core/service/audio/audio_service_overlay_controls_test.dart](../test/core/service/audio/audio_service_overlay_controls_test.dart) | [lib/core/service/audio/audio_service.dart](../lib/core/service/audio/audio_service.dart) |
+| [test/core/service/audio/audio_service_shuffle_order_test.dart](../test/core/service/audio/audio_service_shuffle_order_test.dart) | [lib/core/service/audio/audio_service.dart](../lib/core/service/audio/audio_service.dart) |
+| [test/core/service/audio/shuffle_queue_order_test.dart](../test/core/service/audio/shuffle_queue_order_test.dart) | [lib/core/service/audio/shuffle_queue_order.dart](../lib/core/service/audio/shuffle_queue_order.dart) |
 | [test/core/service/download/download_proxy_sync_test.dart](../test/core/service/download/download_proxy_sync_test.dart) | [lib/core/service/download/download_proxy_sync.dart](../lib/core/service/download/download_proxy_sync.dart) |
 | [test/core/service/file/audio_folder_preference_logic_test.dart](../test/core/service/file/audio_folder_preference_logic_test.dart) | [lib/core/service/file/audio_folder_preference.dart](../lib/core/service/file/audio_folder_preference.dart) |
 | [test/core/service/file/file_node_library_index_source_test.dart](../test/core/service/file/file_node_library_index_source_test.dart) | [lib/core/service/file/file_node_library_index.dart](../lib/core/service/file/file_node_library_index.dart) |

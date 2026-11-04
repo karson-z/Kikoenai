@@ -23,8 +23,8 @@ import '../../overly-lyrics/provider/overly_lyrics_provider.dart';
 
 final playerControllerProvider =
     NotifierProvider<PlayerController, AppPlayerState>(() {
-  return PlayerController();
-});
+      return PlayerController();
+    });
 
 /// JSON 通道会把 `18.0` 编成整数再解回 `int`。`as double?` 会抛类型错误，
 /// 字号和整数坐标因此写不进 Hive。
@@ -175,8 +175,9 @@ class PlayerController extends Notifier<AppPlayerState> {
 
     final repeatMode = AudioServiceRepeatMode.values[repeatModeIndex];
 
-    final shuffleEnabled = _settingsBox.get(StorageKeys.playerShuffleEnabled,
-        defaultValue: false) as bool;
+    final shuffleEnabled =
+        _settingsBox.get(StorageKeys.playerShuffleEnabled, defaultValue: false)
+            as bool;
 
     await _handler.setRepeatMode(repeatMode);
     await _handler.setShuffleMode(
@@ -185,8 +186,9 @@ class PlayerController extends Notifier<AppPlayerState> {
           : AudioServiceShuffleMode.none,
     );
 
-    final isAudioOnly = _settingsBox.get(StorageKeys.playerIsAudioOnly,
-        defaultValue: false) as bool;
+    final isAudioOnly =
+        _settingsBox.get(StorageKeys.playerIsAudioOnly, defaultValue: false)
+            as bool;
 
     // 2. 将配置应用到底层播放引擎
     if (isAudioOnly) {
@@ -239,12 +241,15 @@ class PlayerController extends Notifier<AppPlayerState> {
     if (item == null) {
       return;
     }
-    final contentId =
-        item.source == NodeSource.asmrServer ? item.contentId : null;
+    final contentId = item.source == NodeSource.asmrServer
+        ? item.contentId
+        : null;
 
     // 4. 通知 Provider
     if (contentId != null) {
-      ref.read(playbackTrackerProvider.notifier).updatePlaybackStatus(
+      ref
+          .read(playbackTrackerProvider.notifier)
+          .updatePlaybackStatus(
             siteId: contentId.siteId,
             workId: contentId.remoteId,
             isPlaying: finalIsPlaying,
@@ -282,10 +287,14 @@ class PlayerController extends Notifier<AppPlayerState> {
   }
 
   void _listenToOverlayCommands() {
-    KikoenaiLogger(tag: 'PlayerControllerProvider').d('AudioController: 准备连接悬浮窗插件消息通道...');
+    KikoenaiLogger(
+      tag: 'PlayerControllerProvider',
+    ).d('AudioController: 准备连接悬浮窗插件消息通道...');
     final manager = ref.read(subtitleManagerProvider);
     _overlayCommandSubscription = manager.messagesFromOverlay.listen((message) {
-      KikoenaiLogger(tag: 'PlayerControllerProvider').d('AudioController: 插件通道捕获到指令 -> $message');
+      KikoenaiLogger(
+        tag: 'PlayerControllerProvider',
+      ).d('AudioController: 插件通道捕获到指令 -> $message');
       final action = message['action'] as String?;
       final payload = message['payload'];
       if (action == null) return;
@@ -332,7 +341,8 @@ class PlayerController extends Notifier<AppPlayerState> {
       final isCompleted = p.processingState == AudioProcessingState.completed;
 
       state = state.copyWith(
-        loading: p.processingState == AudioProcessingState.loading ||
+        loading:
+            p.processingState == AudioProcessingState.loading ||
             p.processingState == AudioProcessingState.buffering,
         progressBarState: newProgress,
       );
@@ -385,13 +395,21 @@ class PlayerController extends Notifier<AppPlayerState> {
     final playlist = state.playbackQueue;
     final current = _handler.mediaItem.value;
 
-    final isLooping = state.repeatMode != AudioServiceRepeatMode.none;
-
     if (playlist.isEmpty || current == null) {
       state = state.copyWith(isFirst: true, isLast: true);
       return;
     }
 
+    if (_handler is MyAudioHandler) {
+      final handler = _handler as MyAudioHandler;
+      state = state.copyWith(
+        isFirst: !handler.canSkipToPrevious,
+        isLast: !handler.canSkipToNext,
+      );
+      return;
+    }
+
+    final isLooping = state.repeatMode != AudioServiceRepeatMode.none;
     final i = playlist.indexWhere((item) => item.id == current.id);
 
     state = state.copyWith(
@@ -459,8 +477,9 @@ class PlayerController extends Notifier<AppPlayerState> {
   /// Returns false when the platform cannot provide it.
   Future<bool> loadScreenBrightness() async {
     try {
-      final brightness =
-          await ref.read(videoBrightnessServiceProvider).applicationBrightness;
+      final brightness = await ref
+          .read(videoBrightnessServiceProvider)
+          .applicationBrightness;
       state = state.copyWith(
         screenBrightness: brightness.clamp(0.0, 1.0).toDouble(),
       );
@@ -612,8 +631,9 @@ class PlayerController extends Notifier<AppPlayerState> {
     NodeSource? source,
   }) async {
     if (node.isAudio || node.isVideo) {
-      final audioFiles =
-          currentNodes.where((n) => n.isAudio || n.isVideo).toList();
+      final audioFiles = currentNodes
+          .where((n) => n.isAudio || n.isVideo)
+          .toList();
       final playbackItems = audioFiles.map((n) {
         // 批次里的节点可能来自不同目录（云盘搜索结果、递归收集）：按每个
         // 文件实际所在文件夹解析，避免把点击项的作品套到其它目录的文件上。
@@ -682,6 +702,7 @@ class PlayerController extends Notifier<AppPlayerState> {
         initialIndex: safeIndex,
         initialPosition: startPosition,
         autoPlay: true,
+        restoreShuffleOrder: true,
       );
     } else {
       await clear();
@@ -815,8 +836,8 @@ class PlayerController extends Notifier<AppPlayerState> {
     final current = _handler.mediaItem.value;
     final currentIndex = current == null
         ? _handler.playbackState.value.queueIndex ??
-            state.session?.currentIndex ??
-            0
+              state.session?.currentIndex ??
+              0
         : queue.indexWhere((item) => item.id == current.id);
     final previousItems = {
       for (final item in state.playbackQueue) item.id: item,

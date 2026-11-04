@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,6 +13,7 @@ import 'package:kikoenai/core/widgets/layout/app_toast.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:kikoenai/core/utils/log/kikoenai_log.dart';
 import '../../constants/app_constants.dart';
+import 'shuffle_queue_order.dart';
 import 'package:kikoenai_core/kikoenai_core.dart' as core_models;
 // ignore: unused_import
 import 'package:kikoenai_core/core/utils/other.dart';
@@ -78,10 +78,9 @@ class AudioServiceSingleton {
     );
     // configure 握手（含原生 MediaBrowser 绑定）到这里才算完成；
     // 之后挂上诊断：吞错的平台异常流 + 注册状态基线。
-    KikoenaiLogger(tag: 'AudioService').i(
-      '【媒体中心】AudioService.init 完成，原生服务已连接',
-      forceLog: true,
-    );
+    KikoenaiLogger(
+      tag: 'AudioService',
+    ).i('【媒体中心】AudioService.init 完成，原生服务已连接', forceLog: true);
     MediaCenterDiagnostics.attach();
   }
 }
@@ -100,6 +99,17 @@ class MyAudioHandler extends BaseAudioHandler {
   Box<dynamic> get _settingBox => AppStorage.settingsBox;
   final List<MediaItem> _playlist = [];
   int _currentIndex = -1;
+  final ShuffleQueueOrder _shuffleOrder = ShuffleQueueOrder();
+  bool get canSkipToPrevious =>
+      _playlist.isNotEmpty &&
+      (_shuffleMode == AudioServiceShuffleMode.all
+          ? _shuffleOrder.cursor > 0
+          : _currentIndex > 0 || _isRepeatingQueue);
+  bool get canSkipToNext =>
+      _playlist.isNotEmpty &&
+      (_shuffleMode == AudioServiceShuffleMode.all
+          ? _shuffleOrder.hasNext || _isRepeatingQueue
+          : _currentIndex < _playlist.length - 1 || _isRepeatingQueue);
   AudioServiceRepeatMode _repeatMode = AudioServiceRepeatMode.none;
   AudioServiceShuffleMode _shuffleMode = AudioServiceShuffleMode.none;
   double _normalVolume = 100.0;
@@ -210,7 +220,9 @@ class MyAudioHandler extends BaseAudioHandler {
     _audioSession = await AudioSession.instance;
     await _audioSession.configure(const AudioSessionConfiguration.music());
     _audioSessionReady = true;
-    KikoenaiLogger(tag: 'AudioService').d('【媒体中心】AudioSession 初始化完成', forceLog: true);
+    KikoenaiLogger(
+      tag: 'AudioService',
+    ).d('【媒体中心】AudioSession 初始化完成', forceLog: true);
 
     _audioSession.interruptionEventStream.listen((event) {
       if (isIgnoreAudioFocus) return;
@@ -297,6 +309,7 @@ class MyAudioHandler extends BaseAudioHandler {
     try {
       _currentIndex = index;
       final item = _playlist[index];
+      await _saveShuffleOrder();
 
       mediaItem.add(item);
       playbackState.add(
@@ -314,10 +327,9 @@ class MyAudioHandler extends BaseAudioHandler {
           // _setupAudioSession 是不等待的 async（AudioSession.instance 走平台
           // 通道往返）。启动后立刻点播放会撞上这个窗口，此时访问
           // _audioSession 会抛 LateInitializationError 并被上层静默吞掉。
-          KikoenaiLogger(tag: 'AudioService').w(
-            '【媒体中心】AudioSession 尚未就绪（启动竞态），本次跳过焦点申请',
-            forceLog: true,
-          );
+          KikoenaiLogger(
+            tag: 'AudioService',
+          ).w('【媒体中心】AudioSession 尚未就绪（启动竞态），本次跳过焦点申请', forceLog: true);
         } else {
           final success = await _audioSession.setActive(true);
           if (!success) {
@@ -337,10 +349,9 @@ class MyAudioHandler extends BaseAudioHandler {
           forceLog: true,
         );
         await _player.open(media, play: autoPlay);
-        KikoenaiLogger(tag: 'AudioService').d(
-          '【媒体中心】open 完成，等待 mpv playing 流边沿',
-          forceLog: true,
-        );
+        KikoenaiLogger(
+          tag: 'AudioService',
+        ).d('【媒体中心】open 完成，等待 mpv playing 流边沿', forceLog: true);
       } catch (error) {
         playbackState.add(
           playbackState.value.copyWith(
@@ -364,6 +375,7 @@ class MyAudioHandler extends BaseAudioHandler {
     required double volume,
     required AudioServiceRepeatMode repeatMode,
     required bool shuffleEnabled,
+    bool restoreShuffleOrder = true,
   }) async {
     await setVolume(volume);
     await setRepeatMode(repeatMode);
@@ -375,6 +387,8 @@ class MyAudioHandler extends BaseAudioHandler {
 
     _playlist.clear();
     _playlist.addAll(initialPlaylist);
+    _currentIndex = _safeQueueIndex(initialIndex);
+    _resetShuffleOrder(restore: restoreShuffleOrder);
     queue.add(List.from(_playlist));
 
     if (_playlist.isEmpty) return;
@@ -387,9 +401,12 @@ class MyAudioHandler extends BaseAudioHandler {
     int initialIndex = 0,
     Duration? initialPosition,
     bool autoPlay = true,
+    bool restoreShuffleOrder = false,
   }) async {
     _playlist.clear();
     _playlist.addAll(items);
+    _currentIndex = _safeQueueIndex(initialIndex);
+    _resetShuffleOrder(restore: restoreShuffleOrder);
     queue.add(List.from(_playlist));
 
     if (_playlist.isEmpty) return;
@@ -458,15 +475,13 @@ class MyAudioHandler extends BaseAudioHandler {
 
       if (_currentIndex != index || _playlist[index].id != item.id) return;
       await _player.open(media, play: wasPlaying);
-      KikoenaiLogger(tag: 'AudioService').i(
-        'WebDAV 播放认证已更新，当前媒体从 ${position.inMilliseconds} ms 重新加载',
-      );
+      KikoenaiLogger(
+        tag: 'AudioService',
+      ).i('WebDAV 播放认证已更新，当前媒体从 ${position.inMilliseconds} ms 重新加载');
     } catch (error, stackTrace) {
-      KikoenaiLogger(tag: 'AudioService').e(
-        '更新当前媒体的 WebDAV 播放认证失败',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      KikoenaiLogger(
+        tag: 'AudioService',
+      ).e('更新当前媒体的 WebDAV 播放认证失败', error: error, stackTrace: stackTrace);
     } finally {
       _isRefreshingMediaHttpHeaders = false;
       _drainPendingMediaHttpHeadersRefresh();
@@ -477,38 +492,65 @@ class MyAudioHandler extends BaseAudioHandler {
   Future<void> addQueueItem(MediaItem mediaItem) async {
     if (_playlist.any((item) => item.id == mediaItem.id)) return;
     _playlist.add(mediaItem);
+    if (_shuffleMode == AudioServiceShuffleMode.all) {
+      _shuffleOrder.addPending([mediaItem.id]);
+    }
     queue.add(List.from(_playlist));
+    await _saveShuffleOrder();
   }
 
   @override
   Future<void> addQueueItems(List<MediaItem> mediaItems) async {
     final existingIds = _playlist.map((e) => e.id).toSet();
-    final toAdd = mediaItems.where((e) => !existingIds.contains(e.id)).toList();
+    final toAdd = mediaItems.where((e) => existingIds.add(e.id)).toList();
     if (toAdd.isEmpty) return;
     _playlist.addAll(toAdd);
+    if (_shuffleMode == AudioServiceShuffleMode.all) {
+      _shuffleOrder.addPending(toAdd.map((item) => item.id));
+    }
     queue.add(List.from(_playlist));
+    await _saveShuffleOrder();
   }
 
   @override
   Future<void> removeQueueItemAt(int index) async {
     if (index < 0 || index >= _playlist.length) return;
+    final removedId = _playlist[index].id;
+    final removedCurrent = index == _currentIndex;
     _playlist.removeAt(index);
+    _shuffleOrder.remove(removedId);
     queue.add(List.from(_playlist));
-    if (index == _currentIndex) {
+    if (_playlist.isEmpty) {
+      _currentIndex = -1;
+      mediaItem.add(null);
+      playbackState.add(playbackState.value.copyWith(queueIndex: null));
+      await _clearShuffleOrder();
+      await _player.open(const Playlist([]));
+    } else if (removedCurrent) {
       final nextPlayIndex = index >= _playlist.length ? 0 : index;
+      _currentIndex = nextPlayIndex;
+      if (_shuffleMode == AudioServiceShuffleMode.all) {
+        _shuffleOrder.select(_playlist[nextPlayIndex].id, _queueIds);
+      }
       await _playIndex(nextPlayIndex);
     } else if (index < _currentIndex) {
       _currentIndex--;
       playbackState.add(
         playbackState.value.copyWith(queueIndex: _currentIndex),
       );
+      await _saveShuffleOrder();
+    } else {
+      await _saveShuffleOrder();
     }
   }
 
   Future<void> clearPlaylist() async {
     _playlist.clear();
     _currentIndex = -1;
+    _shuffleOrder.reset(const [], currentId: null);
     queue.add([]);
+    mediaItem.add(null);
+    await _clearShuffleOrder();
     await _player.open(const Playlist([]));
   }
 
@@ -519,14 +561,18 @@ class MyAudioHandler extends BaseAudioHandler {
   Future<void> skipToNext() async {
     if (_playlist.isEmpty) return;
 
-    int nextIndex = _currentIndex + 1;
-
+    int nextIndex;
     if (_shuffleMode == AudioServiceShuffleMode.all) {
-      nextIndex = Random().nextInt(_playlist.length);
+      final nextId = _shuffleOrder.next(
+        queueIds: _queueIds,
+        repeat: _isRepeatingQueue,
+      );
+      if (nextId == null) return;
+      nextIndex = _playlist.indexWhere((item) => item.id == nextId);
     } else {
+      nextIndex = _currentIndex + 1;
       if (nextIndex >= _playlist.length) {
-        if (_repeatMode == AudioServiceRepeatMode.all ||
-            _repeatMode == AudioServiceRepeatMode.group) {
+        if (_isRepeatingQueue) {
           nextIndex = 0;
         } else {
           return;
@@ -540,11 +586,13 @@ class MyAudioHandler extends BaseAudioHandler {
   Future<void> skipToPrevious() async {
     if (_playlist.isEmpty) return;
 
-    int prevIndex = _currentIndex - 1;
-
+    int prevIndex;
     if (_shuffleMode == AudioServiceShuffleMode.all) {
-      prevIndex = Random().nextInt(_playlist.length);
+      final previousId = _shuffleOrder.previous();
+      if (previousId == null) return;
+      prevIndex = _playlist.indexWhere((item) => item.id == previousId);
     } else {
+      prevIndex = _currentIndex - 1;
       if (prevIndex < 0) {
         if (_repeatMode == AudioServiceRepeatMode.all ||
             _repeatMode == AudioServiceRepeatMode.group) {
@@ -559,6 +607,11 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> skipToQueueItem(int index) async {
+    if (_shuffleMode == AudioServiceShuffleMode.all &&
+        index >= 0 &&
+        index < _playlist.length) {
+      _shuffleOrder.select(_playlist[index].id, _queueIds);
+    }
     await _playIndex(index);
   }
 
@@ -570,9 +623,57 @@ class MyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+    final wasEnabled = _shuffleMode == AudioServiceShuffleMode.all;
     _shuffleMode = shuffleMode;
+    if (!wasEnabled && shuffleMode == AudioServiceShuffleMode.all) {
+      _shuffleOrder.reset(_queueIds, currentId: _currentQueueId);
+    } else if (wasEnabled && shuffleMode != AudioServiceShuffleMode.all) {
+      _shuffleOrder.reset(const [], currentId: null);
+    }
     playbackState.add(playbackState.value.copyWith(shuffleMode: shuffleMode));
+    if (shuffleMode == AudioServiceShuffleMode.all) {
+      await _saveShuffleOrder();
+    } else {
+      await _clearShuffleOrder();
+    }
   }
+
+  List<String> get _queueIds => _playlist.map((item) => item.id).toList();
+
+  int _safeQueueIndex(int index) =>
+      _playlist.isEmpty ? -1 : index.clamp(0, _playlist.length - 1).toInt();
+
+  String? get _currentQueueId =>
+      _currentIndex >= 0 && _currentIndex < _playlist.length
+      ? _playlist[_currentIndex].id
+      : null;
+
+  bool get _isRepeatingQueue =>
+      _repeatMode == AudioServiceRepeatMode.all ||
+      _repeatMode == AudioServiceRepeatMode.group;
+
+  void _resetShuffleOrder({required bool restore}) {
+    _shuffleOrder.reset(
+      _queueIds,
+      currentId: _currentQueueId,
+      snapshot: restore && _shuffleMode == AudioServiceShuffleMode.all
+          ? _settingBox.get(StorageKeys.playerShuffleOrder)
+          : null,
+    );
+  }
+
+  Future<void> _saveShuffleOrder() async {
+    if (_shuffleMode != AudioServiceShuffleMode.all || _playlist.isEmpty) {
+      return;
+    }
+    await _settingBox.put(
+      StorageKeys.playerShuffleOrder,
+      _shuffleOrder.toSnapshot(_queueIds),
+    );
+  }
+
+  Future<void> _clearShuffleOrder() =>
+      _settingBox.delete(StorageKeys.playerShuffleOrder);
 
   void _listenForDurationChanges() {
     _player.stream.duration.listen((duration) {
@@ -725,6 +826,7 @@ class MyAudioHandler extends BaseAudioHandler {
       playbackState.add(
         playbackState.value.copyWith(queueIndex: _currentIndex),
       );
+      await _saveShuffleOrder();
     }
     return super.customAction(name, extras);
   }

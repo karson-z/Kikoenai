@@ -73,6 +73,9 @@ class StorageKeys {
   /// 播放器偏好：是否开启随机播放 (bool)
   static const String playerShuffleEnabled = 'player_shuffle_enabled';
 
+  /// Current queue's shuffled order and cursor.
+  static const String playerShuffleOrder = 'player_shuffle_order';
+
   /// 播放器偏好：是否开启仅音频模式 (bool)
   static const String playerIsAudioOnly = 'player_is_audio_only';
 
